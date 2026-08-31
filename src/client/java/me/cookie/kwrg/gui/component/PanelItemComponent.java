@@ -1,0 +1,280 @@
+package me.cookie.kwrg.gui.component;
+
+import io.wispforest.owo.ui.base.BaseUIComponent;
+import io.wispforest.owo.ui.core.*;
+import me.cookie.kwrg.gui.util.RenderUtil;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.ARGB;
+import net.minecraft.util.Mth;
+
+import java.util.function.BiConsumer;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
+
+public class PanelItemComponent extends BaseUIComponent {
+
+    public enum ItemType {
+        TRIGGER,
+        TOGGLE
+    }
+
+    public static final int BASE_HEIGHT = 28;
+    public static final int ITEM_SPACING = 4;
+    public static final int FULL_FOOTPRINT = BASE_HEIGHT + ITEM_SPACING; // 32px
+
+    private final String title;
+    private final ItemType type;
+    private final BiConsumer<PanelItemComponent, MouseButtonEvent> leftClickAction;
+    private final Consumer<PanelItemComponent> rightClickAction;
+    private final BooleanSupplier activeSupplier;
+    private boolean localToggled = false;
+
+    private float hoverAnimation = 0.0f;
+    private float activeAnimation = 0.0f;
+    private float clickFeedback = 0.0f;
+
+    private boolean playSpawnAnimation = false;
+    private float spawnProgress = 1.0f;
+
+    private boolean isDismissing = false;
+    private float dismissProgress = 0.0f;
+    private Runnable onDismissComplete = null;
+
+    public PanelItemComponent(String title, Runnable leftClickAction, Consumer<PanelItemComponent> rightClickAction) {
+        this(title, ItemType.TRIGGER, (item, click) -> {
+            if (leftClickAction != null) leftClickAction.run();
+        }, rightClickAction, () -> false);
+    }
+
+    public PanelItemComponent(String title, ItemType type, Runnable leftClickAction, Consumer<PanelItemComponent> rightClickAction, BooleanSupplier activeSupplier) {
+        this(title, type, (item, click) -> {
+            if (leftClickAction != null) leftClickAction.run();
+        }, rightClickAction, activeSupplier);
+    }
+
+    public PanelItemComponent(String title, ItemType type, BiConsumer<PanelItemComponent, MouseButtonEvent> leftClickAction, Consumer<PanelItemComponent> rightClickAction) {
+        this(title, type, leftClickAction, rightClickAction, () -> false);
+    }
+
+    public PanelItemComponent(String title, Runnable leftClickAction) {
+        this(title, ItemType.TRIGGER, (item, click) -> {
+            if (leftClickAction != null) leftClickAction.run();
+        }, null, () -> false);
+    }
+
+    public PanelItemComponent(String title) {
+        this(title, ItemType.TRIGGER, (item, click) -> {}, null, () -> false);
+    }
+
+    public PanelItemComponent(String title, ItemType type, Runnable leftClickAction, Consumer<PanelItemComponent> rightClickAction) {
+        this(title, type, (item, click) -> {
+            if (leftClickAction != null) leftClickAction.run();
+        }, rightClickAction, () -> false);
+    }
+
+    public PanelItemComponent(String title, ItemType type, BiConsumer<PanelItemComponent, MouseButtonEvent> leftClickAction, Consumer<PanelItemComponent> rightClickAction, BooleanSupplier activeSupplier) {
+        this.title = title;
+        this.type = type;
+        this.leftClickAction = leftClickAction;
+        this.rightClickAction = rightClickAction;
+        this.activeSupplier = activeSupplier;
+
+        this.cursorStyle(CursorStyle.HAND);
+        this.sizing(Sizing.fill(100), Sizing.fixed(BASE_HEIGHT));
+        this.margins(Insets.vertical(2));
+
+        if (this.isItemActive()) {
+            this.activeAnimation = 1.0f;
+        }
+    }
+
+    public PanelItemComponent withSpawnAnimation() {
+        this.playSpawnAnimation = true;
+        this.spawnProgress = 0.0f;
+        return this;
+    }
+
+    public void dismiss(Runnable onComplete) {
+        if (this.isDismissing) return;
+        this.isDismissing = true;
+        this.dismissProgress = 0.0f;
+        this.onDismissComplete = onComplete;
+    }
+
+    /**
+     * 【核心连续插值】：组件高度 + 间距（共 32px）整体连续收缩，彻底杜绝 4px 跳跃顿挫
+     */
+    public int getLayoutFootprint() {
+        if (this.isDismissing) {
+            float dismissEase = RenderUtil.easeOutCubic(this.dismissProgress);
+            return (int) Math.round((1.0f - dismissEase) * FULL_FOOTPRINT);
+        }
+        if (this.playSpawnAnimation && this.spawnProgress < 1.0f) {
+            float spawnEase = RenderUtil.easeOutCubic(this.spawnProgress);
+            return (int) Math.round(spawnEase * FULL_FOOTPRINT);
+        }
+        return FULL_FOOTPRINT;
+    }
+
+    public boolean isToggled() {
+        return this.isItemActive();
+    }
+
+    public void setToggled(boolean toggled) {
+        this.localToggled = toggled;
+    }
+
+    public boolean isItemActive() {
+        return this.activeSupplier != null ? this.activeSupplier.getAsBoolean() : this.localToggled;
+    }
+
+    public ItemType getType() {
+        return this.type;
+    }
+
+    @Override
+    public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
+        // ① 生成与销毁平滑步进
+        if (this.playSpawnAnimation && this.spawnProgress < 1.0f) {
+            this.spawnProgress = Math.min(1.0f, this.spawnProgress + delta * 0.30f);
+        }
+        float spawnEase = this.playSpawnAnimation ? RenderUtil.easeOutCubic(this.spawnProgress) : 1.0f;
+
+        if (this.isDismissing) {
+            this.dismissProgress = Math.min(1.0f, this.dismissProgress + delta * 0.32f);
+            if (this.dismissProgress >= 1.0f && this.onDismissComplete != null) {
+                Runnable callback = this.onDismissComplete;
+                this.onDismissComplete = null;
+                callback.run();
+                return;
+            }
+        }
+        float dismissEase = this.isDismissing ? RenderUtil.easeOutCubic(this.dismissProgress) : 0.0f;
+
+        float totalAlpha = (1.0f - dismissEase) * spawnEase;
+        int footprint = this.getLayoutFootprint();
+        if (totalAlpha <= 0.005f || footprint <= 1) return;
+
+        // ② 状态与悬停动画
+        float targetHover = this.hovered ? 1.0f : 0.0f;
+        this.hoverAnimation = Mth.clamp(this.hoverAnimation + (targetHover - this.hoverAnimation) * delta * 0.35f, 0.0f, 1.0f);
+
+        float targetActive = (this.type == ItemType.TOGGLE && this.isItemActive()) ? 1.0f : 0.0f;
+        this.activeAnimation = Mth.clamp(this.activeAnimation + (targetActive - this.activeAnimation) * delta * 0.30f, 0.0f, 1.0f);
+
+        if (this.clickFeedback > 0.01f) {
+            this.clickFeedback = Math.max(0.0f, this.clickFeedback - delta * 0.25f);
+        }
+
+        boolean active = this.isItemActive();
+
+        int x = this.x();
+        int y = this.y();
+        int width = this.width();
+        int height = BASE_HEIGHT;
+
+        // ③ 色彩计算
+        int baseR = (int) Mth.lerp(this.activeAnimation, 84f, 84f);
+        int baseG = (int) Mth.lerp(this.activeAnimation, 152f, 152f);
+        int baseB = (int) Mth.lerp(this.activeAnimation, 178f, 178f);
+
+        float bgAlphaFactor = Mth.lerp(this.activeAnimation, this.hoverAnimation * 0.22f, 0.85f + this.hoverAnimation * 0.15f);
+        int currentBgAlpha = (int) (255 * bgAlphaFactor * totalAlpha);
+
+        float borderAlphaFactor = Mth.lerp(this.activeAnimation, this.hoverAnimation * 0.45f, 1.0f);
+        int currentBorderAlpha = (int) (255 * borderAlphaFactor * totalAlpha);
+
+        int borderR = (int) Mth.lerp(this.activeAnimation, 84f, 123f);
+        int borderG = (int) Mth.lerp(this.activeAnimation, 152f, 187f);
+        int borderB = (int) Mth.lerp(this.activeAnimation, 178f, 211f);
+
+        Color itemBg = Color.ofArgb(ARGB.color(currentBgAlpha, baseR, baseG, baseB));
+        Color itemBorder = Color.ofArgb(ARGB.color(currentBorderAlpha, borderR, borderG, borderB));
+
+        // ④ GPU 矩阵平移与柔和缩放 (消灭抖动与突变)
+        float curScale = (0.80f + 0.20f * spawnEase) * (1.0f - dismissEase * 0.20f);
+        float cx = x + width / 2.0f;
+        float cy = y + Math.min(BASE_HEIGHT, footprint) / 2.0f;
+
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(cx, cy);
+        graphics.pose().scale(curScale, curScale);
+
+        int halfW = width / 2;
+        int halfH = BASE_HEIGHT / 2;
+        if (currentBgAlpha > 1 || currentBorderAlpha > 1) {
+            RenderUtil.drawRoundedPanel(graphics, -halfW, -halfH, width, BASE_HEIGHT, 6.0f, itemBg, itemBorder);
+        }
+
+        // ⑤ 标题文字
+        var font = Minecraft.getInstance().font;
+        float textScale = 0.88f;
+        float textH = font.lineHeight * textScale;
+
+        int textR = (int) Mth.lerp(Math.max(this.activeAnimation, this.hoverAnimation), 207f, 255f);
+        int textG = (int) Mth.lerp(Math.max(this.activeAnimation, this.hoverAnimation), 216f, 255f);
+        int textB = (int) Mth.lerp(Math.max(this.activeAnimation, this.hoverAnimation), 220f, 255f);
+        int textColor = ARGB.color((int) (255 * totalAlpha), textR, textG, textB);
+
+        graphics.drawText(Component.literal(this.title), -halfW + 10.0f, -textH / 2.0f, textScale, textColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
+
+        // ⑥ 状态指示灯
+        int dotX = halfW - 12;
+        int dotY = 0;
+
+        if (this.type == ItemType.TOGGLE) {
+            int dotR = (int) Mth.lerp(this.activeAnimation, 69f, 176f);
+            int dotG = (int) Mth.lerp(this.activeAnimation, 90f, 190f);
+            int dotB = (int) Mth.lerp(this.activeAnimation, 100f, 197f);
+            Color dotColor = Color.ofArgb(ARGB.color((int) (255 * totalAlpha), dotR, dotG, dotB));
+            Color dotFade = RenderUtil.withAlpha(ARGB.color(255, dotR, dotG, dotB), 0);
+            RenderUtil.drawAACircle(graphics, dotX, dotY, 2.5, dotColor, dotFade);
+        } else if (this.hoverAnimation > 0.05f) {
+            Color dotColor = Color.ofArgb(ARGB.color((int) (160 * this.hoverAnimation * totalAlpha), 176, 190, 197));
+            Color dotFade = Color.ofArgb(ARGB.color(0, 176, 190, 197));
+            RenderUtil.drawAACircle(graphics, dotX, dotY, 2.0, dotColor, dotFade);
+        }
+
+        graphics.pose().popMatrix();
+    }
+
+    @Override
+    public boolean onMouseDown(MouseButtonEvent click, boolean doubled) {
+        if (this.spawnProgress < 0.7f || this.isDismissing) return false;
+
+        if (click.button() == 0) {
+            this.clickFeedback = 1.0f;
+            if (this.type == ItemType.TOGGLE) {
+                this.localToggled = !this.localToggled;
+            }
+
+            System.out.println("[KWRG Action] >>> 左键点击: " + this.title);
+            if (this.leftClickAction != null) {
+                try {
+                    this.leftClickAction.accept(this, click);
+                } catch (Throwable t) {
+                    System.err.println("[KWRG Action] 执行出错: " + this.title);
+                    t.printStackTrace();
+                }
+            }
+            return true;
+        } else if (click.button() == 1) {
+            System.out.println("[KWRG UI] >>> 右键打开三级配置菜单: " + this.title);
+            if (this.rightClickAction != null) {
+                try {
+                    this.rightClickAction.accept(this);
+                } catch (Throwable t) {
+                    t.printStackTrace();
+                }
+            }
+            return true;
+        }
+        return super.onMouseDown(click, doubled);
+    }
+
+    public String getTitle() {
+        return this.title;
+    }
+}

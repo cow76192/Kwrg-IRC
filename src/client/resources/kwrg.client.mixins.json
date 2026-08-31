@@ -1,0 +1,25 @@
+{
+	"required": true,
+	"package": "me.cookie.kwrg.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"ServerResourceBypass",
+		"PackRepositoryMixin",
+		"GuiGreetingMixin",
+		"ClientPacketListenerMixin",
+		"LivingEntityMixin",
+		"EntityGlowMixin",
+		"MinecraftGlowMixin",
+		"OptionsMixin",
+		"MinecraftKeybindMixin",
+		"HudNotificationMixin",
+		"ChatComponentMixin"
+
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}
