@@ -16,7 +16,7 @@ import java.util.List;
 
 public class NameStyleModule extends Module {
 
-    private static final List<String> MODIFIERS = List.of("bold", "underline", "italic", "strikethrough", "obfuscated");
+    private static final List<String> MODIFIERS = List.of("bold", "underline", "italic", "strikethrough", "obfuscated", "flow");
 
     private static final String[] PRESETS = new String[]{
             "rainbow", "sunset", "ocean", "fire", "sakura", "neon", "gold", "purple",
@@ -79,8 +79,22 @@ public class NameStyleModule extends Module {
                                 newStyle = current.isEmpty() ? preset : current + " " + preset;
                             }
                         } else {
-                            // 颜色/渐变模式：快速替换应用
-                            newStyle = preset;
+                            // ★ 提取当前输入框中已启用的所有修饰词（如 bold, italic, underline 等） ★
+                            java.util.List<String> currentMods = new java.util.ArrayList<>();
+                            for (String mod : MODIFIERS) {
+                                if (current.toLowerCase().matches(".*\\b" + mod + "\\b.*")) {
+                                    currentMods.add(mod);
+                                }
+                            }
+
+                            // ★ 保留修饰词，仅替换主要样式（自动避免重复叠加） ★
+                            StringBuilder sb = new StringBuilder(preset);
+                            for (String mod : currentMods) {
+                                if (!preset.toLowerCase().matches(".*\\b" + mod + "\\b.*")) {
+                                    sb.append(" ").append(mod);
+                                }
+                            }
+                            newStyle = sb.toString().trim();
                         }
 
                         inputPane.setText(newStyle);
