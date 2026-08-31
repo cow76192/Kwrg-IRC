@@ -336,4 +336,11 @@ public class ColorUtil {
                 || token.equals("uppercase") || token.equals("lowercase") || token.equals("capitalize")
                 || token.equals("alt") || token.equals("sga") || token.equals("uniform");
     }
+
+    public static boolean isAnimatedStyle(String styleConfig) {
+        if (styleConfig == null || styleConfig.isBlank()) return false;
+        String lower = styleConfig.toLowerCase(Locale.ROOT);
+        return lower.contains("rainbow") || lower.contains("animate")
+                || lower.contains("flow") || lower.contains("wave") || lower.contains("scroll");
+    }
 }

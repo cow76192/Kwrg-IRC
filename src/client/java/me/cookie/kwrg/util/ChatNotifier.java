@@ -3,12 +3,17 @@ package me.cookie.kwrg.util;
 import me.cookie.kwrg.gui.notification.NotificationManager;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.chat.GuiMessage;
-import net.minecraft.network.chat.*;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
 
 import java.net.URI;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -21,27 +26,9 @@ public class ChatNotifier {
             Pattern.CASE_INSENSITIVE
     );
 
-    public record AnimationMeta(String rawText, String styleConfig) {}
-
-    private static final Map<GuiMessage, AnimationMeta> ACTIVE_ANIMATIONS = Collections.synchronizedMap(new WeakHashMap<>());
-    private static final Map<Component, AnimationMeta> PENDING_ANIM_META = new ConcurrentHashMap<>();
-
+    // 内部记录类
     private record StyledPart(Style style, String text) {}
     private record UrlRange(int start, int end, String cleanUrl, URI uri) {}
-
-
-    public static void sendInChatScreen(String text, String styleConfig) {
-        if (text == null || text.isEmpty()) return;
-
-        if (styleConfig != null && (styleConfig.contains("rainbow") || styleConfig.contains("flow")
-                || styleConfig.contains("wave") || styleConfig.contains("animate") || styleConfig.contains("scroll"))) {
-            Component initial = parseUrls(ColorUtil.applyStyle(text, styleConfig));
-            PENDING_ANIM_META.put(initial, new AnimationMeta(text, styleConfig));
-            sendInChatScreen(initial);
-        } else {
-            sendInChatScreen(parseUrls(ColorUtil.applyStyle(text, styleConfig)));
-        }
-    }
 
     public static void sendInChatScreen(String text) {
         if (text == null || text.isEmpty()) return;
@@ -50,53 +37,25 @@ public class ChatNotifier {
 
     public static void sendInChatScreen(Component component) {
         if (component == null) return;
+        // 自动进行无损样式 URL 识别与事件挂载
         Component parsed = parseUrls(component);
-
-        AnimationMeta meta = PENDING_ANIM_META.remove(component);
-        if (meta != null) {
-            PENDING_ANIM_META.put(parsed, meta);
-        }
-
         PENDING_MESSAGES.offer(parsed);
         Minecraft.getInstance().execute(ChatNotifier::flush);
     }
 
-    public static void onMessageAdded(GuiMessage message) {
-        AnimationMeta meta = PENDING_ANIM_META.remove(message.content());
-        if (meta != null) {
-            ACTIVE_ANIMATIONS.put(message, meta);
-        }
-    }
-
-    public static void updateMessageBinding(GuiMessage oldMsg, GuiMessage newMsg) {
-        AnimationMeta meta = ACTIVE_ANIMATIONS.remove(oldMsg);
-        if (meta != null) {
-            ACTIVE_ANIMATIONS.put(newMsg, meta);
-        }
-    }
-
-    public static boolean hasActiveAnimations() {
-        return !ACTIVE_ANIMATIONS.isEmpty();
-    }
-
-    public static Component getAnimatedFrame(GuiMessage msg) {
-        AnimationMeta meta = ACTIVE_ANIMATIONS.get(msg);
-        if (meta == null) return null;
-
-        // 每帧重新计算流动颜色，并无损挂载 URL 事件
-        return parseUrls(ColorUtil.applyStyle(meta.rawText(), meta.styleConfig()));
-    }
-
     /**
-     * 深度保留所有流光 Style 并挂载 URL 点击/悬停事件
+     * 深度遍历并保留 Component 原有的一切样式（ColorUtil 的彩虹色、渐变色、粗体、字体等），
+     * 仅在命中 URL 的字符区间上无损附加 ClickEvent 和 HoverEvent，不修改其原本的颜色外观。
      */
     public static Component parseUrls(Component component) {
         String fullText = component.getString();
         Matcher matcher = URL_PATTERN.matcher(fullText);
         if (!matcher.find()) {
+            // 没有 URL，原样返回，完全不破坏原有结构
             return component;
         }
 
+        // 1. 提取所有合法的 URL 区间
         List<UrlRange> ranges = new ArrayList<>();
         matcher.reset();
         while (matcher.find()) {
@@ -113,6 +72,7 @@ public class ChatNotifier {
             return component;
         }
 
+        // 2. 深度遍历原 Component，收集所有保留了各自独立 Style 的文本碎片
         List<StyledPart> parts = new ArrayList<>();
         component.visit((style, text) -> {
             if (!text.isEmpty()) {
@@ -121,6 +81,7 @@ public class ChatNotifier {
             return Optional.empty();
         }, Style.EMPTY);
 
+        // 3. 重新组装 Component：保留原本的所有颜色与样式，仅叠加 ClickEvent 和 HoverEvent
         MutableComponent root = Component.empty();
         int globalIndex = 0;
 
@@ -172,16 +133,6 @@ public class ChatNotifier {
         }
 
         return root;
-    }
-
-    public static void flush() {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player != null && mc.level != null) {
-            Component msg;
-            while ((msg = PENDING_MESSAGES.poll()) != null) {
-                mc.gui.getChat().addClientSystemMessage(msg);
-            }
-        }
     }
 
     public static void send(String message) {
@@ -259,6 +210,102 @@ public class ChatNotifier {
             NotificationManager.send(type, component, Component.empty());
         } else {
             NotificationManager.send(type, Component.literal(titleStr), Component.literal(subtitleStr));
+        }
+    }
+
+
+    public record AnimatedSegment(String text, String styleConfig, boolean isRaw) {}
+
+    private static final Queue<List<AnimatedSegment>> PENDING_ANIMATIONS = new ConcurrentLinkedQueue<>();
+    private static final java.util.Map<net.minecraft.client.multiplayer.chat.GuiMessage, List<AnimatedSegment>> ACTIVE_ANIMATIONS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * 发送支持动态流光的复合消息
+     */
+    public static void sendAnimatedInChatScreen(List<AnimatedSegment> segments) {
+        if (segments == null || segments.isEmpty()) return;
+
+        MutableComponent root = Component.empty();
+        boolean hasAnimation = false;
+
+        for (AnimatedSegment seg : segments) {
+            if (seg.isRaw()) {
+                root.append(Component.literal(seg.text()));
+            } else {
+                root.append(ColorUtil.applyStyle(seg.text(), seg.styleConfig()));
+                if (ColorUtil.isAnimatedStyle(seg.styleConfig())) {
+                    hasAnimation = true;
+                }
+            }
+        }
+
+        Component parsed = parseUrls(root);
+
+        // 若包含流光动画配置，则加入待捕获队列
+        if (hasAnimation) {
+            PENDING_ANIMATIONS.offer(segments);
+        }
+
+        PENDING_MESSAGES.offer(parsed);
+        Minecraft.getInstance().execute(ChatNotifier::flush);
+    }
+
+    /**
+     * 消息加入聊天框底层队列时调用：绑定动画元数据
+     */
+    public static void onMessageAdded(net.minecraft.client.multiplayer.chat.GuiMessage message) {
+        List<AnimatedSegment> segs = PENDING_ANIMATIONS.poll();
+        if (segs != null) {
+            ACTIVE_ANIMATIONS.put(message, segs);
+            // 限制活跃动画数量，防止内存泄漏
+            if (ACTIVE_ANIMATIONS.size() > 150) {
+                ACTIVE_ANIMATIONS.clear();
+            }
+        }
+    }
+
+    /**
+     * 判断当前是否有正在动画中的消息
+     */
+    public static boolean hasActiveAnimations() {
+        return !ACTIVE_ANIMATIONS.isEmpty();
+    }
+
+    /**
+     * 计算当前帧具有最新渐变流光色彩的 Component
+     */
+    public static Component getAnimatedFrame(net.minecraft.client.multiplayer.chat.GuiMessage msg) {
+        List<AnimatedSegment> segs = ACTIVE_ANIMATIONS.get(msg);
+        if (segs == null) return null;
+
+        MutableComponent root = Component.empty();
+        for (AnimatedSegment seg : segs) {
+            if (seg.isRaw()) {
+                root.append(Component.literal(seg.text()));
+            } else {
+                root.append(ColorUtil.applyStyle(seg.text(), seg.styleConfig()));
+            }
+        }
+        return parseUrls(root);
+    }
+
+    /**
+     * 更新渲染状态时的消息对象引用
+     */
+    public static void updateMessageBinding(net.minecraft.client.multiplayer.chat.GuiMessage oldMsg, net.minecraft.client.multiplayer.chat.GuiMessage newMsg) {
+        List<AnimatedSegment> segs = ACTIVE_ANIMATIONS.remove(oldMsg);
+        if (segs != null) {
+            ACTIVE_ANIMATIONS.put(newMsg, segs);
+        }
+    }
+
+    public static void flush() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null && mc.level != null) {
+            Component msg;
+            while ((msg = PENDING_MESSAGES.poll()) != null) {
+                mc.gui.getChat().addClientSystemMessage(msg);
+            }
         }
     }
 }

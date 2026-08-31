@@ -166,23 +166,27 @@ public class IrcMessageHandler {
     }
 
     public static void displayFormattedMessage(String rank, String nameStyle, String username, String chatStyle, String content) {
-        MutableComponent root = Component.empty();
+        java.util.List<ChatNotifier.AnimatedSegment> segments = new java.util.ArrayList<>();
 
+        // 1. 称号部分 (原样前缀)
         String formattedRank = formatRankWithBrackets(rank);
         if (!formattedRank.isEmpty()) {
-            root.append(Component.literal(formattedRank + " "));
+            segments.add(new ChatNotifier.AnimatedSegment(formattedRank + " ", "", true));
         }
 
-        Component styledName = ColorUtil.applyStyle(username, nameStyle);
-        root.append(styledName);
+        // 2. 玩家名字部分 (携带 nameStyle 样式配置)
+        segments.add(new ChatNotifier.AnimatedSegment(username, nameStyle, false));
 
-        root.append(Component.literal("§7: §r"));
+        // 3. 分隔符
+        segments.add(new ChatNotifier.AnimatedSegment("§7: §r", "", true));
 
-        Component styledContent = ColorUtil.applyStyle(content, chatStyle);
-        root.append(styledContent);
+        // 4. 聊天内容部分 (携带 chatStyle 样式配置)
+        segments.add(new ChatNotifier.AnimatedSegment(content, chatStyle, false));
 
-        IrcMessageHandler.printMessage(root);
+        // ★ 统一通过支持流光动画的引擎发送 ★
+        ChatNotifier.sendAnimatedInChatScreen(segments);
 
+        // 关注名单全屏提醒逻辑保持不变...
         for (String target : IrcConfig.get().importantPlayers) {
             if (target.equalsIgnoreCase(username)) {
                 showImportantTitle(rank, nameStyle, username, chatStyle, content);

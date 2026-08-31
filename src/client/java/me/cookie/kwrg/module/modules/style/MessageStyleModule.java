@@ -21,7 +21,7 @@ public class MessageStyleModule extends Module {
 
     private static final String[] PRESETS = new String[]{
             "rainbow", "sunset", "ocean", "fire", "sakura", "neon", "gold", "purple",
-            "bold", "underline", "italic", "strikethrough", "obfuscated",
+            "bold", "underline", "italic", "strikethrough", "obfuscated", "flow",
             "rainbow bold", "#FF55AA", "rgb(255,100,50)", "gradient(#ff758c,#ff7eb3)", "gradient(#00f2fe,#4facfe,#00ff87)"
     };
 
