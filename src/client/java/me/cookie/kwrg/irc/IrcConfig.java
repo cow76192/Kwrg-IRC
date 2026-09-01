@@ -34,9 +34,12 @@ public class IrcConfig {
     public String namestyle = "";
     public String chatstyle = "";
     public boolean hideArmor = false;
-    public boolean glowEnabled = true; // 【新增】：发光总开关持久化
+    public boolean glowEnabled = true;
     public String glowColor = "#00FF88";
     public List<String> importantPlayers = new ArrayList<>();
+
+    public boolean chat = true;
+    public String chatSound = "CAT_AMBIENT_BABY";
 
     private static IrcConfig instance = new IrcConfig();
     private static String currentProfileName = "default";

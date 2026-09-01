@@ -4,6 +4,7 @@ import me.cookie.kwrg.module.modules.config.*;
 import me.cookie.kwrg.module.modules.debug.*;
 import me.cookie.kwrg.module.modules.functions.*;
 import me.cookie.kwrg.module.modules.play.PlayModule;
+import me.cookie.kwrg.module.modules.style.ChatModule;
 import me.cookie.kwrg.module.modules.style.MessageStyleModule;
 import me.cookie.kwrg.module.modules.style.NameStyleModule;
 import me.cookie.kwrg.module.modules.style.RankModule;
@@ -34,6 +35,7 @@ public class ModuleManager {
         register(new RankModule());
         register(new NameStyleModule());
         register(new MessageStyleModule());
+        register(new ChatModule());
 
         // --- PLAY 模块 ---
         register(new PlayModule());
