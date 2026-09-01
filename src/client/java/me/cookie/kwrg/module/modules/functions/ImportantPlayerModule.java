@@ -22,14 +22,19 @@ public class ImportantPlayerModule extends Module {
     private boolean isOnlinePickerOpen = false;
 
     public ImportantPlayerModule() {
-        super("importantPlayer", Category.FUNCTIONS, PanelItemComponent.ItemType.TRIGGER);
+        super("importantPlayer", Category.FUNCTIONS, PanelItemComponent.ItemType.TOGGLE, () -> IrcConfig.get().importantPlayer);
     }
 
     @Override
-    public void onExecute() {}
+    public void onExecute() {
+        IrcConfig config = IrcConfig.get();
+        config.importantPlayer = !config.importantPlayer;
+        IrcConfig.save();
+    }
 
     @Override
     public void buildTertiaryUI(TertiaryPanelComponent panel) {
+        // 右键打开三级菜单，管理关注玩家列表
         ModuleManager.setPendingGuiQuery(true);
         try {
             IrcClient.queryOnline();
@@ -41,7 +46,8 @@ public class ImportantPlayerModule extends Module {
     public void renderImportantPlayersUI(TertiaryPanelComponent panel, String newlyAddedPlayer) {
         panel.clearChildren();
 
-        TextInputPaneComponent inputPane = new TextInputPaneComponent("输入名称 (回车添加 / 右键选择)...", player -> {
+        // ① 顶部输入框
+        TextInputPaneComponent inputPane = new TextInputPaneComponent("输入名称 (回车添加 / 右键选在线)...", player -> {
             String clean = player.trim();
             if (!clean.isEmpty()) {
                 toggleImportantWithGui(clean);
@@ -72,11 +78,10 @@ public class ImportantPlayerModule extends Module {
                             onlinePlayer,
                             PanelItemComponent.ItemType.TRIGGER,
                             () -> {
-                                // 【核心修改】：回填输入框同时直接同步触发添加关注！
                                 this.currentInputText = onlinePlayer;
                                 this.isOnlinePickerOpen = false;
-                                toggleImportantWithGui(onlinePlayer); // 同步保存添加
-                                renderImportantPlayersUI(panel, onlinePlayer); // 刷新列表并播放动画
+                                toggleImportantWithGui(onlinePlayer);
+                                renderImportantPlayersUI(panel, onlinePlayer);
                             },
                             null,
                             () -> onlinePlayer.equalsIgnoreCase(this.currentInputText)
@@ -88,7 +93,7 @@ public class ImportantPlayerModule extends Module {
         // ③ 居中提示标题
         panel.child(TextInfoPaneComponent.header("当前关注玩家 (Shift+左键取关)"));
 
-        // ④ 关注玩家列表 (Shift+左键平滑销毁取关)
+        // ④ 关注玩家列表
         List<String> list = IrcConfig.get().importantPlayers;
         if (list == null || list.isEmpty()) {
             panel.child(new PanelItemComponent("暂无关注玩家"));
@@ -160,5 +165,4 @@ public class ImportantPlayerModule extends Module {
         }
         return 0;
     }
-
 }

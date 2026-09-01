@@ -21,7 +21,6 @@ public class IrcConfig {
     private static final Logger LOGGER = LoggerFactory.getLogger("kwrg-irc-config");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    // 异步防抖保存调度线程池
     private static final ScheduledExecutorService SAVE_EXECUTOR = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "kwrg-config-saver");
         t.setDaemon(true);
@@ -29,7 +28,6 @@ public class IrcConfig {
     });
     private static ScheduledFuture<?> pendingSaveTask = null;
 
-    // 配置字段
     public String rank = "&7[Member&7]";
     public String namestyle = "";
     public String chatstyle = "";
@@ -40,6 +38,8 @@ public class IrcConfig {
 
     public boolean chat = true;
     public String chatSound = "CAT_AMBIENT_BABY";
+
+    public boolean importantPlayer = true;
 
     private static IrcConfig instance = new IrcConfig();
     private static String currentProfileName = "default";

@@ -13,7 +13,6 @@ import net.minecraft.network.chat.MutableComponent;
 
 import java.util.Objects;
 
-
 public class IrcMessageHandler {
 
     public static String extractFirstColor(String text) {
@@ -78,10 +77,6 @@ public class IrcMessageHandler {
                 String user = obj.has("username") ? obj.get("username").getAsString() : "";
                 boolean enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
 
-//                if (mc.getUser() != null && user.equalsIgnoreCase(mc.getUser().getName())) {
-//                    return;
-//                }
-
                 if ("hideArmor".equalsIgnoreCase(function)) {
                     HideArmorManager.setPlayerHideArmor(user, enabled);
                 }
@@ -117,7 +112,7 @@ public class IrcMessageHandler {
                 }
 
                 boolean isFromGui = me.cookie.kwrg.module.ModuleManager.updateOnlinePlayers(list);
-                if (isFromGui){
+                if (isFromGui) {
                     return;
                 }
                 IrcGlowManager.setOnlinePlayers(list);
@@ -125,7 +120,6 @@ public class IrcMessageHandler {
                 IrcMessageHandler.printMessage("§f" + (list.isEmpty() ? "§7暂无其他在线玩家" : String.join("§7, §f", list)));
                 return;
             }
-
 
             if (obj.has("type") && "play".equalsIgnoreCase(obj.get("type").getAsString())) {
                 String target = obj.has("target") ? obj.get("target").getAsString() : "";
@@ -179,6 +173,7 @@ public class IrcMessageHandler {
         segments.add(new ChatNotifier.AnimatedSegment(content, chatStyle, false));
         ChatNotifier.sendAnimatedInChatScreen(segments);
         ChatModule.playConfiguredSound();
+
         for (String target : IrcConfig.get().importantPlayers) {
             if (target.equalsIgnoreCase(username)) {
                 showImportantTitle(rank, nameStyle, username, chatStyle, content);
@@ -235,12 +230,16 @@ public class IrcMessageHandler {
         });
     }
 
+    // =========================================================
+    // 关注玩家 Title 逻辑
+    // =========================================================
+
     private static void showImportantTitle(String rank, String nameStyle, String username, String chatStyle, String content) {
         Minecraft mc = Minecraft.getInstance();
         mc.execute(() -> {
-
             mc.gui.setTimes(8, 35, 8);
 
+            // 1. 设置初始静态内容，启动原版 51 刻生命周期
             MutableComponent title = Component.empty();
             String formattedRank = formatRankWithBrackets(rank);
             if (!formattedRank.isEmpty()) {
@@ -251,7 +250,56 @@ public class IrcMessageHandler {
 
             Component subtitle = ColorUtil.applyStyle(content, chatStyle);
             mc.gui.setSubtitle(subtitle);
+
+            // 2. 启动动态流光管理器 (只更新内存数据供 Mixin 提取，绝不重复调用 setTitle)
+            ImportantTitleManager.start(rank, nameStyle, username, chatStyle, content);
         });
+    }
+
+    public static class ImportantTitleManager {
+        private static String rank = "";
+        private static String nameStyle = "";
+        private static String username = "";
+        private static String chatStyle = "";
+        private static String content = "";
+        private static boolean isShowing = false;
+
+        public static void start(String r, String ns, String u, String cs, String c) {
+            rank = r;
+            nameStyle = ns;
+            username = u;
+            chatStyle = cs;
+            content = c;
+            isShowing = true;
+        }
+
+        public static void stop() {
+            isShowing = false;
+        }
+
+        public static boolean isShowing() {
+            return isShowing;
+        }
+
+        /**
+         * 供 Mixin 在 @At("HEAD") 直接提取当前帧具有最新流光的 Title
+         */
+        public static Component getAnimatedTitle() {
+            MutableComponent title = Component.empty();
+            String formattedRank = formatRankWithBrackets(rank);
+            if (!formattedRank.isEmpty()) {
+                title.append(Component.literal(formattedRank + " "));
+            }
+            title.append(ColorUtil.applyStyle(username, nameStyle));
+            return title;
+        }
+
+        /**
+         * 供 Mixin 在 @At("HEAD") 直接提取当前帧具有最新流光的 Subtitle
+         */
+        public static Component getAnimatedSubtitle() {
+            return ColorUtil.applyStyle(content, chatStyle);
+        }
     }
 
     public static void printMessage(String text) {
