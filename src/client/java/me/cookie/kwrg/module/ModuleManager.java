@@ -30,6 +30,7 @@ public class ModuleManager {
         register(new GlowColorModule());
         register(new OnlineModule());
         register(new ImportantPlayerModule());
+        register(new PlayerFinderModule());
 
         // --- STYLE 模块 ---
         register(new RankModule());

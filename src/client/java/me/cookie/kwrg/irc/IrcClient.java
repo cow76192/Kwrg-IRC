@@ -2,8 +2,8 @@ package me.cookie.kwrg.irc;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import me.cookie.kwrg.irc.functions.HideArmorManager;
-import me.cookie.kwrg.irc.functions.IrcGlowManager;
+import me.cookie.kwrg.irc.manager.HideArmorManager;
+import me.cookie.kwrg.irc.manager.IrcGlowManager;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
@@ -17,6 +17,11 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class IrcClient {
 
@@ -28,10 +33,24 @@ public class IrcClient {
     private static Socket socket;
     private static PrintWriter writer;
     private static BufferedReader reader;
-    private static boolean isRunning = false;
+    private static volatile boolean isRunning = false;
 
     public static boolean isIrcChatActive = false;
     public static boolean isIrcConnect = false;
+
+    private static final int MAX_RECONNECT_ATTEMPTS = 3;
+    private static final AtomicInteger reconnectAttempts = new AtomicInteger(0);
+    private static volatile boolean shouldAutoReconnect = false;
+    private static final AtomicBoolean isConnecting = new AtomicBoolean(false);
+
+    private static final Object SEND_LOCK = new Object();
+
+    private static ScheduledExecutorService heartbeatExecutor;
+    private static final ScheduledExecutorService reconnectExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "IRC-Reconnect-Thread");
+        t.setDaemon(true);
+        return t;
+    });
 
     public static void connect() {
         if (isRunning) {
@@ -39,36 +58,95 @@ public class IrcClient {
             return;
         }
 
+        if (isConnecting.get()) {
+            ChatNotifier.send("§e[IRC] 正在连接中，请稍候...");
+            return;
+        }
+
+        reconnectAttempts.set(0);
+        shouldAutoReconnect = true;
+
+        doConnect(false);
+    }
+
+
+    private static void doConnect(boolean isSilent) {
+        if (!isConnecting.compareAndSet(false, true)) {
+            return;
+        }
+
         CompletableFuture.runAsync(() -> {
             try {
+                closeResources();
+
                 socket = new Socket();
-                socket.connect(new InetSocketAddress(HOST, PORT), 5000);
+                socket.setKeepAlive(true);
                 socket.setTcpNoDelay(true);
+                socket.connect(new InetSocketAddress(HOST, PORT), 5000);
 
                 writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
                 reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
                 isRunning = true;
-
-                ChatNotifier.send("§a[IRC] 成功连接至 IRC 服务器！");
                 isIrcConnect = true;
+
+                reconnectAttempts.set(0);
+
+                if (isSilent) {
+                    ChatNotifier.send("§a[IRC] 重新连接成功！");
+                    LOGGER.info("[IRC] 静默重连成功");
+                } else {
+                    ChatNotifier.send("§a[IRC] 成功连接至 IRC 服务器！");
+                    LOGGER.info("[IRC] 手动连接成功");
+                }
 
                 JsonObject joinJson = new JsonObject();
                 joinJson.addProperty("type", "join");
                 joinJson.addProperty("senderId", Minecraft.getInstance().getUser().getProfileId().toString());
                 joinJson.addProperty("username", Minecraft.getInstance().getUser().getName());
                 joinJson.addProperty("rank", IrcConfig.get().rank);
-                writer.println(GSON.toJson(joinJson));
+                sendRaw(GSON.toJson(joinJson));
 
                 sendFunctionSync("hideArmor", IrcConfig.get().hideArmor);
                 queryOnline();
-
+                startHeartbeat();
                 listenLoop();
             } catch (Exception e) {
-                LOGGER.error("[IRC] 连接失败: {}", e.getMessage());
-                ChatNotifier.send("§c[IRC] 无法连接到 IRC 服务器: " + e.getMessage());
-                disconnect();
+                LOGGER.warn("[IRC] 连接尝试失败 (isSilent={}): {}", isSilent, e.getMessage());
+                if (!isSilent) {
+                    ChatNotifier.send("§c[IRC] 无法连接到 IRC 服务器: " + e.getMessage());
+                }
+                handleDisconnect();
+            } finally {
+                isConnecting.set(false);
             }
         });
+    }
+
+    /**
+     * 启动定时心跳包（每 15 秒一次）
+     */
+    private static void startHeartbeat() {
+        stopHeartbeat();
+        heartbeatExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "IRC-Heartbeat-Thread");
+            t.setDaemon(true);
+            return t;
+        });
+
+        heartbeatExecutor.scheduleAtFixedRate(() -> {
+            if (isRunning && socket != null && !socket.isClosed()) {
+                JsonObject ping = new JsonObject();
+                ping.addProperty("type", "ping");
+                sendRaw(GSON.toJson(ping));
+            }
+        }, 15, 15, TimeUnit.SECONDS);
+    }
+
+    private static void stopHeartbeat() {
+        if (heartbeatExecutor != null && !heartbeatExecutor.isShutdown()) {
+            heartbeatExecutor.shutdownNow();
+            heartbeatExecutor = null;
+        }
     }
 
     private static void listenLoop() {
@@ -77,20 +155,63 @@ public class IrcClient {
             while (isRunning && reader != null && (line = reader.readLine()) != null) {
                 String rawJson = line.trim();
                 if (!rawJson.isEmpty()) {
+                    // 收到 pong 心跳直接静默跳过
+                    if (rawJson.contains("\"type\":\"pong\"") || rawJson.contains("\"type\": \"pong\"")) {
+                        continue;
+                    }
                     LOGGER.info("[IRC-RECV] 收到服务端广播: {}", rawJson);
                     Minecraft.getInstance().execute(() -> IrcMessageHandler.handleIncomingJson(rawJson));
                 }
             }
         } catch (Exception e) {
             if (isRunning) {
-                LOGGER.warn("[IRC] 接收中断: {}", e.getMessage());
-                IrcMessageHandler.printMessage("§c[IRC] 与服务器的连接已断开");
-                ChatNotifier.send("§c[IRC] 与服务器的连接已断开");
-                isIrcConnect = false;
+                LOGGER.warn("[IRC] 接收线程中断: {}", e.getMessage());
             }
         } finally {
-            disconnect();
+            handleDisconnect();
         }
+    }
+
+    /**
+     * 统一断开连接及静默重试逻辑
+     */
+    private static synchronized void handleDisconnect() {
+        isRunning = false;
+        isIrcConnect = false;
+        isIrcChatActive = false;
+
+        stopHeartbeat();
+        closeResources();
+
+        HideArmorManager.clear();
+        IrcGlowManager.clear();
+
+        if (shouldAutoReconnect) {
+            int currentAttempt = reconnectAttempts.incrementAndGet();
+            if (currentAttempt > MAX_RECONNECT_ATTEMPTS) {
+                // 达到 3 次上限，彻底放弃
+                shouldAutoReconnect = false;
+                LOGGER.info("[IRC] 自动重连已达 3 次上限，放弃重试。等待手动连接。");
+                ChatNotifier.send("§c[IRC] 与服务器连接断开，重连失败(3/3)");
+            } else {
+                LOGGER.info("[IRC] 连接断开，执行第 {}/{} 次重连...", currentAttempt, MAX_RECONNECT_ATTEMPTS);
+                reconnectExecutor.schedule(() -> {
+                    if (!isRunning && shouldAutoReconnect) {
+                        doConnect(true);
+                    }
+                }, 5, TimeUnit.SECONDS);
+            }
+        }
+    }
+    
+    private static void sendRaw(String jsonStr) {
+        CompletableFuture.runAsync(() -> {
+            synchronized (SEND_LOCK) {
+                if (writer != null && isRunning) {
+                    writer.println(jsonStr);
+                }
+            }
+        });
     }
 
     public static void sendMessage(String content) {
@@ -112,18 +233,14 @@ public class IrcClient {
         json.addProperty("chatstyle", config.chatstyle);
         json.addProperty("content", content);
 
-        String jsonStr = GSON.toJson(json);
-
         IrcMessageHandler.displayFormattedMessage(config.rank, config.namestyle, username, config.chatstyle, content);
 
-        CompletableFuture.runAsync(() -> {
-            if (writer != null && isRunning) {
-                writer.println(jsonStr);
-            } else {
-                IrcMessageHandler.printMessage("§c[IRC] 发送失败：未连接至 IRC 服务器！正在尝试重连...");
-                connect();
-            }
-        });
+        if (isRunning) {
+            sendRaw(GSON.toJson(json));
+        } else {
+            IrcMessageHandler.printMessage("§c[IRC] 发送失败：未连接至 IRC 服务器！正在尝试连接...");
+            connect();
+        }
     }
 
     public static void sendPlayEffect(String targetPlayer, String itemId) {
@@ -137,15 +254,12 @@ public class IrcClient {
         json.addProperty("target", targetPlayer);
         json.addProperty("item", itemId);
 
-        String jsonStr = GSON.toJson(json);
-        CompletableFuture.runAsync(() -> {
-            if (writer != null && isRunning) {
-                writer.println(jsonStr);
-            } else {
-                IrcMessageHandler.printMessage("§c[IRC] 发送失败：未连接至 IRC 服务器,正在尝试重连...");
-                connect();
-            }
-        });
+        if (isRunning) {
+            sendRaw(GSON.toJson(json));
+        } else {
+            IrcMessageHandler.printMessage("§c[IRC] 发送失败：未连接至 IRC 服务器，正在尝试连接...");
+            connect();
+        }
     }
 
     public static void sendPlayFail(String targetPlayer, String rawItem, String reason) {
@@ -160,12 +274,7 @@ public class IrcClient {
         json.addProperty("item", rawItem);
         json.addProperty("reason", reason);
 
-        String jsonStr = GSON.toJson(json);
-        CompletableFuture.runAsync(() -> {
-            if (writer != null && isRunning) {
-                writer.println(jsonStr);
-            }
-        });
+        sendRaw(GSON.toJson(json));
     }
 
     public static void sendFunctionSync(String functionName, boolean enabled) {
@@ -182,30 +291,38 @@ public class IrcClient {
         json.addProperty("username", username);
         json.addProperty("enabled", enabled);
 
-        String jsonStr = GSON.toJson(json);
-        CompletableFuture.runAsync(() -> {
-            if (writer != null && isRunning) {
-                writer.println(jsonStr);
-            }
-        });
+        sendRaw(GSON.toJson(json));
     }
 
     public static void queryOnline() {
-        CompletableFuture.runAsync(() -> {
-            if (writer != null && isRunning) {
-                JsonObject json = new JsonObject();
-                json.addProperty("type", "query_online");
-                writer.println(GSON.toJson(json));
-            } else {
-                IrcMessageHandler.printMessage("§c[IRC] 未连接至 IRC 服务器,正在尝试重连...");
-                connect();
-            }
-        });
+        if (isRunning) {
+            JsonObject json = new JsonObject();
+            json.addProperty("type", "query_online");
+            sendRaw(GSON.toJson(json));
+        } else {
+            IrcMessageHandler.printMessage("§c[IRC] 未连接至 IRC 服务器，正在尝试连接...");
+            connect();
+        }
     }
 
     public static void disconnect() {
+        shouldAutoReconnect = false;
+        reconnectAttempts.set(0);
+
+        stopHeartbeat();
+        closeResources();
+
         isRunning = false;
         isIrcChatActive = false;
+        isIrcConnect = false;
+
+        HideArmorManager.clear();
+        IrcGlowManager.clear();
+        LOGGER.info("[IRC] 已手动断开连接");
+        ChatNotifier.send("§c[IRC] 已断开连接");
+    }
+
+    private static void closeResources() {
         try {
             if (writer != null) writer.close();
             if (reader != null) reader.close();
@@ -215,10 +332,5 @@ public class IrcClient {
         writer = null;
         reader = null;
         socket = null;
-        HideArmorManager.clear();
-        IrcGlowManager.clear();
-        LOGGER.info("[IRC] 已断开连接");
-        ChatNotifier.send("§c[IRC] 已断开连接");
-        isIrcConnect = false;
     }
 }

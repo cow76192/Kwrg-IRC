@@ -14,7 +14,6 @@
 		"MinecraftKeybindMixin",
 		"HudNotificationMixin",
 		"ChatComponentMixin"
-
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -10,22 +10,26 @@ import java.util.function.Consumer;
 public class ColorSettingComponent extends FlowLayout {
 
     private final ColorPickerComponent picker;
-    private final TextInfoPaneComponent hexPane;
-    private final TextInfoPaneComponent rgbPane;
+    private TextInfoPaneComponent hexPane;
+    private TextInfoPaneComponent rgbPane;
 
     private int currentRgbInt = 0x00F2FE;
 
     public ColorSettingComponent(String initialColorStr, Consumer<String> onColorChanged) {
+        this(initialColorStr, onColorChanged, true);
+    }
+
+    public ColorSettingComponent(String initialColorStr, Consumer<String> onColorChanged, boolean showInfoPanes) {
         super(Sizing.fill(100), Sizing.content(), Algorithm.VERTICAL);
         this.margins(Insets.of(2, 0, 0, 0));
         this.surface(Surface.BLANK);
 
         this.picker = new ColorPickerComponent();
-        this.picker.sizing(Sizing.fill(100), Sizing.fixed(130));
+        this.picker.sizing(Sizing.fill(100), Sizing.fixed(120));
         this.picker.selectorWidth(12);
         this.picker.selectorPadding(6);
         this.picker.showAlpha(false);
-        this.picker.margins(Insets.bottom(6));
+        this.picker.margins(Insets.bottom(showInfoPanes ? 6 : 2));
 
         java.awt.Color currentColor = ColorUtil.parseSingleColor(initialColorStr);
         if (currentColor != null) {
@@ -35,8 +39,14 @@ public class ColorSettingComponent extends FlowLayout {
             this.picker.selectedColor(Color.ofRgb(0x00F2FE));
         }
 
-        this.hexPane = new TextInfoPaneComponent("HEX", this::getHex);
-        this.rgbPane = new TextInfoPaneComponent("RGB", this::getRgb);
+        this.child(this.picker);
+
+        if (showInfoPanes) {
+            this.hexPane = new TextInfoPaneComponent("HEX", this::getHex);
+            this.rgbPane = new TextInfoPaneComponent("RGB", this::getRgb);
+            this.child(this.hexPane);
+            this.child(this.rgbPane);
+        }
 
         this.picker.onChanged().subscribe(newColor -> {
             this.currentRgbInt = newColor.rgb() & 0xFFFFFF;
@@ -45,10 +55,6 @@ public class ColorSettingComponent extends FlowLayout {
                 onColorChanged.accept(hex);
             }
         });
-
-        this.child(this.picker);
-        this.child(this.hexPane);
-        this.child(this.rgbPane);
     }
 
     public String getHex() {

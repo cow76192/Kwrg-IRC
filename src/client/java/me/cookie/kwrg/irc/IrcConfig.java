@@ -40,6 +40,7 @@ public class IrcConfig {
     public String chatSound = "CAT_AMBIENT_BABY";
 
     public boolean importantPlayer = true;
+    public String playerFinderColor = "#FF3333";
 
     private static IrcConfig instance = new IrcConfig();
     private static String currentProfileName = "default";

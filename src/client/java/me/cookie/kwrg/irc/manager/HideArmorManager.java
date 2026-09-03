@@ -1,9 +1,8 @@
-package me.cookie.kwrg.irc.functions;
+package me.cookie.kwrg.irc.manager;
 
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.entity.state.HumanoidRenderState;
 import net.minecraft.network.chat.Component;
 
 import java.lang.reflect.Field;

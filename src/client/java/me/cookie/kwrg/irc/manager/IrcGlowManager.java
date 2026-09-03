@@ -1,4 +1,4 @@
-package me.cookie.kwrg.irc.functions;
+package me.cookie.kwrg.irc.manager;
 
 import me.cookie.kwrg.irc.IrcConfig;
 import net.minecraft.client.Minecraft;

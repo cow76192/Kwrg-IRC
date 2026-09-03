@@ -2,8 +2,8 @@ package me.cookie.kwrg.irc;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import me.cookie.kwrg.irc.functions.HideArmorManager;
-import me.cookie.kwrg.irc.functions.IrcGlowManager;
+import me.cookie.kwrg.irc.manager.HideArmorManager;
+import me.cookie.kwrg.irc.manager.IrcGlowManager;
 import me.cookie.kwrg.module.modules.style.ChatModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
@@ -88,7 +88,7 @@ public class IrcMessageHandler {
                 String rank = obj.has("rank") ? obj.get("rank").getAsString() : "";
                 String formattedRank = formatRankWithBrackets(rank);
                 IrcClient.sendFunctionSync("hideArmor", IrcConfig.get().hideArmor);
-                me.cookie.kwrg.irc.functions.IrcGlowManager.addPlayer(user);
+                me.cookie.kwrg.irc.manager.IrcGlowManager.addPlayer(user);
                 IrcMessageHandler.printMessage("§e[IRC] " + (formattedRank.isEmpty() ? "" : formattedRank + " ") + "§f" + user + " §a加入了 IRC!");
                 return;
             }
@@ -96,7 +96,7 @@ public class IrcMessageHandler {
             if ("player_leave".equalsIgnoreCase(type)) {
                 String user = obj.has("username") ? obj.get("username").getAsString() : "Unknown";
                 HideArmorManager.setRemotePlayerHideArmor(user, false);
-                me.cookie.kwrg.irc.functions.IrcGlowManager.removePlayer(user);
+                me.cookie.kwrg.irc.manager.IrcGlowManager.removePlayer(user);
                 IrcMessageHandler.printMessage("§7[IRC] 玩家 §f" + user + " §7退出了 IRC");
                 return;
             }
