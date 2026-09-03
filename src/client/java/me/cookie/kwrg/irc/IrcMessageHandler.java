@@ -153,6 +153,10 @@ public class IrcMessageHandler {
             String nameStyle = obj.has("namestyle") ? obj.get("namestyle").getAsString() : "";
             String chatStyle = obj.has("chatstyle") ? obj.get("chatstyle").getAsString() : "";
             String content = obj.has("content") ? obj.get("content").getAsString() : "";
+            String channel = obj.has("channel") ? obj.get("channel").getAsString() : "";
+            if (!channel.isBlank()) {
+                rank = "&b[#" + channel + "&b]&r " + rank;
+            }
 
             displayFormattedMessage(rank, nameStyle, username, chatStyle, content);
         } catch (Exception e) {
@@ -230,16 +234,11 @@ public class IrcMessageHandler {
         });
     }
 
-    // =========================================================
-    // 关注玩家 Title 逻辑
-    // =========================================================
-
     private static void showImportantTitle(String rank, String nameStyle, String username, String chatStyle, String content) {
         Minecraft mc = Minecraft.getInstance();
         mc.execute(() -> {
             mc.gui.setTimes(8, 35, 8);
 
-            // 1. 设置初始静态内容，启动原版 51 刻生命周期
             MutableComponent title = Component.empty();
             String formattedRank = formatRankWithBrackets(rank);
             if (!formattedRank.isEmpty()) {
@@ -251,7 +250,6 @@ public class IrcMessageHandler {
             Component subtitle = ColorUtil.applyStyle(content, chatStyle);
             mc.gui.setSubtitle(subtitle);
 
-            // 2. 启动动态流光管理器 (只更新内存数据供 Mixin 提取，绝不重复调用 setTitle)
             ImportantTitleManager.start(rank, nameStyle, username, chatStyle, content);
         });
     }
@@ -281,9 +279,6 @@ public class IrcMessageHandler {
             return isShowing;
         }
 
-        /**
-         * 供 Mixin 在 @At("HEAD") 直接提取当前帧具有最新流光的 Title
-         */
         public static Component getAnimatedTitle() {
             MutableComponent title = Component.empty();
             String formattedRank = formatRankWithBrackets(rank);
@@ -294,9 +289,6 @@ public class IrcMessageHandler {
             return title;
         }
 
-        /**
-         * 供 Mixin 在 @At("HEAD") 直接提取当前帧具有最新流光的 Subtitle
-         */
         public static Component getAnimatedSubtitle() {
             return ColorUtil.applyStyle(content, chatStyle);
         }

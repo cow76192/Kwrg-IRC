@@ -42,6 +42,10 @@ public class IrcConfig {
     public boolean importantPlayer = true;
     public String playerFinderColor = "#FF3333";
 
+    public boolean channelEnabled = false;
+    public String currentChannel = "";
+    public List<String> savedChannels = new ArrayList<>();
+
     private static IrcConfig instance = new IrcConfig();
     private static String currentProfileName = "default";
 

@@ -24,7 +24,7 @@ public class TextInputPaneComponent extends BaseUIComponent {
     private final String placeholder;
     private final Consumer<String> onEnterSubmit;
     private Consumer<String> onTextChanged = null;
-    private Runnable onRightClick = null; // 【新增】：右键监听
+    private Runnable onRightClick = null;
     private String text = "";
 
     private boolean readOnly = false;

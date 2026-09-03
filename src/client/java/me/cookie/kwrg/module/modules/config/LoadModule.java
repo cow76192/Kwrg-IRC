@@ -1,5 +1,7 @@
 package me.cookie.kwrg.module.modules.config;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.TextInputPaneComponent;
@@ -19,6 +21,11 @@ import java.util.List;
 
 public class LoadModule extends Module {
 
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+
+    // 暂存从剪贴板解析出的 JSON 文本
+    private String pendingImportJson = null;
+
     public LoadModule() {
         super("load", Category.CONFIG, PanelItemComponent.ItemType.TRIGGER);
     }
@@ -28,22 +35,71 @@ public class LoadModule extends Module {
 
     @Override
     public void buildTertiaryUI(TertiaryPanelComponent panel) {
+        this.pendingImportJson = null; // 打开时重置导入暂存
         renderConfigManagerUI(panel, null);
     }
 
     private void renderConfigManagerUI(TertiaryPanelComponent panel, String newlyAddedProfile) {
         panel.clearChildren();
 
-        panel.child(new TextInputPaneComponent("输入配置名称 (回车新建)...", name -> {
+        String placeholder = this.pendingImportJson != null
+                ? "已读取剪贴板！输入名称按回车保存..."
+                : "输入配置名称 (回车新建 / 右键导入)...";
+
+        TextInputPaneComponent inputPane = new TextInputPaneComponent(placeholder, name -> {
             String cleanName = name.trim();
-            if (!cleanName.isEmpty()) {
+            if (cleanName.isEmpty()) return;
+
+            if (this.pendingImportJson != null) {
+                try {
+                    Path dir = IrcConfig.getKwrgDir();
+                    Files.createDirectories(dir);
+                    Path filePath = dir.resolve(cleanName + ".json");
+
+                    Files.writeString(filePath, this.pendingImportJson);
+                    this.pendingImportJson = null;
+
+                    IrcConfig.loadProfile(cleanName, true);
+                    ChatNotifier.send("§a[IRC] 成功从剪贴板导入并创建配置: §f" + cleanName + ".json");
+                    renderConfigManagerUI(panel, cleanName);
+                } catch (Exception e) {
+                    ChatNotifier.send("§c[IRC] 保存导入配置失败: " + e.getMessage());
+                }
+            } else {
+                // 【普通新建配置】
                 IrcConfig.createProfile(cleanName);
                 IrcConfig.save();
                 ChatNotifier.send("§a[IRC] 已新建并切换至配置: §f" + cleanName + ".json");
                 renderConfigManagerUI(panel, cleanName);
             }
-        }));
+        });
 
+        inputPane.onRightClick(() -> {
+            String clipboard = Minecraft.getInstance().keyboardHandler.getClipboard();
+            if (clipboard == null || clipboard.isBlank()) {
+                ChatNotifier.send("§c[IRC] 剪贴板为空！请先复制配置的 JSON 文本。");
+                return;
+            }
+
+            try {
+                IrcConfig parsed = GSON.fromJson(clipboard.trim(), IrcConfig.class);
+                if (parsed == null || parsed.glowColor == null) {
+                    throw new IllegalArgumentException("配置缺少关键字段");
+                }
+
+                this.pendingImportJson = GSON.toJson(parsed);
+
+                ChatNotifier.send("§a[IRC] 剪贴板 JSON 解析成功！");
+                ChatNotifier.send("§e[IRC] 请在输入框输入该配置文件的名称，按回车键完成保存。");
+
+                renderConfigManagerUI(panel, null);
+            } catch (Exception e) {
+                this.pendingImportJson = null;
+                ChatNotifier.send("§c[IRC] 剪贴板内容不是有效的配置 JSON！解析失败。");
+            }
+        });
+
+        panel.child(inputPane);
         panel.child(TextInfoPaneComponent.header("配置文件列表 (Shift+左键删除)"));
 
         List<String> profiles = new ArrayList<>(IrcConfig.listExistingProfiles());
@@ -60,7 +116,7 @@ public class LoadModule extends Module {
 
                         if (isShiftDown) {
                             if ("default".equalsIgnoreCase(profileName)) {
-                                ChatNotifier.send("§c[IRC]  default.json 受保护不可删除！");
+                                ChatNotifier.send("§c[IRC] 默认配置文件 default.json 受保护不可删除！");
                                 return;
                             }
 

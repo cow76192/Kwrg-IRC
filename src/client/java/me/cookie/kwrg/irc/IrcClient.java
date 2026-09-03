@@ -107,6 +107,7 @@ public class IrcClient {
                 sendRaw(GSON.toJson(joinJson));
 
                 sendFunctionSync("hideArmor", IrcConfig.get().hideArmor);
+                sendChannelSync(IrcConfig.get().currentChannel, IrcConfig.get().channelEnabled);
                 queryOnline();
                 startHeartbeat();
                 listenLoop();
@@ -232,6 +233,9 @@ public class IrcClient {
         json.addProperty("namestyle", config.namestyle);
         json.addProperty("chatstyle", config.chatstyle);
         json.addProperty("content", content);
+        if (config.channelEnabled && config.currentChannel != null && !config.currentChannel.isBlank()) {
+            json.addProperty("channel", config.currentChannel);
+        }
 
         IrcMessageHandler.displayFormattedMessage(config.rank, config.namestyle, username, config.chatstyle, content);
 
@@ -290,6 +294,23 @@ public class IrcClient {
         json.addProperty("senderId", senderId);
         json.addProperty("username", username);
         json.addProperty("enabled", enabled);
+
+        sendRaw(GSON.toJson(json));
+    }
+
+    public static void sendChannelSync(String channel, boolean enabled) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getUser() == null) return;
+
+        String senderId = mc.player != null ? mc.player.getStringUUID() : mc.getUser().getProfileId().toString();
+        String username = mc.getUser().getName();
+
+        JsonObject json = new JsonObject();
+        json.addProperty("type", "channel_sync");
+        json.addProperty("channel", channel != null ? channel : "");
+        json.addProperty("enabled", enabled);
+        json.addProperty("senderId", senderId);
+        json.addProperty("username", username);
 
         sendRaw(GSON.toJson(json));
     }
