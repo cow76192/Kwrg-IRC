@@ -3,6 +3,7 @@ package me.cookie.kwrg.mixin;
 import me.cookie.kwrg.gui.notification.NotificationManager;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.irc.IrcMessageHandler;
+import me.cookie.kwrg.render.PlayerFinderRadarRenderer;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
@@ -47,5 +48,6 @@ public abstract class HudNotificationMixin {
         }
 
         NotificationManager.render(graphics, mouseX, mouseY, delta);
+        PlayerFinderRadarRenderer.render(graphics, delta);
     }
 }
