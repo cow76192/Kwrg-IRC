@@ -29,6 +29,8 @@ public class TextInfoPaneComponent extends BaseUIComponent {
     private float clickFeedback = 0.0f;
     private float currentAnimatedHeight = BASE_HEIGHT;
 
+    private java.util.function.BiConsumer<TextInfoPaneComponent, MouseButtonEvent> clickAction = null;
+
     public TextInfoPaneComponent(String label, Supplier<String> valueSupplier) {
         this(label, valueSupplier, null, true, false);
     }
@@ -39,6 +41,13 @@ public class TextInfoPaneComponent extends BaseUIComponent {
 
     public TextInfoPaneComponent(String label, Supplier<String> valueSupplier, boolean copyable, boolean isHeader) {
         this(label, valueSupplier, null, copyable, isHeader);
+    }
+
+    public static TextInfoPaneComponent header(String centeredTitle, java.util.function.BiConsumer<TextInfoPaneComponent, MouseButtonEvent> clickAction) {
+        TextInfoPaneComponent pane = new TextInfoPaneComponent(centeredTitle, () -> "", false, true);
+        pane.clickAction = clickAction;
+        pane.cursorStyle(CursorStyle.HAND);
+        return pane;
     }
 
     public TextInfoPaneComponent(String label, Supplier<String> valueSupplier, Supplier<Component> componentSupplier, boolean copyable, boolean isHeader) {
@@ -78,7 +87,6 @@ public class TextInfoPaneComponent extends BaseUIComponent {
         int lineCount = Math.max(1, wrappedLines.size());
         int targetHeight = BASE_HEIGHT + (lineCount - 1) * font.lineHeight;
 
-        // 平滑高度自适应
         this.currentAnimatedHeight = Mth.lerp(delta * 0.35f, this.currentAnimatedHeight, (float) targetHeight);
         int renderH = Math.max(BASE_HEIGHT, (int) Math.round(this.currentAnimatedHeight));
         this.height = renderH;
@@ -99,10 +107,8 @@ public class TextInfoPaneComponent extends BaseUIComponent {
         graphics.pose().pushMatrix();
         graphics.pose().translate(cx, cy);
 
-        // ① 绘制底盘
         RenderUtil.drawRoundedPanel(graphics, (int) -halfW, (int) -halfH, width, renderH, 6.0f, paneBg, grayBorderColor);
 
-        // ② 纯净单层文字渲染 (彻底消除闪烁感)
         float textStartY = -halfH + 6.0f;
 
         if (this.isHeader) {
@@ -172,6 +178,12 @@ public class TextInfoPaneComponent extends BaseUIComponent {
 
     @Override
     public boolean onMouseDown(MouseButtonEvent click, boolean doubled) {
+        if (click.button() == 0 && this.clickAction != null) {
+            this.clickFeedback = 1.0f;
+            this.clickAction.accept(this, click);
+            return true;
+        }
+
         if (this.copyable && click.button() == 0) {
             this.clickFeedback = 1.0f;
             String val = this.componentSupplier != null ? this.componentSupplier.get().getString() : (this.valueSupplier != null ? this.valueSupplier.get() : "");

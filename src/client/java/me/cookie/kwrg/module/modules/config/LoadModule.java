@@ -23,7 +23,6 @@ public class LoadModule extends Module {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    // 暂存从剪贴板解析出的 JSON 文本
     private String pendingImportJson = null;
 
     public LoadModule() {
@@ -66,7 +65,6 @@ public class LoadModule extends Module {
                     ChatNotifier.send("§c[IRC] 保存导入配置失败: " + e.getMessage());
                 }
             } else {
-                // 【普通新建配置】
                 IrcConfig.createProfile(cleanName);
                 IrcConfig.save();
                 ChatNotifier.send("§a[IRC] 已新建并切换至配置: §f" + cleanName + ".json");
@@ -100,7 +98,21 @@ public class LoadModule extends Module {
         });
 
         panel.child(inputPane);
-        panel.child(TextInfoPaneComponent.header("配置文件列表 (Shift+左键删除)"));
+        panel.child(TextInfoPaneComponent.header("配置文件列表 (Shift+左键删除 )", (pane, click) -> {
+            boolean isShiftDown = (click.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0 || click.hasShiftDown();
+            if (isShiftDown) {
+                Path configDir = IrcConfig.getKwrgDir();
+                try {
+                    if (!Files.exists(configDir)) {
+                        Files.createDirectories(configDir);
+                    }
+                    net.minecraft.util.Util.getPlatform().openPath(configDir);
+                    ChatNotifier.send("§a[IRC] 已打开配置文件夹: §f" + configDir.toAbsolutePath());
+                } catch (Exception e) {
+                    ChatNotifier.send("§c[IRC] 打开文件夹失败: " + e.getMessage());
+                }
+            }
+        }));
 
         List<String> profiles = new ArrayList<>(IrcConfig.listExistingProfiles());
         if (!profiles.contains("default")) {
