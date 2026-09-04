@@ -63,17 +63,56 @@ public class IrcCommand {
         return builder.buildFuture();
     };
 
-
     public static void register() {
         ClientCommandRegistrationCallback.EVENT.register(IrcCommand::registerCommands);
     }
 
     private static void registerCommands(CommandDispatcher<FabricClientCommandSource> dispatcher, CommandBuildContext buildContext) {
         dispatcher.register(literal("ci")
+                .then(literal("all")
+                        .executes(context -> {
+                            IrcClient.isIrcChatActive = true;
+                            IrcConfig config = IrcConfig.get();
+                            config.channelEnabled = false;
+                            IrcConfig.save();
+                            IrcClient.sendChannelSync(config.currentChannel, false);
+
+                            IrcMessageHandler.printMessage("§a[IRC] 已切换至 §e公共大厅发言 §a模式");
+                            if (!IrcClient.isIrcConnect) {
+                                IrcClient.connect();
+                            }
+                            return 1;
+                        }))
+                .then(literal("channel")
+                        .executes(context -> {
+                            IrcClient.isIrcChatActive = true;
+                            IrcConfig config = IrcConfig.get();
+
+                            if (config.currentChannel == null || config.currentChannel.isBlank()) {
+                                IrcMessageHandler.printMessage("§c[IRC] 你尚未加入任何频道！请先在 GUI 中加入频道。");
+                                return 0;
+                            }
+
+                            config.channelEnabled = true;
+                            IrcConfig.save();
+                            IrcClient.sendChannelSync(config.currentChannel, true);
+
+                            IrcMessageHandler.printMessage("§a[IRC] 已切换至 §b[#" + config.currentChannel + "] §a频道发言模式！");
+                            if (!IrcClient.isIrcConnect) {
+                                IrcClient.connect();
+                            }
+                            return 1;
+                        }))
                 .executes(context -> {
                     IrcClient.isIrcChatActive = true;
-                    IrcMessageHandler.printMessage("§a[IRC] 已切换至 IRC 聊天频道！");
-                    if ((!IrcClient.isIrcConnect)) {
+                    IrcConfig config = IrcConfig.get();
+                    if (config.channelEnabled && config.currentChannel != null && !config.currentChannel.isBlank()) {
+                        IrcMessageHandler.printMessage("§a[IRC] 已切换 IRC 聊天频道！当前发言频道: §b[#" + config.currentChannel + "]");
+                    } else {
+                        IrcMessageHandler.printMessage("§a[IRC] 已切换 IRC 聊天频道！当前处于: §e公共大厅");
+                    }
+
+                    if (!IrcClient.isIrcConnect) {
                         IrcClient.connect();
                     }
                     return 1;
@@ -90,6 +129,20 @@ public class IrcCommand {
                 )
                 .executes(context -> {
                     IrcMessageHandler.printMessage("§c[IRC] 用法: /ic <消息内容>");
+                    return 0;
+                })
+        );
+
+        dispatcher.register(literal("icall")
+                .then(argument("message", StringArgumentType.greedyString())
+                        .executes(context -> {
+                            String message = StringArgumentType.getString(context, "message");
+                            IrcClient.sendMessageToPublic(message);
+                            return 1;
+                        })
+                )
+                .executes(context -> {
+                    IrcMessageHandler.printMessage("§c[IRC] 用法: /icall <消息内容> (强制发送至公共大厅)");
                     return 0;
                 })
         );

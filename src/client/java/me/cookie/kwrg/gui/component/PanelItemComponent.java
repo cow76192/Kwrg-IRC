@@ -103,9 +103,6 @@ public class PanelItemComponent extends BaseUIComponent {
         this.onDismissComplete = onComplete;
     }
 
-    /**
-     * 【核心连续插值】：组件高度 + 间距（共 32px）整体连续收缩，彻底杜绝 4px 跳跃顿挫
-     */
     public int getLayoutFootprint() {
         if (this.isDismissing) {
             float dismissEase = RenderUtil.easeOutCubic(this.dismissProgress);
@@ -136,7 +133,6 @@ public class PanelItemComponent extends BaseUIComponent {
 
     @Override
     public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
-        // ① 生成与销毁平滑步进
         if (this.playSpawnAnimation && this.spawnProgress < 1.0f) {
             this.spawnProgress = Math.min(1.0f, this.spawnProgress + delta * 0.30f);
         }
@@ -157,7 +153,6 @@ public class PanelItemComponent extends BaseUIComponent {
         int footprint = this.getLayoutFootprint();
         if (totalAlpha <= 0.005f || footprint <= 1) return;
 
-        // ② 状态与悬停动画
         float targetHover = this.hovered ? 1.0f : 0.0f;
         this.hoverAnimation = Mth.clamp(this.hoverAnimation + (targetHover - this.hoverAnimation) * delta * 0.35f, 0.0f, 1.0f);
 
@@ -175,7 +170,6 @@ public class PanelItemComponent extends BaseUIComponent {
         int width = this.width();
         int height = BASE_HEIGHT;
 
-        // ③ 色彩计算
         int baseR = (int) Mth.lerp(this.activeAnimation, 84f, 84f);
         int baseG = (int) Mth.lerp(this.activeAnimation, 152f, 152f);
         int baseB = (int) Mth.lerp(this.activeAnimation, 178f, 178f);
@@ -193,7 +187,6 @@ public class PanelItemComponent extends BaseUIComponent {
         Color itemBg = Color.ofArgb(ARGB.color(currentBgAlpha, baseR, baseG, baseB));
         Color itemBorder = Color.ofArgb(ARGB.color(currentBorderAlpha, borderR, borderG, borderB));
 
-        // ④ GPU 矩阵平移与柔和缩放 (消灭抖动与突变)
         float curScale = (0.80f + 0.20f * spawnEase) * (1.0f - dismissEase * 0.20f);
         float cx = x + width / 2.0f;
         float cy = y + Math.min(BASE_HEIGHT, footprint) / 2.0f;
@@ -208,7 +201,6 @@ public class PanelItemComponent extends BaseUIComponent {
             RenderUtil.drawRoundedPanel(graphics, -halfW, -halfH, width, BASE_HEIGHT, 6.0f, itemBg, itemBorder);
         }
 
-        // ⑤ 标题文字
         var font = Minecraft.getInstance().font;
         float textScale = 0.88f;
         float textH = font.lineHeight * textScale;
@@ -220,7 +212,6 @@ public class PanelItemComponent extends BaseUIComponent {
 
         graphics.drawText(Component.literal(this.title), -halfW + 10.0f, -textH / 2.0f, textScale, textColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
 
-        // ⑥ 状态指示灯
         int dotX = halfW - 12;
         int dotY = 0;
 
@@ -250,18 +241,18 @@ public class PanelItemComponent extends BaseUIComponent {
                 this.localToggled = !this.localToggled;
             }
 
-            System.out.println("[KWRG Action] >>> 左键点击: " + this.title);
+//            System.out.println("[KWRG Action] >>> 左键点击: " + this.title);
             if (this.leftClickAction != null) {
                 try {
                     this.leftClickAction.accept(this, click);
                 } catch (Throwable t) {
-                    System.err.println("[KWRG Action] 执行出错: " + this.title);
+//                    System.err.println("[KWRG Action] 执行出错: " + this.title);
                     t.printStackTrace();
                 }
             }
             return true;
         } else if (click.button() == 1) {
-            System.out.println("[KWRG UI] >>> 右键打开三级配置菜单: " + this.title);
+//            System.out.println("[KWRG UI] >>> 右键打开三级配置菜单: " + this.title);
             if (this.rightClickAction != null) {
                 try {
                     this.rightClickAction.accept(this);

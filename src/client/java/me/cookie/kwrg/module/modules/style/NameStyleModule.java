@@ -58,9 +58,17 @@ public class NameStyleModule extends Module {
 
         panel.child(inputPane);
         panel.child(new TextInfoPaneComponent(
-                "预览",
+                "效果 (点击复制)",
                 () -> ColorUtil.applyStyle(sampleName, currentEditingStyle[0]),
-                false
+                () -> {
+                    String styleToCopy = currentEditingStyle[0] != null ? currentEditingStyle[0].trim() : "";
+                    if (!styleToCopy.isEmpty()) {
+                        Minecraft.getInstance().keyboardHandler.setClipboard(styleToCopy);
+                        ChatNotifier.send("§a[IRC] 已复制当前 NameStyle 样式配置: §f" + styleToCopy);
+                    } else {
+                        ChatNotifier.send("§e[IRC] 当前样式配置为空！");
+                    }
+                }
         ));
         panel.child(TextInfoPaneComponent.header("预设样式"));
 

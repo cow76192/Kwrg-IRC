@@ -237,7 +237,11 @@ public class IrcClient {
             json.addProperty("channel", config.currentChannel);
         }
 
-        IrcMessageHandler.displayFormattedMessage(config.rank, config.namestyle, username, config.chatstyle, content);
+        String displayRank = config.rank;
+        if (config.channelEnabled && config.currentChannel != null && !config.currentChannel.isBlank()) {
+            displayRank = "&b[#" + config.currentChannel + "&b]&r " + (config.rank != null ? config.rank : "");
+        }
+        IrcMessageHandler.displayFormattedMessage(displayRank, config.namestyle, username, config.chatstyle, content);
 
         if (isRunning) {
             sendRaw(GSON.toJson(json));
@@ -262,6 +266,37 @@ public class IrcClient {
             sendRaw(GSON.toJson(json));
         } else {
             IrcMessageHandler.printMessage("§c[IRC] 发送失败：未连接至 IRC 服务器，正在尝试连接...");
+            connect();
+        }
+    }
+
+
+    public static void sendMessageToPublic(String content) {
+        if (content == null || content.isBlank()) return;
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+
+        String username = mc.getUser().getName();
+        String senderId = mc.player.getStringUUID();
+
+        IrcConfig config = IrcConfig.get();
+
+        JsonObject json = new JsonObject();
+        json.addProperty("senderId", senderId);
+        json.addProperty("username", username);
+        json.addProperty("rank", config.rank);
+        json.addProperty("namestyle", config.namestyle);
+        json.addProperty("chatstyle", config.chatstyle);
+        json.addProperty("content", content);
+        json.addProperty("channel", "");
+
+        IrcMessageHandler.displayFormattedMessage(config.rank, config.namestyle, username, config.chatstyle, content);
+
+        if (isRunning) {
+            sendRaw(GSON.toJson(json));
+        } else {
+            IrcMessageHandler.printMessage("§c[IRC] 发送失败：未连接至 IRC 服务器！正在尝试连接...");
             connect();
         }
     }

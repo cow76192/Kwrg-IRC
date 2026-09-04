@@ -26,7 +26,6 @@ public class PlayerFinderRadarRenderer {
         if (PlayerFinderManager.getPlayers().isEmpty()) return;
 
         Camera camera = mc.gameRenderer.getMainCamera();
-        if (camera == null) return;
         Vec3 camPos = camera.position();
 
         var window = mc.getWindow();
@@ -41,7 +40,6 @@ public class PlayerFinderRadarRenderer {
                 Math.cos(yawRad) * Math.cos(pitchRad)
         );
 
-        // 悬浮呼吸起伏
         float bob = (float) Math.sin((System.currentTimeMillis() % 1600L) / 1600.0 * Math.PI * 2.0) * 2.5f;
 
         for (Player target : mc.level.players()) {

@@ -29,7 +29,7 @@ public abstract class ClientPacketListenerMixin {
             return;
         }
 
-        if (lower.startsWith("chat ")) {
+        if (lower.startsWith("chat ") || lower.startsWith("msg ") || lower.startsWith("message ")) {
             String sub = lower.substring(5).trim();
             if (sub.equals("irc")) {
                 IrcClient.isIrcChatActive = true;

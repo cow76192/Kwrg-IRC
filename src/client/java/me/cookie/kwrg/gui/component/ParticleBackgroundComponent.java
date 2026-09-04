@@ -76,7 +76,6 @@ public class ParticleBackgroundComponent extends BaseUIComponent {
                 }
             }
 
-            // 粒子核心 (AA 微光圆)
             Color dotSolid = RenderUtil.withAlpha(0xFFFFFF, PARTICLE_ALPHA);
             Color dotFade = RenderUtil.withAlpha(0xFFFFFF, 0);
             RenderUtil.drawAACircle(graphics, px, py, p.radius, dotSolid, dotFade);

@@ -85,6 +85,13 @@ public class LoadModule extends Module {
                     throw new IllegalArgumentException("配置缺少关键字段");
                 }
 
+                if (parsed.savedChannels == null) {
+                    parsed.savedChannels = new ArrayList<>();
+                }
+                if (parsed.currentChannel == null) {
+                    parsed.currentChannel = "";
+                }
+
                 this.pendingImportJson = GSON.toJson(parsed);
 
                 ChatNotifier.send("§a[IRC] 剪贴板 JSON 解析成功！");
@@ -153,8 +160,14 @@ public class LoadModule extends Module {
                                 Path filePath = IrcConfig.getKwrgDir().resolve(profileName + ".json");
                                 String jsonContent = Files.exists(filePath) ? Files.readString(filePath) : "";
                                 if (!jsonContent.isEmpty()) {
-                                    Minecraft.getInstance().keyboardHandler.setClipboard(jsonContent);
-                                    ChatNotifier.send("§a[IRC] 已复制 §f" + profileName + ".json §a的 JSON 内容到剪贴板！");
+                                    com.google.gson.JsonObject jsonObject = com.google.gson.JsonParser.parseString(jsonContent).getAsJsonObject();
+                                    jsonObject.remove("currentChannel");
+                                    jsonObject.remove("savedChannels");
+
+                                    String cleanedJson = GSON.toJson(jsonObject);
+
+                                    Minecraft.getInstance().keyboardHandler.setClipboard(cleanedJson);
+                                    ChatNotifier.send("§a[IRC] 已复制 §f" + profileName + ".json §a的 JSON 内容到剪贴板！(已自动剔除频道数据)");
                                 } else {
                                     ChatNotifier.send("§e[IRC] 配置文件 §f" + profileName + ".json §e内容为空");
                                 }

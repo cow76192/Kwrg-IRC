@@ -27,6 +27,9 @@ public class TextInputPaneComponent extends BaseUIComponent {
     private Runnable onRightClick = null;
     private String text = "";
 
+    // 全选状态标记
+    private boolean selectAll = false;
+
     private boolean readOnly = false;
     private Runnable onReadOnlyClick = null;
 
@@ -58,6 +61,7 @@ public class TextInputPaneComponent extends BaseUIComponent {
 
     public TextInputPaneComponent setText(String text) {
         this.text = text != null ? text : "";
+        this.selectAll = false;
         if (this.onTextChanged != null) {
             this.onTextChanged.accept(this.text);
         }
@@ -94,6 +98,7 @@ public class TextInputPaneComponent extends BaseUIComponent {
     public void onFocusLost() {
         super.onFocusLost();
         this.focused = false;
+        this.selectAll = false;
     }
 
     @Override
@@ -133,7 +138,7 @@ public class TextInputPaneComponent extends BaseUIComponent {
         // ① 绘制底盘
         RenderUtil.drawRoundedPanel(graphics, (int) -halfW, (int) -halfH, width, renderH, 6.0f, paneBg, borderColor);
 
-        // ② 纯净单层文字与光标渲染
+        // ② 纯净单层文字渲染
         float textStartY = -halfH + 7.0f;
         float textScale = 0.85f;
 
@@ -146,7 +151,9 @@ public class TextInputPaneComponent extends BaseUIComponent {
         } else {
             boolean showCursor = !this.readOnly && this.focused && (System.currentTimeMillis() % 1000 < 500);
             String textToDraw = this.text + (showCursor ? "_" : "");
-            int textColor = this.readOnly ? (this.hovered ? 0xFFFFFFFF : 0xFFB2EBF2) : (this.focused ? 0xFFFFFFFF : 0xFFECEFF1);
+
+            // 全选时高亮偏浅青蓝，正常聚焦为纯白
+            int textColor = this.selectAll ? 0xFF80DEEA : (this.readOnly ? (this.hovered ? 0xFFFFFFFF : 0xFFB2EBF2) : (this.focused ? 0xFFFFFFFF : 0xFFECEFF1));
 
             List<FormattedCharSequence> linesToDraw = font.split(Component.literal(textToDraw), stableWidth);
             for (int i = 0; i < linesToDraw.size(); i++) {
@@ -156,6 +163,13 @@ public class TextInputPaneComponent extends BaseUIComponent {
                 graphics.pose().pushMatrix();
                 graphics.pose().translate(-halfW + 8.0f, curLineY);
                 graphics.pose().scale(textScale, textScale);
+
+                // 全选时绘制浅色半透明选中高亮底色
+                if (this.selectAll) {
+                    int lineW = font.width(lineStr);
+                    graphics.fill(-1, -1, lineW + 1, font.lineHeight, ARGB.color(100, 38, 198, 218));
+                }
+
                 graphics.drawText(Component.literal(lineStr), 0, 0, 1.0f, textColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
                 graphics.pose().popMatrix();
             }
@@ -175,7 +189,6 @@ public class TextInputPaneComponent extends BaseUIComponent {
 
     @Override
     public boolean onMouseDown(MouseButtonEvent click, boolean doubled) {
-        // 【核心修改】：右键触发回调
         if (click.button() == 1 && this.onRightClick != null) {
             this.onRightClick.run();
             return true;
@@ -191,6 +204,7 @@ public class TextInputPaneComponent extends BaseUIComponent {
 
         if (click.button() == 0) {
             this.focused = true;
+            this.selectAll = false; // 点击取消全选
             return true;
         }
         return super.onMouseDown(click, doubled);
@@ -201,6 +215,11 @@ public class TextInputPaneComponent extends BaseUIComponent {
         if (this.readOnly || !this.focused) return false;
         char c = (char) input.codepoint();
         if (c >= 32 && c != 127) {
+            // 【全选打字替换】：若处于全选状态，直接替换为新输入的字符
+            if (this.selectAll) {
+                this.text = "";
+                this.selectAll = false;
+            }
             this.text += c;
             notifyTextChanged();
             return true;
@@ -210,27 +229,53 @@ public class TextInputPaneComponent extends BaseUIComponent {
 
     @Override
     public boolean onKeyPress(KeyEvent input) {
-        if (this.readOnly || !this.focused) return false;
+        if (!this.focused) return false;
 
+        // 回车提交
         if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) {
             String val = this.text.trim();
             if (this.onEnterSubmit != null) {
                 this.onEnterSubmit.accept(val);
             }
+            this.selectAll = false;
             return true;
         }
 
-        if (input.key() == GLFW.GLFW_KEY_BACKSPACE && !this.text.isEmpty()) {
-            this.text = this.text.substring(0, this.text.length() - 1);
-            notifyTextChanged();
+        // 【新增】：Ctrl + A 全选 (Windows/Linux Ctrl 或 Mac Command)
+        if (input.hasControlDown() && input.key() == GLFW.GLFW_KEY_A) {
+            if (!this.text.isEmpty()) {
+                this.selectAll = true;
+            }
             return true;
         }
 
+        // 退格删除
+        if (input.key() == GLFW.GLFW_KEY_BACKSPACE) {
+            if (this.selectAll) {
+                // 全选状态下按退格直接清空
+                this.text = "";
+                this.selectAll = false;
+                notifyTextChanged();
+                return true;
+            } else if (!this.text.isEmpty()) {
+                this.text = this.text.substring(0, this.text.length() - 1);
+                notifyTextChanged();
+                return true;
+            }
+        }
+
+        // Ctrl + V 粘贴
         boolean isPasteKey = input.hasControlDown() && input.key() == GLFW.GLFW_KEY_V;
         if (isPasteKey) {
             String clip = Minecraft.getInstance().keyboardHandler.getClipboard();
             if (clip != null && !clip.isEmpty()) {
-                this.text += clip.replaceAll("[\r\n]", "");
+                String cleanClip = clip.replaceAll("[\r\n]", "");
+                if (this.selectAll) {
+                    this.text = cleanClip;
+                    this.selectAll = false;
+                } else {
+                    this.text += cleanClip;
+                }
                 notifyTextChanged();
             }
             return true;
