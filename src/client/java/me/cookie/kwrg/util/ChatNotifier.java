@@ -219,9 +219,6 @@ public class ChatNotifier {
     private static final Queue<List<AnimatedSegment>> PENDING_ANIMATIONS = new ConcurrentLinkedQueue<>();
     private static final java.util.Map<net.minecraft.client.multiplayer.chat.GuiMessage, List<AnimatedSegment>> ACTIVE_ANIMATIONS = new java.util.concurrent.ConcurrentHashMap<>();
 
-    /**
-     * 发送支持动态流光的复合消息
-     */
     public static void sendAnimatedInChatScreen(List<AnimatedSegment> segments) {
         if (segments == null || segments.isEmpty()) return;
 
@@ -241,7 +238,6 @@ public class ChatNotifier {
 
         Component parsed = parseUrls(root);
 
-        // 若包含流光动画配置，则加入待捕获队列
         if (hasAnimation) {
             PENDING_ANIMATIONS.offer(segments);
         }
@@ -250,30 +246,20 @@ public class ChatNotifier {
         Minecraft.getInstance().execute(ChatNotifier::flush);
     }
 
-    /**
-     * 消息加入聊天框底层队列时调用：绑定动画元数据
-     */
     public static void onMessageAdded(net.minecraft.client.multiplayer.chat.GuiMessage message) {
         List<AnimatedSegment> segs = PENDING_ANIMATIONS.poll();
         if (segs != null) {
             ACTIVE_ANIMATIONS.put(message, segs);
-            // 限制活跃动画数量，防止内存泄漏
             if (ACTIVE_ANIMATIONS.size() > 150) {
                 ACTIVE_ANIMATIONS.clear();
             }
         }
     }
 
-    /**
-     * 判断当前是否有正在动画中的消息
-     */
     public static boolean hasActiveAnimations() {
         return !ACTIVE_ANIMATIONS.isEmpty();
     }
 
-    /**
-     * 计算当前帧具有最新渐变流光色彩的 Component
-     */
     public static Component getAnimatedFrame(net.minecraft.client.multiplayer.chat.GuiMessage msg) {
         List<AnimatedSegment> segs = ACTIVE_ANIMATIONS.get(msg);
         if (segs == null) return null;
@@ -289,9 +275,6 @@ public class ChatNotifier {
         return parseUrls(root);
     }
 
-    /**
-     * 更新渲染状态时的消息对象引用
-     */
     public static void updateMessageBinding(net.minecraft.client.multiplayer.chat.GuiMessage oldMsg, net.minecraft.client.multiplayer.chat.GuiMessage newMsg) {
         List<AnimatedSegment> segs = ACTIVE_ANIMATIONS.remove(oldMsg);
         if (segs != null) {

@@ -1,6 +1,7 @@
 package me.cookie.kwrg.mixin;
 
 import me.cookie.kwrg.util.ChatNotifier;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ChatComponent;
@@ -20,51 +21,66 @@ public abstract class ChatComponentMixin {
 
     @Shadow @Final private List<GuiMessage> allMessages;
     @Shadow abstract void refreshTrimmedMessages();
+    @Shadow abstract void addMessageToQueue(GuiMessage message);
 
     /**
-     * 捕获刚加入队列的消息，自动绑定流光动画配置
+     * 【防护 1】：若第三方 Mod 在 Netty/异步线程直接塞消息，拦截并派发回渲染主线程
      */
-    @Inject(method = "addMessageToQueue", at = @At("HEAD"))
+    @Inject(method = "addMessageToQueue", at = @At("HEAD"), cancellable = true)
     private void kwrg$onAddMessageToQueue(GuiMessage message, CallbackInfo ci) {
-        ChatNotifier.onMessageAdded(message);
+        Minecraft client = Minecraft.getInstance();
+
+        if (!client.isSameThread()) {
+            ci.cancel();
+            client.execute(() -> this.addMessageToQueue(message));
+            return;
+        }
+
+        synchronized (this.allMessages) {
+            ChatNotifier.onMessageAdded(message);
+        }
     }
 
-    /**
-     * 在聊天框每帧提取渲染状态时，动态刷新流光颜色与 URL 点击事件
-     */
     @Inject(
             method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/gui/Font;IIILnet/minecraft/client/gui/components/ChatComponent$DisplayMode;Z)V",
             at = @At("HEAD")
     )
     private void kwrg$onExtractRenderState(GuiGraphicsExtractor graphics, Font font, int ticks, int mouseX, int mouseY, ChatComponent.DisplayMode displayMode, boolean changeCursorOnInsertions, CallbackInfo ci) {
-        if (!ChatNotifier.hasActiveAnimations() || this.allMessages.isEmpty()) {
+        if (!ChatNotifier.hasActiveAnimations()) {
             return;
         }
 
         boolean updated = false;
 
-        for (int i = 0; i < this.allMessages.size(); i++) {
-            GuiMessage msg = this.allMessages.get(i);
-            Component animatedContent = ChatNotifier.getAnimatedFrame(msg);
+        synchronized (this.allMessages) {
+            int size = this.allMessages.size();
+            if (size == 0) return;
 
-            if (animatedContent != null) {
-                // 构造当前帧具有最新流光颜色、保留 URL 点击事件的 GuiMessage
-                GuiMessage newMsg = new GuiMessage(
-                        msg.addedTime(),
-                        animatedContent,
-                        msg.signature(),
-                        msg.source(),
-                        msg.tag()
-                );
-                this.allMessages.set(i, newMsg);
-                // 同步更新绑定映射
-                ChatNotifier.updateMessageBinding(msg, newMsg);
-                updated = true;
+            int checkLimit = Math.min(size, 100);
+
+            for (int i = 0; i < checkLimit; i++) {
+                if (i >= this.allMessages.size()) break;
+
+                GuiMessage msg = this.allMessages.get(i);
+                Component animatedContent = ChatNotifier.getAnimatedFrame(msg);
+
+                if (animatedContent != null) {
+                    GuiMessage newMsg = new GuiMessage(
+                            msg.addedTime(),
+                            animatedContent,
+                            msg.signature(),
+                            msg.source(),
+                            msg.tag()
+                    );
+                    this.allMessages.set(i, newMsg);
+                    ChatNotifier.updateMessageBinding(msg, newMsg);
+                    updated = true;
+                }
             }
-        }
 
-        if (updated) {
-            this.refreshTrimmedMessages();
+            if (updated) {
+                this.refreshTrimmedMessages();
+            }
         }
     }
 }
