@@ -8,6 +8,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
+import net.minecraft.util.FormattedCharSequence;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -281,6 +282,83 @@ public class ChatNotifier {
             ACTIVE_ANIMATIONS.put(newMsg, segs);
         }
     }
+
+    private static class MessageLineCache {
+        long lastUpdateTime;
+        List<FormattedCharSequence> lines;
+    }
+
+    private static final java.util.Map<net.minecraft.client.multiplayer.chat.GuiMessage, MessageLineCache> DYNAMIC_LINE_CACHE = new java.util.WeakHashMap<>();
+    private static final java.util.Map<net.minecraft.client.multiplayer.chat.GuiMessage.Line, Integer> LINE_INDEX_MAP = new java.util.WeakHashMap<>();
+
+    public static int getChatMaxWidth(Minecraft mc) {
+        if (mc == null || mc.options == null) return 320;
+        double chatWidthOpt = mc.options.chatWidth().get();
+        double chatScale = mc.options.chatScale().get();
+        if (chatScale <= 0.0) chatScale = 1.0;
+
+        int chatWidth = net.minecraft.client.gui.components.ChatComponent.getWidth(chatWidthOpt);
+        return net.minecraft.util.Mth.ceil((float) chatWidth / (float) chatScale);
+    }
+    
+    public static FormattedCharSequence getDynamicLineContent(
+            net.minecraft.client.multiplayer.chat.GuiMessage.Line line,
+            net.minecraft.client.multiplayer.chat.GuiMessage parent,
+            FormattedCharSequence fallback
+    ) {
+        if (parent == null || !ACTIVE_ANIMATIONS.containsKey(parent)) {
+            return null;
+        }
+
+        long now = System.currentTimeMillis();
+        MessageLineCache cache = DYNAMIC_LINE_CACHE.get(parent);
+
+        if (cache == null || now - cache.lastUpdateTime >= 25L) {
+            Component animatedFrame = getAnimatedFrame(parent);
+            if (animatedFrame == null) {
+                return null;
+            }
+
+            Minecraft mc = Minecraft.getInstance();
+            int maxWidth = getChatMaxWidth(mc);
+
+            if (parent.tag() != null && parent.tag().icon() != null) {
+                maxWidth -= parent.tag().icon().width + 4 + 2;
+            }
+
+            cache = new MessageLineCache();
+            cache.lastUpdateTime = now;
+            cache.lines = net.minecraft.client.gui.components.ComponentRenderUtils.wrapComponents(animatedFrame, maxWidth, mc.font);
+            DYNAMIC_LINE_CACHE.put(parent, cache);
+        }
+
+        if (cache.lines == null || cache.lines.isEmpty()) {
+            return null;
+        }
+
+        // 确定当前 Line 是该消息的第几行
+        Integer index = LINE_INDEX_MAP.get(line);
+        if (index == null) {
+            // 首次访问时通过原版静态行匹配索引并记录
+            Minecraft mc = Minecraft.getInstance();
+            int maxWidth = getChatMaxWidth(mc);
+            if (parent.tag() != null && parent.tag().icon() != null) {
+                maxWidth -= parent.tag().icon().width + 4 + 2;
+            }
+
+            List<FormattedCharSequence> staticLines = parent.splitLines(mc.font, maxWidth);
+            index = staticLines.indexOf(fallback);
+            if (index < 0) index = 0;
+            LINE_INDEX_MAP.put(line, index);
+        }
+
+        if (index >= 0 && index < cache.lines.size()) {
+            return cache.lines.get(index);
+        }
+
+        return null;
+    }
+
 
     public static void flush() {
         Minecraft mc = Minecraft.getInstance();

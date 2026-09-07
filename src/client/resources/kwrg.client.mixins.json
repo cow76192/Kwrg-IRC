@@ -13,7 +13,8 @@
 		"OptionsMixin",
 		"MinecraftKeybindMixin",
 		"HudNotificationMixin",
-		"ChatComponentMixin"
+		"ChatComponentMixin",
+		"GuiMessageLineMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
