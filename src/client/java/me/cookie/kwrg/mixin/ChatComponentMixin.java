@@ -56,7 +56,7 @@ public abstract class ChatComponentMixin {
             int size = this.allMessages.size();
             if (size == 0) return;
 
-            int checkLimit = Math.min(size, 100);
+            int checkLimit = Math.min(size, 30);
 
             for (int i = 0; i < checkLimit; i++) {
                 if (i >= this.allMessages.size()) break;

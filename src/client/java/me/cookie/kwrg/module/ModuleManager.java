@@ -19,6 +19,7 @@ public class ModuleManager {
         register(new ClearIndexCacheModule());
         register(new ReloadRepoModule());
         register(new PingModule());
+        register(new DisableBlurModule());
         // --- CONFIG 模块 ---
         register(new LoadModule());
 

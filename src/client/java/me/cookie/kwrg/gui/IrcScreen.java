@@ -10,6 +10,7 @@ import me.cookie.kwrg.gui.component.ParticleBackgroundComponent;
 import me.cookie.kwrg.gui.component.RadialMenuComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.notification.NotificationManager;
+import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -23,6 +24,7 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
     private static IrcScreen currentInstance = null;
     private RadialMenuComponent radialMenu;
+    private StackLayout rootLayout = null;
 
     public IrcScreen() {
         super(Component.literal("Kwrg IRC"));
@@ -54,8 +56,10 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
     @Override
     protected void build(StackLayout rootComponent) {
         currentInstance = this;
+        this.rootLayout = rootComponent;
 
-        rootComponent.surface(Surface.blur(8.0f, 16.0f));
+        updateSurface();
+
         rootComponent.child(new ParticleBackgroundComponent());
 
         this.radialMenu = new RadialMenuComponent(this, rootComponent);
@@ -109,6 +113,18 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
         super.extractRenderState(graphics, mouseX, mouseY, a);
         NotificationManager.render(graphics, mouseX, mouseY, a);
         DynamicIslandRenderer.render(graphics, a);
+    }
+
+    public void updateSurface() {
+        if (this.rootLayout != null) {
+            if (IrcConfig.get().disableBlur) {
+                this.rootLayout.surface(Surface.BLANK);
+            } else {
+                float q = Math.max(0.5f, IrcConfig.get().blurQuality);
+                float s = Math.max(1.0f, IrcConfig.get().blurSize);
+                this.rootLayout.surface(Surface.blur(q, s));
+            }
+        }
     }
 
     public @Nullable RadialMenuComponent getRadialMenu() {

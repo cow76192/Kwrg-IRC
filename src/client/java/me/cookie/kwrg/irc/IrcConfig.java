@@ -56,6 +56,10 @@ public class IrcConfig {
     public boolean islandShowGpu = false;
     public boolean islandShowCpu = false;
 
+    public boolean disableBlur = false;
+    public float blurQuality = 8.0f;
+    public float blurSize = 16.0f;
+
     private static IrcConfig instance = new IrcConfig();
     private static String currentProfileName = "default";
 
