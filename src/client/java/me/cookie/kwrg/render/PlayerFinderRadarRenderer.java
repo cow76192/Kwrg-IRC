@@ -62,11 +62,12 @@ public class PlayerFinderRadarRenderer {
 
             float scale = Mth.clamp(1.15f - (float) dist * 0.006f, 0.75f, 1.25f);
 
-            drawTacticalArrowMarker(graphics, mc, screenX, screenY + bob, dist, scale);
+            String playerName = target.getGameProfile().name();
+            drawTacticalArrowMarker(graphics, mc, screenX, screenY + bob, playerName, dist, scale);
         }
     }
 
-    private static void drawTacticalArrowMarker(OwoUIGraphics graphics, Minecraft mc, float sx, float sy, double dist, float scale) {
+    private static void drawTacticalArrowMarker(OwoUIGraphics graphics, Minecraft mc, float sx, float sy, String playerName, double dist, float scale) {
         graphics.pose().pushMatrix();
         graphics.pose().translate(sx, sy);
         graphics.pose().scale(scale, scale);
@@ -79,17 +80,24 @@ public class PlayerFinderRadarRenderer {
         }
 
         String distText = ((int) dist) + "m";
-        int textW = mc.font.width(distText);
-        int badgeW = textW + 8;
-        int badgeH = 11;
+        Component badgeText = Component.literal(playerName).append(Component.literal(" §e" + distText));
+
+        float textScale = 0.80f;
+        float textW = mc.font.width(badgeText) * textScale;
+        float fontH = mc.font.lineHeight * textScale;
+
+        int badgeW = (int) Math.ceil(textW + 10.0f);
+        int badgeH = 12;
         int badgeX = -badgeW / 2;
         int badgeY = -24;
 
-        Color badgeBg = Color.ofArgb(ARGB.color(190, 16, 22, 30));
+        Color badgeBg = Color.ofArgb(ARGB.color(195, 16, 22, 30));
         Color badgeBorder = Color.ofArgb(ARGB.color(140, 255, 255, 255));
         RenderUtil.drawRoundedPanel(graphics, badgeX, badgeY, badgeW, badgeH, 3.0f, badgeBg, badgeBorder);
 
-        graphics.drawText(Component.literal(distText), badgeX + 4.5f, badgeY + 1.5f, 0.82f, 0xFFFFFFFF, OwoUIGraphics.TextAnchor.TOP_LEFT);
+        float textX = badgeX + (badgeW - textW) / 2.0f;
+        float textY = badgeY + (badgeH - fontH) / 2.0f + 0.5f;
+        graphics.drawText(badgeText, textX, textY, textScale, 0xFFFFFFFF, OwoUIGraphics.TextAnchor.TOP_LEFT);
 
         graphics.pose().popMatrix();
     }

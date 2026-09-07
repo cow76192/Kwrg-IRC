@@ -14,19 +14,63 @@ public class PlayerFinderManager {
 
     private static final Set<String> TARGET_PLAYERS = ConcurrentHashMap.newKeySet();
 
+    public static void reloadFromConfig() {
+        TARGET_PLAYERS.clear();
+        IrcConfig config = IrcConfig.get();
+        if (config.playerFinderTargets != null) {
+            for (String name : config.playerFinderTargets) {
+                if (name != null && !name.isBlank()) {
+                    TARGET_PLAYERS.add(name.trim().toLowerCase());
+                }
+            }
+        }
+    }
+
     public static void addPlayer(String username) {
-        if (username != null && !username.isBlank()) {
-            TARGET_PLAYERS.add(username.trim().toLowerCase());
+        if (username == null || username.isBlank()) return;
+        String clean = username.trim();
+
+        IrcConfig config = IrcConfig.get();
+        if (config.playerFinderTargets == null) {
+            config.playerFinderTargets = new ArrayList<>();
+        }
+
+        boolean exists = config.playerFinderTargets.stream().anyMatch(s -> s.equalsIgnoreCase(clean));
+        if (!exists) {
+            config.playerFinderTargets.add(clean);
+            TARGET_PLAYERS.add(clean.toLowerCase());
+            IrcConfig.save();
         }
     }
 
     public static boolean removePlayer(String username) {
         if (username == null || username.isBlank()) return false;
-        return TARGET_PLAYERS.remove(username.trim().toLowerCase());
+        String clean = username.trim();
+
+        TARGET_PLAYERS.remove(clean.toLowerCase());
+
+        IrcConfig config = IrcConfig.get();
+        if (config.playerFinderTargets != null) {
+            boolean removed = config.playerFinderTargets.removeIf(s -> s.equalsIgnoreCase(clean));
+            if (removed) {
+                IrcConfig.save();
+                return true;
+            }
+        }
+        return false;
     }
 
     public static List<String> getPlayers() {
-        return new ArrayList<>(TARGET_PLAYERS);
+        IrcConfig config = IrcConfig.get();
+        if (config.playerFinderTargets == null) {
+            config.playerFinderTargets = new ArrayList<>();
+        }
+
+        if (TARGET_PLAYERS.isEmpty() && !config.playerFinderTargets.isEmpty()) {
+            reloadFromConfig();
+        }
+
+        return new ArrayList<>(config.playerFinderTargets);
     }
 
     public static boolean isTarget(Player player) {
@@ -35,9 +79,13 @@ public class PlayerFinderManager {
         Minecraft mc = Minecraft.getInstance();
         String name = player.getGameProfile().name();
 
-        // 排除本地玩家自己
         if (mc.getUser() != null && name.equalsIgnoreCase(mc.getUser().getName())) {
             return false;
+        }
+
+        IrcConfig config = IrcConfig.get();
+        if (TARGET_PLAYERS.isEmpty() && config.playerFinderTargets != null && !config.playerFinderTargets.isEmpty()) {
+            reloadFromConfig();
         }
 
         return TARGET_PLAYERS.contains(name.toLowerCase());
@@ -51,5 +99,10 @@ public class PlayerFinderManager {
 
     public static void clear() {
         TARGET_PLAYERS.clear();
+        IrcConfig config = IrcConfig.get();
+        if (config.playerFinderTargets != null && !config.playerFinderTargets.isEmpty()) {
+            config.playerFinderTargets.clear();
+            IrcConfig.save();
+        }
     }
 }

@@ -13,6 +13,7 @@ import me.cookie.kwrg.util.ColorUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class MessageStyleModule extends Module {
@@ -122,18 +123,25 @@ public class MessageStyleModule extends Module {
         config.chatstyle = style;
         IrcConfig.save();
 
-        Component preview = ColorUtil.applyStyle("消息预览效果", style);
-        Component message = Component.literal("§a[IRC] MessageStyle 已更新为: " + style + " §7[预览: ")
-                .append(preview)
-                .append(Component.literal("§7]"));
+        List<ChatNotifier.AnimatedSegment> segments = new ArrayList<>();
+        segments.add(new ChatNotifier.AnimatedSegment("§a[IRC] MessageStyle 已更新为: §f" + style + " §7[预览: ", "", true));
+        segments.add(new ChatNotifier.AnimatedSegment("Hello Kwrg IRC!", style, false));
+        segments.add(new ChatNotifier.AnimatedSegment("§7]", "", true));
 
-        ChatNotifier.sendInChatScreen(message);
+        ChatNotifier.sendAnimatedInChatScreen(segments);
         return 1;
     }
 
     public static int showChatStyle() {
         IrcConfig config = IrcConfig.get();
-        ChatNotifier.sendInChatScreen("§c[IRC] 当前 MessageStyle: " + config.chatstyle + ", 用法: /irc ms <rainbow | ocean | #HEX | gradient(...)>");
+        String currentStyle = config.chatstyle != null ? config.chatstyle : "";
+
+        List<ChatNotifier.AnimatedSegment> segments = new ArrayList<>();
+        segments.add(new ChatNotifier.AnimatedSegment("§a[IRC] 当前 MessageStyle: §f" + (currentStyle.isBlank() ? "无" : currentStyle) + " §7[预览: ", "", true));
+        segments.add(new ChatNotifier.AnimatedSegment("Hello Kwrg IRC!", currentStyle, false));
+        segments.add(new ChatNotifier.AnimatedSegment("§7] §e| 用法: /irc ms <rainbow | sunset | #HEX | gradient(...)>", "", true));
+
+        ChatNotifier.sendAnimatedInChatScreen(segments);
         return 0;
     }
 }

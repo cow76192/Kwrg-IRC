@@ -10,6 +10,7 @@ import me.cookie.kwrg.gui.component.ParticleBackgroundComponent;
 import me.cookie.kwrg.gui.component.RadialMenuComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.notification.NotificationManager;
+import me.cookie.kwrg.render.DynamicIslandRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.input.KeyEvent;
@@ -107,6 +108,7 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
         super.extractRenderState(graphics, mouseX, mouseY, a);
         NotificationManager.render(graphics, mouseX, mouseY, a);
+        DynamicIslandRenderer.render(graphics, a);
     }
 
     public @Nullable RadialMenuComponent getRadialMenu() {

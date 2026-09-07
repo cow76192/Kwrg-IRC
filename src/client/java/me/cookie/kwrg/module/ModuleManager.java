@@ -4,10 +4,7 @@ import me.cookie.kwrg.module.modules.config.*;
 import me.cookie.kwrg.module.modules.debug.*;
 import me.cookie.kwrg.module.modules.functions.*;
 import me.cookie.kwrg.module.modules.play.PlayModule;
-import me.cookie.kwrg.module.modules.style.ChatModule;
-import me.cookie.kwrg.module.modules.style.MessageStyleModule;
-import me.cookie.kwrg.module.modules.style.NameStyleModule;
-import me.cookie.kwrg.module.modules.style.RankModule;
+import me.cookie.kwrg.module.modules.style.*;
 
 import java.util.*;
 
@@ -21,7 +18,7 @@ public class ModuleManager {
         register(new DisconnectModule());
         register(new ClearIndexCacheModule());
         register(new ReloadRepoModule());
-
+        register(new PingModule());
         // --- CONFIG 模块 ---
         register(new LoadModule());
 
@@ -38,6 +35,7 @@ public class ModuleManager {
         register(new NameStyleModule());
         register(new MessageStyleModule());
         register(new ChatModule());
+        register(new DynamicIslandModule());
 
         // --- PLAY 模块 ---
         register(new PlayModule());

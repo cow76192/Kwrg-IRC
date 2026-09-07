@@ -46,6 +46,16 @@ public class IrcConfig {
     public String currentChannel = "";
     public List<String> savedChannels = new ArrayList<>();
 
+    public List<String> playerFinderTargets = new ArrayList<>();
+
+    public boolean dynamicIsland = false;
+    public boolean islandShowFps = true;
+    public boolean islandShowPing = true;
+    public boolean islandShowTps = true;
+    public boolean islandShowRam = false;
+    public boolean islandShowGpu = false;
+    public boolean islandShowCpu = false;
+
     private static IrcConfig instance = new IrcConfig();
     private static String currentProfileName = "default";
 
@@ -113,6 +123,7 @@ public class IrcConfig {
                 IrcConfig loaded = GSON.fromJson(json, IrcConfig.class);
                 if (loaded == null) loaded = new IrcConfig();
                 if (loaded.importantPlayers == null) loaded.importantPlayers = new ArrayList<>();
+                if (loaded.playerFinderTargets == null) loaded.playerFinderTargets = new ArrayList<>();
 
                 instance = loaded;
                 currentProfileName = cleanName;

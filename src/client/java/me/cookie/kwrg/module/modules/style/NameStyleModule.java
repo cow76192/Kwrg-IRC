@@ -12,6 +12,7 @@ import me.cookie.kwrg.util.ColorUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class NameStyleModule extends Module {
@@ -124,18 +125,31 @@ public class NameStyleModule extends Module {
         config.namestyle = style;
         IrcConfig.save();
 
-        Component preview = ColorUtil.applyStyle("名字预览效果", style);
-        Component message = Component.literal("§a[IRC] NameStyle 已更新为: " + style + " §7[预览: ")
-                .append(preview)
-                .append(Component.literal("§7]"));
+        Minecraft mc = Minecraft.getInstance();
+        String sampleName = mc.getUser() != null ? mc.getUser().getName() : "Player";
 
-        ChatNotifier.sendInChatScreen(message);
+        List<ChatNotifier.AnimatedSegment> segments = new ArrayList<>();
+        segments.add(new ChatNotifier.AnimatedSegment("§a[IRC] NameStyle 已更新为: §f" + style + " §7[预览: ", "", true));
+        segments.add(new ChatNotifier.AnimatedSegment(sampleName, style, false));
+        segments.add(new ChatNotifier.AnimatedSegment("§7]", "", true));
+
+        ChatNotifier.sendAnimatedInChatScreen(segments);
         return 1;
     }
 
     public static int showNameStyle() {
         IrcConfig config = IrcConfig.get();
-        ChatNotifier.sendInChatScreen("§c[IRC] 当前 NameStyle: " + config.namestyle + ", 用法: /irc ns <rainbow | sunset | #HEX | gradient(...)>");
+        String currentStyle = config.namestyle != null ? config.namestyle : "";
+
+        Minecraft mc = Minecraft.getInstance();
+        String sampleName = mc.getUser() != null ? mc.getUser().getName() : "Player";
+
+        List<ChatNotifier.AnimatedSegment> segments = new ArrayList<>();
+        segments.add(new ChatNotifier.AnimatedSegment("§a[IRC] 当前 NameStyle: §f" + (currentStyle.isBlank() ? "无" : currentStyle) + " §7[预览: ", "", true));
+        segments.add(new ChatNotifier.AnimatedSegment(sampleName, currentStyle, false));
+        segments.add(new ChatNotifier.AnimatedSegment("§7] §e| 用法: /irc ns <rainbow | sunset | #HEX | gradient(...)>", "", true));
+
+        ChatNotifier.sendAnimatedInChatScreen(segments);
         return 0;
     }
 }

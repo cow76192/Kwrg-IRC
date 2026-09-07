@@ -9,6 +9,7 @@ import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
+import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
@@ -26,13 +27,13 @@ public class ChannelModule extends Module {
         config.channelEnabled = !config.channelEnabled;
         IrcConfig.save();
 
-        IrcClient.sendChannelSync(config.currentChannel, config.channelEnabled);
+        IrcClient.sendChannelSync(config.currentChannel, config.channelEnabled, config.savedChannels);
 
         if (config.channelEnabled) {
-            String ch = (config.currentChannel != null && !config.currentChannel.isBlank()) ? config.currentChannel : "无";
-            ChatNotifier.send("§a[IRC] 频道聊天已: §a开启 §7(当前频道: §f" + ch + "§7)");
+            int count = config.savedChannels != null ? config.savedChannels.size() : 0;
+            ChatNotifier.send("§a[IRC] 频道消息监听已: §a开启 §7(接收 " + count + " 个频道的消息)");
         } else {
-            ChatNotifier.send("§e[IRC] 频道聊天已: §c关闭 §7");
+            ChatNotifier.send("§e[IRC] 频道消息监听已: §c关闭 §7");
         }
     }
 
@@ -44,13 +45,25 @@ public class ChannelModule extends Module {
     private void renderChannelUI(TertiaryPanelComponent panel, String newlyAddedChannel) {
         panel.clearChildren();
 
-        panel.child(new TextInputPaneComponent("输入频道名称 (回车新建)...", name -> {
+        panel.child(new TextInputPaneComponent("输入频道名称 (回车保存)...", name -> {
             String cleanName = name.trim();
             if (!cleanName.isEmpty()) {
-                joinAndSaveChannel(cleanName);
+                addSavedChannel(cleanName);
                 renderChannelUI(panel, cleanName);
             }
         }));
+
+        panel.child(new TextInfoPaneComponent(
+                "当前发言目标",
+                () -> {
+                    IrcConfig cfg = IrcConfig.get();
+                    if (cfg.channelEnabled && cfg.currentChannel != null && !cfg.currentChannel.isBlank()) {
+                        return Component.literal("§b#" + cfg.currentChannel);
+                    }
+                    return Component.literal("§e公共大厅");
+                },
+                false
+        ));
 
         panel.child(TextInfoPaneComponent.header("已保存频道"));
 
@@ -73,7 +86,8 @@ public class ChannelModule extends Module {
                                     renderChannelUI(panel, null);
                                 });
                             } else {
-                                joinChannel(ch);
+                                toggleSpeakingChannel(ch);
+                                renderChannelUI(panel, null);
                             }
                         },
                         null,
@@ -89,47 +103,51 @@ public class ChannelModule extends Module {
         }
     }
 
-    private static void joinAndSaveChannel(String channelName) {
+    private static void toggleSpeakingChannel(String channelName) {
+        IrcConfig config = IrcConfig.get();
+
+        if (channelName.equalsIgnoreCase(config.currentChannel) && config.channelEnabled) {
+            config.currentChannel = "";
+            ChatNotifier.send("§e[IRC] 已退出当前频道发言，切换至: §e公共大厅");
+        } else {
+            config.currentChannel = channelName;
+            config.channelEnabled = true;
+            ChatNotifier.send("§a[IRC] 已将发言目标切换为频道: §b#" + channelName);
+        }
+
+        IrcConfig.save();
+        IrcClient.sendChannelSync(config.currentChannel, config.channelEnabled, config.savedChannels);
+    }
+
+    private static void addSavedChannel(String channelName) {
         IrcConfig config = IrcConfig.get();
         if (config.savedChannels == null) config.savedChannels = new ArrayList<>();
 
-        if (!config.savedChannels.contains(channelName)) {
+        boolean exists = config.savedChannels.stream().anyMatch(c -> c.equalsIgnoreCase(channelName));
+        if (!exists) {
             config.savedChannels.add(channelName);
+            IrcConfig.save();
+            IrcClient.sendChannelSync(config.currentChannel, config.channelEnabled, config.savedChannels);
+            ChatNotifier.send("§a[IRC] 已添加频道: §f" + channelName);
+        } else {
+            ChatNotifier.send("§e[IRC] 频道 §f" + channelName + " §e已存在于列表中！");
         }
-
-        config.currentChannel = channelName;
-        config.channelEnabled = true;
-        IrcConfig.save();
-
-        IrcClient.sendChannelSync(channelName, true);
-        ChatNotifier.send("§a[IRC] 已创建并加入频道: §f" + channelName);
-    }
-
-    private static void joinChannel(String channelName) {
-        IrcConfig config = IrcConfig.get();
-        config.currentChannel = channelName;
-        config.channelEnabled = true;
-        IrcConfig.save();
-
-        IrcClient.sendChannelSync(channelName, true);
-        ChatNotifier.send("§a[IRC] 已加入频道: §f" + channelName);
     }
 
     private static void deleteChannel(String channelName) {
         IrcConfig config = IrcConfig.get();
         if (config.savedChannels != null) {
-            config.savedChannels.remove(channelName);
+            config.savedChannels.removeIf(c -> c.equalsIgnoreCase(channelName));
         }
 
         if (channelName.equalsIgnoreCase(config.currentChannel)) {
             config.currentChannel = "";
-            config.channelEnabled = false;
-            IrcClient.sendChannelSync("", false);
-            ChatNotifier.send("§e[IRC] 已删除并退出当前频道");
-        } else {
             ChatNotifier.send("§e[IRC] 已删除频道: §f" + channelName);
+        } else {
+            ChatNotifier.send("§e[IRC] 已取消监听频道: §f" + channelName);
         }
 
         IrcConfig.save();
+        IrcClient.sendChannelSync(config.currentChannel, config.channelEnabled, config.savedChannels);
     }
 }

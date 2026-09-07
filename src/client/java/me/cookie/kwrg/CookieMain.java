@@ -1,6 +1,7 @@
 package me.cookie.kwrg;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import me.cookie.kwrg.gui.util.TpsTracker;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcCommand;
 import me.cookie.kwrg.irc.IrcConfig;
@@ -32,6 +33,7 @@ public class CookieMain implements ClientModInitializer {
         IrcCommand.register();
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             ChatNotifier.flush();
+            TpsTracker.tick();
         });
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {

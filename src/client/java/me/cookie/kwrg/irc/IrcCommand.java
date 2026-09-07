@@ -73,9 +73,9 @@ public class IrcCommand {
                         .executes(context -> {
                             IrcClient.isIrcChatActive = true;
                             IrcConfig config = IrcConfig.get();
-                            config.channelEnabled = false;
+                            config.currentChannel = "";
                             IrcConfig.save();
-                            IrcClient.sendChannelSync(config.currentChannel, false);
+                            IrcClient.sendChannelSync(config.currentChannel, config.channelEnabled, config.savedChannels);
 
                             IrcMessageHandler.printMessage("§a[IRC] 已切换至 §e公共大厅发言 §a模式");
                             if (!IrcClient.isIrcConnect) {
@@ -84,18 +84,42 @@ public class IrcCommand {
                             return 1;
                         }))
                 .then(literal("channel")
+                        .then(argument("name", StringArgumentType.string())
+                                .executes(context -> {
+                                    String name = StringArgumentType.getString(context, "name");
+                                    IrcClient.isIrcChatActive = true;
+                                    IrcConfig config = IrcConfig.get();
+
+                                    if (!config.savedChannels.contains(name)) {
+                                        config.savedChannels.add(name);
+                                    }
+                                    config.currentChannel = name;
+                                    config.channelEnabled = true;
+                                    IrcConfig.save();
+                                    IrcClient.sendChannelSync(config.currentChannel, config.channelEnabled, config.savedChannels);
+
+                                    IrcMessageHandler.printMessage("§a[IRC] 已切换至 §b[#" + name + "] §a频道发言模式！");
+                                    if (!IrcClient.isIrcConnect) {
+                                        IrcClient.connect();
+                                    }
+                                    return 1;
+                                }))
                         .executes(context -> {
                             IrcClient.isIrcChatActive = true;
                             IrcConfig config = IrcConfig.get();
 
                             if (config.currentChannel == null || config.currentChannel.isBlank()) {
-                                IrcMessageHandler.printMessage("§c[IRC] 你尚未加入任何频道！请先在 GUI 中加入频道。");
-                                return 0;
+                                if (config.savedChannels != null && !config.savedChannels.isEmpty()) {
+                                    config.currentChannel = config.savedChannels.get(0);
+                                } else {
+                                    IrcMessageHandler.printMessage("§c[IRC] 你尚未保存任何频道！用法: /ci channel <频道名>");
+                                    return 0;
+                                }
                             }
 
                             config.channelEnabled = true;
                             IrcConfig.save();
-                            IrcClient.sendChannelSync(config.currentChannel, true);
+                            IrcClient.sendChannelSync(config.currentChannel, true, config.savedChannels);
 
                             IrcMessageHandler.printMessage("§a[IRC] 已切换至 §b[#" + config.currentChannel + "] §a频道发言模式！");
                             if (!IrcClient.isIrcConnect) {
@@ -106,11 +130,20 @@ public class IrcCommand {
                 .executes(context -> {
                     IrcClient.isIrcChatActive = true;
                     IrcConfig config = IrcConfig.get();
+
                     if (config.channelEnabled && config.currentChannel != null && !config.currentChannel.isBlank()) {
-                        IrcMessageHandler.printMessage("§a[IRC] 已切换 IRC 聊天频道！当前发言频道: §b[#" + config.currentChannel + "]");
+                        config.currentChannel = "";
+                        IrcMessageHandler.printMessage("§a[IRC] 快捷切换发言模式: §e公共大厅");
+                    } else if (config.savedChannels != null && !config.savedChannels.isEmpty()) {
+                        config.currentChannel = config.savedChannels.get(0);
+                        config.channelEnabled = true;
+                        IrcMessageHandler.printMessage("§a[IRC] 快捷切换发言模式: §b[#" + config.currentChannel + "]");
                     } else {
-                        IrcMessageHandler.printMessage("§a[IRC] 已切换 IRC 聊天频道！当前处于: §e公共大厅");
+                        IrcMessageHandler.printMessage("§a[IRC] 当前处于: §e公共大厅发言");
                     }
+
+                    IrcConfig.save();
+                    IrcClient.sendChannelSync(config.currentChannel, config.channelEnabled, config.savedChannels);
 
                     if (!IrcClient.isIrcConnect) {
                         IrcClient.connect();
@@ -253,6 +286,11 @@ public class IrcCommand {
                         .then(literal("reloadRepo")
                                 .executes(context -> {
                                     SkyblockItemHelper.reloadRepo();
+                                    return 1;
+                                }))
+                        .then(literal("ping")
+                                .executes(context -> {
+                                    me.cookie.kwrg.module.modules.debug.PingModule.executePing(true);
                                     return 1;
                                 })))
                 .then(literal("functions")

@@ -16,12 +16,15 @@ import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 public class IrcClient {
 
@@ -52,6 +55,39 @@ public class IrcClient {
         return t;
     });
 
+    // ================= Ping 延迟测速支持 =================
+    private static volatile long lastPingTimestamp = 0L;
+    private static volatile long lastLatency = -1L;
+    private static final List<Consumer<Long>> pingCallbacks = new CopyOnWriteArrayList<>();
+
+    public static long getLastLatency() {
+        return lastLatency;
+    }
+
+    /**
+     * 发送一次 Ping 数据包测量延迟
+     *
+     * @param onResult 测量完成后的回调函数，传入具体的延迟毫秒数（若未连接或断开返回 -1）
+     */
+    public static void sendPing(Consumer<Long> onResult) {
+        if (!isRunning || socket == null || socket.isClosed()) {
+            if (onResult != null) {
+                Minecraft.getInstance().execute(() -> onResult.accept(-1L));
+            }
+            return;
+        }
+
+        if (onResult != null) {
+            pingCallbacks.add(onResult);
+        }
+
+        lastPingTimestamp = System.currentTimeMillis();
+        JsonObject ping = new JsonObject();
+        ping.addProperty("type", "ping");
+        sendRaw(GSON.toJson(ping));
+    }
+    // ====================================================
+
     public static void connect() {
         if (isRunning) {
             ChatNotifier.sendInChatScreen("§c[IRC] 已经连接至 IRC 服务器了喵~");
@@ -68,7 +104,6 @@ public class IrcClient {
 
         doConnect(false);
     }
-
 
     private static void doConnect(boolean isSilent) {
         if (!isConnecting.compareAndSet(false, true)) {
@@ -107,7 +142,7 @@ public class IrcClient {
                 sendRaw(GSON.toJson(joinJson));
 
                 sendFunctionSync("hideArmor", IrcConfig.get().hideArmor);
-                sendChannelSync(IrcConfig.get().currentChannel, IrcConfig.get().channelEnabled);
+                sendChannelSync(IrcConfig.get().currentChannel, IrcConfig.get().channelEnabled, IrcConfig.get().savedChannels);
                 queryOnline();
                 startHeartbeat();
                 listenLoop();
@@ -134,13 +169,12 @@ public class IrcClient {
             return t;
         });
 
+        // ★ initialDelay 设为 0，连上立刻 ping 一次，随后每 15 秒采样一次 ★
         heartbeatExecutor.scheduleAtFixedRate(() -> {
             if (isRunning && socket != null && !socket.isClosed()) {
-                JsonObject ping = new JsonObject();
-                ping.addProperty("type", "ping");
-                sendRaw(GSON.toJson(ping));
+                sendPing(null);
             }
-        }, 15, 15, TimeUnit.SECONDS);
+        }, 0, 15, TimeUnit.SECONDS);
     }
 
     private static void stopHeartbeat() {
@@ -156,10 +190,27 @@ public class IrcClient {
             while (isRunning && reader != null && (line = reader.readLine()) != null) {
                 String rawJson = line.trim();
                 if (!rawJson.isEmpty()) {
-                    // 收到 pong 心跳直接静默跳过
+                    // 收到 pong 心跳处理延迟计算与回调响应
                     if (rawJson.contains("\"type\":\"pong\"") || rawJson.contains("\"type\": \"pong\"")) {
+                        if (lastPingTimestamp > 0) {
+                            long latency = System.currentTimeMillis() - lastPingTimestamp;
+                            lastLatency = latency;
+                            lastPingTimestamp = 0L;
+
+                            // 派发到客户端主线程执行回调
+                            Minecraft.getInstance().execute(() -> {
+                                for (Consumer<Long> cb : pingCallbacks) {
+                                    try {
+                                        cb.accept(latency);
+                                    } catch (Exception ignored) {
+                                    }
+                                }
+                                pingCallbacks.clear();
+                            });
+                        }
                         continue;
                     }
+
                     LOGGER.info("[IRC-RECV] 收到服务端广播: {}", rawJson);
                     Minecraft.getInstance().execute(() -> IrcMessageHandler.handleIncomingJson(rawJson));
                 }
@@ -180,6 +231,19 @@ public class IrcClient {
         isRunning = false;
         isIrcConnect = false;
         isIrcChatActive = false;
+
+        // 清理测速状态与待处理回调
+        lastLatency = -1L;
+        lastPingTimestamp = 0L;
+        Minecraft.getInstance().execute(() -> {
+            for (Consumer<Long> cb : pingCallbacks) {
+                try {
+                    cb.accept(-1L);
+                } catch (Exception ignored) {
+                }
+            }
+            pingCallbacks.clear();
+        });
 
         stopHeartbeat();
         closeResources();
@@ -204,7 +268,7 @@ public class IrcClient {
             }
         }
     }
-    
+
     private static void sendRaw(String jsonStr) {
         CompletableFuture.runAsync(() -> {
             synchronized (SEND_LOCK) {
@@ -270,7 +334,6 @@ public class IrcClient {
         }
     }
 
-
     public static void sendMessageToPublic(String content) {
         if (content == null || content.isBlank()) return;
 
@@ -333,21 +396,35 @@ public class IrcClient {
         sendRaw(GSON.toJson(json));
     }
 
-    public static void sendChannelSync(String channel, boolean enabled) {
+    public static void sendChannelSync(String channel, boolean enabled, java.util.List<String> channels) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.getUser() == null) return;
 
         String senderId = mc.player != null ? mc.player.getStringUUID() : mc.getUser().getProfileId().toString();
         String username = mc.getUser().getName();
 
-        JsonObject json = new JsonObject();
+        com.google.gson.JsonObject json = new com.google.gson.JsonObject();
         json.addProperty("type", "channel_sync");
         json.addProperty("channel", channel != null ? channel : "");
         json.addProperty("enabled", enabled);
         json.addProperty("senderId", senderId);
         json.addProperty("username", username);
 
+        com.google.gson.JsonArray array = new com.google.gson.JsonArray();
+        if (channels != null) {
+            for (String ch : channels) {
+                if (ch != null && !ch.isBlank()) {
+                    array.add(ch.trim());
+                }
+            }
+        }
+        json.add("channels", array);
+
         sendRaw(GSON.toJson(json));
+    }
+
+    public static void sendChannelSync(String channel, boolean enabled) {
+        sendChannelSync(channel, enabled, IrcConfig.get().savedChannels);
     }
 
     public static void queryOnline() {
@@ -364,6 +441,19 @@ public class IrcClient {
     public static void disconnect() {
         shouldAutoReconnect = false;
         reconnectAttempts.set(0);
+
+        // 清理测速状态
+        lastLatency = -1L;
+        lastPingTimestamp = 0L;
+        Minecraft.getInstance().execute(() -> {
+            for (Consumer<Long> cb : pingCallbacks) {
+                try {
+                    cb.accept(-1L);
+                } catch (Exception ignored) {
+                }
+            }
+            pingCallbacks.clear();
+        });
 
         stopHeartbeat();
         closeResources();

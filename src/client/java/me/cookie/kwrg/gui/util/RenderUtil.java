@@ -93,6 +93,16 @@ public final class RenderUtil {
         return 1.0f - (float) Math.pow(1.0f - p, 4.0f);
     }
 
+    public static float easeOutQuint(float progress) {
+        float p = Mth.clamp(progress, 0.0f, 1.0f);
+        return 1.0f - (float) Math.pow(1.0f - p, 5.0f);
+    }
+
+    public static float easeOutExpo(float progress) {
+        float p = Mth.clamp(progress, 0.0f, 1.0f);
+        return p >= 1.0f ? 1.0f : 1.0f - (float) Math.pow(2.0, -10.0 * p);
+    }
+
     public static Color withAlpha(int rgb, int alpha) {
         int r = (rgb >> 16) & 0xFF;
         int g = (rgb >> 8) & 0xFF;
