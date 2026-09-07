@@ -87,7 +87,6 @@ public class MessageStyleModule extends Module {
                                 newStyle = current.isEmpty() ? preset : current + " " + preset;
                             }
                         } else {
-                            // ★ 提取当前输入框中已启用的所有修饰词（如 bold, italic, underline 等） ★
                             java.util.List<String> currentMods = new java.util.ArrayList<>();
                             for (String mod : MODIFIERS) {
                                 if (current.toLowerCase().matches(".*\\b" + mod + "\\b.*")) {
@@ -95,7 +94,6 @@ public class MessageStyleModule extends Module {
                                 }
                             }
 
-                            // ★ 保留修饰词，仅替换主要样式（自动避免重复叠加） ★
                             StringBuilder sb = new StringBuilder(preset);
                             for (String mod : currentMods) {
                                 if (!preset.toLowerCase().matches(".*\\b" + mod + "\\b.*")) {

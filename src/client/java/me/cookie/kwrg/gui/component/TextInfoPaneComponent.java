@@ -95,7 +95,7 @@ public class TextInfoPaneComponent extends BaseUIComponent {
         int targetHeight = BASE_HEIGHT + (lineCount - 1) * font.lineHeight;
 
         this.currentAnimatedHeight = Mth.lerp(delta * 0.35f, this.currentAnimatedHeight, (float) targetHeight);
-        int renderH = Math.max(BASE_HEIGHT, (int) Math.round(this.currentAnimatedHeight));
+        int renderH = Math.max(BASE_HEIGHT, Math.round(this.currentAnimatedHeight));
         this.height = renderH;
 
         int x = this.x();

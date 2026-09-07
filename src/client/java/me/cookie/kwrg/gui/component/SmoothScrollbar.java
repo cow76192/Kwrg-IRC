@@ -13,7 +13,6 @@ public class SmoothScrollbar {
     private float targetScrollOffset = 0.0f;
     private float maxScroll = 0.0f;
     private int totalContentHeight = 0;
-    private int viewportHeight = 0;
 
     private boolean isDragging = false;
     private double dragStartMouseY = 0.0;
@@ -30,7 +29,6 @@ public class SmoothScrollbar {
 
     public void update(int totalContentHeight, int viewportHeight, float delta) {
         this.totalContentHeight = totalContentHeight;
-        this.viewportHeight = viewportHeight;
 
         this.maxScroll = Math.max(0.0f, totalContentHeight - viewportHeight + 10);
         this.targetScrollOffset = Mth.clamp(this.targetScrollOffset, 0.0f, this.maxScroll);
@@ -62,7 +60,7 @@ public class SmoothScrollbar {
         int availableTravel = trackH - thumbH;
         int thumbY = trackY;
         if (availableTravel > 0 && this.maxScroll > 0) {
-            thumbY = trackY + (int) Math.round(availableTravel * (this.scrollOffset / this.maxScroll));
+            thumbY = trackY + Math.round(availableTravel * (this.scrollOffset / this.maxScroll));
         }
 
         thumbY = Mth.clamp(thumbY, trackY, trackY + trackH - thumbH);

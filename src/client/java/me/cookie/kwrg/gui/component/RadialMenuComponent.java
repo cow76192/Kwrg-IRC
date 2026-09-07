@@ -39,7 +39,11 @@ public class RadialMenuComponent extends BaseUIComponent {
         this.sizing(Sizing.fixed(1), Sizing.fixed(1));
 
         for (Category category : Category.values()) {
-            buttons.add(new CircleButtonComponent(category.getName(), this::openSecondaryPanel));
+            CircleButtonComponent btn = new CircleButtonComponent(category.getName(), this::openSecondaryPanel);
+            btn.setVisualAlpha(0.0f);
+            btn.setExactCenter(-2000.0f, -2000.0f);
+            btn.moveTo(-2000, -2000);
+            buttons.add(btn);
         }
 
         for (var btn : buttons) {
@@ -169,11 +173,11 @@ public class RadialMenuComponent extends BaseUIComponent {
 
                 btn.setExactCenter(animX, animY);
                 btn.setVisualAlpha(1.0f - panelEase);
-                btn.moveTo((int) Math.round(animX - btn.width() / 2.0f), (int) Math.round(animY - btn.height() / 2.0f));
+                btn.moveTo(Math.round(animX - btn.width() / 2.0f), Math.round(animY - btn.height() / 2.0f));
             } else {
                 btn.setExactCenter(radialX, radialY);
                 btn.setVisualAlpha(1.0f - panelEase);
-                btn.moveTo((int) Math.round(radialX - btn.width() / 2.0f), (int) Math.round(radialY - btn.height() / 2.0f));
+                btn.moveTo(Math.round(radialX - btn.width() / 2.0f), Math.round(radialY - btn.height() / 2.0f));
             }
         }
 

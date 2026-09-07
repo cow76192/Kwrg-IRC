@@ -144,10 +144,10 @@ public class SecondaryPanelComponent extends FlowLayout {
         float curW = Mth.lerp(ease, 52.0f, (float) PANEL_WIDTH);
         float curH = Mth.lerp(ease, 52.0f, (float) PANEL_HEIGHT);
 
-        int px = (int) Math.round(curCX - curW / 2.0f);
-        int py = (int) Math.round(curCY - curH / 2.0f);
-        int width = (int) Math.round(curW);
-        int height = (int) Math.round(curH);
+        int px = Math.round(curCX - curW / 2.0f);
+        int py = Math.round(curCY - curH / 2.0f);
+        int width = Math.round(curW);
+        int height = Math.round(curH);
 
         this.updateX(px);
         this.updateY(py);

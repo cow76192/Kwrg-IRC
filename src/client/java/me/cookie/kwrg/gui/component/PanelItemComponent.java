@@ -106,11 +106,11 @@ public class PanelItemComponent extends BaseUIComponent {
     public int getLayoutFootprint() {
         if (this.isDismissing) {
             float dismissEase = RenderUtil.easeOutCubic(this.dismissProgress);
-            return (int) Math.round((1.0f - dismissEase) * FULL_FOOTPRINT);
+            return Math.round((1.0f - dismissEase) * FULL_FOOTPRINT);
         }
         if (this.playSpawnAnimation && this.spawnProgress < 1.0f) {
             float spawnEase = RenderUtil.easeOutCubic(this.spawnProgress);
-            return (int) Math.round(spawnEase * FULL_FOOTPRINT);
+            return Math.round(spawnEase * FULL_FOOTPRINT);
         }
         return FULL_FOOTPRINT;
     }
