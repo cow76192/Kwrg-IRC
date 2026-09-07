@@ -55,7 +55,6 @@ public class IrcClient {
         return t;
     });
 
-    // ================= Ping 延迟测速支持 =================
     private static volatile long lastPingTimestamp = 0L;
     private static volatile long lastLatency = -1L;
     private static final List<Consumer<Long>> pingCallbacks = new CopyOnWriteArrayList<>();
@@ -64,11 +63,6 @@ public class IrcClient {
         return lastLatency;
     }
 
-    /**
-     * 发送一次 Ping 数据包测量延迟
-     *
-     * @param onResult 测量完成后的回调函数，传入具体的延迟毫秒数（若未连接或断开返回 -1）
-     */
     public static void sendPing(Consumer<Long> onResult) {
         if (!isRunning || socket == null || socket.isClosed()) {
             if (onResult != null) {
@@ -86,7 +80,6 @@ public class IrcClient {
         ping.addProperty("type", "ping");
         sendRaw(GSON.toJson(ping));
     }
-    // ====================================================
 
     public static void connect() {
         if (isRunning) {
@@ -301,11 +294,14 @@ public class IrcClient {
             json.addProperty("channel", config.currentChannel);
         }
 
-        String displayRank = config.rank;
+
+        String channel = "";
         if (config.channelEnabled && config.currentChannel != null && !config.currentChannel.isBlank()) {
-            displayRank = "&b[#" + config.currentChannel + "&b]&r " + (config.rank != null ? config.rank : "");
+            channel = config.currentChannel;
+            json.addProperty("channel", channel);
         }
-        IrcMessageHandler.displayFormattedMessage(displayRank, config.namestyle, username, config.chatstyle, content);
+
+        IrcMessageHandler.displayFormattedMessage(channel, config.rank, config.namestyle, username, config.chatstyle, content);
 
         if (isRunning) {
             sendRaw(GSON.toJson(json));
@@ -354,7 +350,7 @@ public class IrcClient {
         json.addProperty("content", content);
         json.addProperty("channel", "");
 
-        IrcMessageHandler.displayFormattedMessage(config.rank, config.namestyle, username, config.chatstyle, content);
+        IrcMessageHandler.displayFormattedMessage("", config.rank, config.namestyle, username, config.chatstyle, content);
 
         if (isRunning) {
             sendRaw(GSON.toJson(json));
@@ -381,7 +377,6 @@ public class IrcClient {
 
     public static void sendFunctionSync(String functionName, boolean enabled) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.getUser() == null) return;
 
         String senderId = mc.player != null ? mc.player.getStringUUID() : mc.getUser().getProfileId().toString();
         String username = mc.getUser().getName();
