@@ -1,0 +1,33 @@
+{
+	"schemaVersion": 1,
+	"id": "kwrg",
+	"version": "${version}",
+	"name": "Kwrg",
+	"description": "w kwrg!",
+	"authors": [
+		"Grwk"
+	],
+	"contact": {
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "MIT",
+	"icon": "assets/kwrg/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"client": [
+			"me.cookie.kwrg.CookieMain"
+		]
+	},
+	"mixins": [
+		{
+			"config": "kwrg.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~26.1.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
