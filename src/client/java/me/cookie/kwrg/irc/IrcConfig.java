@@ -60,6 +60,8 @@ public class IrcConfig {
     public float blurQuality = 8.0f;
     public float blurSize = 16.0f;
 
+    public String guiFont = "default";
+
     private static IrcConfig instance = new IrcConfig();
     private static String currentProfileName = "default";
 
@@ -153,9 +155,6 @@ public class IrcConfig {
         LOGGER.info("[Kwrg] 已在内存中新建配置 [{}]（尚未保存到磁盘）", cleanName);
     }
 
-    /**
-     * 立即保存到磁盘
-     */
     public static synchronized boolean save() {
         if (pendingSaveTask != null && !pendingSaveTask.isDone()) {
             pendingSaveTask.cancel(false);
@@ -178,10 +177,6 @@ public class IrcConfig {
         }
     }
 
-    /**
-     * 【核心新增】：内存缓冲延迟防抖保存 (如颜色选择器快速拖动时调用)
-     * 在设定的 delayMs 毫秒内如果再次调用，会自动重置计时器，直到停顿后才执行 1 次磁盘写入。
-     */
     public static synchronized void saveDelayed(long delayMs) {
         if (pendingSaveTask != null && !pendingSaveTask.isDone()) {
             pendingSaveTask.cancel(false);
@@ -220,5 +215,9 @@ public class IrcConfig {
             }
         }
         return list;
+    }
+
+    public static Path getFontDir() {
+        return getKwrgDir().resolve("font");
     }
 }

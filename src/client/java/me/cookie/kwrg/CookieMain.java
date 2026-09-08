@@ -1,6 +1,7 @@
 package me.cookie.kwrg;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.TpsTracker;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcCommand;
@@ -39,6 +40,10 @@ public class CookieMain implements ClientModInitializer {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             GreetingManager.onSessionJoin();
             IrcClient.connect();
+            String configuredFont = me.cookie.kwrg.irc.IrcConfig.get().guiFont;
+            if (configuredFont != null && !configuredFont.isBlank() && !me.cookie.kwrg.gui.util.FontManagerHelper.DEFAULT_FONT.equalsIgnoreCase(configuredFont)) {
+                me.cookie.kwrg.gui.util.FontManagerHelper.applyFont(configuredFont);
+            }
         });
 
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {

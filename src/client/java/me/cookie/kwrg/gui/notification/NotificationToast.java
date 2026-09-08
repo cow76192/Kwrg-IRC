@@ -2,6 +2,7 @@ package me.cookie.kwrg.gui.notification;
 
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
+import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -15,8 +16,8 @@ public class NotificationToast {
     private static final long DISMISS_DURATION = 250L;
 
     private final NotificationType type;
-    private final Component titleComp;    // 【富文本支持】
-    private final Component subtitleComp; // 【富文本支持】
+    private final Component titleComp;
+    private final Component subtitleComp;
     private final Runnable onClickAction;
     private final long totalDurationMs;
 
@@ -106,10 +107,13 @@ public class NotificationToast {
         float alpha = (1.0f - dismissEase) * spawnEase;
         if (alpha <= 0.005f) return;
 
+        Component styledTitle = FontManagerHelper.apply(this.titleComp);
+        Component styledSubtitle = FontManagerHelper.apply(this.subtitleComp);
+
         var font = Minecraft.getInstance().font;
-        int titleW = font.width(this.titleComp);
+        int titleW = font.width(styledTitle);
         boolean hasSub = !this.subtitleComp.getString().isEmpty();
-        int subtitleW = hasSub ? (font.width(this.subtitleComp) + 8) : 0;
+        int subtitleW = hasSub ? (font.width(styledSubtitle) + 8) : 0;
         int cardWidth = Math.max(160, 32 + titleW + subtitleW + 16);
         int cardHeight = BASE_HEIGHT;
 
@@ -150,10 +154,8 @@ public class NotificationToast {
         int halfW = cardWidth / 2;
         int halfH = cardHeight / 2;
 
-        // 1. 底盘与描边
         RenderUtil.drawRoundedPanel(graphics, -halfW, -halfH, cardWidth, cardHeight, 8.0f, bgColor, borderColor);
 
-        // 2. 左侧图标徽章
         int iconBadgeCX = -halfW + 14;
         Color badgeBg = RenderUtil.withAlpha(0x1D2633, (int) (255 * alpha));
         graphics.drawCircle(iconBadgeCX, 0, 16, 7.5, badgeBg);
@@ -163,16 +165,14 @@ public class NotificationToast {
         int iconColor = RenderUtil.withAlpha(accentRgb, (int) (255 * alpha)).argb();
         RenderUtil.drawSmoothText(graphics, Component.literal(this.type.getIcon()), iconBadgeCX - iconW / 2.0f, -4.5f, 1.0f, iconColor);
 
-        // 3. 【原生富文本渲染】：标题与副标题直接使用 Component 绘制
         int textColor = RenderUtil.withAlpha(0xFFFFFF, (int) (255 * alpha)).argb();
-        RenderUtil.drawSmoothText(graphics, this.titleComp, -halfW + 28, -4.5f, 1.0f, textColor);
+        RenderUtil.drawSmoothText(graphics, styledTitle, -halfW + 28, -4.5f, 1.0f, textColor);
 
         if (hasSub) {
             int subTextColor = RenderUtil.withAlpha(0x90A4AE, (int) (255 * alpha)).argb();
-            RenderUtil.drawSmoothText(graphics, this.subtitleComp, -halfW + 28 + titleW + 8, -4.5f, 1.0f, subTextColor);
+            RenderUtil.drawSmoothText(graphics, styledSubtitle, -halfW + 28 + titleW + 8, -4.5f, 1.0f, subTextColor);
         }
 
-        // 4. 底部倒走进度条
         long currentPause = this.pausedTimeTotal + (this.isPaused ? (now - this.pauseStartTime) : 0L);
         long elapsedActive = now - this.createTime - currentPause - SPAWN_DURATION;
         float remainingRatio = 1.0f - Mth.clamp((float) elapsedActive / (float) this.totalDurationMs, 0.0f, 1.0f);
@@ -195,10 +195,13 @@ public class NotificationToast {
     public boolean onClick(double mouseX, double mouseY, int screenWidth) {
         if (this.isDismissing) return false;
 
+        Component styledTitle = FontManagerHelper.apply(this.titleComp);
+        Component styledSubtitle = FontManagerHelper.apply(this.subtitleComp);
+
         var font = Minecraft.getInstance().font;
-        int titleW = font.width(this.titleComp);
+        int titleW = font.width(styledTitle);
         boolean hasSub = !this.subtitleComp.getString().isEmpty();
-        int subtitleW = hasSub ? (font.width(this.subtitleComp) + 8) : 0;
+        int subtitleW = hasSub ? (font.width(styledSubtitle) + 8) : 0;
         int cardWidth = Math.max(160, 32 + titleW + subtitleW + 16);
 
         int targetX = screenWidth - cardWidth - 16;
