@@ -300,16 +300,27 @@ public class ChatNotifier {
         int chatWidth = net.minecraft.client.gui.components.ChatComponent.getWidth(chatWidthOpt);
         return net.minecraft.util.Mth.ceil((float) chatWidth / (float) chatScale);
     }
-    
-    public static FormattedCharSequence getDynamicLineContent(
-            net.minecraft.client.multiplayer.chat.GuiMessage.Line line,
+
+    public static boolean hasAnimation(net.minecraft.client.multiplayer.chat.GuiMessage msg) {
+        return msg != null && ACTIVE_ANIMATIONS.containsKey(msg);
+    }
+
+
+    public static FormattedCharSequence createDynamicLine(
             net.minecraft.client.multiplayer.chat.GuiMessage parent,
+            int lineIndex,
             FormattedCharSequence fallback
     ) {
-        if (parent == null || !ACTIVE_ANIMATIONS.containsKey(parent)) {
-            return null;
-        }
+        return sink -> {
+            FormattedCharSequence currentFrameLine = getLineForFrame(parent, lineIndex);
+            if (currentFrameLine != null) {
+                return currentFrameLine.accept(sink);
+            }
+            return fallback.accept(sink);
+        };
+    }
 
+    private static FormattedCharSequence getLineForFrame(net.minecraft.client.multiplayer.chat.GuiMessage parent, int lineIndex) {
         long now = System.currentTimeMillis();
         MessageLineCache cache = DYNAMIC_LINE_CACHE.get(parent);
 
@@ -332,33 +343,11 @@ public class ChatNotifier {
             DYNAMIC_LINE_CACHE.put(parent, cache);
         }
 
-        if (cache.lines == null || cache.lines.isEmpty()) {
-            return null;
+        if (cache.lines != null && lineIndex >= 0 && lineIndex < cache.lines.size()) {
+            return cache.lines.get(lineIndex);
         }
-
-        // 确定当前 Line 是该消息的第几行
-        Integer index = LINE_INDEX_MAP.get(line);
-        if (index == null) {
-            // 首次访问时通过原版静态行匹配索引并记录
-            Minecraft mc = Minecraft.getInstance();
-            int maxWidth = getChatMaxWidth(mc);
-            if (parent.tag() != null && parent.tag().icon() != null) {
-                maxWidth -= parent.tag().icon().width + 4 + 2;
-            }
-
-            List<FormattedCharSequence> staticLines = parent.splitLines(mc.font, maxWidth);
-            index = staticLines.indexOf(fallback);
-            if (index < 0) index = 0;
-            LINE_INDEX_MAP.put(line, index);
-        }
-
-        if (index >= 0 && index < cache.lines.size()) {
-            return cache.lines.get(index);
-        }
-
         return null;
     }
-
 
     public static void flush() {
         Minecraft mc = Minecraft.getInstance();
