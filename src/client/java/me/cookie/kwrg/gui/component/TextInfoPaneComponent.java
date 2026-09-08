@@ -2,6 +2,7 @@ package me.cookie.kwrg.gui.component;
 
 import io.wispforest.owo.ui.base.BaseUIComponent;
 import io.wispforest.owo.ui.core.*;
+import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.client.Minecraft;
@@ -90,12 +91,13 @@ public class TextInfoPaneComponent extends BaseUIComponent {
         String valStr = valComp != null ? valComp.getString() : (this.valueSupplier != null ? this.valueSupplier.get() : "");
 
         String fullDisplayText = this.isHeader ? this.label : (this.label + (valStr.isEmpty() ? "" : ": " + valStr));
-        List<FormattedCharSequence> wrappedLines = font.split(Component.literal(fullDisplayText), stableWidth);
+
+        List<FormattedCharSequence> wrappedLines = font.split(FontManagerHelper.apply(fullDisplayText), stableWidth);
         int lineCount = Math.max(1, wrappedLines.size());
         int targetHeight = BASE_HEIGHT + (lineCount - 1) * font.lineHeight;
 
         this.currentAnimatedHeight = Mth.lerp(delta * 0.35f, this.currentAnimatedHeight, (float) targetHeight);
-        int renderH = Math.max(BASE_HEIGHT, Math.round(this.currentAnimatedHeight));
+        int renderH = Math.max(BASE_HEIGHT, (int) Math.round(this.currentAnimatedHeight));
         this.height = renderH;
 
         int x = this.x();
@@ -121,13 +123,14 @@ public class TextInfoPaneComponent extends BaseUIComponent {
         if (this.isHeader) {
             for (int i = 0; i < wrappedLines.size(); i++) {
                 String lineStr = sequenceToString(wrappedLines.get(i));
-                float titleW = font.width(lineStr) * textScale;
+                Component styledHeaderLine = FontManagerHelper.apply(lineStr);
+                float titleW = font.width(styledHeaderLine) * textScale;
                 int curLineY = (int) (textStartY + i * font.lineHeight);
 
                 graphics.pose().pushMatrix();
                 graphics.pose().translate(-titleW / 2.0f, curLineY);
                 graphics.pose().scale(textScale, textScale);
-                graphics.drawText(Component.literal(lineStr), 0, 0, 1.0f, 0xFFB0BEC5, OwoUIGraphics.TextAnchor.TOP_LEFT);
+                graphics.drawText(styledHeaderLine, 0, 0, 1.0f, 0xFFB0BEC5, OwoUIGraphics.TextAnchor.TOP_LEFT);
                 graphics.pose().popMatrix();
             }
         } else {
@@ -135,37 +138,41 @@ public class TextInfoPaneComponent extends BaseUIComponent {
                 float textH = font.lineHeight * textScale;
                 float singleLineY = (int) (-textH / 2.0f);
 
+                Component styledLabel = FontManagerHelper.apply(this.label);
                 graphics.pose().pushMatrix();
                 graphics.pose().translate(-halfW + 8.0f, singleLineY);
                 graphics.pose().scale(textScale, textScale);
-                graphics.drawText(Component.literal(this.label), 0, 0, 1.0f, 0xFF78909C, OwoUIGraphics.TextAnchor.TOP_LEFT);
+                graphics.drawText(styledLabel, 0, 0, 1.0f, 0xFF78909C, OwoUIGraphics.TextAnchor.TOP_LEFT);
                 graphics.pose().popMatrix();
 
                 if (valComp != null) {
-                    float valW = font.width(valComp) * textScale;
+                    Component styledVal = FontManagerHelper.apply(valComp);
+                    float valW = font.width(styledVal) * textScale;
                     graphics.pose().pushMatrix();
                     graphics.pose().translate(halfW - valW - 8.0f, singleLineY);
                     graphics.pose().scale(textScale, textScale);
-                    graphics.drawText(valComp, 0, 0, 1.0f, 0xFFFFFFFF, OwoUIGraphics.TextAnchor.TOP_LEFT);
+                    graphics.drawText(styledVal, 0, 0, 1.0f, 0xFFFFFFFF, OwoUIGraphics.TextAnchor.TOP_LEFT);
                     graphics.pose().popMatrix();
                 } else if (!valStr.isEmpty()) {
-                    float valW = font.width(valStr) * textScale;
+                    Component styledVal = FontManagerHelper.apply(valStr);
+                    float valW = font.width(styledVal) * textScale;
                     int valTextColor = this.hovered ? 0xFFFFFFFF : 0xFFECEFF1;
                     graphics.pose().pushMatrix();
                     graphics.pose().translate(halfW - valW - 8.0f, singleLineY);
                     graphics.pose().scale(textScale, textScale);
-                    graphics.drawText(Component.literal(valStr), 0, 0, 1.0f, valTextColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
+                    graphics.drawText(styledVal, 0, 0, 1.0f, valTextColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
                     graphics.pose().popMatrix();
                 }
             } else {
                 for (int i = 0; i < wrappedLines.size(); i++) {
                     String lineStr = sequenceToString(wrappedLines.get(i));
+                    Component styledLine = FontManagerHelper.apply(lineStr);
                     int curLineY = (int) (textStartY + i * font.lineHeight);
 
                     graphics.pose().pushMatrix();
                     graphics.pose().translate(-halfW + 8.0f, curLineY);
                     graphics.pose().scale(textScale, textScale);
-                    graphics.drawText(Component.literal(lineStr), 0, 0, 1.0f, 0xFFECEFF1, OwoUIGraphics.TextAnchor.TOP_LEFT);
+                    graphics.drawText(styledLine, 0, 0, 1.0f, 0xFFECEFF1, OwoUIGraphics.TextAnchor.TOP_LEFT);
                     graphics.pose().popMatrix();
                 }
             }

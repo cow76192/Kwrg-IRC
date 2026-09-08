@@ -2,6 +2,7 @@ package me.cookie.kwrg.gui.component;
 
 import io.wispforest.owo.ui.base.BaseUIComponent;
 import io.wispforest.owo.ui.core.*;
+import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -210,7 +211,8 @@ public class PanelItemComponent extends BaseUIComponent {
         int textB = (int) Mth.lerp(Math.max(this.activeAnimation, this.hoverAnimation), 220f, 255f);
         int textColor = ARGB.color((int) (255 * totalAlpha), textR, textG, textB);
 
-        graphics.drawText(Component.literal(this.title), -halfW + 10.0f, -textH / 2.0f, textScale, textColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
+        Component displayTitle = Component.literal(this.title).setStyle(FontManagerHelper.getGuiStyle());
+        graphics.drawText(displayTitle, -halfW + 10.0f, -textH / 2.0f, textScale, textColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
 
         int dotX = halfW - 12;
         int dotY = 0;

@@ -14,7 +14,10 @@
 		"MinecraftKeybindMixin",
 		"HudNotificationMixin",
 		"ChatComponentMixin",
-		"GuiMessageLineMixin"
+		"GuiMessageLineMixin",
+		"accessor.FontManagerAccessor",
+		"accessor.FontSetAccessor",
+		"accessor.MinecraftAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1

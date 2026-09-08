@@ -37,6 +37,7 @@ public class ModuleManager {
         register(new MessageStyleModule());
         register(new ChatModule());
         register(new DynamicIslandModule());
+        register(new FontModule());
 
         // --- PLAY 模块 ---
         register(new PlayModule());
