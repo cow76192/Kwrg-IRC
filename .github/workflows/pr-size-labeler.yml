@@ -1,0 +1,65 @@
+name: PR Size Labeler
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Label PR based on changes
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const totalChanges = pr.additions + pr.deletions;
+
+            const sizeLabels = ['1+', '10+', '40+', '100+', '500+', '2000+'];
+
+            // 计算目标标签
+            let targetLabel = '1+';
+            if (totalChanges >= 2000) {
+              targetLabel = '2000+';
+            } else if (totalChanges >= 500) {
+              targetLabel = '500+';
+            } else if (totalChanges >= 100) {
+              targetLabel = '100+';
+            } else if (totalChanges >= 40) {
+              targetLabel = '40+';
+            } else if (totalChanges >= 10) {
+              targetLabel = '10+';
+            } else {
+              targetLabel = '1+';
+            }
+
+            const currentLabels = (pr.labels || []).map(l => l.name);
+
+            for (const label of sizeLabels) {
+              if (label !== targetLabel && currentLabels.includes(label)) {
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: pr.number,
+                    name: label,
+                  });
+                } catch (err) {
+                  console.log(`Failed to remove label ${label}:`, err.message);
+                }
+              }
+            }
+
+            if (!currentLabels.includes(targetLabel)) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                labels: [targetLabel],
+              });
+              console.log(`Successfully added label: ${targetLabel} (Total changes: ${totalChanges})`);
+            }
