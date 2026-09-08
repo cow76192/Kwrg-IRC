@@ -18,19 +18,28 @@ public class IrcMessageHandler {
     public static String extractFirstColor(String text) {
         if (text == null || text.isEmpty()) return "§7";
 
-        StringBuilder colorBuilder = new StringBuilder();
-        int i = 0;
-        while (i < text.length() - 1) {
+        for (int i = 0; i < text.length() - 1; i++) {
             char c1 = text.charAt(i);
             char c2 = text.charAt(i + 1);
             if ((c1 == '§' || c1 == '&') && "0123456789abcdefklmnorABCDEFKLMNOR".indexOf(c2) >= 0) {
+                StringBuilder colorBuilder = new StringBuilder();
                 colorBuilder.append('§').append(Character.toLowerCase(c2));
-                i += 2;
-            } else {
-                break;
+
+                int j = i + 2;
+                while (j < text.length() - 1) {
+                    char nextC1 = text.charAt(j);
+                    char nextC2 = text.charAt(j + 1);
+                    if ((nextC1 == '§' || nextC1 == '&') && "0123456789abcdefklmnorABCDEFKLMNOR".indexOf(nextC2) >= 0) {
+                        colorBuilder.append('§').append(Character.toLowerCase(nextC2));
+                        j += 2;
+                    } else {
+                        break;
+                    }
+                }
+                return colorBuilder.toString();
             }
         }
-        return !colorBuilder.isEmpty() ? colorBuilder.toString() : "§7";
+        return "§7";
     }
 
     public static String formatRankWithBrackets(String rank) {
@@ -51,12 +60,12 @@ public class IrcMessageHandler {
         boolean changed = true;
         while (changed) {
             changed = false;
-            String strippedLeft = str.replaceFirst("^((§[0-9a-fk-orA-FK-OR])*)\\[", "$1");
+            String strippedLeft = str.replaceFirst("^((?:§[0-9a-fk-orA-FK-OR])*)\\[", "$1");
             if (!strippedLeft.equals(str)) {
                 str = strippedLeft.trim();
                 changed = true;
             }
-            String strippedRight = str.replaceFirst("\\]((§[0-9a-fk-orA-FK-OR])*)$", "$1");
+            String strippedRight = str.replaceFirst("\\]((?:§[0-9a-fk-orA-FK-OR])*)$", "$1");
             if (!strippedRight.equals(str)) {
                 str = strippedRight.trim();
                 changed = true;
@@ -154,27 +163,36 @@ public class IrcMessageHandler {
             String chatStyle = obj.has("chatstyle") ? obj.get("chatstyle").getAsString() : "";
             String content = obj.has("content") ? obj.get("content").getAsString() : "";
             String channel = obj.has("channel") ? obj.get("channel").getAsString() : "";
-            if (!channel.isBlank()) {
-                rank = "&b[#" + channel + "&b]&r " + rank;
-            }
 
-            displayFormattedMessage(rank, nameStyle, username, chatStyle, content);
+            displayFormattedMessage(channel, rank, nameStyle, username, chatStyle, content);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public static void displayFormattedMessage(String rank, String nameStyle, String username, String chatStyle, String content) {
+    public static void displayFormattedMessage(String channel, String rank, String nameStyle, String username, String chatStyle, String content) {
         java.util.List<ChatNotifier.AnimatedSegment> segments = new java.util.ArrayList<>();
+
+        boolean hasChannel = channel != null && !channel.isBlank();
+        if (hasChannel) {
+            String cleanChannel = channel.trim();
+            if (cleanChannel.startsWith("#")) {
+                cleanChannel = cleanChannel.substring(1);
+            }
+            segments.add(new ChatNotifier.AnimatedSegment("§b#" + cleanChannel + "§r", "", true));
+        }
 
         String formattedRank = formatRankWithBrackets(rank);
         if (!formattedRank.isEmpty()) {
             segments.add(new ChatNotifier.AnimatedSegment(formattedRank + " ", "", true));
+        } else if (hasChannel) {
+            segments.add(new ChatNotifier.AnimatedSegment(" ", "", true));
         }
 
         segments.add(new ChatNotifier.AnimatedSegment(username, nameStyle, false));
-        segments.add(new ChatNotifier.AnimatedSegment("§7: §r", "", true));
+        segments.add(new ChatNotifier.AnimatedSegment(" §7: §r", "", true));
         segments.add(new ChatNotifier.AnimatedSegment(content, chatStyle, false));
+
         ChatNotifier.sendAnimatedInChatScreen(segments);
         ChatModule.playConfiguredSound();
 
@@ -184,6 +202,10 @@ public class IrcMessageHandler {
                 break;
             }
         }
+    }
+
+    public static void displayFormattedMessage(String rank, String nameStyle, String username, String chatStyle, String content) {
+        displayFormattedMessage("", rank, nameStyle, username, chatStyle, content);
     }
 
     private static void triggerTotemEffect(String sender, String rawItemId) {
