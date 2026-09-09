@@ -185,6 +185,16 @@ public class IrcCommand {
                     sendHelp();
                     return 1;
                 })
+                .then(literal("share")
+                        .then(literal("open")
+                                .executes(context -> {
+                                    me.cookie.kwrg.module.modules.config.ShareModule.openShareGui();
+                                    return 1;
+                                }))
+                        .executes(context -> {
+                            me.cookie.kwrg.module.modules.config.ShareModule.openShareGui();
+                            return 1;
+                        }))
                 .then(literal("rank")
                         .then(argument("name", StringArgumentType.greedyString())
                                 .executes(context -> RankModule.setRank(StringArgumentType.getString(context, "name"))))

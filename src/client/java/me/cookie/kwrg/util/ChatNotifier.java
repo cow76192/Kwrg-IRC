@@ -27,7 +27,6 @@ public class ChatNotifier {
             Pattern.CASE_INSENSITIVE
     );
 
-    // 内部记录类
     private record StyledPart(Style style, String text) {}
     private record UrlRange(int start, int end, String cleanUrl, URI uri) {}
 
@@ -38,25 +37,18 @@ public class ChatNotifier {
 
     public static void sendInChatScreen(Component component) {
         if (component == null) return;
-        // 自动进行无损样式 URL 识别与事件挂载
         Component parsed = parseUrls(component);
         PENDING_MESSAGES.offer(parsed);
         Minecraft.getInstance().execute(ChatNotifier::flush);
     }
 
-    /**
-     * 深度遍历并保留 Component 原有的一切样式（ColorUtil 的彩虹色、渐变色、粗体、字体等），
-     * 仅在命中 URL 的字符区间上无损附加 ClickEvent 和 HoverEvent，不修改其原本的颜色外观。
-     */
     public static Component parseUrls(Component component) {
         String fullText = component.getString();
         Matcher matcher = URL_PATTERN.matcher(fullText);
         if (!matcher.find()) {
-            // 没有 URL，原样返回，完全不破坏原有结构
             return component;
         }
 
-        // 1. 提取所有合法的 URL 区间
         List<UrlRange> ranges = new ArrayList<>();
         matcher.reset();
         while (matcher.find()) {
@@ -73,7 +65,6 @@ public class ChatNotifier {
             return component;
         }
 
-        // 2. 深度遍历原 Component，收集所有保留了各自独立 Style 的文本碎片
         List<StyledPart> parts = new ArrayList<>();
         component.visit((style, text) -> {
             if (!text.isEmpty()) {
@@ -82,7 +73,6 @@ public class ChatNotifier {
             return Optional.empty();
         }, Style.EMPTY);
 
-        // 3. 重新组装 Component：保留原本的所有颜色与样式，仅叠加 ClickEvent 和 HoverEvent
         MutableComponent root = Component.empty();
         int globalIndex = 0;
 

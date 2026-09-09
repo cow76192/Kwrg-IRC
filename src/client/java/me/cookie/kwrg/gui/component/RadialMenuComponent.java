@@ -33,6 +33,7 @@ public class RadialMenuComponent extends BaseUIComponent {
     private long panelAnimStartTime = 0L;
     private CircleButtonComponent selectedButton = null;
     private SecondaryPanelComponent secondaryPanel = null;
+    private boolean waitingForTertiaryToClose = false;
 
     public RadialMenuComponent(IrcScreen parentScreen, StackLayout rootContainer) {
         this.rootContainer = rootContainer;
@@ -52,12 +53,14 @@ public class RadialMenuComponent extends BaseUIComponent {
     }
 
     public void openSecondaryPanel(CircleButtonComponent button) {
-        if (this.panelOpen) return;
+        if (this.panelOpen && !this.waitingForTertiaryToClose) return;
+        this.waitingForTertiaryToClose = false;
         this.selectedButton = button;
         this.panelOpen = true;
         this.panelAnimStartTime = System.currentTimeMillis();
 
         if (this.secondaryPanel != null) {
+            this.secondaryPanel.destroyTertiaryImmediately();
             this.rootContainer.removeChild(this.secondaryPanel);
         }
 
@@ -67,11 +70,17 @@ public class RadialMenuComponent extends BaseUIComponent {
     }
 
     public boolean closeSecondaryPanel() {
-        if (!this.panelOpen) return false;
-        if (this.secondaryPanel != null && this.secondaryPanel.isTertiaryOpen()) {
-            this.secondaryPanel.closeTertiaryPanel();
+        if (!this.panelOpen && !this.waitingForTertiaryToClose) return false;
+
+        if (this.secondaryPanel != null && this.secondaryPanel.isTertiaryActive()) {
+            if (this.secondaryPanel.isTertiaryOpen()) {
+                this.secondaryPanel.closeTertiaryPanel();
+            }
+            this.waitingForTertiaryToClose = true;
+            return true;
         }
 
+        this.waitingForTertiaryToClose = false;
         this.panelOpen = false;
         this.panelAnimStartTime = System.currentTimeMillis();
         return true;
@@ -106,9 +115,57 @@ public class RadialMenuComponent extends BaseUIComponent {
         return this.secondaryPanel.isClickInsideTertiary(mouseX, mouseY);
     }
 
+    public List<CircleButtonComponent> getChildren() {
+        return this.buttons;
+    }
+
+    public void openDirectly(String categoryName, String moduleName) {
+        this.waitingForTertiaryToClose = false;
+
+        CircleButtonComponent targetBtn = null;
+        for (CircleButtonComponent btn : this.buttons) {
+            if (categoryName.equalsIgnoreCase(btn.getTitle())) {
+                targetBtn = btn;
+                break;
+            }
+        }
+        if (targetBtn == null) return;
+
+        this.selectedButton = targetBtn;
+        this.panelOpen = true;
+        this.panelAnimStartTime = 0L;
+
+        int rootW = this.parent() != null ? this.parent().width() : Minecraft.getInstance().getWindow().getGuiScaledWidth();
+        int rootH = this.parent() != null ? this.parent().height() : Minecraft.getInstance().getWindow().getGuiScaledHeight();
+        float originX = rootW / 2.0f;
+        float originY = rootH / 2.0f;
+
+        if (this.secondaryPanel != null) {
+            this.secondaryPanel.destroyTertiaryImmediately();
+            this.rootContainer.removeChild(this.secondaryPanel);
+        }
+
+        this.secondaryPanel = new SecondaryPanelComponent(targetBtn.getTitle(), this.rootContainer);
+        this.secondaryPanel.setAnimationOrigin(originX, originY);
+        this.secondaryPanel.setAnimationProgress(1.0f); // 直接就绪
+        this.rootContainer.child(this.secondaryPanel);
+
+        if (moduleName != null) {
+            this.secondaryPanel.openTertiaryDirectly(moduleName);
+        }
+    }
+
     @Override
     public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
         long now = System.currentTimeMillis();
+
+        if (this.waitingForTertiaryToClose) {
+            if (this.secondaryPanel == null || !this.secondaryPanel.isTertiaryActive()) {
+                this.waitingForTertiaryToClose = false;
+                this.panelOpen = false;
+                this.panelAnimStartTime = System.currentTimeMillis();
+            }
+        }
 
         long mainElapsed = now - openTime;
         float mainProgress = (float) mainElapsed / EXPAND_DURATION;
@@ -183,6 +240,7 @@ public class RadialMenuComponent extends BaseUIComponent {
 
         if (this.secondaryPanel != null) {
             if (panelProgress <= 0.001f && !this.panelOpen) {
+                this.secondaryPanel.destroyTertiaryImmediately();
                 this.rootContainer.removeChild(this.secondaryPanel);
                 this.secondaryPanel = null;
                 this.panelAnimStartTime = 0L;
