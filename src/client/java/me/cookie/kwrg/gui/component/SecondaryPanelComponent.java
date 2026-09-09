@@ -98,6 +98,25 @@ public class SecondaryPanelComponent extends FlowLayout {
         this.rootContainer.child(this.tertiaryPanel);
     }
 
+    public void openTertiaryDirectly(String moduleName) {
+        this.tertiaryOpen = true;
+        this.tertiaryAnimStartTime = 0L; // 0L 代表已处于完成态
+
+        int rootW = this.parent() != null ? this.parent().width() : Minecraft.getInstance().getWindow().getGuiScaledWidth();
+        int rootH = this.parent() != null ? this.parent().height() : Minecraft.getInstance().getWindow().getGuiScaledHeight();
+        float originX = rootW / 2.0f + 101;
+        float originY = rootH / 2.0f;
+
+        if (this.tertiaryPanel != null) {
+            this.rootContainer.removeChild(this.tertiaryPanel);
+        }
+
+        this.tertiaryPanel = new TertiaryPanelComponent(moduleName);
+        this.tertiaryPanel.setAnimationOrigin(originX, originY);
+        this.tertiaryPanel.setAnimationProgress(1.0f); // 直接满帧可见
+        this.rootContainer.child(this.tertiaryPanel);
+    }
+
     public boolean closeTertiaryPanel() {
         if (!this.tertiaryOpen) return false;
         this.tertiaryOpen = false;
@@ -105,8 +124,21 @@ public class SecondaryPanelComponent extends FlowLayout {
         return true;
     }
 
+    public void destroyTertiaryImmediately() {
+        if (this.tertiaryPanel != null) {
+            this.rootContainer.removeChild(this.tertiaryPanel);
+            this.tertiaryPanel = null;
+            this.tertiaryOpen = false;
+            this.tertiaryAnimStartTime = 0L;
+        }
+    }
+
     public boolean isTertiaryOpen() {
         return this.tertiaryOpen;
+    }
+
+    public boolean isTertiaryActive() {
+        return this.tertiaryPanel != null;
     }
 
     public TertiaryPanelComponent getTertiaryPanel() {
@@ -127,6 +159,19 @@ public class SecondaryPanelComponent extends FlowLayout {
 
     @Override
     public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
+        if (this.tertiaryPanel != null) {
+            long now = System.currentTimeMillis();
+            long tElapsed = now - this.tertiaryAnimStartTime;
+            float tRaw = Mth.clamp((float) tElapsed / TERTIARY_ANIM_DURATION, 0.0f, 1.0f);
+            float tProgress = this.tertiaryOpen ? tRaw : (1.0f - tRaw);
+
+            if ((tProgress <= 0.001f && !this.tertiaryOpen) || (this.animationProgress <= 0.005f)) {
+                this.destroyTertiaryImmediately();
+            } else {
+                this.tertiaryPanel.setAnimationProgress(tProgress);
+            }
+        }
+
         if (this.animationProgress <= 0.005f) return;
 
         float ease = RenderUtil.easeOutCubic(this.animationProgress);
@@ -217,21 +262,6 @@ public class SecondaryPanelComponent extends FlowLayout {
         }
 
         graphics.disableScissor();
-
-        if (this.tertiaryPanel != null) {
-            long now = System.currentTimeMillis();
-            long tElapsed = now - this.tertiaryAnimStartTime;
-            float tRaw = Mth.clamp((float) tElapsed / TERTIARY_ANIM_DURATION, 0.0f, 1.0f);
-            float tProgress = this.tertiaryOpen ? tRaw : (1.0f - tRaw);
-
-            if (tProgress <= 0.001f && !this.tertiaryOpen) {
-                this.rootContainer.removeChild(this.tertiaryPanel);
-                this.tertiaryPanel = null;
-                this.tertiaryAnimStartTime = 0L;
-            } else {
-                this.tertiaryPanel.setAnimationProgress(tProgress);
-            }
-        }
     }
 
     public int getActualPanelX() {

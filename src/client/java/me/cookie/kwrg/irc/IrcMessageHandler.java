@@ -8,8 +8,7 @@ import me.cookie.kwrg.module.modules.style.ChatModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.*;
 
 import java.util.Objects;
 
@@ -127,6 +126,62 @@ public class IrcMessageHandler {
                 IrcGlowManager.setOnlinePlayers(list);
                 IrcMessageHandler.printMessage("§6===== [IRC 在线玩家 (" + count + "人)] =====");
                 IrcMessageHandler.printMessage("§f" + (list.isEmpty() ? "§7暂无其他在线玩家" : String.join("§7, §f", list)));
+                return;
+            }
+
+            if ("share".equalsIgnoreCase(type) || "invite".equalsIgnoreCase(type)) {
+                String target = obj.has("target") ? obj.get("target").getAsString() : "";
+                String currentName = mc.getUser().getName();
+
+                if (target.equalsIgnoreCase(currentName)) {
+                    String sender = obj.has("username") ? obj.get("username").getAsString() : "某玩家";
+                    String shareType = obj.has("shareType") ? obj.get("shareType").getAsString() : "custom";
+
+                    String rawData = "";
+                    if (obj.has("data")) {
+                        com.google.gson.JsonElement dataElem = obj.get("data");
+                        if (dataElem.isJsonObject()) {
+                            JsonObject dataObj = dataElem.getAsJsonObject();
+                            if ("config".equalsIgnoreCase(shareType)) {
+                                rawData = dataObj.toString();
+                            } else if (dataObj.has("content")) {
+                                rawData = dataObj.get("content").getAsString();
+                            } else {
+                                rawData = dataObj.toString();
+                            }
+                        } else {
+                            rawData = dataElem.getAsString();
+                        }
+                    }
+
+                    me.cookie.kwrg.module.modules.config.ShareModule.PendingShare pending = new me.cookie.kwrg.module.modules.config.ShareModule.PendingShare();
+                    pending.sender = sender;
+                    pending.type = type;
+                    pending.shareType = shareType;
+                    pending.rawData = rawData;
+                    me.cookie.kwrg.module.modules.config.ShareModule.currentPending = pending;
+
+                    String typeDesc = switch (shareType.toLowerCase()) {
+                        case "config" -> "config";
+                        case "ns" -> "NameStyle";
+                        case "ms" -> "MessageStyle";
+                        case "channel" -> "channel invite";
+                        default -> "分享内容";
+                    };
+
+                    MutableComponent chatMsg = Component.literal("§6[IRC] 收到来自 §e" + sender + " §6的 §b[" + typeDesc + "]§6！ ");
+
+                    MutableComponent clickActionComp = Component.literal("§e§l§n[点击查看 / 导入]§r")
+                            .setStyle(Style.EMPTY
+                                    .withColor(0xFFE082)
+                                    .withUnderlined(true)
+                                    .withBold(true)
+                                    .withClickEvent(new ClickEvent.RunCommand("/irc share open"))
+                                    .withHoverEvent(new HoverEvent.ShowText(Component.literal("§a点击打开导入菜单"))));
+
+                    chatMsg.append(clickActionComp);
+                    ChatNotifier.sendInChatScreen(chatMsg);
+                }
                 return;
             }
 

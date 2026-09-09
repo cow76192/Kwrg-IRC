@@ -22,7 +22,7 @@ public class ModuleManager {
         register(new DisableBlurModule());
         // --- CONFIG 模块 ---
         register(new LoadModule());
-
+        register(new ShareModule());
         // --- FUNCTIONS 模块 ---
         register(new HideArmorModule());
         register(new GlowColorModule());

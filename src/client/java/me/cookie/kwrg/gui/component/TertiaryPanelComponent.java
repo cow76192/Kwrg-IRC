@@ -89,7 +89,7 @@ public class TertiaryPanelComponent extends FlowLayout {
 
     @Override
     public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
-        if (this.animationProgress <= 0.005f) return;
+        if (this.animationProgress <= 0.03f) return;
 
         float ease = RenderUtil.easeOutCubic(this.animationProgress);
 
@@ -104,10 +104,10 @@ public class TertiaryPanelComponent extends FlowLayout {
         float curW = Mth.lerp(ease, 52.0f, (float) PANEL_WIDTH);
         float curH = Mth.lerp(ease, 28.0f, (float) PANEL_HEIGHT);
 
-        int px = Math.round(curCX - curW / 2.0f);
-        int py = Math.round(curCY - curH / 2.0f);
-        int width = Math.round(curW);
-        int height = Math.round(curH);
+        int px = (int) Math.round(curCX - curW / 2.0f);
+        int py = (int) Math.round(curCY - curH / 2.0f);
+        int width = (int) Math.round(curW);
+        int height = (int) Math.round(curH);
 
         this.updateX(px);
         this.updateY(py);
@@ -120,15 +120,21 @@ public class TertiaryPanelComponent extends FlowLayout {
 
         RenderUtil.drawRoundedPanel(graphics, px, py, width, height, 14.0f, panelBg, outlineColor);
 
-        graphics.enableScissor(px + 1, py + 1, px + width - 1, py + height - 1);
+        int scissorX1 = px + 1;
+        int scissorY1 = py + 1;
+        int scissorX2 = px + width - 1;
+        int scissorY2 = py + height - 1;
+        if (scissorX2 <= scissorX1 || scissorY2 <= scissorY1) return;
+
+        graphics.enableScissor(scissorX1, scissorY1, scissorX2, scissorY2);
 
         int headerHeight = 44;
         int iconBadgeRadius = 13;
         int iconBadgeX = px + 22;
         int iconBadgeY = py + 22;
 
-        if (ease > 0.25f) {
-            float contentAlpha = (ease - 0.25f) / 0.75f;
+        if (ease > 0.15f) {
+            float contentAlpha = (ease - 0.15f) / 0.85f;
 
             Color badgeBg = RenderUtil.withAlpha(0x1D2633, (int) (255 * contentAlpha));
             Color badgeOutline = RenderUtil.withAlpha(0xFFFFFF, (int) (85 * contentAlpha));
@@ -171,19 +177,15 @@ public class TertiaryPanelComponent extends FlowLayout {
             curY += footprint;
         }
 
-        graphics.enableScissor(px + 6, itemStartY, px + width - 6, py + height - 8);
-
-        if (ease > 0.35f) {
+        if (ease > 0.10f) {
             super.draw(graphics, mouseX, mouseY, partialTicks, delta);
         }
 
         graphics.disableScissor();
 
-        if (trackHeight > 30) {
+        if (trackHeight > 30 && ease > 0.20f) {
             this.scrollbar.draw(graphics, px + width - 5, itemStartY, trackHeight, mouseX, mouseY, panelAlpha, delta);
         }
-
-        graphics.disableScissor();
     }
 
     public int getActualPanelX() {

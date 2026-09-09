@@ -72,17 +72,11 @@ public class FontManagerHelper {
         return Style.EMPTY.withFont(GUI_FONT_DESC);
     }
 
-    /**
-     * ★ 将当前 GUI 字体赋予纯文本 ★
-     */
     public static Component apply(String text) {
         if (text == null || text.isEmpty()) return Component.empty();
         return Component.literal(text).setStyle(getGuiStyle());
     }
 
-    /**
-     * ★ 将当前 GUI 字体无损附加给已有的 Component（保留原有所有颜色与修饰属性） ★
-     */
     public static Component apply(Component component) {
         if (component == null) return Component.empty();
         Style guiStyle = getGuiStyle();
@@ -191,5 +185,43 @@ public class FontManagerHelper {
             } catch (Exception ignored) {}
             currentActiveProvider = null;
         }
+    }
+
+    public static String calculateFileHash(Path file) {
+        if (!Files.exists(file) || Files.isDirectory(file)) return "";
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            try (InputStream is = Files.newInputStream(file)) {
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = is.read(buffer)) != -1) {
+                    digest.update(buffer, 0, read);
+                }
+            }
+            byte[] hashBytes = digest.digest();
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hashBytes) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    public static String findFontByHash(String targetHash) {
+        if (targetHash == null || targetHash.isBlank()) return null;
+        Path fontDir = ensureFontDir();
+        if (!Files.exists(fontDir)) return null;
+
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(fontDir, "*.{ttf,otf,TTF,OTF}")) {
+            for (Path p : stream) {
+                String hash = calculateFileHash(p);
+                if (targetHash.equalsIgnoreCase(hash)) {
+                    return p.getFileName().toString();
+                }
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 }

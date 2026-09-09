@@ -25,6 +25,13 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
     private static IrcScreen currentInstance = null;
     private RadialMenuComponent radialMenu;
     private StackLayout rootLayout = null;
+    private String directCategory = null;
+    private String directModule = null;
+
+    public void setDirectOpenTarget(String category, String module) {
+        this.directCategory = category;
+        this.directModule = module;
+    }
 
     public IrcScreen() {
         super(Component.literal("Kwrg IRC"));
@@ -42,6 +49,15 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
             }
         });
         NotificationManager.send("ClickGUI Opened");
+    }
+
+    public static void openDirectToModule(String categoryName, String moduleName) {
+        Minecraft mc = Minecraft.getInstance();
+        mc.execute(() -> {
+            IrcScreen screen = new IrcScreen();
+            screen.setDirectOpenTarget(categoryName, moduleName);
+            mc.setScreen(screen);
+        });
     }
 
     public void closeGui() {
@@ -106,6 +122,23 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
             }
             return false;
         });
+
+        if (this.directCategory != null && this.radialMenu != null) {
+            this.radialMenu.openDirectly(this.directCategory, this.directModule);
+            this.directCategory = null;
+            this.directModule = null;
+        }
+    }
+
+    @Override
+    public void removed() {
+        super.removed();
+        if (this.radialMenu != null && this.radialMenu.getSecondaryPanel() != null) {
+            this.radialMenu.getSecondaryPanel().destroyTertiaryImmediately();
+        }
+        if (currentInstance == this) {
+            currentInstance = null;
+        }
     }
 
     @Override
@@ -136,14 +169,6 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
             return this.radialMenu.getSecondaryPanel().getTertiaryPanel();
         }
         return null;
-    }
-
-    @Override
-    public void removed() {
-        super.removed();
-        if (currentInstance == this) {
-            currentInstance = null;
-        }
     }
 
     @Override

@@ -183,14 +183,12 @@ public class IrcClient {
             while (isRunning && reader != null && (line = reader.readLine()) != null) {
                 String rawJson = line.trim();
                 if (!rawJson.isEmpty()) {
-                    // 收到 pong 心跳处理延迟计算与回调响应
                     if (rawJson.contains("\"type\":\"pong\"") || rawJson.contains("\"type\": \"pong\"")) {
                         if (lastPingTimestamp > 0) {
                             long latency = System.currentTimeMillis() - lastPingTimestamp;
                             lastLatency = latency;
                             lastPingTimestamp = 0L;
 
-                            // 派发到客户端主线程执行回调
                             Minecraft.getInstance().execute(() -> {
                                 for (Consumer<Long> cb : pingCallbacks) {
                                     try {
@@ -217,15 +215,12 @@ public class IrcClient {
         }
     }
 
-    /**
-     * 统一断开连接及静默重试逻辑
-     */
+
     private static synchronized void handleDisconnect() {
         isRunning = false;
         isIrcConnect = false;
         isIrcChatActive = false;
 
-        // 清理测速状态与待处理回调
         lastLatency = -1L;
         lastPingTimestamp = 0L;
         Minecraft.getInstance().execute(() -> {
@@ -247,7 +242,6 @@ public class IrcClient {
         if (shouldAutoReconnect) {
             int currentAttempt = reconnectAttempts.incrementAndGet();
             if (currentAttempt > MAX_RECONNECT_ATTEMPTS) {
-                // 达到 3 次上限，彻底放弃
                 shouldAutoReconnect = false;
                 LOGGER.info("[IRC] 自动重连已达 3 次上限，放弃重试。等待手动连接。");
                 ChatNotifier.send("§c[IRC] 与服务器连接断开，重连失败(3/3)");
@@ -422,6 +416,55 @@ public class IrcClient {
         sendChannelSync(channel, enabled, IrcConfig.get().savedChannels);
     }
 
+    /**
+     * @param targetPlayer 接收目标玩家名
+     * @param type         大类， "share" 或 "invite"
+     * @param shareType    子类（如 "config", "nameStyle", "messageStyle", "channel"）
+     * @param data         JSON 载荷数据
+     */
+    public static void sendShare(String targetPlayer, String type, String shareType, JsonObject data) {
+        if (targetPlayer == null || targetPlayer.isBlank()) return;
+        if (type == null || (!type.equalsIgnoreCase("share") && !type.equalsIgnoreCase("invite"))) {
+            LOGGER.warn("[IRC] sendShare 失败：未知的包类型 [{}]，仅支持 'share' 或 'invite'", type);
+            return;
+        }
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.getUser() == null) return;
+
+        JsonObject json = new JsonObject();
+        json.addProperty("type", type.toLowerCase());
+        json.addProperty("senderId", mc.player.getStringUUID());
+        json.addProperty("username", mc.getUser().getName());
+        json.addProperty("target", targetPlayer.trim());
+        json.addProperty("shareType", shareType != null ? shareType : "custom");
+        json.add("data", data != null ? data : new JsonObject());
+
+        if (isRunning) {
+            sendRaw(GSON.toJson(json));
+        } else {
+            IrcMessageHandler.printMessage("§c[IRC] 发送失败：未连接至 IRC 服务器，正在尝试连接...");
+            connect();
+        }
+    }
+
+    /**
+     * 发送纯文本形式的分享内容
+     */
+    public static void sendShare(String targetPlayer, String type, String shareType, String content) {
+        JsonObject data = new JsonObject();
+        data.addProperty("content", content != null ? content : "");
+        sendShare(targetPlayer, type, shareType, data);
+    }
+
+    public static void sendShare(String targetPlayer, String shareType, String content) {
+        sendShare(targetPlayer, "share", shareType, content);
+    }
+
+    public static void sendInvite(String targetPlayer, String inviteType, String content) {
+        sendShare(targetPlayer, "invite", inviteType, content);
+    }
+
     public static void queryOnline() {
         if (isRunning) {
             JsonObject json = new JsonObject();
@@ -437,7 +480,6 @@ public class IrcClient {
         shouldAutoReconnect = false;
         reconnectAttempts.set(0);
 
-        // 清理测速状态
         lastLatency = -1L;
         lastPingTimestamp = 0L;
         Minecraft.getInstance().execute(() -> {
