@@ -18,12 +18,21 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 public class LoadModule extends Module {
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Pattern ILLEGAL_CHARS_PATTERN = Pattern.compile("[\\\\/:*?\"<>|\\x00-\\x1F]");
 
     private String pendingImportJson = null;
+
+    private static final Set<String> WINDOWS_RESERVED_NAMES = Set.of(
+            "CON", "PRN", "AUX", "NUL",
+            "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+            "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
+    );
 
     public LoadModule() {
         super("load", Category.CONFIG, PanelItemComponent.ItemType.TRIGGER);
@@ -38,6 +47,34 @@ public class LoadModule extends Module {
         renderConfigManagerUI(panel, null);
     }
 
+    public static String validateProfileName(String name) {
+        if (name == null || name.isBlank()) {
+            return "配置名称不能为空！";
+        }
+
+        if (name.length() > 64) {
+            return "配置名称过长（最多支持 64 个字符）！";
+        }
+
+        if (name.equals(".") || name.equals("..") || name.contains("..")) {
+            return "配置名称包含非法的路径字符！";
+        }
+
+        if (ILLEGAL_CHARS_PATTERN.matcher(name).find()) {
+            return "配置名称包含系统非法字符：\\ / : * ? \" < > |";
+        }
+
+        if (name.endsWith(" ") || name.endsWith(".")) {
+            return "配置名称不能以空格或句号（.）结尾！";
+        }
+
+        if (WINDOWS_RESERVED_NAMES.contains(name.toUpperCase(java.util.Locale.ROOT))) {
+            return "该名称为系统保留设备名 (" + name + ")，无法使用！";
+        }
+
+        return null;
+    }
+
     private void renderConfigManagerUI(TertiaryPanelComponent panel, String newlyAddedProfile) {
         panel.clearChildren();
 
@@ -48,6 +85,12 @@ public class LoadModule extends Module {
         TextInputPaneComponent inputPane = new TextInputPaneComponent(placeholder, name -> {
             String cleanName = name.trim();
             if (cleanName.isEmpty()) return;
+
+            String error = validateProfileName(cleanName);
+            if (error != null) {
+                ChatNotifier.send("§c[IRC] 创建失败: " + error);
+                return;
+            }
 
             if (this.pendingImportJson != null) {
                 try {
@@ -202,9 +245,15 @@ public class LoadModule extends Module {
         }
         return success ? 1 : 0;
     }
-
     public static int createConfig(String name) {
-        IrcConfig.createProfile(name);
+        String cleanName = name.trim();
+        String error = validateProfileName(cleanName);
+        if (error != null) {
+            IrcMessageHandler.printMessage("§c[IRC] 创建失败: " + error);
+            return 0;
+        }
+
+        IrcConfig.createProfile(cleanName);
         IrcMessageHandler.printMessage("§a[IRC] 已新建配置: §f" + IrcConfig.getCurrentProfileName() + " §7(注意: 调整好设置后输入 §e/irc cfg save §7保存)");
         return 1;
     }

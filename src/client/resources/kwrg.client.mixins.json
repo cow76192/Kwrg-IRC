@@ -14,6 +14,8 @@
 		"MinecraftKeybindMixin",
 		"HudNotificationMixin",
 		"ChatComponentMixin",
+		"PlayerTabOverlayMixin",
+		"SkyHanniTabMixin",
 		"accessor.FontManagerAccessor",
 		"accessor.FontSetAccessor",
 		"accessor.MinecraftAccessor"

@@ -16,6 +16,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 
+import java.lang.reflect.Method;
 import java.util.Locale;
 
 public class DynamicIslandRenderer {
@@ -29,9 +30,150 @@ public class DynamicIslandRenderer {
 
     private static final float WIDTH_ANIM_DURATION = 0.85f;
     private static final float HEIGHT_ANIM_DURATION = 0.45f;
+    private static final float TAB_ANIM_DURATION = 0.38f;
 
     private static final float ITEM_GAP = 5.0f;
     private static final float SIDE_PAD = 12.0f;
+
+    private static float tabProgress = 0.0f;
+
+    private static float targetTabW = 340.0f;
+    private static float targetTabH = 150.0f;
+    private static float targetTabY = 6.0f;
+
+    private static float smoothTabW = 340.0f;
+    private static float startTabW = 340.0f;
+    private static float tabWidthTimer = 1.0f;
+
+    private static float smoothTabH = 150.0f;
+    private static float startTabH = 150.0f;
+    private static float tabHeightTimer = 1.0f;
+
+    private static float smoothTabY = 6.0f;
+
+    private static float curRenderX = 0;
+    private static float curRenderY = 0;
+    private static float curRenderW = 0;
+    private static float curRenderH = 0;
+    private static float curCornerRadius = 10.0f;
+    private static Color curBgColor = Color.ofRgb(0x11161F);
+    private static Color curBorderColor = Color.ofRgb(0x5498B2);
+
+    private static boolean isScissorActive = false;
+    private static GuiGraphicsExtractor currentFrameExtractor = null;
+
+    private static boolean wasSkyHanniInCurrentSession = false;
+    private static Object skyHanniInstance = null;
+    private static Method skyHanniDrawMethod = null;
+
+    public static void setSkyHanniInstance(Object instance) {
+        skyHanniInstance = instance;
+    }
+
+    public static void markSkyHanniTabRendered() {
+        wasSkyHanniInCurrentSession = true;
+    }
+
+    public static boolean wasSkyHanniActive() {
+        return wasSkyHanniInCurrentSession;
+    }
+
+    public static void renderSkyHanniTab(GuiGraphicsExtractor graphics) {
+        if (skyHanniInstance != null && graphics != null) {
+            currentFrameExtractor = graphics;
+            try {
+                Class<?> dcuClass = Class.forName("at.hannibal2.skyhanni.utils.compat.DrawContextUtils");
+                Object dcuInstance = dcuClass.getField("INSTANCE").get(null);
+                Method setContextMethod = dcuClass.getMethod("setContext", GuiGraphicsExtractor.class);
+                Method clearContextMethod = dcuClass.getMethod("clearContext");
+
+                setContextMethod.invoke(dcuInstance, graphics);
+                try {
+                    if (skyHanniDrawMethod == null) {
+                        skyHanniDrawMethod = skyHanniInstance.getClass().getDeclaredMethod("drawTabList");
+                        skyHanniDrawMethod.setAccessible(true);
+                    }
+                    skyHanniDrawMethod.invoke(skyHanniInstance);
+                } finally {
+                    clearContextMethod.invoke(dcuInstance);
+                }
+            } catch (Throwable ignored) {}
+        }
+    }
+
+    public static void updateTargetTabBounds(float w, float h, float y) {
+        float newTargetW = Math.max(140.0f, w);
+        float newTargetH = Math.max(40.0f, h);
+        targetTabY = Math.max(4.0f, y);
+
+        if (Math.abs(newTargetW - targetTabW) > 2.0f) {
+            startTabW = smoothTabW;
+            targetTabW = newTargetW;
+            tabWidthTimer = 0.0f;
+        }
+
+        if (Math.abs(newTargetH - targetTabH) > 2.0f) {
+            startTabH = smoothTabH;
+            targetTabH = newTargetH;
+            tabHeightTimer = 0.0f;
+        }
+    }
+
+    public static float getTabProgress() {
+        return tabProgress;
+    }
+
+    public static boolean isTabAnimating() {
+        return tabProgress > 0.005f;
+    }
+
+    public static void setCurrentExtractor(GuiGraphicsExtractor extractor) {
+        currentFrameExtractor = extractor;
+    }
+
+    public static void renderTabBackgroundDirect() {
+        if (currentFrameExtractor != null && tabProgress > 0.005f && curRenderW > 0) {
+            OwoUIGraphics graphics = OwoUIGraphics.of(currentFrameExtractor);
+            drawSubpixelRoundedPanel(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius, curBgColor, curBorderColor);
+        }
+    }
+
+
+    public static void renderTabBackground(GuiGraphicsExtractor extractor) {
+        setCurrentExtractor(extractor);
+        renderTabBackgroundDirect();
+    }
+
+    public static void beginTabScissor(GuiGraphicsExtractor extractor) {
+        setCurrentExtractor(extractor);
+        beginTabScissorDirect();
+    }
+
+    public static void endTabScissor(GuiGraphicsExtractor extractor) {
+        endTabScissorDirect();
+    }
+
+    public static void beginTabScissorDirect() {
+        if (currentFrameExtractor != null && curRenderW > 0) {
+            OwoUIGraphics graphics = OwoUIGraphics.of(currentFrameExtractor);
+            int sX1 = (int) Math.floor(curRenderX + 1.0f);
+            int sY1 = (int) Math.floor(curRenderY + 1.0f);
+            int sX2 = (int) Math.ceil(curRenderX + curRenderW - 1.0f);
+            int sY2 = (int) Math.ceil(curRenderY + curRenderH - 1.0f);
+            if (sX2 > sX1 && sY2 > sY1) {
+                graphics.enableScissor(sX1, sY1, sX2, sY2);
+                isScissorActive = true;
+            }
+        }
+    }
+
+    public static void endTabScissorDirect() {
+        if (isScissorActive && currentFrameExtractor != null) {
+            OwoUIGraphics graphics = OwoUIGraphics.of(currentFrameExtractor);
+            graphics.disableScissor();
+            isScissorActive = false;
+        }
+    }
 
     private static class SlotPhysics {
         final float maxSlotWidth;
@@ -60,13 +202,8 @@ public class DynamicIslandRenderer {
             }
         }
 
-        float getWidth() {
-            return currentWidth;
-        }
-
-        float getRatio() {
-            return maxSlotWidth > 0 ? Mth.clamp(currentWidth / maxSlotWidth, 0.0f, 1.0f) : 0.0f;
-        }
+        float getWidth() { return currentWidth; }
+        float getRatio() { return maxSlotWidth > 0 ? Mth.clamp(currentWidth / maxSlotWidth, 0.0f, 1.0f) : 0.0f; }
     }
 
     private static final SlotPhysics SLOT_FPS  = new SlotPhysics(42.0f);
@@ -80,9 +217,7 @@ public class DynamicIslandRenderer {
             SLOT_FPS, SLOT_PING, SLOT_TPS, SLOT_RAM, SLOT_GPU, SLOT_CPU
     };
 
-    // 状态跟踪
     private static float islandOpenProgress = 0.0f;
-
     private static float currentIslandHeight = BASE_HEIGHT;
     private static float startIslandHeight = BASE_HEIGHT;
     private static float targetIslandHeight = BASE_HEIGHT;
@@ -92,13 +227,13 @@ public class DynamicIslandRenderer {
     private static long lastFrameTime = System.currentTimeMillis();
 
     public static void render(GuiGraphicsExtractor extractor, float ignoredDelta) {
+        currentFrameExtractor = extractor;
         IrcConfig config = IrcConfig.get();
         Minecraft mc = Minecraft.getInstance();
         if (mc.getWindow() == null || mc.font == null) return;
 
         OwoUIGraphics graphics = OwoUIGraphics.of(extractor);
 
-        // 1. 真实物理时间步进
         long nowTime = System.currentTimeMillis();
         float dt = (nowTime - lastFrameTime) / 1000.0f;
         lastFrameTime = nowTime;
@@ -106,11 +241,41 @@ public class DynamicIslandRenderer {
 
         HardwareMetricsTracker.onRenderFrame(mc);
 
+        if (tabWidthTimer < 1.0f) {
+            tabWidthTimer = Math.min(1.0f, tabWidthTimer + dt / 0.35f);
+            smoothTabW = Mth.lerp(easeSmoothDecel(tabWidthTimer), startTabW, targetTabW);
+        } else {
+            smoothTabW = targetTabW;
+        }
+
+        if (tabHeightTimer < 1.0f) {
+            tabHeightTimer = Math.min(1.0f, tabHeightTimer + dt / 0.35f);
+            smoothTabH = Mth.lerp(easeSmoothDecel(tabHeightTimer), startTabH, targetTabH);
+        } else {
+            smoothTabH = targetTabH;
+        }
+
+        smoothTabY = Mth.lerp(dt * 10.0f, smoothTabY, targetTabY);
+
+        boolean isTabKeyDown = mc.options.keyPlayerList.isDown() && mc.player != null;
+        float targetTab = isTabKeyDown ? 1.0f : 0.0f;
+        float tabSpeed = isTabKeyDown ? (1.0f / TAB_ANIM_DURATION) : (1.0f / (TAB_ANIM_DURATION * 0.85f));
+
+        if (tabProgress < targetTab) {
+            tabProgress = Math.min(targetTab, tabProgress + dt * tabSpeed);
+        } else if (tabProgress > targetTab) {
+            tabProgress = Math.max(targetTab, tabProgress - dt * tabSpeed);
+        }
+        float tabEase = easeSmoothDecel(tabProgress);
+
+        if (tabProgress <= 0.005f) {
+            wasSkyHanniInCurrentSession = false;
+        }
+
         boolean hasAnyOption = config.islandShowFps || config.islandShowPing || config.islandShowTps
                 || config.islandShowRam || config.islandShowGpu || config.islandShowCpu;
-        boolean shouldShow = config.dynamicIsland && hasAnyOption;
+        boolean shouldShow = (config.dynamicIsland && hasAnyOption) || tabProgress > 0.005f;
 
-        // 开关进退场
         float targetOpen = shouldShow ? 1.0f : 0.0f;
         islandOpenProgress = Mth.clamp(islandOpenProgress + (targetOpen - islandOpenProgress) * dt * 6.0f, 0.0f, 1.0f);
         float openEase = easeSmoothDecel(islandOpenProgress);
@@ -119,7 +284,6 @@ public class DynamicIslandRenderer {
             return;
         }
 
-        // 2. 推进所有槽位宽度动画
         SLOT_FPS.update(shouldShow && config.islandShowFps, dt);
         SLOT_PING.update(shouldShow && config.islandShowPing, dt);
         SLOT_TPS.update(shouldShow && config.islandShowTps, dt);
@@ -165,7 +329,6 @@ public class DynamicIslandRenderer {
 
         int[] colors = { fpsColor, pingColor, tpsColor, ramColor, gpuColor, cpuColor };
 
-        // 3. 计算连续内容总宽
         float dynamicContentW = 0.0f;
         SlotPhysics lastVisible = null;
         for (SlotPhysics slot : ALL_SLOTS) {
@@ -180,13 +343,9 @@ public class DynamicIslandRenderer {
             }
         }
 
-        // 4. 施密特滞后触发 TPS 警告高度形变
-        if (tps < 15.5f) {
-            isLaggingState = true;
-        } else if (tps > 16.5f) {
-            isLaggingState = false;
-        }
-        boolean isLowTps = config.islandShowTps && isLaggingState && mc.level != null;
+        if (tps < 15.5f) isLaggingState = true;
+        else if (tps > 16.5f) isLaggingState = false;
+        boolean isLowTps = config.islandShowTps && isLaggingState && mc.level != null && tabProgress <= 0.01f;
 
         float targetH = isLowTps ? EXPANDED_HEIGHT : BASE_HEIGHT;
         if (Math.abs(targetH - targetIslandHeight) > 0.1f) {
@@ -203,42 +362,39 @@ public class DynamicIslandRenderer {
 
         float warnEase = Mth.clamp((currentIslandHeight - BASE_HEIGHT) / (EXPANDED_HEIGHT - BASE_HEIGHT), 0.0f, 1.0f);
 
-        // 5. ★ 绝对坐标精确定位（彻底杜绝 2px 偶数跳动，恢复 1 像素级平滑连续拉伸） ★
-        float warnTextW = font.width(warnComp);
-        float normalTargetWidth = dynamicContentW + SIDE_PAD * 2;
-        float targetWidth = Math.max(38.0f, Mth.lerp(warnEase, normalTargetWidth, Math.max(normalTargetWidth, warnTextW + 18.0f)));
-        float renderWidth = targetWidth * (0.85f + 0.15f * openEase);
-        float renderHeight = currentIslandHeight;
-
         int screenW = mc.getWindow().getGuiScaledWidth();
         float cx = screenW / 2.0f;
-        float topY = 7.0f * openEase;
+
+        float warnTextW = font.width(warnComp);
+        float normalTargetWidth = dynamicContentW + SIDE_PAD * 2;
+        float baseIslandW = Math.max(38.0f, Mth.lerp(warnEase, normalTargetWidth, Math.max(normalTargetWidth, warnTextW + 18.0f)));
+        float baseIslandH = currentIslandHeight;
+        float baseIslandTopY = 7.0f * openEase;
+
+        curRenderW = Mth.lerp(tabEase, baseIslandW, smoothTabW) * (0.85f + 0.15f * openEase);
+        curRenderH = Mth.lerp(tabEase, baseIslandH, smoothTabH);
+        curRenderY = Mth.lerp(tabEase, baseIslandTopY, smoothTabY);
+        curRenderX = cx - curRenderW / 2.0f;
+        curCornerRadius = Mth.lerp(tabEase, CORNER_RADIUS, 14.0f);
+
         float alpha = openEase;
-
-        // 采用浮点计算左右边界，四舍五入到整像素（允许奇数宽度，告别偶数翻倍卡顿）
-        int panelX1 = (int) Math.round(cx - renderWidth / 2.0f);
-        int panelY1 = (int) Math.round(topY);
-        int panelX2 = (int) Math.round(cx + renderWidth / 2.0f);
-        int panelY2 = (int) Math.round(topY + renderHeight);
-
-        int actualWidth = panelX2 - panelX1;
-        int actualHeight = panelY2 - panelY1;
 
         int borderR = (int) Mth.lerp(warnEase, 84f, 255f);
         int borderG = (int) Mth.lerp(warnEase, 152f, 100f);
         int borderB = (int) Mth.lerp(warnEase, 178f, 90f);
 
-        Color bgColor = Color.ofArgb(ARGB.color((int) (230 * alpha), 17, 22, 31));
-        Color borderColor = Color.ofArgb(ARGB.color((int) (210 * alpha), borderR, borderG, borderB));
+        int bgAlpha = (int) (Mth.lerp(tabEase, 230f, 245f) * alpha);
+        curBgColor = Color.ofArgb(ARGB.color(bgAlpha, 17, 22, 31));
+        curBorderColor = Color.ofArgb(ARGB.color((int) (210 * alpha), borderR, borderG, borderB));
 
-        // 6. ★ 绘制底盘外壳（屏幕绝对坐标系，严丝合缝） ★
-        RenderUtil.drawRoundedPanel(graphics, panelX1, panelY1, actualWidth, actualHeight, CORNER_RADIUS, bgColor, borderColor);
+        if (tabProgress <= 0.005f) {
+            drawSubpixelRoundedPanel(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius, curBgColor, curBorderColor);
+        }
 
-        // 7. ★ 修复视口裁剪（在未位移前调用，确保文字绝不被甩出视口！） ★
-        int scissorX1 = panelX1 + 1;
-        int scissorY1 = panelY1 + 1;
-        int scissorX2 = panelX2 - 1;
-        int scissorY2 = panelY2 - 1;
+        int scissorX1 = (int) Math.floor(curRenderX + 1.0f);
+        int scissorY1 = (int) Math.floor(curRenderY + 1.0f);
+        int scissorX2 = (int) Math.ceil(curRenderX + curRenderW - 1.0f);
+        int scissorY2 = (int) Math.ceil(curRenderY + curRenderH - 1.0f);
 
         if (scissorX2 <= scissorX1 || scissorY2 <= scissorY1) {
             return;
@@ -246,57 +402,104 @@ public class DynamicIslandRenderer {
 
         graphics.enableScissor(scissorX1, scissorY1, scissorX2, scissorY2);
 
-        // 8. ★ 第一行文字：绝对居中排布（文字在各自槽位内水平对齐，单项时 100% 死锁屏幕正中） ★
-        float row1Y = panelY1 + (BASE_HEIGHT - fontH) / 2.0f;
-        float curX = cx - dynamicContentW / 2.0f;
+        float islandContentAlpha = alpha * (1.0f - tabEase);
+        if (islandContentAlpha > 0.02f) {
+            float row1Y = curRenderY + (BASE_HEIGHT - fontH) / 2.0f;
+            float curX = cx - dynamicContentW / 2.0f;
 
-        lastVisible = null;
-        for (int i = 0; i < ALL_SLOTS.length; i++) {
-            SlotPhysics slot = ALL_SLOTS[i];
-            float w = slot.getWidth();
+            lastVisible = null;
+            for (int i = 0; i < ALL_SLOTS.length; i++) {
+                SlotPhysics slot = ALL_SLOTS[i];
+                float w = slot.getWidth();
 
-            if (w > 0.001f) {
-                if (lastVisible != null) {
-                    float dynamicGap = ITEM_GAP * Math.min(1.0f, lastVisible.getRatio()) * Math.min(1.0f, slot.getRatio());
-                    curX += dynamicGap;
+                if (w > 0.001f) {
+                    if (lastVisible != null) {
+                        float dynamicGap = ITEM_GAP * Math.min(1.0f, lastVisible.getRatio()) * Math.min(1.0f, slot.getRatio());
+                        curX += dynamicGap;
+                    }
+
+                    Component comp = comps[i];
+                    int baseColor = colors[i];
+                    float tw = font.width(comp);
+                    float tx = curX + (w - tw) / 2.0f;
+
+                    float slotRatio = slot.getRatio();
+                    float textFade = Mth.clamp(w / Math.max(1.0f, tw), 0.0f, 1.0f);
+                    int itemAlpha = (int) (255 * islandContentAlpha * slotRatio * textFade);
+
+                    if (itemAlpha > 2) {
+                        int finalColor = (baseColor & 0x00FFFFFF) | (itemAlpha << 24);
+                        drawFluidSubpixelText(graphics, comp, tx, row1Y, finalColor);
+                    }
+
+                    curX += w;
+                    lastVisible = slot;
                 }
+            }
 
-                Component comp = comps[i];
-                int baseColor = colors[i];
-                float tw = font.width(comp);
+            if (warnEase > 0.02f) {
+                float secondRowY = curRenderY + BASE_HEIGHT + (EXPANDED_HEIGHT - BASE_HEIGHT - fontH) / 2.0f;
+                float slideY = Mth.lerp(warnEase, -5.0f, 0.0f);
 
-                // 槽位对称居中，单项时左右完全抵消，文字严格锁定在屏幕正中央
-                float tx = curX + (w - tw) / 2.0f;
+                int warnAlpha = (int) (255 * islandContentAlpha * warnEase);
+                int warnColor = ARGB.color(warnAlpha, 255, 95, 60);
 
-                float slotRatio = slot.getRatio();
-                float textFade = Mth.clamp(w / Math.max(1.0f, tw), 0.0f, 1.0f);
-                int itemAlpha = (int) (255 * alpha * slotRatio * textFade);
+                float actualW = font.width(warnComp);
+                float warnX = cx - actualW / 2.0f;
 
-                if (itemAlpha > 2) {
-                    int finalColor = (baseColor & 0x00FFFFFF) | (itemAlpha << 24);
-                    drawFluidSubpixelText(graphics, comp, tx, row1Y, finalColor);
-                }
-
-                curX += w;
-                lastVisible = slot;
+                drawFluidSubpixelText(graphics, warnComp, warnX, secondRowY + slideY, warnColor);
             }
         }
 
-        // 9. 第二行：Lag 警告信息（在扩展出来的下层空间完全居中）
-        if (warnEase > 0.02f) {
-            float secondRowY = panelY1 + BASE_HEIGHT + (EXPANDED_HEIGHT - BASE_HEIGHT - fontH) / 2.0f;
-            float slideY = Mth.lerp(warnEase, -5.0f, 0.0f);
-
-            int warnAlpha = (int) (255 * alpha * warnEase);
-            int warnColor = ARGB.color(warnAlpha, 255, 95, 60);
-
-            float actualW = font.width(warnComp);
-            float warnX = cx - actualW / 2.0f;
-
-            drawFluidSubpixelText(graphics, warnComp, warnX, secondRowY + slideY, warnColor);
-        }
-
         graphics.disableScissor();
+    }
+
+    private static void drawSubpixelRoundedPanel(OwoUIGraphics graphics, float x, float y, float width, float height, float radius, Color bgColor, Color outlineColor) {
+        float r = Math.min(radius, Math.min(width / 2.0f, height / 2.0f));
+        float x2 = x + width;
+        float y2 = y + height;
+
+        fillSubpixel(graphics, x + r, y, x2 - r, y2, bgColor.argb());
+        fillSubpixel(graphics, x, y + r, x + r, y2 - r, bgColor.argb());
+        fillSubpixel(graphics, x2 - r, y + r, x2, y2 - r, bgColor.argb());
+
+        drawSubpixelCircle(graphics, x + r, y + r, 0.0, 90.0, 16, r, bgColor);
+        drawSubpixelCircle(graphics, x2 - r, y + r, 90.0, 180.0, 16, r, bgColor);
+        drawSubpixelCircle(graphics, x2 - r, y2 - r, 180.0, 270.0, 16, r, bgColor);
+        drawSubpixelCircle(graphics, x + r, y2 - r, 270.0, 360.0, 16, r, bgColor);
+
+        fillSubpixel(graphics, x + r, y, x2 - r, y + 1.0f, outlineColor.argb());
+        fillSubpixel(graphics, x + r, y2 - 1.0f, x2 - r, y2, outlineColor.argb());
+        fillSubpixel(graphics, x, y + r, x + 1.0f, y2 - r, outlineColor.argb());
+        fillSubpixel(graphics, x2 - 1.0f, y + r, x2, y2 - r, outlineColor.argb());
+
+        drawSubpixelRing(graphics, x + r, y + r, 0.0, 90.0, 16, r - 1.0f, r, outlineColor);
+        drawSubpixelRing(graphics, x2 - r, y + r, 90.0, 180.0, 16, r - 1.0f, r, outlineColor);
+        drawSubpixelRing(graphics, x2 - r, y2 - r, 180.0, 270.0, 16, r - 1.0f, r, outlineColor);
+        drawSubpixelRing(graphics, x + r, y2 - r, 270.0, 360.0, 16, r - 1.0f, r, outlineColor);
+    }
+
+    private static void drawSubpixelCircle(OwoUIGraphics graphics, float cx, float cy, double angleFrom, double angleTo, int segments, double radius, Color color) {
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(cx, cy);
+        graphics.drawCircle(0, 0, angleFrom, angleTo, segments, radius, color);
+        graphics.pose().popMatrix();
+    }
+
+    private static void drawSubpixelRing(OwoUIGraphics graphics, float cx, float cy, double angleFrom, double angleTo, int segments, double innerRadius, double outerRadius, Color color) {
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(cx, cy);
+        graphics.drawRing(0, 0, angleFrom, angleTo, segments, innerRadius, outerRadius, color, color);
+        graphics.pose().popMatrix();
+    }
+
+    private static void fillSubpixel(OwoUIGraphics graphics, float minX, float minY, float maxX, float maxY, int color) {
+        if (maxX <= minX || maxY <= minY) return;
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(minX, minY);
+        graphics.pose().scale(maxX - minX, maxY - minY);
+        graphics.fill(0, 0, 1, 1, color);
+        graphics.pose().popMatrix();
     }
 
     private static float easeSmoothDecel(float progress) {

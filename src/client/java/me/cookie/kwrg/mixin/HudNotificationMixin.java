@@ -10,6 +10,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.scores.Objective;
+import net.minecraft.world.scores.Scoreboard;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -25,6 +27,7 @@ public abstract class HudNotificationMixin {
     @Shadow private @Nullable Component title;
     @Shadow private @Nullable Component subtitle;
     @Shadow private int titleTime;
+    @Shadow @Final private net.minecraft.client.gui.components.PlayerTabOverlay tabList;
 
     @Inject(method = "extractRenderState", at = @At("HEAD"))
     private void kwrg$onUpdateAnimatedTitle(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker, CallbackInfo ci) {
@@ -34,6 +37,11 @@ public abstract class HudNotificationMixin {
         } else if (this.titleTime <= 0) {
             IrcMessageHandler.ImportantTitleManager.stop();
         }
+    }
+
+    @Inject(method = "extractRenderState", at = @At("HEAD"))
+    private void kwrg$onExtractStateHead(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker, CallbackInfo ci) {
+        me.cookie.kwrg.render.DynamicIslandRenderer.setCurrentExtractor(graphics);
     }
 
     @Inject(method = "extractRenderState", at = @At("TAIL"))
@@ -50,8 +58,19 @@ public abstract class HudNotificationMixin {
 
         NotificationManager.render(graphics, mouseX, mouseY, delta);
         PlayerFinderRadarRenderer.render(graphics, delta);
+
+        if (this.minecraft.level != null && !this.minecraft.options.keyPlayerList.isDown() && DynamicIslandRenderer.isTabAnimating()) {
+            if (me.cookie.kwrg.render.DynamicIslandRenderer.wasSkyHanniActive()) {
+                me.cookie.kwrg.render.DynamicIslandRenderer.renderSkyHanniTab(graphics);
+            } else {
+                Scoreboard scoreboard = this.minecraft.level.getScoreboard();
+                this.tabList.extractRenderState(graphics, graphics.guiWidth(), scoreboard, null);
+            }
+        }
+
+
         if (!(this.minecraft.screen instanceof me.cookie.kwrg.gui.IrcScreen)) {
-            DynamicIslandRenderer.render(graphics, delta);
+            me.cookie.kwrg.render.DynamicIslandRenderer.render(graphics, delta);
         }
     }
 }
