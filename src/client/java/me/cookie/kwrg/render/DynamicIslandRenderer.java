@@ -35,6 +35,51 @@ public class DynamicIslandRenderer {
     private static final float ITEM_GAP = 5.0f;
     private static final float SIDE_PAD = 12.0f;
 
+    private static boolean shadowEnabled = true;
+    private static float shadowBlur = 4.0f;
+    private static float shadowOffsetY = 1.2f;
+    private static int shadowBaseAlpha = 50;
+
+    public static void setShadowEnabled(boolean enabled) {
+        shadowEnabled = enabled;
+    }
+
+    public static boolean isShadowEnabled() {
+        return shadowEnabled;
+    }
+
+    public static void setShadowBlur(float blur) {
+        shadowBlur = Math.max(0.0f, blur);
+    }
+
+    public static float getShadowBlur() {
+        return shadowBlur;
+    }
+
+    public static void setShadowOffsetY(float offsetY) {
+        shadowOffsetY = offsetY;
+    }
+
+    public static float getShadowOffsetY() {
+        return shadowOffsetY;
+    }
+
+    public static void setShadowBaseAlpha(int baseAlpha) {
+        shadowBaseAlpha = Mth.clamp(baseAlpha, 0, 255);
+    }
+
+    public static int getShadowBaseAlpha() {
+        return shadowBaseAlpha;
+    }
+
+    public static void resetShadowSettings() {
+        shadowEnabled = true;
+        shadowBlur = 4.0f;
+        shadowOffsetY = 1.2f;
+        shadowBaseAlpha = 55;
+    }
+
+
     private static float tabProgress = 0.0f;
 
     private static float targetTabW = 340.0f;
@@ -134,10 +179,13 @@ public class DynamicIslandRenderer {
     public static void renderTabBackgroundDirect() {
         if (currentFrameExtractor != null && tabProgress > 0.005f && curRenderW > 0) {
             OwoUIGraphics graphics = OwoUIGraphics.of(currentFrameExtractor);
+            if (shadowEnabled) {
+                // Tab 大面板按比例扩展一点阴影羽化
+                drawSoftDropShadow(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius, shadowBlur * 1.5f, shadowOffsetY * 1.5f, islandOpenProgress);
+            }
             drawSubpixelRoundedPanel(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius, curBgColor, curBorderColor);
         }
     }
-
 
     public static void renderTabBackground(GuiGraphicsExtractor extractor) {
         setCurrentExtractor(extractor);
@@ -388,6 +436,9 @@ public class DynamicIslandRenderer {
         curBorderColor = Color.ofArgb(ARGB.color((int) (210 * alpha), borderR, borderG, borderB));
 
         if (tabProgress <= 0.005f) {
+            if (shadowEnabled) {
+                drawSoftDropShadow(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius, shadowBlur, shadowOffsetY, alpha);
+            }
             drawSubpixelRoundedPanel(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius, curBgColor, curBorderColor);
         }
 
@@ -454,6 +505,66 @@ public class DynamicIslandRenderer {
         graphics.disableScissor();
     }
 
+    private static void drawSoftDropShadow(OwoUIGraphics graphics, float x, float y, float width, float height, float radius, float blur, float offsetY, float alpha) {
+        if (alpha <= 0.005f || blur <= 0.1f) return;
+
+        int maxA = (int) (shadowBaseAlpha * alpha);
+        if (maxA <= 0) return;
+
+        int innerRgb = ARGB.color(maxA, 0, 0, 0);
+        int outerRgb = ARGB.color(0, 0, 0, 0);
+        Color innerCol = Color.ofArgb(innerRgb);
+        Color outerCol = Color.ofArgb(outerRgb);
+
+        float r = Math.min(radius, Math.min(width / 2.0f, height / 2.0f));
+        float sy = y + offsetY;
+
+        drawSubpixelRoundedCore(graphics, x, sy, width, height, r, innerCol);
+
+        drawQuadGradient(graphics, x + r, sy - blur, x + width - r, sy, outerRgb, outerRgb, innerRgb, innerRgb);
+        drawQuadGradient(graphics, x + r, sy + height, x + width - r, sy + height + blur, innerRgb, innerRgb, outerRgb, outerRgb);
+
+        if (height > 2.0f * r) {
+            drawQuadGradient(graphics, x - blur, sy + r, x, sy + height - r, outerRgb, innerRgb, innerRgb, outerRgb);
+            drawQuadGradient(graphics, x + width, sy + r, x + width + blur, sy + height - r, innerRgb, outerRgb, outerRgb, innerRgb);
+        }
+
+        drawSubpixelRingGradient(graphics, x + r, sy + r, 0.0, 90.0, 16, r, r + blur, innerCol, outerCol);
+        drawSubpixelRingGradient(graphics, x + width - r, sy + r, 90.0, 180.0, 16, r, r + blur, innerCol, outerCol);
+        drawSubpixelRingGradient(graphics, x + width - r, sy + height - r, 180.0, 270.0, 16, r, r + blur, innerCol, outerCol);
+        drawSubpixelRingGradient(graphics, x + r, sy + height - r, 270.0, 360.0, 16, r, r + blur, innerCol, outerCol);
+    }
+
+    private static void drawSubpixelRoundedCore(OwoUIGraphics graphics, float x, float y, float width, float height, float r, Color color) {
+        float x2 = x + width;
+        float y2 = y + height;
+
+        fillSubpixel(graphics, x + r, y, x2 - r, y2, color.argb());
+        fillSubpixel(graphics, x, y + r, x + r, y2 - r, color.argb());
+        fillSubpixel(graphics, x2 - r, y + r, x2, y2 - r, color.argb());
+
+        drawSubpixelCircle(graphics, x + r, y + r, 0.0, 90.0, 16, r, color);
+        drawSubpixelCircle(graphics, x2 - r, y + r, 90.0, 180.0, 16, r, color);
+        drawSubpixelCircle(graphics, x2 - r, y2 - r, 180.0, 270.0, 16, r, color);
+        drawSubpixelCircle(graphics, x + r, y2 - r, 270.0, 360.0, 16, r, color);
+    }
+
+    private static void drawSubpixelRingGradient(OwoUIGraphics graphics, float cx, float cy, double angleFrom, double angleTo, int segments, double innerRadius, double outerRadius, Color innerColor, Color outerColor) {
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(cx, cy);
+        graphics.drawRing(0, 0, angleFrom, angleTo, segments, innerRadius, outerRadius, innerColor, outerColor);
+        graphics.pose().popMatrix();
+    }
+
+    private static void drawQuadGradient(OwoUIGraphics graphics, float x1, float y1, float x2, float y2, int cTL, int cTR, int cBR, int cBL) {
+        if (x2 <= x1 || y2 <= y1) return;
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(x1, y1);
+        graphics.pose().scale(x2 - x1, y2 - y1);
+        graphics.drawGradientRect(0, 0, 1, 1, cTL, cTR, cBR, cBL);
+        graphics.pose().popMatrix();
+    }
+
     private static void drawSubpixelRoundedPanel(OwoUIGraphics graphics, float x, float y, float width, float height, float radius, Color bgColor, Color outlineColor) {
         float r = Math.min(radius, Math.min(width / 2.0f, height / 2.0f));
         float x2 = x + width;
@@ -473,10 +584,10 @@ public class DynamicIslandRenderer {
         fillSubpixel(graphics, x, y + r, x + 1.0f, y2 - r, outlineColor.argb());
         fillSubpixel(graphics, x2 - 1.0f, y + r, x2, y2 - r, outlineColor.argb());
 
-        drawSubpixelRing(graphics, x + r, y + r, 0.0, 90.0, 16, r - 1.0f, r, outlineColor);
-        drawSubpixelRing(graphics, x2 - r, y + r, 90.0, 180.0, 16, r - 1.0f, r, outlineColor);
-        drawSubpixelRing(graphics, x2 - r, y2 - r, 180.0, 270.0, 16, r - 1.0f, r, outlineColor);
-        drawSubpixelRing(graphics, x + r, y2 - r, 270.0, 360.0, 16, r - 1.0f, r, outlineColor);
+        drawSubpixelRing(graphics, x + r, y + r, 0.0, 90.0, 16, r - 1.0f, r, outlineColor, outlineColor);
+        drawSubpixelRing(graphics, x2 - r, y + r, 90.0, 180.0, 16, r - 1.0f, r, outlineColor, outlineColor);
+        drawSubpixelRing(graphics, x2 - r, y2 - r, 180.0, 270.0, 16, r - 1.0f, r, outlineColor, outlineColor);
+        drawSubpixelRing(graphics, x + r, y2 - r, 270.0, 360.0, 16, r - 1.0f, r, outlineColor, outlineColor);
     }
 
     private static void drawSubpixelCircle(OwoUIGraphics graphics, float cx, float cy, double angleFrom, double angleTo, int segments, double radius, Color color) {
@@ -486,10 +597,10 @@ public class DynamicIslandRenderer {
         graphics.pose().popMatrix();
     }
 
-    private static void drawSubpixelRing(OwoUIGraphics graphics, float cx, float cy, double angleFrom, double angleTo, int segments, double innerRadius, double outerRadius, Color color) {
+    private static void drawSubpixelRing(OwoUIGraphics graphics, float cx, float cy, double angleFrom, double angleTo, int segments, double innerRadius, double outerRadius, Color innerColor, Color outerColor) {
         graphics.pose().pushMatrix();
         graphics.pose().translate(cx, cy);
-        graphics.drawRing(0, 0, angleFrom, angleTo, segments, innerRadius, outerRadius, color, color);
+        graphics.drawRing(0, 0, angleFrom, angleTo, segments, innerRadius, outerRadius, innerColor, outerColor);
         graphics.pose().popMatrix();
     }
 
