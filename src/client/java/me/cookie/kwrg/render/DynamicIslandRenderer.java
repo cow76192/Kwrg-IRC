@@ -79,7 +79,6 @@ public class DynamicIslandRenderer {
         shadowBaseAlpha = 55;
     }
 
-
     private static float tabProgress = 0.0f;
 
     private static float targetTabW = 340.0f;
@@ -124,6 +123,7 @@ public class DynamicIslandRenderer {
     }
 
     public static void renderSkyHanniTab(GuiGraphicsExtractor graphics) {
+        if (!IrcConfig.get().dynamicIsland) return;
         if (skyHanniInstance != null && graphics != null) {
             currentFrameExtractor = graphics;
             try {
@@ -147,6 +147,7 @@ public class DynamicIslandRenderer {
     }
 
     public static void updateTargetTabBounds(float w, float h, float y) {
+        if (!IrcConfig.get().dynamicIsland) return;
         float newTargetW = Math.max(140.0f, w);
         float newTargetH = Math.max(40.0f, h);
         targetTabY = Math.max(4.0f, y);
@@ -165,10 +166,12 @@ public class DynamicIslandRenderer {
     }
 
     public static float getTabProgress() {
+        if (!IrcConfig.get().dynamicIsland) return 0.0f;
         return tabProgress;
     }
 
     public static boolean isTabAnimating() {
+        if (!IrcConfig.get().dynamicIsland) return false;
         return tabProgress > 0.005f;
     }
 
@@ -177,10 +180,10 @@ public class DynamicIslandRenderer {
     }
 
     public static void renderTabBackgroundDirect() {
+        if (!IrcConfig.get().dynamicIsland) return;
         if (currentFrameExtractor != null && tabProgress > 0.005f && curRenderW > 0) {
             OwoUIGraphics graphics = OwoUIGraphics.of(currentFrameExtractor);
             if (shadowEnabled) {
-                // Tab 大面板按比例扩展一点阴影羽化
                 drawSoftDropShadow(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius, shadowBlur * 1.5f, shadowOffsetY * 1.5f, islandOpenProgress);
             }
             drawSubpixelRoundedPanel(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius, curBgColor, curBorderColor);
@@ -188,11 +191,13 @@ public class DynamicIslandRenderer {
     }
 
     public static void renderTabBackground(GuiGraphicsExtractor extractor) {
+        if (!IrcConfig.get().dynamicIsland) return;
         setCurrentExtractor(extractor);
         renderTabBackgroundDirect();
     }
 
     public static void beginTabScissor(GuiGraphicsExtractor extractor) {
+        if (!IrcConfig.get().dynamicIsland) return;
         setCurrentExtractor(extractor);
         beginTabScissorDirect();
     }
@@ -202,6 +207,7 @@ public class DynamicIslandRenderer {
     }
 
     public static void beginTabScissorDirect() {
+        if (!IrcConfig.get().dynamicIsland) return;
         if (currentFrameExtractor != null && curRenderW > 0) {
             OwoUIGraphics graphics = OwoUIGraphics.of(currentFrameExtractor);
             int sX1 = (int) Math.floor(curRenderX + 1.0f);
@@ -280,6 +286,12 @@ public class DynamicIslandRenderer {
         Minecraft mc = Minecraft.getInstance();
         if (mc.getWindow() == null || mc.font == null) return;
 
+        if (!config.dynamicIsland) {
+            tabProgress = 0.0f;
+            islandOpenProgress = 0.0f;
+            return;
+        }
+
         OwoUIGraphics graphics = OwoUIGraphics.of(extractor);
 
         long nowTime = System.currentTimeMillis();
@@ -322,7 +334,7 @@ public class DynamicIslandRenderer {
 
         boolean hasAnyOption = config.islandShowFps || config.islandShowPing || config.islandShowTps
                 || config.islandShowRam || config.islandShowGpu || config.islandShowCpu;
-        boolean shouldShow = (config.dynamicIsland && hasAnyOption) || tabProgress > 0.005f;
+        boolean shouldShow = hasAnyOption || tabProgress > 0.005f;
 
         float targetOpen = shouldShow ? 1.0f : 0.0f;
         islandOpenProgress = Mth.clamp(islandOpenProgress + (targetOpen - islandOpenProgress) * dt * 6.0f, 0.0f, 1.0f);
