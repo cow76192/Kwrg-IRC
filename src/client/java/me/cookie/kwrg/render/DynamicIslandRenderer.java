@@ -40,37 +40,6 @@ public class DynamicIslandRenderer {
     private static float shadowOffsetY = 1.2f;
     private static int shadowBaseAlpha = 50;
 
-    private static float tabProgress = 0.0f;
-
-    private static float targetTabW = 340.0f;
-    private static float targetTabH = 150.0f;
-    private static float targetTabY = 6.0f;
-
-    private static float smoothTabW = 340.0f;
-    private static float startTabW = 340.0f;
-    private static float tabWidthTimer = 1.0f;
-
-    private static float smoothTabH = 150.0f;
-    private static float startTabH = 150.0f;
-    private static float tabHeightTimer = 1.0f;
-
-    private static float smoothTabY = 6.0f;
-
-    private static float curRenderX = 0;
-    private static float curRenderY = 0;
-    private static float curRenderW = 0;
-    private static float curRenderH = 0;
-    private static float curCornerRadius = 10.0f;
-    private static Color curBgColor = Color.ofRgb(0x11161F);
-    private static Color curBorderColor = Color.ofRgb(0x5498B2);
-
-    private static boolean isScissorActive = false;
-    private static GuiGraphicsExtractor currentFrameExtractor = null;
-
-    private static boolean wasSkyHanniInCurrentSession = false;
-    private static Object skyHanniInstance = null;
-    private static Method skyHanniDrawMethod = null;
-
     public static void setShadowEnabled(boolean enabled) {
         shadowEnabled = enabled;
     }
@@ -110,6 +79,36 @@ public class DynamicIslandRenderer {
         shadowBaseAlpha = 55;
     }
 
+    private static float tabProgress = 0.0f;
+
+    private static float targetTabW = 340.0f;
+    private static float targetTabH = 150.0f;
+    private static float targetTabY = 6.0f;
+
+    private static float smoothTabW = 340.0f;
+    private static float startTabW = 340.0f;
+    private static float tabWidthTimer = 1.0f;
+
+    private static float smoothTabH = 150.0f;
+    private static float startTabH = 150.0f;
+    private static float tabHeightTimer = 1.0f;
+
+    private static float smoothTabY = 6.0f;
+
+    private static float curRenderX = 0;
+    private static float curRenderY = 0;
+    private static float curRenderW = 0;
+    private static float curRenderH = 0;
+    private static float curCornerRadius = 10.0f;
+    private static Color curBgColor = Color.ofRgb(0x11161F);
+    private static Color curBorderColor = Color.ofRgb(0x5498B2);
+
+    private static boolean isScissorActive = false;
+    private static GuiGraphicsExtractor currentFrameExtractor = null;
+
+    private static boolean wasSkyHanniInCurrentSession = false;
+    private static Object skyHanniInstance = null;
+    private static Method skyHanniDrawMethod = null;
 
     public static void setSkyHanniInstance(Object instance) {
         skyHanniInstance = instance;
@@ -167,6 +166,7 @@ public class DynamicIslandRenderer {
     }
 
     public static float getTabProgress() {
+        // 如果未开启灵动岛，Tab 进度始终为 0，防止外部 Mixin 接管
         if (!IrcConfig.get().dynamicIsland) return 0.0f;
         return tabProgress;
     }
@@ -287,20 +287,12 @@ public class DynamicIslandRenderer {
         Minecraft mc = Minecraft.getInstance();
         if (mc.getWindow() == null || mc.font == null) return;
 
-        if (!config.dynamicIsland) {
-            tabProgress = 0.0f;
-            islandOpenProgress = 0.0f;
-            return;
-        }
-
         OwoUIGraphics graphics = OwoUIGraphics.of(extractor);
 
         long nowTime = System.currentTimeMillis();
         float dt = (nowTime - lastFrameTime) / 1000.0f;
         lastFrameTime = nowTime;
         dt = Mth.clamp(dt, 0.001f, 0.04f);
-
-        HardwareMetricsTracker.onRenderFrame(mc);
 
         if (tabWidthTimer < 1.0f) {
             tabWidthTimer = Math.min(1.0f, tabWidthTimer + dt / 0.35f);
@@ -318,7 +310,8 @@ public class DynamicIslandRenderer {
 
         smoothTabY = Mth.lerp(dt * 10.0f, smoothTabY, targetTabY);
 
-        boolean isTabKeyDown = mc.options.keyPlayerList.isDown() && mc.player != null;
+        // 1. 只有当开启灵动岛时，按 Tab 键才会让 targetTab = 1.0；关闭时始终为 0（不接管 Tab）
+        boolean isTabKeyDown = config.dynamicIsland && mc.options.keyPlayerList.isDown() && mc.player != null;
         float targetTab = isTabKeyDown ? 1.0f : 0.0f;
         float tabSpeed = isTabKeyDown ? (1.0f / TAB_ANIM_DURATION) : (1.0f / (TAB_ANIM_DURATION * 0.85f));
 
@@ -333,17 +326,22 @@ public class DynamicIslandRenderer {
             wasSkyHanniInCurrentSession = false;
         }
 
+        // 2. 只有在 dynamicIsland == true 时，shouldShow 才能为 true；关闭时为 false，驱动收起动画
         boolean hasAnyOption = config.islandShowFps || config.islandShowPing || config.islandShowTps
                 || config.islandShowRam || config.islandShowGpu || config.islandShowCpu;
-        boolean shouldShow = hasAnyOption || tabProgress > 0.005f;
+        boolean shouldShow = config.dynamicIsland && (hasAnyOption || tabProgress > 0.005f);
 
+        // 3. 平滑过渡展开 / 收起（开启与关闭时的动画都在这里持续计算）
         float targetOpen = shouldShow ? 1.0f : 0.0f;
         islandOpenProgress = Mth.clamp(islandOpenProgress + (targetOpen - islandOpenProgress) * dt * 6.0f, 0.0f, 1.0f);
         float openEase = easeSmoothDecel(islandOpenProgress);
 
+        // 4. 当收起动画彻底结束时才 return，绝不提前硬截断
         if (islandOpenProgress <= 0.005f) {
             return;
         }
+
+        HardwareMetricsTracker.onRenderFrame(mc);
 
         SLOT_FPS.update(shouldShow && config.islandShowFps, dt);
         SLOT_PING.update(shouldShow && config.islandShowPing, dt);
@@ -438,7 +436,7 @@ public class DynamicIslandRenderer {
         curRenderX = cx - curRenderW / 2.0f;
         curCornerRadius = Mth.lerp(tabEase, CORNER_RADIUS, 14.0f);
 
-        float alpha = openEase * config.islandOpacity;
+        float alpha = openEase;
 
         int borderR = (int) Mth.lerp(warnEase, 84f, 255f);
         int borderG = (int) Mth.lerp(warnEase, 152f, 100f);
