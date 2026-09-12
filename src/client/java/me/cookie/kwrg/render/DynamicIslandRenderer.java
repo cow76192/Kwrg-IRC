@@ -40,6 +40,37 @@ public class DynamicIslandRenderer {
     private static float shadowOffsetY = 1.2f;
     private static int shadowBaseAlpha = 50;
 
+    private static float tabProgress = 0.0f;
+
+    private static float targetTabW = 340.0f;
+    private static float targetTabH = 150.0f;
+    private static float targetTabY = 6.0f;
+
+    private static float smoothTabW = 340.0f;
+    private static float startTabW = 340.0f;
+    private static float tabWidthTimer = 1.0f;
+
+    private static float smoothTabH = 150.0f;
+    private static float startTabH = 150.0f;
+    private static float tabHeightTimer = 1.0f;
+
+    private static float smoothTabY = 6.0f;
+
+    private static float curRenderX = 0;
+    private static float curRenderY = 0;
+    private static float curRenderW = 0;
+    private static float curRenderH = 0;
+    private static float curCornerRadius = 10.0f;
+    private static Color curBgColor = Color.ofRgb(0x11161F);
+    private static Color curBorderColor = Color.ofRgb(0x5498B2);
+
+    private static boolean isScissorActive = false;
+    private static GuiGraphicsExtractor currentFrameExtractor = null;
+
+    private static boolean wasSkyHanniInCurrentSession = false;
+    private static Object skyHanniInstance = null;
+    private static Method skyHanniDrawMethod = null;
+
     public static void setShadowEnabled(boolean enabled) {
         shadowEnabled = enabled;
     }
@@ -79,36 +110,6 @@ public class DynamicIslandRenderer {
         shadowBaseAlpha = 55;
     }
 
-    private static float tabProgress = 0.0f;
-
-    private static float targetTabW = 340.0f;
-    private static float targetTabH = 150.0f;
-    private static float targetTabY = 6.0f;
-
-    private static float smoothTabW = 340.0f;
-    private static float startTabW = 340.0f;
-    private static float tabWidthTimer = 1.0f;
-
-    private static float smoothTabH = 150.0f;
-    private static float startTabH = 150.0f;
-    private static float tabHeightTimer = 1.0f;
-
-    private static float smoothTabY = 6.0f;
-
-    private static float curRenderX = 0;
-    private static float curRenderY = 0;
-    private static float curRenderW = 0;
-    private static float curRenderH = 0;
-    private static float curCornerRadius = 10.0f;
-    private static Color curBgColor = Color.ofRgb(0x11161F);
-    private static Color curBorderColor = Color.ofRgb(0x5498B2);
-
-    private static boolean isScissorActive = false;
-    private static GuiGraphicsExtractor currentFrameExtractor = null;
-
-    private static boolean wasSkyHanniInCurrentSession = false;
-    private static Object skyHanniInstance = null;
-    private static Method skyHanniDrawMethod = null;
 
     public static void setSkyHanniInstance(Object instance) {
         skyHanniInstance = instance;
@@ -437,7 +438,7 @@ public class DynamicIslandRenderer {
         curRenderX = cx - curRenderW / 2.0f;
         curCornerRadius = Mth.lerp(tabEase, CORNER_RADIUS, 14.0f);
 
-        float alpha = openEase;
+        float alpha = openEase * config.islandOpacity;
 
         int borderR = (int) Mth.lerp(warnEase, 84f, 255f);
         int borderG = (int) Mth.lerp(warnEase, 152f, 100f);
