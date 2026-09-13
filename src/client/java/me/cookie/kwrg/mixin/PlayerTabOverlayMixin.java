@@ -55,7 +55,7 @@ public abstract class PlayerTabOverlayMixin {
         kwrg$maxX = Math.max(kwrg$maxX, Math.max(minX, maxX));
         kwrg$maxY = Math.max(kwrg$maxY, Math.max(minY, maxY));
 
-        if (color == Integer.MIN_VALUE && DynamicIslandRenderer.getTabProgress() > 0.02f) {
+        if (DynamicIslandRenderer.getTabProgress() > 0.02f) {
             return;
         }
 

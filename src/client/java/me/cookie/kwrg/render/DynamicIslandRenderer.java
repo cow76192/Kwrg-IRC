@@ -122,6 +122,140 @@ public class DynamicIslandRenderer {
         return wasSkyHanniInCurrentSession;
     }
 
+    private static boolean wasSkyblockerInCurrentSession = false;
+    private static Method skyblockerExtractMethod = null;
+    private static Method skyblockerGetScaleMethod = null;
+
+    private static long lastUpdateFrameTime = -1;
+
+    public static void updateAnimationState() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getWindow() == null || mc.font == null) return;
+
+        long nowTime = System.currentTimeMillis();
+
+        if (nowTime == lastUpdateFrameTime) return;
+
+        float dt = (lastUpdateFrameTime < 0) ? 0.016f : (nowTime - lastUpdateFrameTime) / 1000.0f;
+        lastUpdateFrameTime = nowTime;
+        dt = Mth.clamp(dt, 0.001f, 0.04f);
+
+        IrcConfig config = IrcConfig.get();
+
+        if (tabWidthTimer < 1.0f) {
+            tabWidthTimer = Math.min(1.0f, tabWidthTimer + dt / 0.35f);
+            smoothTabW = Mth.lerp(easeSmoothDecel(tabWidthTimer), startTabW, targetTabW);
+        } else {
+            smoothTabW = targetTabW;
+        }
+
+        if (tabHeightTimer < 1.0f) {
+            tabHeightTimer = Math.min(1.0f, tabHeightTimer + dt / 0.35f);
+            smoothTabH = Mth.lerp(easeSmoothDecel(tabHeightTimer), startTabH, targetTabH);
+        } else {
+            smoothTabH = targetTabH;
+        }
+
+        smoothTabY = Mth.lerp(dt * 10.0f, smoothTabY, targetTabY);
+
+        boolean isTabKeyDown = config.dynamicIsland && mc.options.keyPlayerList.isDown() && mc.player != null;
+        float targetTab = isTabKeyDown ? 1.0f : 0.0f;
+        float tabSpeed = isTabKeyDown ? (1.0f / TAB_ANIM_DURATION) : (1.0f / (TAB_ANIM_DURATION * 0.85f));
+
+        if (tabProgress < targetTab) {
+            tabProgress = Math.min(targetTab, tabProgress + dt * tabSpeed);
+        } else if (tabProgress > targetTab) {
+            tabProgress = Math.max(targetTab, tabProgress - dt * tabSpeed);
+        }
+        float tabEase = easeSmoothDecel(tabProgress);
+
+        if (tabProgress <= 0.005f) {
+            wasSkyHanniInCurrentSession = false;
+            wasSkyblockerInCurrentSession = false;
+        }
+
+        boolean hasAnyOption = config.islandShowFps || config.islandShowPing || config.islandShowTps
+                || config.islandShowRam || config.islandShowGpu || config.islandShowCpu;
+        boolean shouldShow = config.dynamicIsland && (hasAnyOption || tabProgress > 0.005f);
+
+        float targetOpen = shouldShow ? 1.0f : 0.0f;
+        islandOpenProgress = Mth.clamp(islandOpenProgress + (targetOpen - islandOpenProgress) * dt * 6.0f, 0.0f, 1.0f);
+        float openEase = easeSmoothDecel(islandOpenProgress);
+
+        float warnEase = Mth.clamp((currentIslandHeight - BASE_HEIGHT) / (EXPANDED_HEIGHT - BASE_HEIGHT), 0.0f, 1.0f);
+        int screenW = mc.getWindow().getGuiScaledWidth();
+        float cx = screenW / 2.0f;
+
+        float normalTargetWidth = 140.0f; // 基础备用宽
+        float baseIslandW = Math.max(38.0f, normalTargetWidth);
+        float baseIslandH = currentIslandHeight;
+        float baseIslandTopY = 7.0f * openEase;
+
+        curRenderW = Mth.lerp(tabEase, baseIslandW, smoothTabW) * (0.85f + 0.15f * openEase);
+        curRenderH = Mth.lerp(tabEase, baseIslandH, smoothTabH);
+        curRenderY = Mth.lerp(tabEase, baseIslandTopY, smoothTabY);
+        curRenderX = cx - curRenderW / 2.0f;
+        curCornerRadius = Mth.lerp(tabEase, CORNER_RADIUS, 14.0f);
+
+        float alpha = openEase;
+        int borderR = (int) Mth.lerp(warnEase, 84f, 255f);
+        int borderG = (int) Mth.lerp(warnEase, 152f, 100f);
+        int borderB = (int) Mth.lerp(warnEase, 178f, 90f);
+
+        int bgAlpha = (int) (Mth.lerp(tabEase, 230f, 245f) * alpha);
+        curBgColor = Color.ofArgb(ARGB.color(bgAlpha, 17, 22, 31));
+        curBorderColor = Color.ofArgb(ARGB.color((int) (210 * alpha), borderR, borderG, borderB));
+    }
+
+    public static void markSkyblockerTabRendered() {
+        wasSkyblockerInCurrentSession = true;
+    }
+
+    public static boolean wasSkyblockerActive() {
+        return wasSkyblockerInCurrentSession;
+    }
+
+    public static void renderSkyblockerTab(GuiGraphicsExtractor graphics) {
+        if (!IrcConfig.get().dynamicIsland || graphics == null) return;
+        currentFrameExtractor = graphics;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getWindow() == null || mc.player == null) return;
+
+        try {
+            Class<?> wmClass = Class.forName("de.hysky.skyblocker.skyblock.tabhud.screenbuilder.WidgetManager");
+            Object screenBuilder = wmClass.getField("SCREEN_BUILDER").get(null);
+            Method tabMethod = screenBuilder.getClass().getMethod("tab");
+            Object tabLayer = tabMethod.invoke(screenBuilder);
+
+            if (skyblockerGetScaleMethod == null) {
+                Class<?> tabHudClass = Class.forName("de.hysky.skyblocker.skyblock.tabhud.TabHud");
+                skyblockerGetScaleMethod = tabHudClass.getMethod("getScaleFactor");
+            }
+            float scale = ((Number) skyblockerGetScaleMethod.invoke(null)).floatValue();
+
+            int screenW = (int) (mc.getWindow().getGuiScaledWidth() / scale);
+            int screenH = (int) (mc.getWindow().getGuiScaledHeight() / scale);
+
+            if (skyblockerExtractMethod == null) {
+                for (Method m : tabLayer.getClass().getMethods()) {
+                    if (m.getName().equals("extractRenderStates") && m.getParameterCount() == 4) {
+                        skyblockerExtractMethod = m;
+                        break;
+                    }
+                }
+            }
+
+            graphics.pose().pushMatrix();
+            graphics.pose().scale(scale, scale);
+            try {
+                skyblockerExtractMethod.invoke(tabLayer, graphics, screenW, screenH, false);
+            } finally {
+                graphics.pose().popMatrix();
+            }
+        } catch (Throwable ignored) {}
+    }
+
+
     public static void renderSkyHanniTab(GuiGraphicsExtractor graphics) {
         if (!IrcConfig.get().dynamicIsland) return;
         if (skyHanniInstance != null && graphics != null) {
@@ -166,7 +300,6 @@ public class DynamicIslandRenderer {
     }
 
     public static float getTabProgress() {
-        // 如果未开启灵动岛，Tab 进度始终为 0，防止外部 Mixin 接管
         if (!IrcConfig.get().dynamicIsland) return 0.0f;
         return tabProgress;
     }
@@ -283,6 +416,7 @@ public class DynamicIslandRenderer {
 
     public static void render(GuiGraphicsExtractor extractor, float ignoredDelta) {
         currentFrameExtractor = extractor;
+        updateAnimationState();
         IrcConfig config = IrcConfig.get();
         Minecraft mc = Minecraft.getInstance();
         if (mc.getWindow() == null || mc.font == null) return;
@@ -310,7 +444,6 @@ public class DynamicIslandRenderer {
 
         smoothTabY = Mth.lerp(dt * 10.0f, smoothTabY, targetTabY);
 
-        // 1. 只有当开启灵动岛时，按 Tab 键才会让 targetTab = 1.0；关闭时始终为 0（不接管 Tab）
         boolean isTabKeyDown = config.dynamicIsland && mc.options.keyPlayerList.isDown() && mc.player != null;
         float targetTab = isTabKeyDown ? 1.0f : 0.0f;
         float tabSpeed = isTabKeyDown ? (1.0f / TAB_ANIM_DURATION) : (1.0f / (TAB_ANIM_DURATION * 0.85f));
@@ -324,19 +457,17 @@ public class DynamicIslandRenderer {
 
         if (tabProgress <= 0.005f) {
             wasSkyHanniInCurrentSession = false;
+            wasSkyblockerInCurrentSession = false;
         }
 
-        // 2. 只有在 dynamicIsland == true 时，shouldShow 才能为 true；关闭时为 false，驱动收起动画
         boolean hasAnyOption = config.islandShowFps || config.islandShowPing || config.islandShowTps
                 || config.islandShowRam || config.islandShowGpu || config.islandShowCpu;
         boolean shouldShow = config.dynamicIsland && (hasAnyOption || tabProgress > 0.005f);
 
-        // 3. 平滑过渡展开 / 收起（开启与关闭时的动画都在这里持续计算）
         float targetOpen = shouldShow ? 1.0f : 0.0f;
         islandOpenProgress = Mth.clamp(islandOpenProgress + (targetOpen - islandOpenProgress) * dt * 6.0f, 0.0f, 1.0f);
         float openEase = easeSmoothDecel(islandOpenProgress);
 
-        // 4. 当收起动画彻底结束时才 return，绝不提前硬截断
         if (islandOpenProgress <= 0.005f) {
             return;
         }

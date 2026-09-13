@@ -16,6 +16,9 @@
 		"ChatComponentMixin",
 		"PlayerTabOverlayMixin",
 		"SkyHanniTabMixin",
+		"SkyblockerTabMixin",
+		"SkyblockerWidgetManagerMixin",
+		"SkyblockerUnblockMixin",
 		"accessor.FontManagerAccessor",
 		"accessor.FontSetAccessor",
 		"accessor.MinecraftAccessor"
