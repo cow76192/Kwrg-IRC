@@ -187,7 +187,7 @@ public class DynamicIslandRenderer {
             if (shadowEnabled) {
                 drawSoftDropShadow(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius, shadowBlur * 1.5f, shadowOffsetY * 1.5f, islandOpenProgress);
             }
-            drawSubpixelRoundedPanel(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius, curBgColor, curBorderColor);
+            RenderUtil.drawSubpixelRoundedPanel(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius, curBgColor, curBorderColor);
         }
     }
 
@@ -450,7 +450,7 @@ public class DynamicIslandRenderer {
             if (shadowEnabled) {
                 drawSoftDropShadow(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius, shadowBlur, shadowOffsetY, alpha);
             }
-            drawSubpixelRoundedPanel(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius, curBgColor, curBorderColor);
+            RenderUtil.drawSubpixelRoundedPanel(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius, curBgColor, curBorderColor);
         }
 
         int scissorX1 = (int) Math.floor(curRenderX + 1.0f);
@@ -574,31 +574,6 @@ public class DynamicIslandRenderer {
         graphics.pose().scale(x2 - x1, y2 - y1);
         graphics.drawGradientRect(0, 0, 1, 1, cTL, cTR, cBR, cBL);
         graphics.pose().popMatrix();
-    }
-
-    private static void drawSubpixelRoundedPanel(OwoUIGraphics graphics, float x, float y, float width, float height, float radius, Color bgColor, Color outlineColor) {
-        float r = Math.min(radius, Math.min(width / 2.0f, height / 2.0f));
-        float x2 = x + width;
-        float y2 = y + height;
-
-        fillSubpixel(graphics, x + r, y, x2 - r, y2, bgColor.argb());
-        fillSubpixel(graphics, x, y + r, x + r, y2 - r, bgColor.argb());
-        fillSubpixel(graphics, x2 - r, y + r, x2, y2 - r, bgColor.argb());
-
-        drawSubpixelCircle(graphics, x + r, y + r, 0.0, 90.0, 16, r, bgColor);
-        drawSubpixelCircle(graphics, x2 - r, y + r, 90.0, 180.0, 16, r, bgColor);
-        drawSubpixelCircle(graphics, x2 - r, y2 - r, 180.0, 270.0, 16, r, bgColor);
-        drawSubpixelCircle(graphics, x + r, y2 - r, 270.0, 360.0, 16, r, bgColor);
-
-        fillSubpixel(graphics, x + r, y, x2 - r, y + 1.0f, outlineColor.argb());
-        fillSubpixel(graphics, x + r, y2 - 1.0f, x2 - r, y2, outlineColor.argb());
-        fillSubpixel(graphics, x, y + r, x + 1.0f, y2 - r, outlineColor.argb());
-        fillSubpixel(graphics, x2 - 1.0f, y + r, x2, y2 - r, outlineColor.argb());
-
-        drawSubpixelRing(graphics, x + r, y + r, 0.0, 90.0, 16, r - 1.0f, r, outlineColor, outlineColor);
-        drawSubpixelRing(graphics, x2 - r, y + r, 90.0, 180.0, 16, r - 1.0f, r, outlineColor, outlineColor);
-        drawSubpixelRing(graphics, x2 - r, y2 - r, 180.0, 270.0, 16, r - 1.0f, r, outlineColor, outlineColor);
-        drawSubpixelRing(graphics, x + r, y2 - r, 270.0, 360.0, 16, r - 1.0f, r, outlineColor, outlineColor);
     }
 
     private static void drawSubpixelCircle(OwoUIGraphics graphics, float cx, float cy, double angleFrom, double angleTo, int segments, double radius, Color color) {
