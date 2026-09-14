@@ -27,7 +27,6 @@ public abstract class PlayerTabOverlayMixin {
         if (!IrcConfig.get().dynamicIsland) {
             return;
         }
-
         kwrg$minX = Integer.MAX_VALUE;
         kwrg$minY = Integer.MAX_VALUE;
         kwrg$maxX = Integer.MIN_VALUE;

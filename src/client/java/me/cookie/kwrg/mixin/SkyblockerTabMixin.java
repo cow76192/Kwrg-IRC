@@ -72,12 +72,10 @@ public abstract class SkyblockerTabMixin {
             return;
         }
 
-        // 核心修复 1：如果玩家在 Skyblocker 设置中关掉了 Tab，立刻放行，绝不劫持 SkyHanni！
         if (!kwrg$isSkyblockerTabEnabled()) {
             return;
         }
 
-        // 核心修复 2：先探测是否有有效的 fromTab 部件，没有部件就不绘背景，防止大黑框残留
         if (!kwrg$hasValidTabWidgets()) {
             return;
         }
