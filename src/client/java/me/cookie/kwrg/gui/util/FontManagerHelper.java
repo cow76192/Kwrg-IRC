@@ -88,12 +88,31 @@ public class FontManagerHelper {
         return currentLoadedFontName != null ? currentLoadedFontName : DEFAULT_FONT;
     }
 
+    public static void onResourceReload() {
+        LOGGER.info("[Kwrg] 检测到客户端资源重载，正在恢复自定义 GUI 字体...");
+        currentActiveProvider = null;
+        currentLoadedFontName = null;
+
+        String configuredFont = IrcConfig.get().guiFont;
+        if (configuredFont != null && !configuredFont.isBlank() && !DEFAULT_FONT.equalsIgnoreCase(configuredFont)) {
+            applyFontInternal(configuredFont, true);
+        }
+    }
+
     public static boolean applyFont(String fontFileName) {
+        return applyFontInternal(fontFileName, false);
+    }
+
+    public static boolean reloadCurrentFont() {
+        return applyFontInternal(IrcConfig.get().guiFont, true);
+    }
+
+    private static boolean applyFontInternal(String fontFileName, boolean forceReload) {
         if (fontFileName == null || fontFileName.isBlank()) {
             fontFileName = DEFAULT_FONT;
         }
 
-        if (fontFileName.equalsIgnoreCase(currentLoadedFontName)) {
+        if (!forceReload && fontFileName.equalsIgnoreCase(currentLoadedFontName)) {
             return true;
         }
 
@@ -105,6 +124,7 @@ public class FontManagerHelper {
 
         FontManagerAccessor managerAccessor = (FontManagerAccessor) fontManager;
         Map<Identifier, FontSet> fontSets = managerAccessor.kwrg$getFontSets();
+        if (fontSets == null) return false;
 
         FontSet defaultFontSet = fontSets.get(Minecraft.DEFAULT_FONT);
         List<GlyphProvider.Conditional> fallbackProviders = defaultFontSet != null
@@ -154,6 +174,7 @@ public class FontManagerHelper {
             GlyphProviderDefinition.Loader loader = def.unpack().left().orElseThrow();
             GlyphProvider newProvider = loader.load(singleFileManager);
 
+            // 成功解析出新 provider 后再关闭旧 provider，保证平滑过渡
             closeCurrentProvider();
             currentActiveProvider = newProvider;
 
@@ -170,7 +191,7 @@ public class FontManagerHelper {
             }
 
             currentLoadedFontName = fontFileName;
-            LOGGER.info("[Kwrg] 成功无缝热装载外部字体: {}", fontFileName);
+            LOGGER.info("[Kwrg] 成功无缝装载外部字体: {}", fontFileName);
             return true;
         } catch (Exception e) {
             LOGGER.error("[Kwrg] 加载外部字体失败: " + fontFileName, e);

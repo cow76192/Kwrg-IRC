@@ -20,6 +20,7 @@
 		"SkyblockerWidgetManagerMixin",
 		"SkyblockerUnblockMixin",
 		"SkyblockerElementCleanMixin",
+		"FontManagerMixin",
 		"accessor.FontManagerAccessor",
 		"accessor.FontSetAccessor",
 		"accessor.MinecraftAccessor"
