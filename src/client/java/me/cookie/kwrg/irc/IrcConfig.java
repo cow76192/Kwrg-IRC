@@ -63,6 +63,8 @@ public class IrcConfig {
     public float blurQuality = 8.0f;
     public float blurSize = 16.0f;
 
+    public int guiFpsLimit = 60;
+
     public String guiFont = "default";
 
     private static IrcConfig instance = new IrcConfig();

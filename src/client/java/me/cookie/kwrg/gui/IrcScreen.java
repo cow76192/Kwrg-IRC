@@ -143,10 +143,12 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
+        me.cookie.kwrg.gui.util.GuiFpsLimiter.apply();
         super.extractRenderState(graphics, mouseX, mouseY, a);
         NotificationManager.render(graphics, mouseX, mouseY, a);
         DynamicIslandRenderer.render(graphics, a);
     }
+
 
     public void updateSurface() {
         if (this.rootLayout != null) {

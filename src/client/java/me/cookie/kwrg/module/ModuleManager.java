@@ -20,6 +20,7 @@ public class ModuleManager {
         register(new ReloadRepoModule());
         register(new PingModule());
         register(new DisableBlurModule());
+        register(new GuiFpsModule());
         // --- CONFIG 模块 ---
         register(new LoadModule());
         register(new ShareModule());
