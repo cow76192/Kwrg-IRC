@@ -41,6 +41,43 @@ public class DynamicIslandRenderer {
     private static float targetAlpha = 0.0f;
     private static float alphaAnimTimer = 1.0f;
 
+    private static float shadowBlur = 4.0f;
+    private static float shadowOffsetY = 1.2f;
+    private static int shadowBaseAlpha = 50;
+
+    private static float tabProgress = 0.0f;
+
+    private static float targetTabW = 340.0f;
+    private static float targetTabH = 150.0f;
+    private static float targetTabY = 6.0f;
+
+    private static float smoothTabW = 340.0f;
+    private static float startTabW = 340.0f;
+    private static float tabWidthTimer = 1.0f;
+
+    private static float smoothTabH = 150.0f;
+    private static float startTabH = 150.0f;
+    private static float tabHeightTimer = 1.0f;
+
+    private static float smoothTabY = 6.0f;
+
+    private static float curRenderX = 0;
+    private static float curRenderY = 0;
+    private static float curRenderW = 0;
+    private static float curRenderH = 0;
+    private static float curCornerRadius = 10.0f;
+    private static Color curBgColor = Color.ofRgb(0x11161F);
+    private static Color curBorderColor = Color.ofRgb(0x5498B2);
+
+    private static boolean isScissorActive = false;
+    private static GuiGraphicsExtractor currentFrameExtractor = null;
+
+    private static boolean wasSkyHanniInCurrentSession = false;
+    private static Object skyHanniInstance = null;
+    private static Method skyHanniDrawMethod = null;
+
+    private static long lastIslandThrottleTime = 0;
+
     public static float easeOutQuint(float progress) {
         float p = Mth.clamp(progress, 0.0f, 1.0f);
         return 1.0f - (float) Math.pow(1.0f - p, 5.0f);
@@ -65,10 +102,6 @@ public class DynamicIslandRenderer {
             currentAlpha = targetAlpha;
         }
     }
-
-    private static float shadowBlur = 4.0f;
-    private static float shadowOffsetY = 1.2f;
-    private static int shadowBaseAlpha = 50;
 
     public static void setShadowEnabled(boolean enabled) {
         IrcConfig.get().isShadowEnabled = enabled;
@@ -108,38 +141,6 @@ public class DynamicIslandRenderer {
     public static int getShadowBaseAlpha() {
         return shadowBaseAlpha;
     }
-
-
-    private static float tabProgress = 0.0f;
-
-    private static float targetTabW = 340.0f;
-    private static float targetTabH = 150.0f;
-    private static float targetTabY = 6.0f;
-
-    private static float smoothTabW = 340.0f;
-    private static float startTabW = 340.0f;
-    private static float tabWidthTimer = 1.0f;
-
-    private static float smoothTabH = 150.0f;
-    private static float startTabH = 150.0f;
-    private static float tabHeightTimer = 1.0f;
-
-    private static float smoothTabY = 6.0f;
-
-    private static float curRenderX = 0;
-    private static float curRenderY = 0;
-    private static float curRenderW = 0;
-    private static float curRenderH = 0;
-    private static float curCornerRadius = 10.0f;
-    private static Color curBgColor = Color.ofRgb(0x11161F);
-    private static Color curBorderColor = Color.ofRgb(0x5498B2);
-
-    private static boolean isScissorActive = false;
-    private static GuiGraphicsExtractor currentFrameExtractor = null;
-
-    private static boolean wasSkyHanniInCurrentSession = false;
-    private static Object skyHanniInstance = null;
-    private static Method skyHanniDrawMethod = null;
 
     public static void setSkyHanniInstance(Object instance) {
         skyHanniInstance = instance;
@@ -453,14 +454,22 @@ public class DynamicIslandRenderer {
     public static void render(GuiGraphicsExtractor extractor, float ignoredDelta) {
         currentFrameExtractor = extractor;
 
-        if (tabProgress > 0.005f || Minecraft.getInstance().screen != null) {
-            me.cookie.kwrg.gui.util.GuiFpsLimiter.apply();
-        }
-
-        updateAnimationState();
+//        if (tabProgress > 0.005f || Minecraft.getInstance().screen != null) {
+//            me.cookie.kwrg.gui.util.GuiFpsLimiter.apply();
+//        }
         IrcConfig config = IrcConfig.get();
         Minecraft mc = Minecraft.getInstance();
         if (mc.getWindow() == null || mc.font == null) return;
+
+        long now = System.currentTimeMillis();
+        int targetFps = IrcConfig.get().guiFpsLimit;
+        long minIntervalMs = targetFps > 0 ? (1000L / targetFps) : 0;
+
+        if (now - lastIslandThrottleTime >= minIntervalMs) {
+            lastIslandThrottleTime = now;
+            updateAnimationState();
+            HardwareMetricsTracker.onRenderFrame(mc);
+        }
 
         OwoUIGraphics graphics = OwoUIGraphics.of(extractor);
 
