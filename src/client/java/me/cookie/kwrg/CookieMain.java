@@ -1,7 +1,6 @@
 package me.cookie.kwrg;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.TpsTracker;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcCommand;

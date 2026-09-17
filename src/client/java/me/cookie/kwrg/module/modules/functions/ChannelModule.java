@@ -65,6 +65,15 @@ public class ChannelModule extends Module {
                 false
         ));
 
+        panel.child(TextInfoPaneComponent.header("使用 ci 指令行为"));
+
+        panel.child(new PanelItemComponent("直接连接公共频道", PanelItemComponent.ItemType.TOGGLE, (btn, click) -> {
+            IrcConfig config = IrcConfig.get();
+            config.connectPublicChannelFirst = !config.connectPublicChannelFirst;
+            IrcConfig.save();
+            btn.setToggled(config.connectPublicChannelFirst);
+        }, null, () -> IrcConfig.get().connectPublicChannelFirst));
+
         panel.child(TextInfoPaneComponent.header("已保存频道"));
 
         IrcConfig config = IrcConfig.get();

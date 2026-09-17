@@ -65,6 +65,8 @@ public class IrcConfig {
 
     public int guiFpsLimit = 60;
 
+    public boolean connectPublicChannelFirst = true;
+
     public String guiFont = "default";
 
     private static IrcConfig instance = new IrcConfig();
