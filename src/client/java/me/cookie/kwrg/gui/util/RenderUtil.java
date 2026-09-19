@@ -104,6 +104,11 @@ public final class RenderUtil {
 
     public static void drawSubpixelRoundedPanel(OwoUIGraphics graphics, float x, float y, float width, float height,
                                                 float radius, Color bgColor, Color borderColor) {
+        drawSubpixelRoundedPanel(graphics, x, y, width, height, radius, 1.0f, bgColor, borderColor);
+    }
+
+    public static void drawSubpixelRoundedPanel(OwoUIGraphics graphics, float x, float y, float width, float height,
+                                                float radius, float strokeWidth, Color bgColor, Color borderColor) {
         if (graphics == null || width <= 0.0f || height <= 0.0f) return;
 
         boolean hasBg = bgColor != null && (bgColor.argb() & 0xFF000000) != 0;
@@ -117,34 +122,21 @@ public final class RenderUtil {
         graphics.pose().translate(x, y);
 
         final int segments = 48;
-
-        final float strokeWidth = 1.2f;
+        final float stroke = Math.max(0.5f, strokeWidth);
         final float aa = 0.35f;
 
         if (hasBg) {
             int bgRgb = bgColor.argb();
 
-            if (r > 1.0f) {
-                float bgInset = hasBorder ? (strokeWidth - aa * 0.5f) : 0.0f;
-                float bgR = Math.max(0.0f, r - bgInset);
+            if (r > 0.5f) {
+                fillSubpixel(graphics, r, 0.0f, width - r, height, bgRgb);
+                fillSubpixel(graphics, 0.0f, r, r, height - r, bgRgb);
+                fillSubpixel(graphics, width - r, r, width, height - r, bgRgb);
 
-                fillSubpixel(graphics, r, bgInset, width - r, height - bgInset, bgRgb);
-                fillSubpixel(graphics, bgInset, r, r, height - r, bgRgb);
-                fillSubpixel(graphics, width - r, r, width - bgInset, height - r, bgRgb);
-
-                drawSubpixelCircle(graphics, r, r, 0.0, 90.0, segments, bgR, bgColor);
-                drawSubpixelCircle(graphics, width - r, r, 90.0, 180.0, segments, bgR, bgColor);
-                drawSubpixelCircle(graphics, width - r, height - r, 180.0, 270.0, segments, bgR, bgColor);
-                drawSubpixelCircle(graphics, r, height - r, 270.0, 360.0, segments, bgR, bgColor);
-
-                if (!hasBorder) {
-                    int bgFadeRgb = bgRgb & 0x00FFFFFF;
-                    Color fadeBg = Color.ofArgb(bgFadeRgb);
-                    drawSubpixelRingGradient(graphics, r, r, 0.0, 90.0, segments, r - 0.5f, r, bgColor, fadeBg);
-                    drawSubpixelRingGradient(graphics, width - r, r, 90.0, 180.0, segments, r - 0.5f, r, bgColor, fadeBg);
-                    drawSubpixelRingGradient(graphics, width - r, height - r, 180.0, 270.0, segments, r - 0.5f, r, bgColor, fadeBg);
-                    drawSubpixelRingGradient(graphics, r, height - r, 270.0, 360.0, segments, r - 0.5f, r, bgColor, fadeBg);
-                }
+                drawSubpixelCircle(graphics, r, r, 0.0, 90.0, segments, r, bgColor);
+                drawSubpixelCircle(graphics, width - r, r, 90.0, 180.0, segments, r, bgColor);
+                drawSubpixelCircle(graphics, width - r, height - r, 180.0, 270.0, segments, r, bgColor);
+                drawSubpixelCircle(graphics, r, height - r, 270.0, 360.0, segments, r, bgColor);
             } else {
                 fillSubpixel(graphics, 0.0f, 0.0f, width, height, bgRgb);
             }
@@ -155,53 +147,54 @@ public final class RenderUtil {
             int borderFadeRgb = borderRgb & 0x00FFFFFF;
             Color fadeBorder = Color.ofArgb(borderFadeRgb);
 
-            if (r > strokeWidth + 0.5f) {
+            if (r > stroke) {
                 if (width > 2.0f * r) {
-                    drawQuadGradient(graphics, r, 0.0f, width - r, aa, borderFadeRgb, borderFadeRgb, borderRgb, borderRgb);
-                    fillSubpixel(graphics, r, aa, width - r, strokeWidth - aa, borderRgb);
-                    drawQuadGradient(graphics, r, strokeWidth - aa, width - r, strokeWidth, borderRgb, borderRgb, borderFadeRgb, borderFadeRgb);
+                    // 顶直边
+                    fillSubpixel(graphics, r, 0.0f, width - r, stroke - aa, borderRgb);
+                    drawQuadGradient(graphics, r, stroke - aa, width - r, stroke, borderRgb, borderRgb, borderFadeRgb, borderFadeRgb);
 
-                    drawQuadGradient(graphics, r, height - strokeWidth, width - r, height - strokeWidth + aa, borderFadeRgb, borderFadeRgb, borderRgb, borderRgb);
-                    fillSubpixel(graphics, r, height - strokeWidth + aa, width - r, height - aa, borderRgb);
-                    drawQuadGradient(graphics, r, height - aa, width - r, height, borderRgb, borderRgb, borderFadeRgb, borderFadeRgb);
+                    drawQuadGradient(graphics, r, height - stroke, width - r, height - stroke + aa, borderFadeRgb, borderFadeRgb, borderRgb, borderRgb);
+                    fillSubpixel(graphics, r, height - stroke + aa, width - r, height, borderRgb);
                 }
 
                 if (height > 2.0f * r) {
-                    drawQuadGradient(graphics, 0.0f, r, aa, height - r, borderFadeRgb, borderRgb, borderRgb, borderFadeRgb);
-                    fillSubpixel(graphics, aa, r, strokeWidth - aa, height - r, borderRgb);
-                    drawQuadGradient(graphics, strokeWidth - aa, r, strokeWidth, height - r, borderRgb, borderFadeRgb, borderFadeRgb, borderRgb);
+                    fillSubpixel(graphics, 0.0f, r, stroke - aa, height - r, borderRgb);
+                    drawQuadGradient(graphics, stroke - aa, r, stroke, height - r, borderRgb, borderFadeRgb, borderFadeRgb, borderRgb);
 
-                    drawQuadGradient(graphics, width - strokeWidth, r, width - strokeWidth + aa, height - r, borderFadeRgb, borderRgb, borderRgb, borderFadeRgb);
-                    fillSubpixel(graphics, width - strokeWidth + aa, r, width - aa, height - r, borderRgb);
-                    drawQuadGradient(graphics, width - aa, r, width, height - r, borderRgb, borderFadeRgb, borderFadeRgb, borderRgb);
+                    drawQuadGradient(graphics, width - stroke, r, width - stroke + aa, height - r, borderFadeRgb, borderRgb, borderRgb, borderFadeRgb);
+                    fillSubpixel(graphics, width - stroke + aa, r, width, height - r, borderRgb);
                 }
 
-                float rOuter    = r;
-                float rOuterMid = r - aa;
-                float rInnerMid = Math.max(0.0f, r - strokeWidth + aa);
-                float rInner    = Math.max(0.0f, r - strokeWidth);
+                float rInner       = Math.max(0.0f, r - stroke);
+                float rInnerMid    = Math.max(0.0f, r - stroke + aa);
+                float rOuter       = r;
+                float rOuterFringe = r + aa;
 
-                drawSubpixelRingGradient(graphics, r, r, 0.0, 90.0, segments, rInner, rInnerMid, fadeBorder, borderColor);
-                drawSubpixelRingGradient(graphics, r, r, 0.0, 90.0, segments, rInnerMid, rOuterMid, borderColor, borderColor);
-                drawSubpixelRingGradient(graphics, r, r, 0.0, 90.0, segments, rOuterMid, rOuter, borderColor, fadeBorder);
+                // 左上圆角
+                drawSubpixelRingGradient(graphics, r, r, 0.0, 90.0, segments, rInner, rInnerMid, fadeBorder, borderColor); // 内羽化
+                drawSubpixelRingGradient(graphics, r, r, 0.0, 90.0, segments, rInnerMid, rOuter, borderColor, borderColor); // 实心核
+                drawSubpixelRingGradient(graphics, r, r, 0.0, 90.0, segments, rOuter, rOuterFringe, borderColor, fadeBorder); // 外羽化
 
+                // 右上圆角
                 drawSubpixelRingGradient(graphics, width - r, r, 90.0, 180.0, segments, rInner, rInnerMid, fadeBorder, borderColor);
-                drawSubpixelRingGradient(graphics, width - r, r, 90.0, 180.0, segments, rInnerMid, rOuterMid, borderColor, borderColor);
-                drawSubpixelRingGradient(graphics, width - r, r, 90.0, 180.0, segments, rOuterMid, rOuter, borderColor, fadeBorder);
+                drawSubpixelRingGradient(graphics, width - r, r, 90.0, 180.0, segments, rInnerMid, rOuter, borderColor, borderColor);
+                drawSubpixelRingGradient(graphics, width - r, r, 90.0, 180.0, segments, rOuter, rOuterFringe, borderColor, fadeBorder);
 
+                // 右下圆角
                 drawSubpixelRingGradient(graphics, width - r, height - r, 180.0, 270.0, segments, rInner, rInnerMid, fadeBorder, borderColor);
-                drawSubpixelRingGradient(graphics, width - r, height - r, 180.0, 270.0, segments, rInnerMid, rOuterMid, borderColor, borderColor);
-                drawSubpixelRingGradient(graphics, width - r, height - r, 180.0, 270.0, segments, rOuterMid, rOuter, borderColor, fadeBorder);
+                drawSubpixelRingGradient(graphics, width - r, height - r, 180.0, 270.0, segments, rInnerMid, rOuter, borderColor, borderColor);
+                drawSubpixelRingGradient(graphics, width - r, height - r, 180.0, 270.0, segments, rOuter, rOuterFringe, borderColor, fadeBorder);
 
+                // 左下圆角
                 drawSubpixelRingGradient(graphics, r, height - r, 270.0, 360.0, segments, rInner, rInnerMid, fadeBorder, borderColor);
-                drawSubpixelRingGradient(graphics, r, height - r, 270.0, 360.0, segments, rInnerMid, rOuterMid, borderColor, borderColor);
-                drawSubpixelRingGradient(graphics, r, height - r, 270.0, 360.0, segments, rOuterMid, rOuter, borderColor, fadeBorder);
+                drawSubpixelRingGradient(graphics, r, height - r, 270.0, 360.0, segments, rInnerMid, rOuter, borderColor, borderColor);
+                drawSubpixelRingGradient(graphics, r, height - r, 270.0, 360.0, segments, rOuter, rOuterFringe, borderColor, fadeBorder);
 
             } else {
-                fillSubpixel(graphics, 0.0f, 0.0f, width, strokeWidth, borderRgb);
-                fillSubpixel(graphics, 0.0f, height - strokeWidth, width, height, borderRgb);
-                fillSubpixel(graphics, 0.0f, strokeWidth, strokeWidth, height - strokeWidth, borderRgb);
-                fillSubpixel(graphics, width - strokeWidth, strokeWidth, width, height - strokeWidth, borderRgb);
+                fillSubpixel(graphics, 0.0f, 0.0f, width, stroke, borderRgb);
+                fillSubpixel(graphics, 0.0f, height - stroke, width, height, borderRgb);
+                fillSubpixel(graphics, 0.0f, stroke, stroke, height - stroke, borderRgb);
+                fillSubpixel(graphics, width - stroke, stroke, width, height - stroke, borderRgb);
             }
         }
 
@@ -210,7 +203,7 @@ public final class RenderUtil {
 
     public static void drawRoundedPanel(OwoUIGraphics graphics, int x, int y, int width, int height,
                                         float radius, Color bgColor, Color outlineColor) {
-        drawSubpixelRoundedPanel(graphics, (float) x, (float) y, (float) width, (float) height, radius, bgColor, outlineColor);
+        drawSubpixelRoundedPanel(graphics, (float) x, (float) y, (float) width, (float) height, radius, 1.0f, bgColor, outlineColor);
     }
 
     public static void drawAACircle(OwoUIGraphics graphics, float cx, float cy, double radius, Color solidColor, Color fadeColor) {

@@ -65,6 +65,8 @@ public class IrcConfig {
 
     public int guiFpsLimit = 60;
 
+    public float dynamicIslandAAValue = 0.35f;
+
     public boolean connectPublicChannelFirst = true;
 
     public String guiFont = "default";

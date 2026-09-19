@@ -92,6 +92,7 @@ public class PingModule extends Module {
 
         startAutoRefresh();
     }
+
     private static synchronized void startAutoRefresh() {
         stopAutoRefresh();
 

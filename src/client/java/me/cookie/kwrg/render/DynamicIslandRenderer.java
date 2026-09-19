@@ -357,7 +357,7 @@ public class DynamicIslandRenderer {
                 RenderUtil.drawSoftDropShadow(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius,
                         shadowBlur * 1.5f, shadowOffsetY * 1.5f, shadowBaseAlpha, currentAlpha);
             }
-            RenderUtil.drawSubpixelRoundedPanel(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius, curBgColor, curBorderColor);
+            RenderUtil.drawSubpixelRoundedPanel(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius, 1.2f, curBgColor, curBorderColor);
         }
     }
 

@@ -21,6 +21,7 @@ public class ModuleManager {
         register(new PingModule());
         register(new DisableBlurModule());
         register(new GuiFpsModule());
+        register(new DynamicIslandAAValve());
         // --- CONFIG 模块 ---
         register(new LoadModule());
         register(new ShareModule());
