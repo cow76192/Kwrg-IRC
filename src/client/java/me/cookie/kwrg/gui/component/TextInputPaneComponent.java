@@ -5,6 +5,7 @@ import io.wispforest.owo.ui.core.*;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -14,6 +15,7 @@ import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -28,7 +30,9 @@ public class TextInputPaneComponent extends BaseUIComponent {
     private Runnable onRightClick = null;
     private String text = "";
 
+    private int cursorPos = 0;
     private boolean selectAll = false;
+    private long lastActionTime = 0;
 
     private boolean readOnly = false;
     private Runnable onReadOnlyClick = null;
@@ -49,6 +53,7 @@ public class TextInputPaneComponent extends BaseUIComponent {
     public TextInputPaneComponent asButton(String text, Runnable onReadOnlyClick) {
         this.readOnly = true;
         this.text = text != null ? text : "";
+        this.cursorPos = this.text.length();
         this.onReadOnlyClick = onReadOnlyClick;
         this.cursorStyle(CursorStyle.HAND);
         return this;
@@ -61,6 +66,7 @@ public class TextInputPaneComponent extends BaseUIComponent {
 
     public TextInputPaneComponent setText(String text) {
         this.text = text != null ? text : "";
+        this.cursorPos = this.text.length();
         this.selectAll = false;
         if (this.onTextChanged != null) {
             this.onTextChanged.accept(this.text);
@@ -70,6 +76,17 @@ public class TextInputPaneComponent extends BaseUIComponent {
 
     public String getText() {
         return this.text;
+    }
+
+    public int getCursorPos() {
+        return this.cursorPos;
+    }
+
+    public TextInputPaneComponent setCursorPos(int cursorPos) {
+        this.cursorPos = cursorPos;
+        clampCursor();
+        resetCursorBlink();
+        return this;
     }
 
     public TextInputPaneComponent onTextChanged(Consumer<String> onTextChanged) {
@@ -83,6 +100,14 @@ public class TextInputPaneComponent extends BaseUIComponent {
         }
     }
 
+    private void clampCursor() {
+        this.cursorPos = Mth.clamp(this.cursorPos, 0, this.text.length());
+    }
+
+    private void resetCursorBlink() {
+        this.lastActionTime = System.currentTimeMillis();
+    }
+
     @Override
     public boolean canFocus(FocusSource source) {
         return !this.readOnly;
@@ -91,7 +116,11 @@ public class TextInputPaneComponent extends BaseUIComponent {
     @Override
     public void onFocusGained(FocusSource source) {
         super.onFocusGained(source);
-        if (!this.readOnly) this.focused = true;
+        if (!this.readOnly) {
+            this.focused = true;
+            clampCursor();
+            resetCursorBlink();
+        }
     }
 
     @Override
@@ -101,6 +130,76 @@ public class TextInputPaneComponent extends BaseUIComponent {
         this.selectAll = false;
     }
 
+    private record LineInfo(int start, int end, String text, Component styledText) {}
+
+    private List<LineInfo> computeLines(Font font, int stableWidth) {
+        List<LineInfo> result = new ArrayList<>();
+        if (this.text.isEmpty()) {
+            result.add(new LineInfo(0, 0, "", Component.empty()));
+            return result;
+        }
+
+        Component styledText = FontManagerHelper.apply(this.text);
+        List<FormattedCharSequence> wrappedLines = font.split(styledText, stableWidth);
+        if (wrappedLines.isEmpty()) {
+            result.add(new LineInfo(0, 0, "", Component.empty()));
+            return result;
+        }
+
+        int searchIdx = 0;
+        for (int i = 0; i < wrappedLines.size(); i++) {
+            FormattedCharSequence seq = wrappedLines.get(i);
+            String seqStr = sequenceToString(seq);
+            int start = this.text.indexOf(seqStr, searchIdx);
+            if (start == -1) {
+                start = searchIdx;
+            }
+
+            int end;
+            String lineStr;
+            if (i == wrappedLines.size() - 1) {
+                end = this.text.length();
+                lineStr = this.text.substring(start);
+            } else {
+                end = Mth.clamp(start + seqStr.length(), start, this.text.length());
+                lineStr = this.text.substring(start, end);
+            }
+
+            Component styledLine = FontManagerHelper.apply(lineStr);
+            result.add(new LineInfo(start, end, lineStr, styledLine));
+            searchIdx = end;
+        }
+        return result;
+    }
+
+    private int getCursorLineIndex(List<LineInfo> lines) {
+        clampCursor();
+        for (int i = 0; i < lines.size(); i++) {
+            LineInfo line = lines.get(i);
+            if (i == lines.size() - 1 || this.cursorPos < line.end) {
+                return i;
+            }
+            LineInfo next = lines.get(i + 1);
+            if (this.cursorPos < next.start) {
+                return i;
+            }
+        }
+        return Math.max(0, lines.size() - 1);
+    }
+
+    private int getCharIndexAtX(Font font, String lineText, int targetX) {
+        if (lineText.isEmpty() || targetX <= 0) return 0;
+        int prevW = 0;
+        for (int i = 1; i <= lineText.length(); i++) {
+            int curW = font.width(FontManagerHelper.apply(lineText.substring(0, i)));
+            int midPoint = (prevW + curW) / 2;
+            if (targetX < midPoint) {
+                return i - 1;
+            }
+            prevW = curW;
+        }
+        return lineText.length();
+    }
     @Override
     public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
         float targetHover = (this.hovered || this.focused) ? 1.0f : 0.0f;
@@ -149,28 +248,38 @@ public class TextInputPaneComponent extends BaseUIComponent {
             graphics.drawText(styledPlaceholder, 0, 0, 1.0f, 0xFF607D8B, OwoUIGraphics.TextAnchor.TOP_LEFT);
             graphics.pose().popMatrix();
         } else {
-            boolean showCursor = !this.readOnly && this.focused && (System.currentTimeMillis() % 1000 < 500);
-            String textToDraw = this.text + (showCursor ? "_" : "");
+            // 闪烁
+            boolean blink = (System.currentTimeMillis() - this.lastActionTime < 300) || (System.currentTimeMillis() % 1000 < 500);
+            boolean showCursor = !this.readOnly && this.focused && blink;
 
             int textColor = this.selectAll ? 0xFF80DEEA : (this.readOnly ? (this.hovered ? 0xFFFFFFFF : 0xFFB2EBF2) : (this.focused ? 0xFFFFFFFF : 0xFFECEFF1));
 
-            Component styledTextToDraw = FontManagerHelper.apply(textToDraw);
-            List<FormattedCharSequence> linesToDraw = font.split(styledTextToDraw, stableWidth);
-            for (int i = 0; i < linesToDraw.size(); i++) {
+            List<LineInfo> lines = computeLines(font, stableWidth);
+            int cursorLineIdx = getCursorLineIndex(lines);
+
+            for (int i = 0; i < lines.size(); i++) {
+                LineInfo line = lines.get(i);
                 float curLineY = (int) (textStartY + i * font.lineHeight);
-                String lineStr = sequenceToString(linesToDraw.get(i));
-                Component styledLine = FontManagerHelper.apply(lineStr);
 
                 graphics.pose().pushMatrix();
                 graphics.pose().translate(-halfW + 8.0f, curLineY);
                 graphics.pose().scale(textScale, textScale);
 
                 if (this.selectAll) {
-                    int lineW = font.width(styledLine);
+                    int lineW = font.width(line.styledText);
                     graphics.fill(-1, -1, lineW + 1, font.lineHeight, ARGB.color(100, 38, 198, 218));
                 }
 
-                graphics.drawText(styledLine, 0, 0, 1.0f, textColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
+                graphics.drawText(line.styledText, 0, 0, 1.0f, textColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
+
+                // 绘制竖线光标
+                if (showCursor && !this.selectAll && i == cursorLineIdx) {
+                    int offsetInLine = Mth.clamp(this.cursorPos - line.start, 0, line.text.length());
+                    String subStr = line.text.substring(0, offsetInLine);
+                    int cursorX = font.width(FontManagerHelper.apply(subStr));
+                    graphics.fill(cursorX, -1, cursorX + 1, font.lineHeight, 0xFFFFFFFF);
+                }
+
                 graphics.pose().popMatrix();
             }
         }
@@ -204,7 +313,58 @@ public class TextInputPaneComponent extends BaseUIComponent {
 
         if (click.button() == 0) {
             this.focused = true;
-            this.selectAll = false; // 点击取消全选
+            this.selectAll = false;
+            resetCursorBlink();
+
+            if (this.text.isEmpty()) {
+                this.cursorPos = 0;
+                return true;
+            }
+
+            var font = Minecraft.getInstance().font;
+            float textScale = 0.85f;
+
+            double localX = click.x() >= this.x() ? (click.x() - this.x()) : click.x();
+            double localY = click.y() >= this.y() ? (click.y() - this.y()) : click.y();
+
+            double textRelX = (localX - 8.0) / textScale;
+            double textRelY = (localY - 7.0) / textScale;
+
+            List<LineInfo> lines = computeLines(font, Math.max(154, this.width() - 16));
+            if (lines.isEmpty()) {
+                this.cursorPos = this.text.length();
+                return true;
+            }
+
+            int lineIdx = (int) (textRelY / font.lineHeight);
+
+            if (lineIdx >= lines.size()) {
+                this.cursorPos = this.text.length();
+                return true;
+            }
+
+            if (lineIdx < 0) {
+                this.cursorPos = 0;
+                return true;
+            }
+
+            LineInfo targetLine = lines.get(lineIdx);
+            int lineWidth = font.width(targetLine.styledText);
+
+            if (textRelX >= lineWidth) {
+                if (lineIdx == lines.size() - 1) {
+                    this.cursorPos = this.text.length();
+                } else {
+                    this.cursorPos = targetLine.end;
+                }
+            } else if (textRelX <= 0) {
+                this.cursorPos = targetLine.start;
+            } else {
+                int charIdx = getCharIndexAtX(font, targetLine.text, (int) textRelX);
+                this.cursorPos = targetLine.start + charIdx;
+            }
+
+            clampCursor();
             return true;
         }
         return super.onMouseDown(click, doubled);
@@ -217,10 +377,14 @@ public class TextInputPaneComponent extends BaseUIComponent {
         if (c >= 32 && c != 127) {
             if (this.selectAll) {
                 this.text = "";
+                this.cursorPos = 0;
                 this.selectAll = false;
             }
-            this.text += c;
+            clampCursor();
+            this.text = this.text.substring(0, this.cursorPos) + c + this.text.substring(this.cursorPos);
+            this.cursorPos++;
             notifyTextChanged();
+            resetCursorBlink();
             return true;
         }
         return super.onCharTyped(input);
@@ -228,7 +392,7 @@ public class TextInputPaneComponent extends BaseUIComponent {
 
     @Override
     public boolean onKeyPress(KeyEvent input) {
-        if (!this.focused) return false;
+        if (!this.focused || this.readOnly) return false;
 
         // 回车提交
         if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) {
@@ -240,7 +404,7 @@ public class TextInputPaneComponent extends BaseUIComponent {
             return true;
         }
 
-        // 【全选】：Ctrl + A (Windows/Linux Ctrl 或 Mac Command)
+        // 全选：Ctrl + A
         if (input.hasControlDown() && input.key() == GLFW.GLFW_KEY_A) {
             if (!this.text.isEmpty()) {
                 this.selectAll = true;
@@ -248,18 +412,160 @@ public class TextInputPaneComponent extends BaseUIComponent {
             return true;
         }
 
-        // 退格删除
+        // 光标左移
+        if (input.key() == GLFW.GLFW_KEY_LEFT) {
+            if (this.selectAll) {
+                this.selectAll = false;
+                this.cursorPos = 0;
+            } else if (input.hasControlDown()) {
+                this.cursorPos = findPreviousWord(this.text, this.cursorPos);
+            } else {
+                this.cursorPos = Math.max(0, this.cursorPos - 1);
+            }
+            resetCursorBlink();
+            return true;
+        }
+
+        // 光标右移
+        if (input.key() == GLFW.GLFW_KEY_RIGHT) {
+            if (this.selectAll) {
+                this.selectAll = false;
+                this.cursorPos = this.text.length();
+            } else if (input.hasControlDown()) {
+                this.cursorPos = findNextWord(this.text, this.cursorPos);
+            } else {
+                this.cursorPos = Math.min(this.text.length(), this.cursorPos + 1);
+            }
+            resetCursorBlink();
+            return true;
+        }
+
+        // 光标上移
+        if (input.key() == GLFW.GLFW_KEY_UP) {
+            if (this.selectAll) {
+                this.selectAll = false;
+                this.cursorPos = 0;
+                resetCursorBlink();
+                return true;
+            }
+            var font = Minecraft.getInstance().font;
+            List<LineInfo> lines = computeLines(font, Math.max(154, this.width() - 16));
+            int curLineIdx = getCursorLineIndex(lines);
+            if (curLineIdx > 0) {
+                LineInfo curLine = lines.get(curLineIdx);
+                LineInfo prevLine = lines.get(curLineIdx - 1);
+
+                int curOffset = Mth.clamp(this.cursorPos - curLine.start, 0, curLine.text.length());
+                int targetX = font.width(FontManagerHelper.apply(curLine.text.substring(0, curOffset)));
+
+                int prevOffset = getCharIndexAtX(font, prevLine.text, targetX);
+                this.cursorPos = prevLine.start + prevOffset;
+            } else {
+                this.cursorPos = 0;
+            }
+            clampCursor();
+            resetCursorBlink();
+            return true;
+        }
+
+        if (input.key() == GLFW.GLFW_KEY_DOWN) {
+            if (this.selectAll) {
+                this.selectAll = false;
+                this.cursorPos = this.text.length();
+                resetCursorBlink();
+                return true;
+            }
+            var font = Minecraft.getInstance().font;
+            List<LineInfo> lines = computeLines(font, Math.max(154, this.width() - 16));
+            int curLineIdx = getCursorLineIndex(lines);
+            if (curLineIdx < lines.size() - 1) {
+                LineInfo curLine = lines.get(curLineIdx);
+                LineInfo nextLine = lines.get(curLineIdx + 1);
+
+                int curOffset = Mth.clamp(this.cursorPos - curLine.start, 0, curLine.text.length());
+                int targetX = font.width(FontManagerHelper.apply(curLine.text.substring(0, curOffset)));
+
+                int nextOffset = getCharIndexAtX(font, nextLine.text, targetX);
+                this.cursorPos = nextLine.start + nextOffset;
+            } else {
+                this.cursorPos = this.text.length();
+            }
+            clampCursor();
+            resetCursorBlink();
+            return true;
+        }
+
+        // Home 键行首 / Ctrl+Home 全文开头
+        if (input.key() == GLFW.GLFW_KEY_HOME) {
+            if (input.hasControlDown()) {
+                this.cursorPos = 0;
+            } else {
+                var font = Minecraft.getInstance().font;
+                List<LineInfo> lines = computeLines(font, Math.max(154, this.width() - 16));
+                int curLineIdx = getCursorLineIndex(lines);
+                this.cursorPos = lines.get(curLineIdx).start;
+            }
+            this.selectAll = false;
+            clampCursor();
+            resetCursorBlink();
+            return true;
+        }
+
+        // End 键行尾 / Ctrl+End 全文末尾
+        if (input.key() == GLFW.GLFW_KEY_END) {
+            if (input.hasControlDown()) {
+                this.cursorPos = this.text.length();
+            } else {
+                var font = Minecraft.getInstance().font;
+                List<LineInfo> lines = computeLines(font, Math.max(154, this.width() - 16));
+                int curLineIdx = getCursorLineIndex(lines);
+                this.cursorPos = lines.get(curLineIdx).end;
+            }
+            this.selectAll = false;
+            clampCursor();
+            resetCursorBlink();
+            return true;
+        }
+
+        // 退格删除 (Backspace)
         if (input.key() == GLFW.GLFW_KEY_BACKSPACE) {
             if (this.selectAll) {
                 this.text = "";
+                this.cursorPos = 0;
                 this.selectAll = false;
                 notifyTextChanged();
-                return true;
-            } else if (!this.text.isEmpty()) {
-                this.text = this.text.substring(0, this.text.length() - 1);
-                notifyTextChanged();
+                resetCursorBlink();
                 return true;
             }
+            clampCursor();
+            if (this.cursorPos > 0) {
+                this.text = this.text.substring(0, this.cursorPos - 1) + this.text.substring(this.cursorPos);
+                this.cursorPos--;
+                notifyTextChanged();
+                resetCursorBlink();
+                return true;
+            }
+            return true;
+        }
+
+        // 向后删除 (Delete)
+        if (input.key() == GLFW.GLFW_KEY_DELETE) {
+            if (this.selectAll) {
+                this.text = "";
+                this.cursorPos = 0;
+                this.selectAll = false;
+                notifyTextChanged();
+                resetCursorBlink();
+                return true;
+            }
+            clampCursor();
+            if (this.cursorPos < this.text.length()) {
+                this.text = this.text.substring(0, this.cursorPos) + this.text.substring(this.cursorPos + 1);
+                notifyTextChanged();
+                resetCursorBlink();
+                return true;
+            }
+            return true;
         }
 
         // Ctrl + V 粘贴
@@ -270,15 +576,42 @@ public class TextInputPaneComponent extends BaseUIComponent {
                 String cleanClip = clip.replaceAll("[\r\n]", "");
                 if (this.selectAll) {
                     this.text = cleanClip;
+                    this.cursorPos = cleanClip.length();
                     this.selectAll = false;
                 } else {
-                    this.text += cleanClip;
+                    clampCursor();
+                    this.text = this.text.substring(0, this.cursorPos) + cleanClip + this.text.substring(this.cursorPos);
+                    this.cursorPos += cleanClip.length();
                 }
                 notifyTextChanged();
+                resetCursorBlink();
             }
             return true;
         }
 
         return super.onKeyPress(input);
+    }
+
+    private static int findPreviousWord(String text, int cursor) {
+        int pos = cursor - 1;
+        while (pos > 0 && Character.isWhitespace(text.charAt(pos))) {
+            pos--;
+        }
+        while (pos > 0 && !Character.isWhitespace(text.charAt(pos - 1))) {
+            pos--;
+        }
+        return Math.max(0, pos);
+    }
+
+    private static int findNextWord(String text, int cursor) {
+        int pos = cursor;
+        int len = text.length();
+        while (pos < len && !Character.isWhitespace(text.charAt(pos))) {
+            pos++;
+        }
+        while (pos < len && Character.isWhitespace(text.charAt(pos))) {
+            pos++;
+        }
+        return Math.min(len, pos);
     }
 }
