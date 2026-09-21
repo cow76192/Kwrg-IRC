@@ -1,0 +1,23 @@
+name: Auto Label Important Issue
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  add-label:
+    name: Check author and add label
+    # 判断 issue 的提交者是否为 2vnailong88
+    if: github.event.issue.user.login == '2vnailong88'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Add important label
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --add-label "important"
