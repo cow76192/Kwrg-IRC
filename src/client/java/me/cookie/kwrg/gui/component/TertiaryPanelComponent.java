@@ -2,6 +2,7 @@ package me.cookie.kwrg.gui.component;
 
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.core.*;
+import me.cookie.kwrg.gui.manager.GuiColorManager;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.module.Module;
@@ -114,12 +115,12 @@ public class TertiaryPanelComponent extends FlowLayout {
 
         float panelAlpha = ease;
         int bgAlpha = (int) (255 * panelAlpha);
-        Color panelBg = RenderUtil.withAlpha(BG_COLOR_RGB, bgAlpha);
         int outlineAlpha = (int) (85 * panelAlpha);
-        Color outlineColor = RenderUtil.withAlpha(0xFFFFFF, outlineAlpha);
+
+        Color panelBg = RenderUtil.withAlpha(GuiColorManager.getBgColorRgb(), bgAlpha);
+        Color outlineColor = RenderUtil.withAlpha(GuiColorManager.getOutlineColorRgb(), outlineAlpha);
 
         RenderUtil.drawRoundedPanel(graphics, px, py, width, height, 14.0f, panelBg, outlineColor);
-
         int scissorX1 = px + 1;
         int scissorY1 = py + 1;
         int scissorX2 = px + width - 1;

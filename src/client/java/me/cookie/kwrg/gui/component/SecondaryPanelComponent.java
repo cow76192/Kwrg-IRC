@@ -3,6 +3,7 @@ package me.cookie.kwrg.gui.component;
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.container.StackLayout;
 import io.wispforest.owo.ui.core.*;
+import me.cookie.kwrg.gui.manager.GuiColorManager;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -20,7 +21,6 @@ public class SecondaryPanelComponent extends FlowLayout {
 
     public static final int PANEL_WIDTH = 190;
     public static final int PANEL_HEIGHT = 270;
-    private static final int BG_COLOR_RGB = 0x11161F;
 
     private final String categoryTitle;
     private final Identifier iconTexture;
@@ -199,12 +199,12 @@ public class SecondaryPanelComponent extends FlowLayout {
 
         float panelAlpha = ease;
         int bgAlpha = (int) (255 * panelAlpha);
-        Color panelBg = RenderUtil.withAlpha(BG_COLOR_RGB, bgAlpha);
         int outlineAlpha = (int) (85 * panelAlpha);
-        Color outlineColor = RenderUtil.withAlpha(0xFFFFFF, outlineAlpha);
+
+        Color panelBg = RenderUtil.withAlpha(GuiColorManager.getBgColorRgb(), bgAlpha);
+        Color outlineColor = RenderUtil.withAlpha(GuiColorManager.getOutlineColorRgb(), outlineAlpha);
 
         RenderUtil.drawRoundedPanel(graphics, px, py, width, height, 14.0f, panelBg, outlineColor);
-
         graphics.enableScissor(px + 1, py + 1, px + width - 1, py + height - 1);
 
         int headerHeight = 44;

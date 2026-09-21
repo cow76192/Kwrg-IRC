@@ -40,6 +40,7 @@ public class ModuleManager {
         register(new ChatModule());
         register(new DynamicIslandModule());
         register(new FontModule());
+        register(new GuiColorModule());
 
         // --- PLAY 模块 ---
         register(new PlayModule());

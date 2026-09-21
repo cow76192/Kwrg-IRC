@@ -70,6 +70,7 @@ public class IrcConfig {
     public boolean connectPublicChannelFirst = true;
 
     public String guiFont = "default";
+    public String guiColor = "#11161F";
 
     private static IrcConfig instance = new IrcConfig();
     private static String currentProfileName = "default";

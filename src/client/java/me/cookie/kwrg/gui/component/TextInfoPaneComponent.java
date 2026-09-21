@@ -51,6 +51,12 @@ public class TextInfoPaneComponent extends BaseUIComponent {
         };
     }
 
+    public TextInfoPaneComponent(String label, Supplier<Component> componentSupplier, java.util.function.BiConsumer<TextInfoPaneComponent, MouseButtonEvent> clickAction) {
+        this(label, () -> componentSupplier.get().getString(), componentSupplier, true, false);
+        this.clickAction = clickAction;
+        this.cursorStyle(CursorStyle.HAND);
+    }
+
     public static TextInfoPaneComponent header(String centeredTitle, java.util.function.BiConsumer<TextInfoPaneComponent, MouseButtonEvent> clickAction) {
         TextInfoPaneComponent pane = new TextInfoPaneComponent(centeredTitle, () -> "", false, true);
         pane.clickAction = clickAction;
