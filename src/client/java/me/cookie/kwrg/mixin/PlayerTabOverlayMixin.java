@@ -1,6 +1,6 @@
 package me.cookie.kwrg.mixin;
 
-import io.wispforest.owo.ui.core.OwoUIGraphics;
+import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.PlayerTabOverlay;
@@ -23,6 +23,10 @@ public abstract class PlayerTabOverlayMixin {
 
     @Inject(method = "extractRenderState", at = @At("HEAD"))
     private void kwrg$onTabRenderHead(GuiGraphicsExtractor graphics, int screenWidth, Scoreboard scoreboard, Objective displayObjective, CallbackInfo ci) {
+
+        if (!IrcConfig.get().dynamicIsland) {
+            return;
+        }
         kwrg$minX = Integer.MAX_VALUE;
         kwrg$minY = Integer.MAX_VALUE;
         kwrg$maxX = Integer.MIN_VALUE;
@@ -39,21 +43,31 @@ public abstract class PlayerTabOverlayMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fill(IIIII)V")
     )
     private void kwrg$captureAndSuppressBackground(GuiGraphicsExtractor graphics, int minX, int minY, int maxX, int maxY, int color) {
+
+        if (!IrcConfig.get().dynamicIsland) {
+            graphics.fill(minX, minY, maxX, maxY, color);
+            return;
+        }
+
         kwrg$minX = Math.min(kwrg$minX, Math.min(minX, maxX));
         kwrg$minY = Math.min(kwrg$minY, Math.min(minY, maxY));
         kwrg$maxX = Math.max(kwrg$maxX, Math.max(minX, maxX));
         kwrg$maxY = Math.max(kwrg$maxY, Math.max(minY, maxY));
 
-        if (color == Integer.MIN_VALUE && DynamicIslandRenderer.getTabProgress() > 0.02f) {
+        if (DynamicIslandRenderer.getTabProgress() > 0.02f) {
             return;
         }
 
         graphics.fill(minX, minY, maxX, maxY, color);
     }
 
-
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void kwrg$onTabRenderTail(GuiGraphicsExtractor graphics, int screenWidth, Scoreboard scoreboard, Objective displayObjective, CallbackInfo ci) {
+
+        if (!IrcConfig.get().dynamicIsland) {
+            return;
+        }
+
         DynamicIslandRenderer.endTabScissor(graphics);
 
         if (kwrg$maxX > kwrg$minX && kwrg$maxY > kwrg$minY) {

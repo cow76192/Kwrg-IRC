@@ -55,12 +55,22 @@ public class IrcConfig {
     public boolean islandShowRam = false;
     public boolean islandShowGpu = false;
     public boolean islandShowCpu = false;
+    public boolean isShadowEnabled = true;
+    public float islandOpacity  = 1.0f;
+    public boolean onlyTab = true;
 
     public boolean disableBlur = false;
     public float blurQuality = 8.0f;
     public float blurSize = 16.0f;
 
+    public int guiFpsLimit = 60;
+
+    public float dynamicIslandAAValue = 0.35f;
+
+    public boolean connectPublicChannelFirst = true;
+
     public String guiFont = "default";
+    public String guiColor = "#11161F";
 
     private static IrcConfig instance = new IrcConfig();
     private static String currentProfileName = "default";

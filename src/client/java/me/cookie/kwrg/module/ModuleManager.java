@@ -20,6 +20,8 @@ public class ModuleManager {
         register(new ReloadRepoModule());
         register(new PingModule());
         register(new DisableBlurModule());
+        register(new GuiFpsModule());
+        register(new DynamicIslandAAValve());
         // --- CONFIG 模块 ---
         register(new LoadModule());
         register(new ShareModule());
@@ -38,6 +40,7 @@ public class ModuleManager {
         register(new ChatModule());
         register(new DynamicIslandModule());
         register(new FontModule());
+        register(new GuiColorModule());
 
         // --- PLAY 模块 ---
         register(new PlayModule());

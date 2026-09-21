@@ -2,11 +2,13 @@ package me.cookie.kwrg.module.modules.style;
 
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
+import me.cookie.kwrg.gui.component.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
+import net.minecraft.util.Mth;
 
 public class DynamicIslandModule extends Module {
 
@@ -31,9 +33,68 @@ public class DynamicIslandModule extends Module {
     public void buildTertiaryUI(TertiaryPanelComponent panel) {
         panel.clearChildren();
 
+        panel.child(TextInfoPaneComponent.header("外观设置"));
+
+        final TextInputPaneComponent[] opacityInputHolder = new TextInputPaneComponent[1];
+        opacityInputHolder[0] = new TextInputPaneComponent("透明度 (例如: 80%)", input -> {
+            IrcConfig config = IrcConfig.get();
+            if (input == null || input.isBlank()) return;
+
+            try {
+                // 去除空格与百分号
+                String clean = input.trim().replace("%", "");
+                float val = Float.parseFloat(clean);
+
+                if (clean.contains(".") && val <= 1.0f) {
+                    val *= 100.0f;
+                }
+
+                int percent = Math.round(Mth.clamp(val, 0.0f, 100.0f));
+
+                config.islandOpacity = percent / 100.0f;
+                IrcConfig.save();
+
+                // 自动刷新输入框为规范的百分比显示
+                opacityInputHolder[0].setText(percent + "%");
+                ChatNotifier.send("§a灵动岛透明度已设置为: §e" + percent + "%");
+            } catch (NumberFormatException e) {
+                ChatNotifier.send("§c请输入有效的数字或百分比 (例如: 80 或 80%)");
+                int currentPercent = Math.round(config.islandOpacity * 100.0f);
+                opacityInputHolder[0].setText(currentPercent + "%");
+            }
+        });
+
+        int currentPercent = Math.round(IrcConfig.get().islandOpacity * 100.0f);
+        opacityInputHolder[0].setText(currentPercent + "%");
+
+        panel.child(opacityInputHolder[0]);
+
+        panel.child(new PanelItemComponent(
+                "onlyTab",
+                PanelItemComponent.ItemType.TOGGLE,
+                () -> {
+                    IrcConfig config = IrcConfig.get();
+                    config.onlyTab = !config.onlyTab;
+                    IrcConfig.save();
+                },
+                null,
+                () -> IrcConfig.get().onlyTab
+        ));
+
+        panel.child(new PanelItemComponent(
+                "shadow",
+                PanelItemComponent.ItemType.TOGGLE,
+                () -> {
+                    IrcConfig config = IrcConfig.get();
+                    config.isShadowEnabled = !config.isShadowEnabled;
+                    IrcConfig.save();
+                },
+                null,
+                () -> IrcConfig.get().isShadowEnabled
+        ));
+
         panel.child(TextInfoPaneComponent.header("基础数据"));
 
-        // 1. FPS 配置项
         panel.child(new PanelItemComponent(
                 "FPS",
                 PanelItemComponent.ItemType.TOGGLE,
@@ -46,7 +107,6 @@ public class DynamicIslandModule extends Module {
                 () -> IrcConfig.get().islandShowFps
         ));
 
-        // 2. Ping 配置项
         panel.child(new PanelItemComponent(
                 "Ping (IRC)",
                 PanelItemComponent.ItemType.TOGGLE,
@@ -59,7 +119,6 @@ public class DynamicIslandModule extends Module {
                 () -> IrcConfig.get().islandShowPing
         ));
 
-        // 3. TPS 配置项
         panel.child(new PanelItemComponent(
                 "TPS",
                 PanelItemComponent.ItemType.TOGGLE,
@@ -74,7 +133,6 @@ public class DynamicIslandModule extends Module {
 
         panel.child(TextInfoPaneComponent.header("硬件监控"));
 
-        // 4. RAM 配置项
         panel.child(new PanelItemComponent(
                 "RAM",
                 PanelItemComponent.ItemType.TOGGLE,
@@ -87,7 +145,6 @@ public class DynamicIslandModule extends Module {
                 () -> IrcConfig.get().islandShowRam
         ));
 
-        // 5. GPU 配置项
         panel.child(new PanelItemComponent(
                 "GPU",
                 PanelItemComponent.ItemType.TOGGLE,
@@ -100,7 +157,6 @@ public class DynamicIslandModule extends Module {
                 () -> IrcConfig.get().islandShowGpu
         ));
 
-        // 6. CPU 配置项
         panel.child(new PanelItemComponent(
                 "CPU",
                 PanelItemComponent.ItemType.TOGGLE,

@@ -8,8 +8,8 @@ import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
-import net.minecraft.util.Util;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Util;
 import org.lwjgl.glfw.GLFW;
 
 import java.nio.file.Files;
@@ -54,6 +54,22 @@ public class FontModule extends Module {
                 "当前生效",
                 () -> Component.literal("§b" + (FontManagerHelper.DEFAULT_FONT.equalsIgnoreCase(currentFont) ? "原版默认 (Default)" : currentFont)),
                 false
+        ));
+
+        panel.child(new PanelItemComponent(
+                "重新加载当前字体",
+                PanelItemComponent.ItemType.TRIGGER,
+                (btn, click) -> {
+                    boolean success = FontManagerHelper.reloadCurrentFont();
+                    if (success) {
+                        ChatNotifier.send("§a[IRC] 已重新载入字体资源");
+                        renderFontUI(panel);
+                    } else {
+                        ChatNotifier.send("§c[IRC] 重新载入字体失败");
+                    }
+                },
+                null,
+                () -> false
         ));
 
         panel.child(TextInfoPaneComponent.header("可用字体"));

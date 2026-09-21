@@ -131,14 +131,17 @@ public class IrcCommand {
                     IrcClient.isIrcChatActive = true;
                     IrcConfig config = IrcConfig.get();
 
-                    if (config.channelEnabled && config.currentChannel != null && !config.currentChannel.isBlank()) {
-                        config.currentChannel = "";
-                        IrcMessageHandler.printMessage("§a[IRC] 快捷切换发言模式: §e公共大厅");
-                    } else if (config.savedChannels != null && !config.savedChannels.isEmpty()) {
+                    if (config.savedChannels != null && !config.savedChannels.isEmpty()  && !config.connectPublicChannelFirst) {
                         config.currentChannel = config.savedChannels.get(0);
                         config.channelEnabled = true;
                         IrcMessageHandler.printMessage("§a[IRC] 快捷切换发言模式: §b[#" + config.currentChannel + "]");
-                    } else {
+
+                    } else if (config.channelEnabled && config.currentChannel != null && !config.currentChannel.isBlank()) {
+                        config.currentChannel = "";
+                        IrcMessageHandler.printMessage("§a[IRC] 快捷切换发言模式: §e公共大厅");
+                    }
+
+                     else {
                         IrcMessageHandler.printMessage("§a[IRC] 当前处于: §e公共大厅发言");
                     }
 

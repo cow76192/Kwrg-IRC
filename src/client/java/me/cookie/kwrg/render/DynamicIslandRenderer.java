@@ -31,9 +31,19 @@ public class DynamicIslandRenderer {
     private static final float WIDTH_ANIM_DURATION = 0.85f;
     private static final float HEIGHT_ANIM_DURATION = 0.45f;
     private static final float TAB_ANIM_DURATION = 0.38f;
+    private static final float ALPHA_ANIM_DURATION = 0.35f;
 
     private static final float ITEM_GAP = 5.0f;
     private static final float SIDE_PAD = 12.0f;
+
+    private static float currentAlpha = 0.0f;
+    private static float startAlpha = 0.0f;
+    private static float targetAlpha = 0.0f;
+    private static float alphaAnimTimer = 1.0f;
+
+    private static float shadowBlur = 4.0f;
+    private static float shadowOffsetY = 1.2f;
+    private static int shadowBaseAlpha = 50;
 
     private static float tabProgress = 0.0f;
 
@@ -66,6 +76,72 @@ public class DynamicIslandRenderer {
     private static Object skyHanniInstance = null;
     private static Method skyHanniDrawMethod = null;
 
+    private static long lastIslandThrottleTime = 0;
+
+    public static float easeOutQuint(float progress) {
+        float p = Mth.clamp(progress, 0.0f, 1.0f);
+        return 1.0f - (float) Math.pow(1.0f - p, 5.0f);
+    }
+
+    public static float getCurrentAlpha() {
+        return currentAlpha;
+    }
+
+    private static void updateAlphaAnimation(float target, float dt) {
+        if (Math.abs(target - targetAlpha) > 0.001f) {
+            startAlpha = currentAlpha;
+            targetAlpha = target;
+            alphaAnimTimer = 0.0f;
+        }
+
+        if (alphaAnimTimer < 1.0f) {
+            alphaAnimTimer = Math.min(1.0f, alphaAnimTimer + dt / ALPHA_ANIM_DURATION);
+            float ease = easeOutQuint(alphaAnimTimer);
+            currentAlpha = Mth.lerp(ease, startAlpha, targetAlpha);
+        } else {
+            currentAlpha = targetAlpha;
+        }
+    }
+
+    public static void setShadowEnabled(boolean enabled) {
+        IrcConfig.get().isShadowEnabled = enabled;
+    }
+
+    public static boolean isShadowEnabled() {
+        return IrcConfig.get().isShadowEnabled;
+    }
+
+    public static void resetShadowSettings() {
+        IrcConfig.get().isShadowEnabled = true;
+        shadowBlur = 4.0f;
+        shadowOffsetY = 1.2f;
+        shadowBaseAlpha = 50;
+    }
+
+    public static void setShadowBlur(float blur) {
+        shadowBlur = Math.max(0.0f, blur);
+    }
+
+    public static float getShadowBlur() {
+        return shadowBlur;
+    }
+
+    public static void setShadowOffsetY(float offsetY) {
+        shadowOffsetY = offsetY;
+    }
+
+    public static float getShadowOffsetY() {
+        return shadowOffsetY;
+    }
+
+    public static void setShadowBaseAlpha(int baseAlpha) {
+        shadowBaseAlpha = Mth.clamp(baseAlpha, 0, 255);
+    }
+
+    public static int getShadowBaseAlpha() {
+        return shadowBaseAlpha;
+    }
+
     public static void setSkyHanniInstance(Object instance) {
         skyHanniInstance = instance;
     }
@@ -78,7 +154,145 @@ public class DynamicIslandRenderer {
         return wasSkyHanniInCurrentSession;
     }
 
+    private static boolean wasSkyblockerInCurrentSession = false;
+    private static Method skyblockerExtractMethod = null;
+    private static Method skyblockerGetScaleMethod = null;
+
+    private static long lastUpdateFrameTime = -1;
+
+    public static void updateAnimationState() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getWindow() == null || mc.font == null) return;
+
+        long nowTime = System.currentTimeMillis();
+        if (nowTime == lastUpdateFrameTime) return;
+
+        float dt = (lastUpdateFrameTime < 0) ? 0.016f : (nowTime - lastUpdateFrameTime) / 1000.0f;
+        lastUpdateFrameTime = nowTime;
+        dt = Mth.clamp(dt, 0.001f, 0.04f);
+
+        IrcConfig config = IrcConfig.get();
+
+        if (tabWidthTimer < 1.0f) {
+            tabWidthTimer = Math.min(1.0f, tabWidthTimer + dt / 0.35f);
+            smoothTabW = Mth.lerp(RenderUtil.easeSmoothDecel(tabWidthTimer), startTabW, targetTabW);
+        } else {
+            smoothTabW = targetTabW;
+        }
+
+        if (tabHeightTimer < 1.0f) {
+            tabHeightTimer = Math.min(1.0f, tabHeightTimer + dt / 0.35f);
+            smoothTabH = Mth.lerp(RenderUtil.easeSmoothDecel(tabHeightTimer), startTabH, targetTabH);
+        } else {
+            smoothTabH = targetTabH;
+        }
+
+        smoothTabY = Mth.lerp(dt * 10.0f, smoothTabY, targetTabY);
+
+        boolean isTabKeyDown = config.dynamicIsland && mc.options.keyPlayerList.isDown() && mc.player != null;
+        float targetTab = isTabKeyDown ? 1.0f : 0.0f;
+        float tabSpeed = isTabKeyDown ? (1.0f / TAB_ANIM_DURATION) : (1.0f / (TAB_ANIM_DURATION * 0.85f));
+
+        if (tabProgress < targetTab) {
+            tabProgress = Math.min(targetTab, tabProgress + dt * tabSpeed);
+        } else if (tabProgress > targetTab) {
+            tabProgress = Math.max(targetTab, tabProgress - dt * tabSpeed);
+        }
+        float tabEase = RenderUtil.easeSmoothDecel(tabProgress);
+
+        if (tabProgress <= 0.005f) {
+            wasSkyHanniInCurrentSession = false;
+            wasSkyblockerInCurrentSession = false;
+        }
+
+        boolean hasAnyOption = config.islandShowFps || config.islandShowPing || config.islandShowTps
+                || config.islandShowRam || config.islandShowGpu || config.islandShowCpu;
+        boolean shouldShow = config.dynamicIsland && (hasAnyOption || tabProgress > 0.005f);
+
+        float targetOpen = shouldShow ? 1.0f : 0.0f;
+        islandOpenProgress = Mth.clamp(islandOpenProgress + (targetOpen - islandOpenProgress) * dt * 6.0f, 0.0f, 1.0f);
+        float openEase = RenderUtil.easeSmoothDecel(islandOpenProgress);
+
+        float warnEase = Mth.clamp((currentIslandHeight - BASE_HEIGHT) / (EXPANDED_HEIGHT - BASE_HEIGHT), 0.0f, 1.0f);
+        int screenW = mc.getWindow().getGuiScaledWidth();
+        float cx = screenW / 2.0f;
+
+        float normalTargetWidth = 140.0f;
+        float baseIslandW = Math.max(38.0f, normalTargetWidth);
+        float baseIslandH = currentIslandHeight;
+        float baseIslandTopY = 7.0f * openEase;
+
+        curRenderW = Mth.lerp(tabEase, baseIslandW, smoothTabW) * (0.85f + 0.15f * openEase);
+        curRenderH = Mth.lerp(tabEase, baseIslandH, smoothTabH);
+        curRenderY = Mth.lerp(tabEase, baseIslandTopY, smoothTabY);
+        curRenderX = cx - curRenderW / 2.0f;
+        curCornerRadius = Mth.lerp(tabEase, CORNER_RADIUS, 14.0f);
+
+        float effectiveOpacity = config.onlyTab
+                ? Mth.lerp(tabEase, 1.0f, config.islandOpacity)
+                : config.islandOpacity;
+        float expectedTargetAlpha = shouldShow ? (openEase * effectiveOpacity) : 0.0f;
+        updateAlphaAnimation(expectedTargetAlpha, dt);
+
+        int borderR = (int) Mth.lerp(warnEase, 84f, 255f);
+        int borderG = (int) Mth.lerp(warnEase, 152f, 100f);
+        int borderB = (int) Mth.lerp(warnEase, 178f, 90f);
+
+        int bgAlpha = (int) (Mth.lerp(tabEase, 230f, 245f) * currentAlpha);
+        curBgColor = Color.ofArgb(ARGB.color(bgAlpha, 17, 22, 31));
+        curBorderColor = Color.ofArgb(ARGB.color((int) (210 * currentAlpha), borderR, borderG, borderB));
+    }
+
+    public static void markSkyblockerTabRendered() {
+        wasSkyblockerInCurrentSession = true;
+    }
+
+    public static boolean wasSkyblockerActive() {
+        return wasSkyblockerInCurrentSession;
+    }
+
+    public static void renderSkyblockerTab(GuiGraphicsExtractor graphics) {
+        if (!IrcConfig.get().dynamicIsland || graphics == null) return;
+        currentFrameExtractor = graphics;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getWindow() == null || mc.player == null) return;
+
+        try {
+            Class<?> wmClass = Class.forName("de.hysky.skyblocker.skyblock.tabhud.screenbuilder.WidgetManager");
+            Object screenBuilder = wmClass.getField("SCREEN_BUILDER").get(null);
+            Method tabMethod = screenBuilder.getClass().getMethod("tab");
+            Object tabLayer = tabMethod.invoke(screenBuilder);
+
+            if (skyblockerGetScaleMethod == null) {
+                Class<?> tabHudClass = Class.forName("de.hysky.skyblocker.skyblock.tabhud.TabHud");
+                skyblockerGetScaleMethod = tabHudClass.getMethod("getScaleFactor");
+            }
+            float scale = ((Number) skyblockerGetScaleMethod.invoke(null)).floatValue();
+
+            int screenW = (int) (mc.getWindow().getGuiScaledWidth() / scale);
+            int screenH = (int) (mc.getWindow().getGuiScaledHeight() / scale);
+
+            if (skyblockerExtractMethod == null) {
+                for (Method m : tabLayer.getClass().getMethods()) {
+                    if (m.getName().equals("extractRenderStates") && m.getParameterCount() == 4) {
+                        skyblockerExtractMethod = m;
+                        break;
+                    }
+                }
+            }
+
+            graphics.pose().pushMatrix();
+            graphics.pose().scale(scale, scale);
+            try {
+                skyblockerExtractMethod.invoke(tabLayer, graphics, screenW, screenH, false);
+            } finally {
+                graphics.pose().popMatrix();
+            }
+        } catch (Throwable ignored) {}
+    }
+
     public static void renderSkyHanniTab(GuiGraphicsExtractor graphics) {
+        if (!IrcConfig.get().dynamicIsland) return;
         if (skyHanniInstance != null && graphics != null) {
             currentFrameExtractor = graphics;
             try {
@@ -102,6 +316,7 @@ public class DynamicIslandRenderer {
     }
 
     public static void updateTargetTabBounds(float w, float h, float y) {
+        if (!IrcConfig.get().dynamicIsland) return;
         float newTargetW = Math.max(140.0f, w);
         float newTargetH = Math.max(40.0f, h);
         targetTabY = Math.max(4.0f, y);
@@ -120,10 +335,12 @@ public class DynamicIslandRenderer {
     }
 
     public static float getTabProgress() {
+        if (!IrcConfig.get().dynamicIsland) return 0.0f;
         return tabProgress;
     }
 
     public static boolean isTabAnimating() {
+        if (!IrcConfig.get().dynamicIsland) return false;
         return tabProgress > 0.005f;
     }
 
@@ -132,19 +349,26 @@ public class DynamicIslandRenderer {
     }
 
     public static void renderTabBackgroundDirect() {
+        IrcConfig config = IrcConfig.get();
+        if (!config.dynamicIsland) return;
         if (currentFrameExtractor != null && tabProgress > 0.005f && curRenderW > 0) {
             OwoUIGraphics graphics = OwoUIGraphics.of(currentFrameExtractor);
-            drawSubpixelRoundedPanel(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius, curBgColor, curBorderColor);
+            if (isShadowEnabled()) {
+                RenderUtil.drawSoftDropShadow(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius,
+                        shadowBlur * 1.5f, shadowOffsetY * 1.5f, shadowBaseAlpha, currentAlpha);
+            }
+            RenderUtil.drawSubpixelRoundedPanel(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius, 1.2f, curBgColor, curBorderColor);
         }
     }
 
-
     public static void renderTabBackground(GuiGraphicsExtractor extractor) {
+        if (!IrcConfig.get().dynamicIsland) return;
         setCurrentExtractor(extractor);
         renderTabBackgroundDirect();
     }
 
     public static void beginTabScissor(GuiGraphicsExtractor extractor) {
+        if (!IrcConfig.get().dynamicIsland) return;
         setCurrentExtractor(extractor);
         beginTabScissorDirect();
     }
@@ -154,6 +378,7 @@ public class DynamicIslandRenderer {
     }
 
     public static void beginTabScissorDirect() {
+        if (!IrcConfig.get().dynamicIsland) return;
         if (currentFrameExtractor != null && curRenderW > 0) {
             OwoUIGraphics graphics = OwoUIGraphics.of(currentFrameExtractor);
             int sX1 = (int) Math.floor(curRenderX + 1.0f);
@@ -195,7 +420,7 @@ public class DynamicIslandRenderer {
             }
             if (animTimer < 1.0f) {
                 animTimer = Math.min(1.0f, animTimer + dt / WIDTH_ANIM_DURATION);
-                float ease = easeSmoothDecel(animTimer);
+                float ease = RenderUtil.easeSmoothDecel(animTimer);
                 currentWidth = Mth.lerp(ease, startWidth, targetWidth);
             } else {
                 currentWidth = targetWidth;
@@ -228,36 +453,48 @@ public class DynamicIslandRenderer {
 
     public static void render(GuiGraphicsExtractor extractor, float ignoredDelta) {
         currentFrameExtractor = extractor;
+
+//        if (tabProgress > 0.005f || Minecraft.getInstance().screen != null) {
+//            me.cookie.kwrg.gui.util.GuiFpsLimiter.apply();
+//        }
         IrcConfig config = IrcConfig.get();
         Minecraft mc = Minecraft.getInstance();
         if (mc.getWindow() == null || mc.font == null) return;
+
+        long now = System.currentTimeMillis();
+        int targetFps = IrcConfig.get().guiFpsLimit;
+        long minIntervalMs = targetFps > 0 ? (1000L / targetFps) : 0;
+
+        if (now - lastIslandThrottleTime >= minIntervalMs) {
+            lastIslandThrottleTime = now;
+            updateAnimationState();
+            HardwareMetricsTracker.onRenderFrame(mc);
+        }
 
         OwoUIGraphics graphics = OwoUIGraphics.of(extractor);
 
         long nowTime = System.currentTimeMillis();
         float dt = (nowTime - lastFrameTime) / 1000.0f;
         lastFrameTime = nowTime;
-        dt = Mth.clamp(dt, 0.001f, 0.04f);
-
-        HardwareMetricsTracker.onRenderFrame(mc);
+        dt = Mth.clamp(dt, 0.001f, 0.15f);
 
         if (tabWidthTimer < 1.0f) {
             tabWidthTimer = Math.min(1.0f, tabWidthTimer + dt / 0.35f);
-            smoothTabW = Mth.lerp(easeSmoothDecel(tabWidthTimer), startTabW, targetTabW);
+            smoothTabW = Mth.lerp(RenderUtil.easeSmoothDecel(tabWidthTimer), startTabW, targetTabW);
         } else {
             smoothTabW = targetTabW;
         }
 
         if (tabHeightTimer < 1.0f) {
             tabHeightTimer = Math.min(1.0f, tabHeightTimer + dt / 0.35f);
-            smoothTabH = Mth.lerp(easeSmoothDecel(tabHeightTimer), startTabH, targetTabH);
+            smoothTabH = Mth.lerp(RenderUtil.easeSmoothDecel(tabHeightTimer), startTabH, targetTabH);
         } else {
             smoothTabH = targetTabH;
         }
 
         smoothTabY = Mth.lerp(dt * 10.0f, smoothTabY, targetTabY);
 
-        boolean isTabKeyDown = mc.options.keyPlayerList.isDown() && mc.player != null;
+        boolean isTabKeyDown = config.dynamicIsland && mc.options.keyPlayerList.isDown() && mc.player != null;
         float targetTab = isTabKeyDown ? 1.0f : 0.0f;
         float tabSpeed = isTabKeyDown ? (1.0f / TAB_ANIM_DURATION) : (1.0f / (TAB_ANIM_DURATION * 0.85f));
 
@@ -266,23 +503,26 @@ public class DynamicIslandRenderer {
         } else if (tabProgress > targetTab) {
             tabProgress = Math.max(targetTab, tabProgress - dt * tabSpeed);
         }
-        float tabEase = easeSmoothDecel(tabProgress);
+        float tabEase = RenderUtil.easeSmoothDecel(tabProgress);
 
         if (tabProgress <= 0.005f) {
             wasSkyHanniInCurrentSession = false;
+            wasSkyblockerInCurrentSession = false;
         }
 
         boolean hasAnyOption = config.islandShowFps || config.islandShowPing || config.islandShowTps
                 || config.islandShowRam || config.islandShowGpu || config.islandShowCpu;
-        boolean shouldShow = (config.dynamicIsland && hasAnyOption) || tabProgress > 0.005f;
+        boolean shouldShow = config.dynamicIsland && (hasAnyOption || tabProgress > 0.005f);
 
         float targetOpen = shouldShow ? 1.0f : 0.0f;
         islandOpenProgress = Mth.clamp(islandOpenProgress + (targetOpen - islandOpenProgress) * dt * 6.0f, 0.0f, 1.0f);
-        float openEase = easeSmoothDecel(islandOpenProgress);
+        float openEase = RenderUtil.easeSmoothDecel(islandOpenProgress);
 
-        if (islandOpenProgress <= 0.005f) {
+        if (currentAlpha <= 0.005f) {
             return;
         }
+
+        HardwareMetricsTracker.onRenderFrame(mc);
 
         SLOT_FPS.update(shouldShow && config.islandShowFps, dt);
         SLOT_PING.update(shouldShow && config.islandShowPing, dt);
@@ -355,7 +595,7 @@ public class DynamicIslandRenderer {
         }
         if (heightAnimTimer < 1.0f) {
             heightAnimTimer = Math.min(1.0f, heightAnimTimer + dt / HEIGHT_ANIM_DURATION);
-            currentIslandHeight = Mth.lerp(easeSmoothDecel(heightAnimTimer), startIslandHeight, targetIslandHeight);
+            currentIslandHeight = Mth.lerp(RenderUtil.easeSmoothDecel(heightAnimTimer), startIslandHeight, targetIslandHeight);
         } else {
             currentIslandHeight = targetIslandHeight;
         }
@@ -377,18 +617,20 @@ public class DynamicIslandRenderer {
         curRenderX = cx - curRenderW / 2.0f;
         curCornerRadius = Mth.lerp(tabEase, CORNER_RADIUS, 14.0f);
 
-        float alpha = openEase;
-
         int borderR = (int) Mth.lerp(warnEase, 84f, 255f);
         int borderG = (int) Mth.lerp(warnEase, 152f, 100f);
         int borderB = (int) Mth.lerp(warnEase, 178f, 90f);
 
-        int bgAlpha = (int) (Mth.lerp(tabEase, 230f, 245f) * alpha);
+        int bgAlpha = (int) (Mth.lerp(tabEase, 230f, 245f) * currentAlpha);
         curBgColor = Color.ofArgb(ARGB.color(bgAlpha, 17, 22, 31));
-        curBorderColor = Color.ofArgb(ARGB.color((int) (210 * alpha), borderR, borderG, borderB));
+        curBorderColor = Color.ofArgb(ARGB.color((int) (210 * currentAlpha), borderR, borderG, borderB));
 
         if (tabProgress <= 0.005f) {
-            drawSubpixelRoundedPanel(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius, curBgColor, curBorderColor);
+            if (isShadowEnabled()) {
+                RenderUtil.drawSoftDropShadow(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius,
+                        shadowBlur, shadowOffsetY, shadowBaseAlpha, currentAlpha);
+            }
+            RenderUtil.drawSubpixelRoundedPanel(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius, curBgColor, curBorderColor);
         }
 
         int scissorX1 = (int) Math.floor(curRenderX + 1.0f);
@@ -402,7 +644,7 @@ public class DynamicIslandRenderer {
 
         graphics.enableScissor(scissorX1, scissorY1, scissorX2, scissorY2);
 
-        float islandContentAlpha = alpha * (1.0f - tabEase);
+        float islandContentAlpha = currentAlpha * (1.0f - tabEase);
         if (islandContentAlpha > 0.02f) {
             float row1Y = curRenderY + (BASE_HEIGHT - fontH) / 2.0f;
             float curX = cx - dynamicContentW / 2.0f;
@@ -429,7 +671,7 @@ public class DynamicIslandRenderer {
 
                     if (itemAlpha > 2) {
                         int finalColor = (baseColor & 0x00FFFFFF) | (itemAlpha << 24);
-                        drawFluidSubpixelText(graphics, comp, tx, row1Y, finalColor);
+                        RenderUtil.drawFluidSubpixelText(graphics, comp, tx, row1Y, finalColor);
                     }
 
                     curX += w;
@@ -447,70 +689,10 @@ public class DynamicIslandRenderer {
                 float actualW = font.width(warnComp);
                 float warnX = cx - actualW / 2.0f;
 
-                drawFluidSubpixelText(graphics, warnComp, warnX, secondRowY + slideY, warnColor);
+                RenderUtil.drawFluidSubpixelText(graphics, warnComp, warnX, secondRowY + slideY, warnColor);
             }
         }
 
         graphics.disableScissor();
-    }
-
-    private static void drawSubpixelRoundedPanel(OwoUIGraphics graphics, float x, float y, float width, float height, float radius, Color bgColor, Color outlineColor) {
-        float r = Math.min(radius, Math.min(width / 2.0f, height / 2.0f));
-        float x2 = x + width;
-        float y2 = y + height;
-
-        fillSubpixel(graphics, x + r, y, x2 - r, y2, bgColor.argb());
-        fillSubpixel(graphics, x, y + r, x + r, y2 - r, bgColor.argb());
-        fillSubpixel(graphics, x2 - r, y + r, x2, y2 - r, bgColor.argb());
-
-        drawSubpixelCircle(graphics, x + r, y + r, 0.0, 90.0, 16, r, bgColor);
-        drawSubpixelCircle(graphics, x2 - r, y + r, 90.0, 180.0, 16, r, bgColor);
-        drawSubpixelCircle(graphics, x2 - r, y2 - r, 180.0, 270.0, 16, r, bgColor);
-        drawSubpixelCircle(graphics, x + r, y2 - r, 270.0, 360.0, 16, r, bgColor);
-
-        fillSubpixel(graphics, x + r, y, x2 - r, y + 1.0f, outlineColor.argb());
-        fillSubpixel(graphics, x + r, y2 - 1.0f, x2 - r, y2, outlineColor.argb());
-        fillSubpixel(graphics, x, y + r, x + 1.0f, y2 - r, outlineColor.argb());
-        fillSubpixel(graphics, x2 - 1.0f, y + r, x2, y2 - r, outlineColor.argb());
-
-        drawSubpixelRing(graphics, x + r, y + r, 0.0, 90.0, 16, r - 1.0f, r, outlineColor);
-        drawSubpixelRing(graphics, x2 - r, y + r, 90.0, 180.0, 16, r - 1.0f, r, outlineColor);
-        drawSubpixelRing(graphics, x2 - r, y2 - r, 180.0, 270.0, 16, r - 1.0f, r, outlineColor);
-        drawSubpixelRing(graphics, x + r, y2 - r, 270.0, 360.0, 16, r - 1.0f, r, outlineColor);
-    }
-
-    private static void drawSubpixelCircle(OwoUIGraphics graphics, float cx, float cy, double angleFrom, double angleTo, int segments, double radius, Color color) {
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(cx, cy);
-        graphics.drawCircle(0, 0, angleFrom, angleTo, segments, radius, color);
-        graphics.pose().popMatrix();
-    }
-
-    private static void drawSubpixelRing(OwoUIGraphics graphics, float cx, float cy, double angleFrom, double angleTo, int segments, double innerRadius, double outerRadius, Color color) {
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(cx, cy);
-        graphics.drawRing(0, 0, angleFrom, angleTo, segments, innerRadius, outerRadius, color, color);
-        graphics.pose().popMatrix();
-    }
-
-    private static void fillSubpixel(OwoUIGraphics graphics, float minX, float minY, float maxX, float maxY, int color) {
-        if (maxX <= minX || maxY <= minY) return;
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(minX, minY);
-        graphics.pose().scale(maxX - minX, maxY - minY);
-        graphics.fill(0, 0, 1, 1, color);
-        graphics.pose().popMatrix();
-    }
-
-    private static float easeSmoothDecel(float progress) {
-        float p = Mth.clamp(progress, 0.0f, 1.0f);
-        return 1.0f - (float) Math.pow(1.0f - p, 4.0f);
-    }
-
-    private static void drawFluidSubpixelText(OwoUIGraphics graphics, Component text, float x, float y, int color) {
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(x, y);
-        graphics.drawText(text, 0, 0, 1.0f, color, OwoUIGraphics.TextAnchor.TOP_LEFT);
-        graphics.pose().popMatrix();
     }
 }

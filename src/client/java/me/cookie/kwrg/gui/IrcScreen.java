@@ -83,16 +83,17 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
         rootComponent.child(this.radialMenu);
 
         rootComponent.mouseScroll().subscribe((mouseX, mouseY, amount) -> {
-            if (this.radialMenu != null) {
-                if (this.radialMenu.isTertiaryOpen() && this.radialMenu.getSecondaryPanel() != null) {
-                    var tp = this.radialMenu.getSecondaryPanel().getTertiaryPanel();
-                    if (tp != null && tp.handleScroll(mouseX, mouseY, amount)) {
+            if (this.radialMenu != null && this.radialMenu.isPanelOpen() && this.radialMenu.getSecondaryPanel() != null) {
+                var sp = this.radialMenu.getSecondaryPanel();
+
+                if (this.radialMenu.isTertiaryOpen() && sp.getTertiaryPanel() != null) {
+                    if (sp.getTertiaryPanel().handleScroll(mouseX, mouseY, amount)) {
                         return true;
                     }
-                } else if (this.radialMenu.isPanelOpen() && this.radialMenu.getSecondaryPanel() != null) {
-                    if (this.radialMenu.getSecondaryPanel().handleScroll(mouseX, mouseY, amount)) {
-                        return true;
-                    }
+                }
+
+                if (sp.handleScroll(mouseX, mouseY, amount)) {
+                    return true;
                 }
             }
             return false;
@@ -143,10 +144,12 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
+        me.cookie.kwrg.gui.util.GuiFpsLimiter.apply();
         super.extractRenderState(graphics, mouseX, mouseY, a);
         NotificationManager.render(graphics, mouseX, mouseY, a);
         DynamicIslandRenderer.render(graphics, a);
     }
+
 
     public void updateSurface() {
         if (this.rootLayout != null) {

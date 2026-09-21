@@ -151,9 +151,6 @@ public class IrcClient {
         });
     }
 
-    /**
-     * 启动定时心跳包（每 15 秒一次）
-     */
     private static void startHeartbeat() {
         stopHeartbeat();
         heartbeatExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -162,7 +159,6 @@ public class IrcClient {
             return t;
         });
 
-        // ★ initialDelay 设为 0，连上立刻 ping 一次，随后每 15 秒采样一次 ★
         heartbeatExecutor.scheduleAtFixedRate(() -> {
             if (isRunning && socket != null && !socket.isClosed()) {
                 sendPing(null);
@@ -214,7 +210,6 @@ public class IrcClient {
             handleDisconnect();
         }
     }
-
 
     private static synchronized void handleDisconnect() {
         isRunning = false;
@@ -448,9 +443,6 @@ public class IrcClient {
         }
     }
 
-    /**
-     * 发送纯文本形式的分享内容
-     */
     public static void sendShare(String targetPlayer, String type, String shareType, String content) {
         JsonObject data = new JsonObject();
         data.addProperty("content", content != null ? content : "");
