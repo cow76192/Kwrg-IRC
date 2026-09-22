@@ -4,6 +4,7 @@ import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -50,9 +51,9 @@ public class DynamicIslandAAValve extends Module {
                 IrcConfig.save();
 
                 aaInputHolder[0].setText(String.valueOf(formattedVal));
-                ChatNotifier.send("§a灵动岛 AA 值已设置为: §e" + formattedVal);
+                ChatNotifier.send("§a灵动岛 AA 值已设置为: §e" + formattedVal, NotificationType.SUCCESS);
             } catch (NumberFormatException e) {
-                ChatNotifier.send("§c请输入有效的浮点数");
+                ChatNotifier.send("§c请输入有效的浮点数", NotificationType.WARN);
                 aaInputHolder[0].setText(String.valueOf(config.dynamicIslandAAValue));
             }
         });
@@ -67,7 +68,7 @@ public class DynamicIslandAAValve extends Module {
                     IrcConfig.get().dynamicIslandAAValue = 0.35f;
                     IrcConfig.save();
                     aaInputHolder[0].setText("0.35");
-                    ChatNotifier.send("§a[IRC] 已重置 DynamicIsland AA 值为 0.35");
+                    ChatNotifier.send("§a[IRC] 已重置 DynamicIsland AA 值为 0.35", NotificationType.SUCCESS);
                 },
                 null,
                 () -> false

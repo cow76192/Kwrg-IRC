@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -448,7 +449,7 @@ public class SkyblockItemHelper {
         RAW_ITEM_INDEX.clear();
         KNOWN_IDS.clear();
         isIndexed = false;
-        ChatNotifier.send("§e[Kwrg] 已清空 skyblock-repo-cache");
+        ChatNotifier.send("§e[Kwrg] 已清空 skyblock-repo-cache", NotificationType.SUCCESS);
         ChatNotifier.sendInChatScreen("§e[Kwrg] 已清空 item-repo cache");
     }
 
@@ -457,7 +458,7 @@ public class SkyblockItemHelper {
         boolean success = indexItemRepo();
 
         if (success && !RAW_ITEM_INDEX.isEmpty()) {
-            ChatNotifier.send("§a[Kwrg] 成功重新加载 repo，共索引 §e" + RAW_ITEM_INDEX.size() + "§a 个物品");
+            ChatNotifier.send("§a[Kwrg] 成功重新加载 repo，共索引 §e" + RAW_ITEM_INDEX.size() + "§a 个物品", NotificationType.SUCCESS);
             ChatNotifier.sendInChatScreen("§a[Kwrg] 成功重新加载 repo，共索引 §e" + RAW_ITEM_INDEX.size() + "§a 个物品");
             LOGGER.info("[Kwrg] 已重新加载 repo，共索引 {} 个条目", RAW_ITEM_INDEX.size());
         }

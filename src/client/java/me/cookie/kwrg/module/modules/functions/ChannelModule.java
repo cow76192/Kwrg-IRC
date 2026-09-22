@@ -4,6 +4,7 @@ import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.module.Category;
@@ -31,9 +32,9 @@ public class ChannelModule extends Module {
 
         if (config.channelEnabled) {
             int count = config.savedChannels != null ? config.savedChannels.size() : 0;
-            ChatNotifier.send("§a[IRC] 频道消息监听已: §a开启 §7(接收 " + count + " 个频道的消息)");
+            ChatNotifier.send("§a[IRC] 频道消息监听已: §a开启 §7(接收 " + count + " 个频道的消息)", NotificationType.SUCCESS);
         } else {
-            ChatNotifier.send("§e[IRC] 频道消息监听已: §c关闭 §7");
+            ChatNotifier.send("§e[IRC] 频道消息监听已: §c关闭 §7", NotificationType.ERR);
         }
     }
 
@@ -117,11 +118,11 @@ public class ChannelModule extends Module {
 
         if (channelName.equalsIgnoreCase(config.currentChannel) && config.channelEnabled) {
             config.currentChannel = "";
-            ChatNotifier.send("§e[IRC] 已退出当前频道发言，切换至: §e公共大厅");
+            ChatNotifier.send("§e[IRC] 已退出当前频道发言，切换至: §e公共大厅", NotificationType.INFO);
         } else {
             config.currentChannel = channelName;
             config.channelEnabled = true;
-            ChatNotifier.send("§a[IRC] 已将发言目标切换为频道: §b#" + channelName);
+            ChatNotifier.send("§a[IRC] 已将发言目标切换为频道: §b#" + channelName, NotificationType.INFO);
         }
 
         IrcConfig.save();
@@ -137,9 +138,9 @@ public class ChannelModule extends Module {
             config.savedChannels.add(channelName);
             IrcConfig.save();
             IrcClient.sendChannelSync(config.currentChannel, config.channelEnabled, config.savedChannels);
-            ChatNotifier.send("§a[IRC] 已添加频道: §f" + channelName);
+            ChatNotifier.send("§a[IRC] 已添加频道: §f" + channelName, NotificationType.INFO);
         } else {
-            ChatNotifier.send("§e[IRC] 频道 §f" + channelName + " §e已存在于列表中！");
+            ChatNotifier.send("§e[IRC] 频道 §f" + channelName + " §e已存在于列表中！", NotificationType.WARN);
         }
     }
 
@@ -151,9 +152,9 @@ public class ChannelModule extends Module {
 
         if (channelName.equalsIgnoreCase(config.currentChannel)) {
             config.currentChannel = "";
-            ChatNotifier.send("§e[IRC] 已删除频道: §f" + channelName);
+            ChatNotifier.send("§e[IRC] 已删除频道: §f" + channelName, NotificationType.SUCCESS);
         } else {
-            ChatNotifier.send("§e[IRC] 已取消监听频道: §f" + channelName);
+            ChatNotifier.send("§e[IRC] 已取消监听频道: §f" + channelName, NotificationType.SUCCESS);
         }
 
         IrcConfig.save();

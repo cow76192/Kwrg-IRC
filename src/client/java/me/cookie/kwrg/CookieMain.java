@@ -1,6 +1,7 @@
 package me.cookie.kwrg;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import java.util.concurrent.CompletableFuture;
 import me.cookie.kwrg.gui.util.TpsTracker;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcCommand;
@@ -14,6 +15,7 @@ import net.minecraft.client.KeyMapping;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import me.cookie.kwrg.util.SkyblockItemHelper;
 
 public class CookieMain implements ClientModInitializer {
     public static final String MOD_ID = "kwrg";
@@ -31,6 +33,16 @@ public class CookieMain implements ClientModInitializer {
         LOGGER.info(":D");
         IrcConfig.load();
         IrcCommand.register();
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                SkyblockItemHelper.indexItemRepo();
+                LOGGER.info("indexItemRepo completed");
+            } catch (Throwable e) {
+                LOGGER.error("Failed to indexItemRepo", e);
+            }
+        });
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             ChatNotifier.flush();
             TpsTracker.tick();
