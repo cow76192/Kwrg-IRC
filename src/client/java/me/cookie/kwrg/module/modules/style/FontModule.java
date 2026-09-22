@@ -3,6 +3,7 @@ package me.cookie.kwrg.module.modules.style;
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.module.Category;
@@ -42,9 +43,9 @@ public class FontModule extends Module {
                         Files.createDirectories(fontDir);
                     }
                     Util.getPlatform().openPath(fontDir);
-                    ChatNotifier.send("§a[IRC] 已打开字体文件夹: §f" + fontDir.toAbsolutePath());
+                    ChatNotifier.send("§a[IRC] 已打开字体文件夹: §f" + fontDir.toAbsolutePath(), NotificationType.SUCCESS);
                 } catch (Exception e) {
-                    ChatNotifier.send("§c[IRC] 打开文件夹失败: " + e.getMessage());
+                    ChatNotifier.send("§c[IRC] 打开文件夹失败: " + e.getMessage(), NotificationType.ERR);
                 }
             }
         }));
@@ -62,10 +63,10 @@ public class FontModule extends Module {
                 (btn, click) -> {
                     boolean success = FontManagerHelper.reloadCurrentFont();
                     if (success) {
-                        ChatNotifier.send("§a[IRC] 已重新载入字体资源");
+                        ChatNotifier.send("§a[IRC] 已重新载入字体资源", NotificationType.SUCCESS);
                         renderFontUI(panel);
                     } else {
-                        ChatNotifier.send("§c[IRC] 重新载入字体失败");
+                        ChatNotifier.send("§c[IRC] 重新载入字体失败", NotificationType.ERR);
                     }
                 },
                 null,
@@ -88,10 +89,10 @@ public class FontModule extends Module {
                         if (success) {
                             IrcConfig.get().guiFont = fontName;
                             IrcConfig.save();
-                            ChatNotifier.send("§a[IRC] 已应用并切换字体: §f" + fontName);
+                            ChatNotifier.send("§a[IRC] 已应用并切换字体: §f" + fontName, NotificationType.SUCCESS);
                             renderFontUI(panel);
                         } else {
-                            ChatNotifier.send("§c[IRC] 字体加载失败，已保持当前字体");
+                            ChatNotifier.send("§c[IRC] 字体加载失败，已保持当前字体", NotificationType.WARN);
                         }
                     },
                     null,

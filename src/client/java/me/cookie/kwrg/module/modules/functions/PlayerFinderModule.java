@@ -1,6 +1,7 @@
 package me.cookie.kwrg.module.modules.functions;
 
 import me.cookie.kwrg.gui.component.*;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import me.cookie.kwrg.module.Category;
@@ -35,7 +36,7 @@ public class PlayerFinderModule extends Module {
             String clean = player.trim();
             if (!clean.isEmpty()) {
                 PlayerFinderManager.addPlayer(clean);
-                ChatNotifier.send("§a[Finder] 已将 §f" + clean + " §a加入寻找名单！");
+                ChatNotifier.send("§a[Finder] 已将 §f" + clean + " §a加入寻找名单！", NotificationType.SUCCESS);
                 this.currentInputText = "";
                 renderFinderUI(panel, clean);
             }
@@ -63,12 +64,12 @@ public class PlayerFinderModule extends Module {
                             if (isShiftDown) {
                                 btn.dismiss(() -> {
                                     PlayerFinderManager.removePlayer(p);
-                                    ChatNotifier.send("§e[Finder] 已将 §f" + p + " §e从寻找名单移除。");
+                                    ChatNotifier.send("§e[Finder] 已将 §f" + p + " §e从寻找名单移除。", NotificationType.SUCCESS);
                                     renderFinderUI(panel, null);
                                 });
                             } else {
                                 Minecraft.getInstance().keyboardHandler.setClipboard(p);
-                                ChatNotifier.send("§e[Finder] 已复制 §f" + p + " §e");
+                                ChatNotifier.send("§e[Finder] 已复制 §f" + p + " §e", NotificationType.SUCCESS);
                             }
                         },
                         null,

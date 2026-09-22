@@ -2,67 +2,33 @@ package me.cookie.kwrg.util;
 
 import me.cookie.kwrg.gui.notification.NotificationManager;
 import me.cookie.kwrg.gui.notification.NotificationType;
-import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.ChatComponent;
-import net.minecraft.client.gui.components.ComponentRenderUtils;
-import net.minecraft.client.multiplayer.chat.GuiMessage;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
-import net.minecraft.network.chat.TextColor;
 import net.minecraft.util.FormattedCharSequence;
-import net.minecraft.util.Mth;
 
 import java.net.URI;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
-import java.util.TreeSet;
-import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.function.UnaryOperator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ChatNotifier {
 
-    private static final int FALLBACK_CHAT_WIDTH = 320;
-    private static final long ANIM_FRAME_INTERVAL_MS = 25L;
-    private static final int MAX_ACTIVE_ANIMATIONS = 150;
-    private static final int ICON_EXTRA_PADDING = 6;
-
+    private static final Queue<Component> PENDING_MESSAGES = new ConcurrentLinkedQueue<>();
     private static final Pattern URL_PATTERN = Pattern.compile(
             "https?://[a-zA-Z0-9-._~:/?#\\[\\]@!$&'()*+,;=%]+",
             Pattern.CASE_INSENSITIVE
     );
-    private static final Pattern PREFIX_PATTERN = Pattern.compile("^(?:\\[IRC\\]|\\[Kwrg\\])\\s*");
-    private static final String TRAILING_URL_PUNCTUATION = ".,;:!?)]}'\"、。，；：！？】》〉」』";
 
-    private static final Queue<Component> PENDING_MESSAGES = new ConcurrentLinkedQueue<>();
-
-    private static final Map<Component, List<AnimatedSegment>> PENDING_ANIMATIONS =
-            Collections.synchronizedMap(new IdentityHashMap<>());
-    private static final Map<GuiMessage, List<AnimatedSegment>> ACTIVE_ANIMATIONS = new IdentityHashMap<>();
-    private static final ArrayDeque<GuiMessage> ANIMATION_ORDER = new ArrayDeque<>();
-    private static final Map<GuiMessage, MessageLineCache> DYNAMIC_LINE_CACHE = new WeakHashMap<>();
-
+    private record StyledPart(Style style, String text) {}
     private record UrlRange(int start, int end, String cleanUrl, URI uri) {}
-    private record TitleSubtitle(String title, String subtitle, int separatorIndex, int separatorLength) {}
-
-    public record AnimatedSegment(String text, String styleConfig, boolean isRaw) {}
-
-    private static final class MessageLineCache {
-        long lastUpdateTime;
-        List<FormattedCharSequence> lines;
-    }
 
     public static void sendInChatScreen(String text) {
         if (text == null || text.isEmpty()) return;
@@ -87,24 +53,10 @@ public class ChatNotifier {
         matcher.reset();
         while (matcher.find()) {
             String rawUrl = matcher.group();
-            int start = matcher.start();
-            int end = matcher.end();
-
-            int trim = 0;
-            while (trim < rawUrl.length()
-                    && TRAILING_URL_PUNCTUATION.indexOf(rawUrl.charAt(rawUrl.length() - 1 - trim)) >= 0) {
-                trim++;
-            }
-            if (trim > 0) {
-                rawUrl = rawUrl.substring(0, rawUrl.length() - trim);
-                end -= trim;
-            }
-            if (rawUrl.isEmpty()) continue;
-
-            String cleanUrl = NotificationManager.stripColorCodes(rawUrl).trim();
-            if (cleanUrl.isEmpty()) continue;
+            String cleanUrl = rawUrl.replaceAll("§[0-9a-fk-or]", "").trim();
             try {
-                ranges.add(new UrlRange(start, end, cleanUrl, URI.create(cleanUrl)));
+                URI uri = URI.create(cleanUrl);
+                ranges.add(new UrlRange(matcher.start(), matcher.end(), cleanUrl, uri));
             } catch (Exception ignored) {
             }
         }
@@ -113,160 +65,133 @@ public class ChatNotifier {
             return component;
         }
 
-        TreeSet<Integer> cuts = new TreeSet<>();
-        cuts.add(0);
-        cuts.add(fullText.length());
-        for (UrlRange r : ranges) {
-            cuts.add(r.start());
-            cuts.add(r.end());
-        }
+        List<StyledPart> parts = new ArrayList<>();
+        component.visit((style, text) -> {
+            if (!text.isEmpty()) {
+                parts.add(new StyledPart(style, text));
+            }
+            return Optional.empty();
+        }, Style.EMPTY);
 
         MutableComponent root = Component.empty();
-        int prev = -1;
-        for (int cut : cuts) {
-            if (prev >= 0 && cut > prev) {
-                final int a = prev, b = cut;
-                UrlRange active = null;
-                for (UrlRange r : ranges) {
-                    if (r.start() <= a && b <= r.end()) {
-                        active = r;
+        int globalIndex = 0;
+
+        for (StyledPart part : parts) {
+            Style baseStyle = part.style();
+            String text = part.text();
+            int textLen = text.length();
+            int partStart = globalIndex;
+            int partEnd = globalIndex + textLen;
+            globalIndex += textLen;
+
+            int localOffset = 0;
+            while (localOffset < textLen) {
+                int currentGlobal = partStart + localOffset;
+
+                UrlRange activeRange = null;
+                for (UrlRange range : ranges) {
+                    if (currentGlobal >= range.start() && currentGlobal < range.end()) {
+                        activeRange = range;
                         break;
                     }
                 }
-                if (active != null) {
-                    final UrlRange fr = active;
-                    root.append(sliceComponent(component, a, b, style -> style
-                            .withClickEvent(new ClickEvent.OpenUrl(fr.uri()))
-                            .withHoverEvent(new HoverEvent.ShowText(Component.literal("点击打开网页:\n" + fr.cleanUrl())))));
+
+                if (activeRange != null) {
+                    int subEndInGlobal = Math.min(partEnd, activeRange.end());
+                    int subLength = subEndInGlobal - currentGlobal;
+                    String slice = text.substring(localOffset, localOffset + subLength);
+
+                    Style urlStyle = baseStyle
+                            .withClickEvent(new ClickEvent.OpenUrl(activeRange.uri()))
+                            .withHoverEvent(new HoverEvent.ShowText(Component.literal("点击打开网页:\n" + activeRange.cleanUrl())));
+
+                    root.append(Component.literal(slice).setStyle(urlStyle));
+                    localOffset += subLength;
                 } else {
-                    root.append(sliceComponent(component, a, b, UnaryOperator.identity()));
+                    int nextUrlStart = partEnd;
+                    for (UrlRange range : ranges) {
+                        if (range.start() > currentGlobal && range.start() < nextUrlStart) {
+                            nextUrlStart = range.start();
+                        }
+                    }
+                    int subLength = nextUrlStart - currentGlobal;
+                    String slice = text.substring(localOffset, localOffset + subLength);
+
+                    root.append(Component.literal(slice).setStyle(baseStyle));
+                    localOffset += subLength;
                 }
             }
-            prev = cut;
         }
+
         return root;
     }
 
-    private static Component sliceComponent(Component component, int start, int end, UnaryOperator<Style> decorator) {
-        if (start >= end) return Component.empty();
-        MutableComponent out = Component.empty();
-        int[] cursor = new int[1];
-        component.visit((style, text) -> {
-            int pieceStart = cursor[0];
-            int pieceEnd = pieceStart + text.length();
-            cursor[0] = pieceEnd;
-            int a = Math.max(start, pieceStart);
-            int b = Math.min(end, pieceEnd);
-            if (a < b) {
-                out.append(Component.literal(text.substring(a - pieceStart, b - pieceStart))
-                        .setStyle(decorator.apply(style)));
-            }
-            return Optional.empty();
-        }, Style.EMPTY);
-        return out;
-    }
-
-    private static NotificationType resolveTypeFromCodes(String text) {
-        return NotificationManager.resolveTypeFromCodes(text);
-    }
-
-    private static NotificationType resolveType(Component component) {
-        NotificationType fromCodes = resolveTypeFromCodes(component.getString());
-        if (fromCodes != NotificationType.INFO) return fromCodes;
-
-        final NotificationType[] result = {NotificationType.INFO};
-        final int[] depth = {0};
-        component.visit((style, text) -> {
-            if (result[0] == NotificationType.INFO && depth[0] == 0) {
-                TextColor color = style.getColor();
-                if (color != null) {
-                    ChatFormatting fmt = legacyFromRgb(color.getValue());
-                    if (fmt == ChatFormatting.RED) result[0] = NotificationType.ERR;
-                    else if (fmt == ChatFormatting.YELLOW || fmt == ChatFormatting.GOLD) result[0] = NotificationType.WARN;
-                    else if (fmt == ChatFormatting.GREEN) result[0] = NotificationType.SUCCESS;
-                }
-            }
-            for (int i = 0; i < text.length(); i++) {
-                char ch = text.charAt(i);
-                if (ch == '[') depth[0]++;
-                else if (ch == ']' && depth[0] > 0) depth[0]--;
-            }
-            return Optional.empty();
-        }, Style.EMPTY);
-        return result[0];
-    }
-
-    private static ChatFormatting legacyFromRgb(int rgb) {
-        for (ChatFormatting fmt : ChatFormatting.values()) {
-            Integer c = fmt.getColor();
-            if (c != null && c == rgb) return fmt;
-        }
-        return null;
-    }
-
-    private static String stripColorCodes(String text) {
-        return NotificationManager.stripColorCodes(text);
-    }
-    private static TitleSubtitle splitTitleSubtitle(String text) {
-        final String[] separators = {" | ", " -> ", ": "};
-        for (String sep : separators) {
-            int idx = text.indexOf(sep);
-            if (idx >= 0) {
-                return new TitleSubtitle(
-                        text.substring(0, idx).trim(),
-                        text.substring(idx + sep.length()).trim(),
-                        idx, sep.length());
-            }
-        }
-        return new TitleSubtitle(text, "", -1, 0);
-    }
-
-    public static void send(String message) {
+    public static void send(String message, NotificationType type) {
         if (message == null || message.isBlank()) return;
 
         String raw = message.trim();
-        String clean = stripColorCodes(raw).trim();
-        clean = PREFIX_PATTERN.matcher(clean).replaceFirst("");
+        String clean = raw.replaceAll("§[0-9a-fk-or]", "").trim();
 
-        TitleSubtitle ts = splitTitleSubtitle(clean);
+        clean = clean.replaceFirst("^(?:\\[IRC\\]|\\[Kwrg\\])\\s*", "");
 
-        NotificationType type = resolveTypeFromCodes(raw);
-        NotificationManager.send(type, ts.title(), ts.subtitle());
+        String title = clean;
+        String subtitle = "";
+
+        if (clean.contains(" | ")) {
+            String[] parts = clean.split(" \\| ", 2);
+            title = parts[0].trim();
+            subtitle = parts[1].trim();
+        } else if (clean.contains(" -> ")) {
+            String[] parts = clean.split(" -> ", 2);
+            title = parts[0].trim();
+            subtitle = parts[1].trim();
+        } else if (clean.contains(": ")) {
+            String[] parts = clean.split(": ", 2);
+            title = parts[0].trim();
+            subtitle = parts[1].trim();
+        }
+
+        NotificationManager.send(type, title, subtitle);
     }
 
-    public static void send(Component component) {
+    public static void send(Component component, NotificationType type) {
         if (component == null) return;
 
-        String full = component.getString();
-        if (full.isBlank()) return;
+        String raw = component.getString().trim();
+        if (raw.isBlank()) return;
 
-        NotificationType type = resolveType(component);
+        String clean = raw.replaceAll("§[0-9a-fk-or]", "").trim();
+        clean = clean.replaceFirst("^(?:\\[IRC\\]|\\[Kwrg\\])\\s*", "");
 
-        int prefixLen = 0;
-        Matcher prefixMatcher = PREFIX_PATTERN.matcher(full);
-        if (prefixMatcher.lookingAt()) {
-            prefixLen = prefixMatcher.end();
+        String titleStr = clean;
+        String subtitleStr = "";
+
+        if (clean.contains(" | ")) {
+            String[] parts = clean.split(" \\| ", 2);
+            titleStr = parts[0].trim();
+            subtitleStr = parts[1].trim();
+        } else if (clean.contains(" -> ")) {
+            String[] parts = clean.split(" -> ", 2);
+            titleStr = parts[0].trim();
+            subtitleStr = parts[1].trim();
+        } else if (clean.contains(": ")) {
+            String[] parts = clean.split(": ", 2);
+            titleStr = parts[0].trim();
+            subtitleStr = parts[1].trim();
         }
 
-        TitleSubtitle ts = splitTitleSubtitle(full.substring(prefixLen));
-
-        if (ts.separatorIndex() < 0) {
+        if (subtitleStr.isEmpty()) {
             NotificationManager.send(type, component, Component.empty());
-            return;
+        } else {
+            NotificationManager.send(type, Component.literal(titleStr), Component.literal(subtitleStr));
         }
-
-        int titleStart = prefixLen;
-        int titleEnd = prefixLen + ts.separatorIndex();
-        int subtitleStart = titleEnd + ts.separatorLength();
-        int subtitleEnd = full.length();
-
-        while (titleEnd > titleStart && Character.isWhitespace(full.charAt(titleEnd - 1))) titleEnd--;
-        while (subtitleStart < subtitleEnd && Character.isWhitespace(full.charAt(subtitleStart))) subtitleStart++;
-
-        NotificationManager.send(type,
-                sliceComponent(component, titleStart, titleEnd, UnaryOperator.identity()),
-                sliceComponent(component, subtitleStart, subtitleEnd, UnaryOperator.identity()));
     }
+
+
+    public record AnimatedSegment(String text, String styleConfig, boolean isRaw) {}
+
+    private static final Queue<List<AnimatedSegment>> PENDING_ANIMATIONS = new ConcurrentLinkedQueue<>();
+    private static final java.util.Map<net.minecraft.client.multiplayer.chat.GuiMessage, List<AnimatedSegment>> ACTIVE_ANIMATIONS = new java.util.concurrent.ConcurrentHashMap<>();
 
     public static void sendAnimatedInChatScreen(List<AnimatedSegment> segments) {
         if (segments == null || segments.isEmpty()) return;
@@ -288,24 +213,19 @@ public class ChatNotifier {
         Component parsed = parseUrls(root);
 
         if (hasAnimation) {
-            PENDING_ANIMATIONS.put(parsed, segments);
+            PENDING_ANIMATIONS.offer(segments);
         }
 
         PENDING_MESSAGES.offer(parsed);
         Minecraft.getInstance().execute(ChatNotifier::flush);
     }
 
-    public static void onMessageAdded(GuiMessage message) {
-        List<AnimatedSegment> segs = PENDING_ANIMATIONS.remove(message.content());
+    public static void onMessageAdded(net.minecraft.client.multiplayer.chat.GuiMessage message) {
+        List<AnimatedSegment> segs = PENDING_ANIMATIONS.poll();
         if (segs != null) {
             ACTIVE_ANIMATIONS.put(message, segs);
-            ANIMATION_ORDER.addLast(message);
-            while (ANIMATION_ORDER.size() > MAX_ACTIVE_ANIMATIONS) {
-                GuiMessage oldest = ANIMATION_ORDER.pollFirst();
-                if (oldest != null) {
-                    ACTIVE_ANIMATIONS.remove(oldest);
-                    DYNAMIC_LINE_CACHE.remove(oldest);
-                }
+            if (ACTIVE_ANIMATIONS.size() > 150) {
+                ACTIVE_ANIMATIONS.clear();
             }
         }
     }
@@ -314,7 +234,7 @@ public class ChatNotifier {
         return !ACTIVE_ANIMATIONS.isEmpty();
     }
 
-    public static Component getAnimatedFrame(GuiMessage msg) {
+    public static Component getAnimatedFrame(net.minecraft.client.multiplayer.chat.GuiMessage msg) {
         List<AnimatedSegment> segs = ACTIVE_ANIMATIONS.get(msg);
         if (segs == null) return null;
 
@@ -329,31 +249,38 @@ public class ChatNotifier {
         return parseUrls(root);
     }
 
-    public static void updateMessageBinding(GuiMessage oldMsg, GuiMessage newMsg) {
+    public static void updateMessageBinding(net.minecraft.client.multiplayer.chat.GuiMessage oldMsg, net.minecraft.client.multiplayer.chat.GuiMessage newMsg) {
         List<AnimatedSegment> segs = ACTIVE_ANIMATIONS.remove(oldMsg);
         if (segs != null) {
             ACTIVE_ANIMATIONS.put(newMsg, segs);
-            ANIMATION_ORDER.remove(oldMsg);
-            ANIMATION_ORDER.addLast(newMsg);
         }
     }
 
-    public static boolean hasAnimation(GuiMessage msg) {
-        return msg != null && ACTIVE_ANIMATIONS.containsKey(msg);
+    private static class MessageLineCache {
+        long lastUpdateTime;
+        List<FormattedCharSequence> lines;
     }
 
+    private static final java.util.Map<net.minecraft.client.multiplayer.chat.GuiMessage, MessageLineCache> DYNAMIC_LINE_CACHE = new java.util.WeakHashMap<>();
+    private static final java.util.Map<net.minecraft.client.multiplayer.chat.GuiMessage.Line, Integer> LINE_INDEX_MAP = new java.util.WeakHashMap<>();
+
     public static int getChatMaxWidth(Minecraft mc) {
-        if (mc == null || mc.options == null) return FALLBACK_CHAT_WIDTH;
+        if (mc == null || mc.options == null) return 320;
         double chatWidthOpt = mc.options.chatWidth().get();
         double chatScale = mc.options.chatScale().get();
         if (chatScale <= 0.0) chatScale = 1.0;
 
-        int chatWidth = ChatComponent.getWidth(chatWidthOpt);
-        return Mth.ceil((float) chatWidth / (float) chatScale);
+        int chatWidth = net.minecraft.client.gui.components.ChatComponent.getWidth(chatWidthOpt);
+        return net.minecraft.util.Mth.ceil((float) chatWidth / (float) chatScale);
     }
 
+    public static boolean hasAnimation(net.minecraft.client.multiplayer.chat.GuiMessage msg) {
+        return msg != null && ACTIVE_ANIMATIONS.containsKey(msg);
+    }
+
+
     public static FormattedCharSequence createDynamicLine(
-            GuiMessage parent,
+            net.minecraft.client.multiplayer.chat.GuiMessage parent,
             int lineIndex,
             FormattedCharSequence fallback
     ) {
@@ -366,11 +293,11 @@ public class ChatNotifier {
         };
     }
 
-    private static FormattedCharSequence getLineForFrame(GuiMessage parent, int lineIndex) {
+    private static FormattedCharSequence getLineForFrame(net.minecraft.client.multiplayer.chat.GuiMessage parent, int lineIndex) {
         long now = System.currentTimeMillis();
         MessageLineCache cache = DYNAMIC_LINE_CACHE.get(parent);
 
-        if (cache == null || now - cache.lastUpdateTime >= ANIM_FRAME_INTERVAL_MS) {
+        if (cache == null || now - cache.lastUpdateTime >= 25L) {
             Component animatedFrame = getAnimatedFrame(parent);
             if (animatedFrame == null) {
                 return null;
@@ -380,12 +307,12 @@ public class ChatNotifier {
             int maxWidth = getChatMaxWidth(mc);
 
             if (parent.tag() != null && parent.tag().icon() != null) {
-                maxWidth -= parent.tag().icon().width + ICON_EXTRA_PADDING;
+                maxWidth -= parent.tag().icon().width + 4 + 2;
             }
 
             cache = new MessageLineCache();
             cache.lastUpdateTime = now;
-            cache.lines = ComponentRenderUtils.wrapComponents(animatedFrame, maxWidth, mc.font);
+            cache.lines = net.minecraft.client.gui.components.ComponentRenderUtils.wrapComponents(animatedFrame, maxWidth, mc.font);
             DYNAMIC_LINE_CACHE.put(parent, cache);
         }
 

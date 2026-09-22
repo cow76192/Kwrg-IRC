@@ -4,6 +4,7 @@ import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.module.Category;
@@ -34,7 +35,7 @@ public class RankModule extends Module {
         TextInputPaneComponent inputPane = new TextInputPaneComponent("输入 Rank (如 &7[Member&7])...", newRankStr -> {
             String clean = newRankStr.trim();
             if (clean.isEmpty()) {
-                ChatNotifier.send("§c[IRC] Rank 不能为空！");
+                ChatNotifier.send("§c[IRC] Rank 不能为空！", NotificationType.WARN);
                 return;
             }
 
@@ -43,12 +44,12 @@ public class RankModule extends Module {
                 if (formatted != null && !formatted.isEmpty()) {
                     IrcConfig.get().rank = clean;
                     IrcConfig.save();
-                    ChatNotifier.send("§a[IRC] 已成功保存 Rank: §r" + formatted);
+                    ChatNotifier.send("§a[IRC] 已成功保存 Rank: §r" + formatted, NotificationType.SUCCESS);
                 } else {
-                    ChatNotifier.send("§c[IRC] 无法解析当前配置！");
+                    ChatNotifier.send("§c[IRC] 无法解析当前配置！", NotificationType.WARN);
                 }
             } catch (Exception e) {
-                ChatNotifier.send("§c[IRC] 保存 Rank 失败: " + e.getMessage());
+                ChatNotifier.send("§c[IRC] 保存 Rank 失败: " + e.getMessage(), NotificationType.ERR);
             }
         });
 

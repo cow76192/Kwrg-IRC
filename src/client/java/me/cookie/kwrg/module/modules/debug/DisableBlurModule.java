@@ -5,6 +5,7 @@ import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -29,9 +30,9 @@ public class DisableBlurModule extends Module {
         IrcConfig.save();
 
         if (config.disableBlur) {
-            ChatNotifier.send("§aBlur 已: §c禁用");
+            ChatNotifier.send("§aBlur 已: §c禁用", NotificationType.INFO);
         } else {
-            ChatNotifier.send("§aBlur 已: §a启用");
+            ChatNotifier.send("§aBlur 已: §a启用", NotificationType.INFO);
         }
 
         refreshScreenSurface();
@@ -90,17 +91,17 @@ public class DisableBlurModule extends Module {
             try {
                 float q = Float.parseFloat(input.trim());
                 if (q < 0.5f || q > 32.0f) {
-                    ChatNotifier.send("§c模糊质量建议在 0.5 ~ 32.0 之间");
+                    ChatNotifier.send("§c模糊质量建议在 0.5 ~ 32.0 之间", NotificationType.WARN);
                     return;
                 }
                 IrcConfig.get().blurQuality = q;
                 IrcConfig.get().disableBlur = false;
                 IrcConfig.save();
-                ChatNotifier.send("§a模糊质量已更新为: §f" + q);
+                ChatNotifier.send("§a模糊质量已更新为: §f" + q, NotificationType.SUCCESS);
                 refreshScreenSurface();
                 renderTertiaryUI(panel);
             } catch (Exception e) {
-                ChatNotifier.send("§c请输入合法的数字格式");
+                ChatNotifier.send("§c请输入合法的数字格式", NotificationType.WARN);
             }
         });
         qualityInput.setText(String.valueOf(config.blurQuality));
@@ -110,17 +111,17 @@ public class DisableBlurModule extends Module {
             try {
                 float s = Float.parseFloat(input.trim());
                 if (s < 1.0f || s > 64.0f) {
-                    ChatNotifier.send("§c半径数值建议在 1.0 ~ 64.0 之间");
+                    ChatNotifier.send("§c半径数值建议在 1.0 ~ 64.0 之间", NotificationType.WARN);
                     return;
                 }
                 IrcConfig.get().blurSize = s;
                 IrcConfig.get().disableBlur = false;
                 IrcConfig.save();
-                ChatNotifier.send("§a模糊半径已更新为: §f" + s);
+                ChatNotifier.send("§a模糊半径已更新为: §f" + s, NotificationType.SUCCESS);
                 refreshScreenSurface();
                 renderTertiaryUI(panel);
             } catch (Exception e) {
-                ChatNotifier.send("§c请输入合法的数字格式");
+                ChatNotifier.send("§c请输入合法的数字格式", NotificationType.WARN);
             }
         });
         sizeInput.setText(String.valueOf(config.blurSize));
@@ -134,7 +135,7 @@ public class DisableBlurModule extends Module {
         config.blurSize = size;
         IrcConfig.save();
 
-        ChatNotifier.send("§a已应用 " + name + " 预设: §f" + quality + ", " + size);
+        ChatNotifier.send("§a已应用 " + name + " 预设: §f" + quality + ", " + size, NotificationType.SUCCESS);
         refreshScreenSurface();
         panel.clearChildren();
         ((DisableBlurModule) me.cookie.kwrg.module.ModuleManager.getModule("disableBlur")).renderTertiaryUI(panel);

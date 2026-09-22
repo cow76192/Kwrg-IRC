@@ -2,16 +2,15 @@ package me.cookie.kwrg.module.modules.style;
 
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
-import me.cookie.kwrg.gui.component.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
+import me.cookie.kwrg.gui.component.TextInputPaneComponent;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcConfig;
-import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,13 +44,13 @@ public class MessageStyleModule extends Module {
             String clean = submitted.trim();
 
             if (!ColorUtil.isValidStyle(clean)) {
-                ChatNotifier.send("§c[IRC] 样式不合法！存在未知参数: §f" + clean);
+                ChatNotifier.send("§c[IRC] 样式不合法！存在未知参数: §f" + clean, NotificationType.ERR);
                 return;
             }
 
             IrcConfig.get().chatstyle = clean;
             IrcConfig.save();
-            ChatNotifier.send("§a[IRC] 已保存 MessageStyle: §f" + clean);
+            ChatNotifier.send("§a[IRC] 已保存 MessageStyle: §f" + clean, NotificationType.SUCCESS);
         });
         inputPane.setText(initialStyle);
         inputPane.onTextChanged(text -> currentEditingStyle[0] = text);
@@ -64,9 +63,9 @@ public class MessageStyleModule extends Module {
                     String styleToCopy = currentEditingStyle[0] != null ? currentEditingStyle[0].trim() : "";
                     if (!styleToCopy.isEmpty()) {
                         Minecraft.getInstance().keyboardHandler.setClipboard(styleToCopy);
-                        ChatNotifier.send("§a[IRC] 已复制当前 MessageStyle 样式配置: §f" + styleToCopy);
+                        ChatNotifier.send("§a[IRC] 已复制当前 MessageStyle 样式配置: §f" + styleToCopy, NotificationType.SUCCESS);
                     } else {
-                        ChatNotifier.send("§e[IRC] 当前消息样式配置为空！");
+                        ChatNotifier.send("§e[IRC] 当前消息样式配置为空！", NotificationType.WARN);
                     }
                 }
         ));
@@ -106,11 +105,11 @@ public class MessageStyleModule extends Module {
                         currentEditingStyle[0] = newStyle;
                         IrcConfig.get().chatstyle = newStyle;
                         IrcConfig.save();
-                        ChatNotifier.send("§a[IRC] 已应用 MessageStyle: §f" + newStyle);
+                        ChatNotifier.send("§a[IRC] 已应用 MessageStyle: §f" + newStyle, NotificationType.SUCCESS);
                     },
                     item -> {
                         Minecraft.getInstance().keyboardHandler.setClipboard(preset);
-                        ChatNotifier.send("§a[IRC] 已复制预设: §f" + preset);
+                        ChatNotifier.send("§a[IRC] 已复制预设: §f" + preset, NotificationType.SUCCESS);
                     }
             ));
         }

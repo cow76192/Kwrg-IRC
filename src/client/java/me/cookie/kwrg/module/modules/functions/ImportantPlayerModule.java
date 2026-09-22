@@ -4,6 +4,7 @@ import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.module.Category;
@@ -34,7 +35,6 @@ public class ImportantPlayerModule extends Module {
 
     @Override
     public void buildTertiaryUI(TertiaryPanelComponent panel) {
-        // 右键打开三级菜单，管理关注玩家列表
         ModuleManager.setPendingGuiQuery(true);
         try {
             IrcClient.queryOnline();
@@ -46,7 +46,6 @@ public class ImportantPlayerModule extends Module {
     public void renderImportantPlayersUI(TertiaryPanelComponent panel, String newlyAddedPlayer) {
         panel.clearChildren();
 
-        // ① 顶部输入框
         TextInputPaneComponent inputPane = new TextInputPaneComponent("输入名称 (回车添加 / 右键选在线)...", player -> {
             String clean = player.trim();
             if (!clean.isEmpty()) {
@@ -67,7 +66,6 @@ public class ImportantPlayerModule extends Module {
 
         panel.child(inputPane);
 
-        // ② 在线玩家选择列表
         if (this.isOnlinePickerOpen) {
             List<String> onlineList = ModuleManager.getCachedOnlinePlayers();
             if (onlineList == null || onlineList.isEmpty()) {
@@ -90,10 +88,8 @@ public class ImportantPlayerModule extends Module {
             }
         }
 
-        // ③ 居中提示标题
         panel.child(TextInfoPaneComponent.header("当前关注玩家 (Shift+左键取关)"));
 
-        // ④ 关注玩家列表
         List<String> list = IrcConfig.get().importantPlayers;
         if (list == null || list.isEmpty()) {
             panel.child(new PanelItemComponent("暂无关注玩家"));
@@ -111,7 +107,7 @@ public class ImportantPlayerModule extends Module {
                                 });
                             } else {
                                 Minecraft.getInstance().keyboardHandler.setClipboard(p);
-                                ChatNotifier.send("§e[IRC] 已复制 §f" + p + " §e| 按住 §cShift+左键 §e可取消关注");
+                                ChatNotifier.send("§e[IRC] 已复制 §f" + p + " §e| 按住 §cShift+左键 §e可取消关注", NotificationType.SUCCESS);
                             }
                         },
                         null,
@@ -134,11 +130,11 @@ public class ImportantPlayerModule extends Module {
         boolean removed = config.importantPlayers.removeIf(p -> p.equalsIgnoreCase(player));
         if (removed) {
             IrcConfig.save();
-            ChatNotifier.send("§e[IRC] 已将玩家 §f" + player + " §e从关注名单中移除。");
+            ChatNotifier.send("§e[IRC] 已将玩家 §f" + player + " §e从关注名单中移除。", NotificationType.INFO);
         } else {
             config.importantPlayers.add(player);
             IrcConfig.save();
-            ChatNotifier.send("§a[IRC] 已将玩家 §f" + player + " §a添加到关注名单!");
+            ChatNotifier.send("§a[IRC] 已将玩家 §f" + player + " §a添加到关注名单!", NotificationType.INFO);
         }
     }
 

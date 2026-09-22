@@ -4,6 +4,7 @@ import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.module.Category;
@@ -106,16 +107,16 @@ public class PlayModule extends Module {
 
     private static int handlePlayCommandWithGui(String targetPlayer, String itemId) {
         if (targetPlayer == null || targetPlayer.isBlank()) {
-            ChatNotifier.send("§c[IRC] 请先点击上方选择目标玩家！");
+            ChatNotifier.send("§c[IRC] 请先点击上方选择目标玩家！", NotificationType.WARN);
             return 0;
         }
 
         try {
             IrcClient.sendPlayEffect(targetPlayer, itemId);
-            ChatNotifier.send("§a[IRC] 已向玩家 §f" + targetPlayer + " §a发送动画效果 (§e" + itemId + "§a)！");
+            ChatNotifier.send("§a[IRC] 已向玩家 §f" + targetPlayer + " §a发送动画效果 (§e" + itemId + "§a)！", NotificationType.SUCCESS);
             return 1;
         } catch (Throwable t) {
-            ChatNotifier.send("§c[IRC] 发送动画效果失败: " + t.getMessage());
+            ChatNotifier.send("§c[IRC] 发送动画效果失败: " + t.getMessage(), NotificationType.ERR);
             t.printStackTrace();
             return 0;
         }

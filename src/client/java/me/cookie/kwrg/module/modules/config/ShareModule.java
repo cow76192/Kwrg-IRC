@@ -7,6 +7,7 @@ import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcConfig;
@@ -217,14 +218,14 @@ public class ShareModule extends Module {
 
     private static void executeSend(SenderState state, String targetPlayer) {
         if (targetPlayer == null || targetPlayer.isBlank()) {
-            ChatNotifier.send("§c[Share] 请先指定目标接收玩家！");
+            ChatNotifier.send("§c[Share] 请先指定目标接收玩家！", NotificationType.WARN);
             return;
         }
 
         switch (state.selectedCategory) {
             case "config" -> {
                 if ("default".equalsIgnoreCase(state.payload)) {
-                    ChatNotifier.send("§c[Share] default 默认配置不可分享！");
+                    ChatNotifier.send("§c[Share] default 默认配置不可分享！",NotificationType.WARN);
                     return;
                 }
                 try {
@@ -246,25 +247,25 @@ public class ShareModule extends Module {
                         }
 
                         IrcClient.sendShare(targetPlayer, "share", "config", obj);
-                        ChatNotifier.send("§a[Share] 已向 §f" + targetPlayer + " §a发送配置: §e" + state.payload);
+                        ChatNotifier.send("§a[Share] 已向 §f" + targetPlayer + " §a发送配置: §e" + state.payload, NotificationType.SUCCESS);
                     }
                 } catch (Exception e) {
-                    ChatNotifier.send("§c[Share] 读取配置文件失败: " + e.getMessage());
+                    ChatNotifier.send("§c[Share] 读取配置文件失败: " + e.getMessage(), NotificationType.ERR);
                 }
             }
             case "ns" -> {
                 String ns = IrcConfig.get().namestyle;
                 IrcClient.sendShare(targetPlayer, "share", "ns", ns);
-                ChatNotifier.send("§a[Share] 已向 §f" + targetPlayer + " §a发送 NameStyle 样式");
+                ChatNotifier.send("§a[Share] 已向 §f" + targetPlayer + " §a发送 NameStyle 样式", NotificationType.SUCCESS);
             }
             case "ms" -> {
                 String ms = IrcConfig.get().chatstyle;
                 IrcClient.sendShare(targetPlayer, "share", "ms", ms);
-                ChatNotifier.send("§a[Share] 已向 §f" + targetPlayer + " §a发送 MessageStyle 样式");
+                ChatNotifier.send("§a[Share] 已向 §f" + targetPlayer + " §a发送 MessageStyle 样式", NotificationType.SUCCESS);
             }
             case "channel" -> {
                 IrcClient.sendInvite(targetPlayer, "channel", state.payload);
-                ChatNotifier.send("§a[Share] 已向 §f" + targetPlayer + " §a发送频道邀请: §b#" + state.payload);
+                ChatNotifier.send("§a[Share] 已向 §f" + targetPlayer + " §a发送频道邀请: §b#" + state.payload, NotificationType.SUCCESS);
             }
         }
     }
@@ -303,7 +304,7 @@ public class ShareModule extends Module {
                     () -> ColorUtil.applyStyle(sample, cleanData),
                     () -> {
                         Minecraft.getInstance().keyboardHandler.setClipboard(cleanData);
-                        ChatNotifier.send("§a[IRC] 已复制该样式: §f" + cleanData);
+                        ChatNotifier.send("§a[IRC] 已复制该样式: §f" + cleanData, NotificationType.SUCCESS);
                     }
             ));
         } else if ("channel".equalsIgnoreCase(pending.shareType)) {
@@ -355,7 +356,7 @@ public class ShareModule extends Module {
         panel.child(new PanelItemComponent(
                 "✖ 忽略 / 拒绝",
                 () -> {
-                    ChatNotifier.send("§e[Share] 已忽略来自 §f" + pending.sender + " §e的分享");
+                    ChatNotifier.send("§e[Share] 已忽略来自 §f" + pending.sender + " §e的分享", NotificationType.INFO);
                     currentPending = null;
                     panel.clearChildren();
                     ((ShareModule) ModuleManager.getModule("share")).renderSenderPipelineUI(panel);
@@ -384,12 +385,12 @@ public class ShareModule extends Module {
             case "ns" -> {
                 IrcConfig.get().namestyle = cleanData;
                 IrcConfig.save();
-                ChatNotifier.send("§a[Share] 已成功导入 NameStyle: §f" + cleanData);
+                ChatNotifier.send("§a[Share] 已成功导入 NameStyle: §f" + cleanData, NotificationType.SUCCESS);
             }
             case "ms" -> {
                 IrcConfig.get().chatstyle = cleanData;
                 IrcConfig.save();
-                ChatNotifier.send("§a[Share] 已成功导入 MessageStyle: §f" + cleanData);
+                ChatNotifier.send("§a[Share] 已成功导入 MessageStyle: §f" + cleanData, NotificationType.SUCCESS);
             }
             case "channel" -> {
                 String ch = cleanData.replace("#", "").trim();
@@ -401,7 +402,7 @@ public class ShareModule extends Module {
                 cfg.channelEnabled = true;
                 IrcConfig.save();
                 IrcClient.sendChannelSync(ch, true, cfg.savedChannels);
-                ChatNotifier.send("§a[Share] 已成功接受邀请并加入频道: §b#" + ch);
+                ChatNotifier.send("§a[Share] 已成功接受邀请并加入频道: §b#" + ch, NotificationType.SUCCESS);
             }
             case "config" -> {
                 try {
@@ -443,12 +444,12 @@ public class ShareModule extends Module {
                         if (imported.guiFont != null && !FontManagerHelper.DEFAULT_FONT.equalsIgnoreCase(imported.guiFont)) {
                             FontManagerHelper.applyFont(imported.guiFont);
                         }
-                        ChatNotifier.send("§a[Share] 配置文件 §e" + name + ".json §a导入并加载成功！");
+                        ChatNotifier.send("§a[Share] 配置文件 §e" + name + ".json §a导入并加载成功！", NotificationType.SUCCESS);
                     } else {
-                        ChatNotifier.send("§e[Share] 配置已导入，但未在本地 font 文件夹找到匹配的字体文件 (哈希不匹配)，已跳过字体加载！");
+                        ChatNotifier.send("§e[Share] 配置已导入，但未在本地 font 文件夹找到匹配的字体文件 (哈希不匹配)，已跳过字体加载！", NotificationType.WARN);
                     }
                 } catch (Exception e) {
-                    ChatNotifier.send("§c[Share] 导入配置文件失败: " + e.getMessage());
+                    ChatNotifier.send("§c[Share] 导入配置文件失败: " + e.getMessage(), NotificationType.ERR);
                 }
             }
         }

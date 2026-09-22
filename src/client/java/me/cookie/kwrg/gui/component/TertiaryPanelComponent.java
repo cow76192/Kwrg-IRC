@@ -3,6 +3,7 @@ package me.cookie.kwrg.gui.component;
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.core.*;
 import me.cookie.kwrg.gui.manager.GuiColorManager;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.module.Module;
@@ -76,7 +77,7 @@ public class TertiaryPanelComponent extends FlowLayout {
         java.awt.Color c = ColorUtil.parseSingleColor(colorStr);
         boolean isSpecial = colorStr.toLowerCase().contains("rainbow") || colorStr.toLowerCase().contains("gradient");
         if (c == null && !isSpecial) {
-            ChatNotifier.send("§c[IRC] 无法解析的颜色格式！支持 #HEX, rgb(...), hsl(...)");
+            ChatNotifier.send("§c[IRC] 无法解析的颜色格式！支持 #HEX, rgb(...), hsl(...)", NotificationType.ERR);
             return 0;
         }
 
