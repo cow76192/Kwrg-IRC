@@ -9,26 +9,70 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class NotificationManager {
 
     private static final List<NotificationToast> TOASTS = new CopyOnWriteArrayList<>();
     private static final int ITEM_SPACING = 8;
 
-    // =========================================================
-    // 1. 便捷调用 API (支持 String 与 Component)
-    // =========================================================
+    private static final Pattern COLOR_CODE_PATTERN = Pattern.compile("[§&]([0-9a-fk-or])", Pattern.CASE_INSENSITIVE);
+
+    public static String stripColorCodes(String text) {
+        if (text == null) return "";
+        return COLOR_CODE_PATTERN.matcher(text).replaceAll("");
+    }
+
+    public static NotificationType resolveTypeFromCodes(String text) {
+        if (text == null || text.isEmpty()) return NotificationType.INFO;
+        Matcher m = COLOR_CODE_PATTERN.matcher(text);
+        int depth = 0;
+        int scanned = 0;
+        while (m.find()) {
+            for (int i = scanned; i < m.start(); i++) {
+                char ch = text.charAt(i);
+                if (ch == '[') depth++;
+                else if (ch == ']' && depth > 0) depth--;
+            }
+            scanned = m.end();
+            if (depth > 0) continue;
+            switch (Character.toLowerCase(m.group(1).charAt(0))) {
+                case 'c' -> { return NotificationType.ERR; }
+                case 'e', '6' -> { return NotificationType.WARN; }
+                case 'a' -> { return NotificationType.SUCCESS; }
+                default -> { }
+            }
+        }
+        return NotificationType.INFO;
+    }
+
+    private static NotificationType resolveType(String title, String subtitle) {
+        NotificationType t = resolveTypeFromCodes(title);
+        if (t == NotificationType.INFO) t = resolveTypeFromCodes(subtitle);
+        return t;
+    }
+
+    private static long defaultDuration(NotificationType type) {
+        return switch (type) {
+            case WARN -> 4000L;
+            case ERR -> 4500L;
+            default -> 3500L;
+        };
+    }
 
     public static void send(String title) {
-        send(NotificationType.INFO, Component.literal(title), Component.empty(), null, 3500L);
+        NotificationType type = resolveType(title, null);
+        send(type, Component.literal(stripColorCodes(title)), Component.empty(), null, defaultDuration(type));
     }
 
     public static void send(String title, String subtitle) {
-        send(NotificationType.INFO, Component.literal(title), Component.literal(subtitle), null, 3500L);
+        NotificationType type = resolveType(title, subtitle);
+        send(type, Component.literal(stripColorCodes(title)), Component.literal(stripColorCodes(subtitle)), null, defaultDuration(type));
     }
 
     public static void send(NotificationType type, String title, String subtitle) {
-        send(type, Component.literal(title), Component.literal(subtitle), null, 3500L);
+        send(type, Component.literal(stripColorCodes(title)), Component.literal(stripColorCodes(subtitle)), null, 3500L);
     }
 
     public static void send(NotificationType type, Component title, Component subtitle) {
@@ -36,7 +80,7 @@ public class NotificationManager {
     }
 
     public static void info(String title, String subtitle) {
-        send(NotificationType.INFO, Component.literal(title), Component.literal(subtitle), null, 3500L);
+        send(NotificationType.INFO, Component.literal(stripColorCodes(title)), Component.literal(stripColorCodes(subtitle)), null, 3500L);
     }
 
     public static void info(Component title, Component subtitle) {
@@ -44,7 +88,7 @@ public class NotificationManager {
     }
 
     public static void success(String title, String subtitle) {
-        send(NotificationType.SUCCESS, Component.literal(title), Component.literal(subtitle), null, 3500L);
+        send(NotificationType.SUCCESS, Component.literal(stripColorCodes(title)), Component.literal(stripColorCodes(subtitle)), null, 3500L);
     }
 
     public static void success(Component title, Component subtitle) {
@@ -52,7 +96,7 @@ public class NotificationManager {
     }
 
     public static void warn(String title, String subtitle) {
-        send(NotificationType.WARN, Component.literal(title), Component.literal(subtitle), null, 4000L);
+        send(NotificationType.WARN, Component.literal(stripColorCodes(title)), Component.literal(stripColorCodes(subtitle)), null, 4000L);
     }
 
     public static void warn(Component title, Component subtitle) {
@@ -60,7 +104,7 @@ public class NotificationManager {
     }
 
     public static void err(String title, String subtitle) {
-        send(NotificationType.ERR, Component.literal(title), Component.literal(subtitle), null, 4500L);
+        send(NotificationType.ERR, Component.literal(stripColorCodes(title)), Component.literal(stripColorCodes(subtitle)), null, 4500L);
     }
 
     public static void err(Component title, Component subtitle) {
@@ -68,16 +112,12 @@ public class NotificationManager {
     }
 
     public static void send(NotificationType type, String title, String subtitle, Runnable onClick, long durationMs) {
-        send(type, Component.literal(title), subtitle != null && !subtitle.isEmpty() ? Component.literal(subtitle) : Component.empty(), onClick, durationMs);
+        send(type, Component.literal(stripColorCodes(title)), subtitle != null && !subtitle.isEmpty() ? Component.literal(stripColorCodes(subtitle)) : Component.empty(), onClick, durationMs);
     }
 
     public static void send(NotificationType type, Component title, Component subtitle, Runnable onClick, long durationMs) {
         TOASTS.add(new NotificationToast(type, title, subtitle, onClick, durationMs));
     }
-
-    // =========================================================
-    // 2. 全局最上层渲染
-    // =========================================================
 
     public static void render(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
         render(OwoUIGraphics.of(graphics), mouseX, mouseY, delta);
