@@ -15,6 +15,10 @@ public class NotificationManager {
     private static final List<NotificationToast> TOASTS = new CopyOnWriteArrayList<>();
     private static final int ITEM_SPACING = 8;
 
+    // =========================================================
+    // 1. 便捷调用 API (支持 String 与 Component)
+    // =========================================================
+
     public static void send(String title) {
         send(NotificationType.INFO, Component.literal(title), Component.empty(), null, 3500L);
     }
@@ -70,6 +74,10 @@ public class NotificationManager {
     public static void send(NotificationType type, Component title, Component subtitle, Runnable onClick, long durationMs) {
         TOASTS.add(new NotificationToast(type, title, subtitle, onClick, durationMs));
     }
+
+    // =========================================================
+    // 2. 全局最上层渲染
+    // =========================================================
 
     public static void render(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
         render(OwoUIGraphics.of(graphics), mouseX, mouseY, delta);

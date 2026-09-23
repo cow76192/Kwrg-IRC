@@ -228,7 +228,7 @@ public class DynamicIslandRenderer {
         curRenderX = cx - curRenderW / 2.0f;
         curCornerRadius = Mth.lerp(tabEase, CORNER_RADIUS, 14.0f);
 
-        float effectiveOpacity = config.onlyApplyToTab
+        float effectiveOpacity = config.onlyTab
                 ? Mth.lerp(tabEase, 1.0f, config.islandOpacity)
                 : config.islandOpacity;
         float expectedTargetAlpha = shouldShow ? (openEase * effectiveOpacity) : 0.0f;
@@ -510,9 +510,8 @@ public class DynamicIslandRenderer {
             wasSkyblockerInCurrentSession = false;
         }
 
-        boolean hasAnyOption = !config.onlyRenderTab
-                && (config.islandShowFps || config.islandShowPing || config.islandShowTps
-                || config.islandShowRam || config.islandShowGpu || config.islandShowCpu);
+        boolean hasAnyOption = config.islandShowFps || config.islandShowPing || config.islandShowTps
+                || config.islandShowRam || config.islandShowGpu || config.islandShowCpu;
         boolean shouldShow = config.dynamicIsland && (hasAnyOption || tabProgress > 0.005f);
 
         float targetOpen = shouldShow ? 1.0f : 0.0f;
@@ -586,7 +585,7 @@ public class DynamicIslandRenderer {
 
         if (tps < 15.5f) isLaggingState = true;
         else if (tps > 16.5f) isLaggingState = false;
-        boolean isLowTps = !config.onlyRenderTab && config.islandShowTps && isLaggingState && mc.level != null && tabProgress <= 0.01f;
+        boolean isLowTps = config.islandShowTps && isLaggingState && mc.level != null && tabProgress <= 0.01f;
 
         float targetH = isLowTps ? EXPANDED_HEIGHT : BASE_HEIGHT;
         if (Math.abs(targetH - targetIslandHeight) > 0.1f) {
@@ -626,7 +625,7 @@ public class DynamicIslandRenderer {
         curBgColor = Color.ofArgb(ARGB.color(bgAlpha, 17, 22, 31));
         curBorderColor = Color.ofArgb(ARGB.color((int) (210 * currentAlpha), borderR, borderG, borderB));
 
-        if (tabProgress <= 0.005f && !config.onlyRenderTab) {
+        if (tabProgress <= 0.005f) {
             if (isShadowEnabled()) {
                 RenderUtil.drawSoftDropShadow(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius,
                         shadowBlur, shadowOffsetY, shadowBaseAlpha, currentAlpha);
@@ -645,7 +644,7 @@ public class DynamicIslandRenderer {
 
         graphics.enableScissor(scissorX1, scissorY1, scissorX2, scissorY2);
 
-        float islandContentAlpha = config.onlyRenderTab ? 0.0f : currentAlpha * (1.0f - tabEase);
+        float islandContentAlpha = currentAlpha * (1.0f - tabEase);
         if (islandContentAlpha > 0.02f) {
             float row1Y = curRenderY + (BASE_HEIGHT - fontH) / 2.0f;
             float curX = cx - dynamicContentW / 2.0f;
