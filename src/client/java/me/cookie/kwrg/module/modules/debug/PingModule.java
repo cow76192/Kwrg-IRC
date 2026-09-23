@@ -4,6 +4,7 @@ import me.cookie.kwrg.gui.IrcScreen;
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -37,22 +38,22 @@ public class PingModule extends Module {
     public static void executePing(boolean notify) {
         if (!IrcClient.isIrcConnect) {
             if (notify) {
-                ChatNotifier.send("§c[IRC] 未连接至服务器，无法测试延迟");
+                ChatNotifier.send("§c[IRC] 未连接至服务器，无法测试延迟", NotificationType.WARN);
             }
             return;
         }
 
         if (notify) {
-            ChatNotifier.send("§e[IRC] 正在测试连接延迟...");
+            ChatNotifier.send("§e[IRC] 正在测试连接延迟...", NotificationType.INFO);
         }
 
         IrcClient.sendPing(latency -> {
             if (notify) {
                 if (latency >= 0) {
                     String color = latency < 80 ? "§a" : (latency < 160 ? "§e" : "§c");
-                    ChatNotifier.send(color + "[IRC] 服务器延迟: " + latency + " ms");
+                    ChatNotifier.send(color + "[IRC] 服务器延迟: " + latency + " ms", NotificationType.INFO);
                 } else {
-                    ChatNotifier.send("§c[IRC] 测试延迟超时或失败");
+                    ChatNotifier.send("§c[IRC] 测试延迟超时或失败", NotificationType.ERR);
                 }
             }
         });

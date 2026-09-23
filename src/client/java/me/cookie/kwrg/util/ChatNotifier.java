@@ -126,7 +126,7 @@ public class ChatNotifier {
         return root;
     }
 
-    public static void send(String message) {
+    public static void send(String message, NotificationType type) {
         if (message == null || message.isBlank()) return;
 
         String raw = message.trim();
@@ -151,18 +151,10 @@ public class ChatNotifier {
             subtitle = parts[1].trim();
         }
 
-        if (raw.contains("§c") || raw.contains("失败") || raw.contains("错误") || raw.contains("不可") || raw.contains("不存在")) {
-            NotificationManager.send(NotificationType.ERR, title, subtitle);
-        } else if (raw.contains("§e") || raw.contains("§6") || raw.contains("警告") || raw.contains("移除") || raw.contains("清空")) {
-            NotificationManager.send(NotificationType.WARN, title, subtitle);
-        } else if (raw.contains("§a") || raw.contains("成功") || raw.contains("已新建") || raw.contains("已保存") || raw.contains("已复制") || raw.contains("已更新")) {
-            NotificationManager.send(NotificationType.SUCCESS, title, subtitle);
-        } else {
-            NotificationManager.send(NotificationType.INFO, title, subtitle);
-        }
+        NotificationManager.send(type, title, subtitle);
     }
 
-    public static void send(Component component) {
+    public static void send(Component component, NotificationType type) {
         if (component == null) return;
 
         String raw = component.getString().trim();
@@ -186,15 +178,6 @@ public class ChatNotifier {
             String[] parts = clean.split(": ", 2);
             titleStr = parts[0].trim();
             subtitleStr = parts[1].trim();
-        }
-
-        NotificationType type = NotificationType.INFO;
-        if (raw.contains("§c") || raw.contains("失败") || raw.contains("错误") || raw.contains("不可") || raw.contains("不存在")) {
-            type = NotificationType.ERR;
-        } else if (raw.contains("§e") || raw.contains("§6") || raw.contains("警告") || raw.contains("移除") || raw.contains("清空")) {
-            type = NotificationType.WARN;
-        } else if (raw.contains("§a") || raw.contains("成功") || raw.contains("已新建") || raw.contains("已保存") || raw.contains("已复制") || raw.contains("已更新")) {
-            type = NotificationType.SUCCESS;
         }
 
         if (subtitleStr.isEmpty()) {

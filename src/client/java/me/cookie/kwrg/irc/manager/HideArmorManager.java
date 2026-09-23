@@ -1,5 +1,6 @@
 package me.cookie.kwrg.irc.manager;
 
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.client.Minecraft;
@@ -88,7 +89,7 @@ public class HideArmorManager {
         if (mc.getUser() != null && username.equalsIgnoreCase(mc.getUser().getName())) {
             IrcConfig.get().hideArmor = hidden;
             IrcConfig.save();
-            ChatNotifier.send("§a[IRC] 你的 hideArmor 状态已同步更新为: " + (hidden ? "§a开启" : "§c关闭"));
+            ChatNotifier.send("§a[IRC] 你的 hideArmor 状态已同步更新为: " + (hidden ? "§a开启" : "§c关闭"), NotificationType.INFO);
         }
 
         if (hidden) {

@@ -2,6 +2,7 @@ package me.cookie.kwrg.irc;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.manager.HideArmorManager;
 import me.cookie.kwrg.irc.manager.IrcGlowManager;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -88,7 +89,7 @@ public class IrcClient {
         }
 
         if (isConnecting.get()) {
-            ChatNotifier.send("§e[IRC] 正在连接中，请稍候...");
+            ChatNotifier.send("§e[IRC] 正在连接中，请稍候...", NotificationType.INFO);
             return;
         }
 
@@ -120,10 +121,10 @@ public class IrcClient {
                 reconnectAttempts.set(0);
 
                 if (isSilent) {
-                    ChatNotifier.send("§a[IRC] 重新连接成功！");
+                    ChatNotifier.send("§a[IRC] 重新连接成功！", NotificationType.SUCCESS);
                     LOGGER.info("[IRC] 静默重连成功");
                 } else {
-                    ChatNotifier.send("§a[IRC] 成功连接至 IRC 服务器！");
+                    ChatNotifier.send("§a[IRC] 成功连接至 IRC 服务器！", NotificationType.SUCCESS);
                     LOGGER.info("[IRC] 手动连接成功");
                 }
 
@@ -142,7 +143,7 @@ public class IrcClient {
             } catch (Exception e) {
                 LOGGER.warn("[IRC] 连接尝试失败 (isSilent={}): {}", isSilent, e.getMessage());
                 if (!isSilent) {
-                    ChatNotifier.send("§c[IRC] 无法连接到 IRC 服务器: " + e.getMessage());
+                    ChatNotifier.send("§c[IRC] 无法连接到 IRC 服务器: " + e.getMessage(), NotificationType.ERR);
                 }
                 handleDisconnect();
             } finally {
@@ -239,7 +240,7 @@ public class IrcClient {
             if (currentAttempt > MAX_RECONNECT_ATTEMPTS) {
                 shouldAutoReconnect = false;
                 LOGGER.info("[IRC] 自动重连已达 3 次上限，放弃重试。等待手动连接。");
-                ChatNotifier.send("§c[IRC] 与服务器连接断开，重连失败(3/3)");
+                ChatNotifier.send("§c[IRC] 与服务器连接断开，重连失败(3/3)", NotificationType.ERR);
             } else {
                 LOGGER.info("[IRC] 连接断开，执行第 {}/{} 次重连...", currentAttempt, MAX_RECONNECT_ATTEMPTS);
                 reconnectExecutor.schedule(() -> {
@@ -494,7 +495,7 @@ public class IrcClient {
         HideArmorManager.clear();
         IrcGlowManager.clear();
         LOGGER.info("[IRC] 已手动断开连接");
-        ChatNotifier.send("§c[IRC] 已断开连接");
+        ChatNotifier.send("§c[IRC] 已断开连接", NotificationType.INFO);
     }
 
     private static void closeResources() {
