@@ -372,7 +372,7 @@ public class TextInputPaneComponent extends BaseUIComponent {
         }
         graphics.pose().popMatrix();
 
-        graphics.pose().popMatrix();
+        return newWipe;
     }
     //静态渲染righthint完整方法结束
 
