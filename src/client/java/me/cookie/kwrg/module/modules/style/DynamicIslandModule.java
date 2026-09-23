@@ -42,6 +42,7 @@ public class DynamicIslandModule extends Module {
             if (input == null || input.isBlank()) return;
 
             try {
+
                 String clean = input.trim().replace("%", "");
                 float val = Float.parseFloat(clean);
 
@@ -69,15 +70,27 @@ public class DynamicIslandModule extends Module {
         panel.child(opacityInputHolder[0]);
 
         panel.child(new PanelItemComponent(
-                "onlyTab",
+                "OnlyApplytoTab",
                 PanelItemComponent.ItemType.TOGGLE,
                 () -> {
                     IrcConfig config = IrcConfig.get();
-                    config.onlyTab = !config.onlyTab;
+                    config.onlyApplyToTab = !config.onlyApplyToTab;
                     IrcConfig.save();
                 },
                 null,
-                () -> IrcConfig.get().onlyTab
+                () -> IrcConfig.get().onlyApplyToTab
+        ));
+
+        panel.child(new PanelItemComponent(
+                "onlyRenderTab (╯▔皿▔)╯",
+                PanelItemComponent.ItemType.TOGGLE,
+                () -> {
+                    IrcConfig config = IrcConfig.get();
+                    config.onlyRenderTab = !config.onlyRenderTab;
+                    IrcConfig.save();
+                },
+                null,
+                () -> IrcConfig.get().onlyRenderTab
         ));
 
         panel.child(new PanelItemComponent(
