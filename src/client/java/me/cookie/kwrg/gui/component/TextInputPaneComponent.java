@@ -25,7 +25,11 @@ public class TextInputPaneComponent extends BaseUIComponent {
     private static final int BASE_HEIGHT = 26;
 
     private final String placeholder;
+    private final Component styledPlaceholder;
     private final String rightHint;
+    private final Component styledRightHint;
+    private float cachedRightHintWidth = 0.0f;
+
     private final Consumer<String> onEnterSubmit;
     private Consumer<String> onTextChanged = null;
     private Runnable onRightClick = null;
@@ -41,7 +45,12 @@ public class TextInputPaneComponent extends BaseUIComponent {
     private boolean focused = false;
     private float hoverAnimation = 0.0f;
     private float currentAnimatedHeight = BASE_HEIGHT;
-    private float rightHintWipe = 0.0f;
+    private float rightHintAlpha = 0.0f;
+
+    private boolean dirty = true;
+    private int lastLayoutWidth = -1;
+    private final List<LineInfo> cachedLines = new ArrayList<>();
+    private int cachedTargetHeight = BASE_HEIGHT;
 
     public TextInputPaneComponent(String placeholder, Consumer<String> onEnterSubmit) {
         this(placeholder, onEnterSubmit, "");
@@ -49,7 +58,11 @@ public class TextInputPaneComponent extends BaseUIComponent {
 
     public TextInputPaneComponent(String placeholder, Consumer<String> onEnterSubmit, String rightHint) {
         this.placeholder = placeholder != null ? placeholder : "";
+        this.styledPlaceholder = FontManagerHelper.apply(this.placeholder);
+
         this.rightHint = rightHint != null ? rightHint : "";
+        this.styledRightHint = FontManagerHelper.apply(this.rightHint);
+
         this.onEnterSubmit = onEnterSubmit;
 
         this.cursorStyle(CursorStyle.TEXT);
@@ -63,6 +76,7 @@ public class TextInputPaneComponent extends BaseUIComponent {
         this.cursorPos = this.text.length();
         this.onReadOnlyClick = onReadOnlyClick;
         this.cursorStyle(CursorStyle.HAND);
+        markDirty();
         return this;
     }
 
@@ -75,9 +89,8 @@ public class TextInputPaneComponent extends BaseUIComponent {
         this.text = text != null ? text : "";
         this.cursorPos = this.text.length();
         this.selectAll = false;
-        if (this.onTextChanged != null) {
-            this.onTextChanged.accept(this.text);
-        }
+        markDirty();
+        notifyTextChanged();
         return this;
     }
 
@@ -101,7 +114,12 @@ public class TextInputPaneComponent extends BaseUIComponent {
         return this;
     }
 
+    private void markDirty() {
+        this.dirty = true;
+    }
+
     private void notifyTextChanged() {
+        markDirty();
         if (this.onTextChanged != null) {
             this.onTextChanged.accept(this.text);
         }
@@ -139,18 +157,31 @@ public class TextInputPaneComponent extends BaseUIComponent {
 
     private record LineInfo(int start, int end, String text, Component styledText) {}
 
-    private List<LineInfo> computeLines(Font font, int stableWidth) {
-        List<LineInfo> result = new ArrayList<>();
+    private void updateLayoutCache(Font font, int stableWidth) {
+        if (!this.dirty && this.lastLayoutWidth == stableWidth) {
+            return;
+        }
+
+        this.cachedLines.clear();
+        this.lastLayoutWidth = stableWidth;
+        this.dirty = false;
+
+        if (!this.rightHint.isEmpty() && this.cachedRightHintWidth == 0.0f) {
+            this.cachedRightHintWidth = font.width(this.styledRightHint);
+        }
+
         if (this.text.isEmpty()) {
-            result.add(new LineInfo(0, 0, "", Component.literal("")));
-            return result;
+            this.cachedLines.add(new LineInfo(0, 0, "", Component.literal("")));
+            this.cachedTargetHeight = BASE_HEIGHT;
+            return;
         }
 
         Component styledText = FontManagerHelper.apply(this.text);
         List<FormattedCharSequence> wrappedLines = font.split(styledText, stableWidth);
         if (wrappedLines.isEmpty()) {
-            result.add(new LineInfo(0, 0, "", Component.literal("")));
-            return result;
+            this.cachedLines.add(new LineInfo(0, 0, "", Component.literal("")));
+            this.cachedTargetHeight = BASE_HEIGHT;
+            return;
         }
 
         int searchIdx = 0;
@@ -158,9 +189,7 @@ public class TextInputPaneComponent extends BaseUIComponent {
             FormattedCharSequence seq = wrappedLines.get(i);
             String seqStr = sequenceToString(seq);
             int start = this.text.indexOf(seqStr, searchIdx);
-            if (start == -1) {
-                start = searchIdx;
-            }
+            if (start == -1) start = searchIdx;
 
             int end;
             String lineStr;
@@ -173,10 +202,12 @@ public class TextInputPaneComponent extends BaseUIComponent {
             }
 
             Component styledLine = FontManagerHelper.apply(lineStr);
-            result.add(new LineInfo(start, end, lineStr, styledLine));
+            this.cachedLines.add(new LineInfo(start, end, lineStr, styledLine));
             searchIdx = end;
         }
-        return result;
+
+        int lineCount = Math.max(1, this.cachedLines.size());
+        this.cachedTargetHeight = BASE_HEIGHT + (lineCount - 1) * font.lineHeight;
     }
 
     private int getCursorLineIndex(List<LineInfo> lines) {
@@ -210,19 +241,15 @@ public class TextInputPaneComponent extends BaseUIComponent {
 
     @Override
     public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
-        float targetHover = (this.hovered || this.focused) ? 1.0f : 0.0f;
-        this.hoverAnimation = Mth.clamp(this.hoverAnimation + (targetHover - this.hoverAnimation) * delta * 0.35f, 0.0f, 1.0f);
-
         var font = Minecraft.getInstance().font;
         int stableWidth = Math.max(154, this.width() - 16);
 
-        String displayText = this.text.isEmpty() ? this.placeholder : this.text;
-        Component styledDisplayText = FontManagerHelper.apply(displayText);
-        List<FormattedCharSequence> wrappedLines = font.split(styledDisplayText, stableWidth);
-        int lineCount = Math.max(1, wrappedLines.size());
-        int targetHeight = BASE_HEIGHT + (lineCount - 1) * font.lineHeight;
+        updateLayoutCache(font, stableWidth);
 
-        this.currentAnimatedHeight = Mth.lerp(delta * 0.35f, this.currentAnimatedHeight, (float) targetHeight);
+        float targetHover = (this.hovered || this.focused) ? 1.0f : 0.0f;
+        this.hoverAnimation = Mth.clamp(this.hoverAnimation + (targetHover - this.hoverAnimation) * delta * 0.35f, 0.0f, 1.0f);
+
+        this.currentAnimatedHeight = Mth.lerp(delta * 0.35f, this.currentAnimatedHeight, (float) this.cachedTargetHeight);
         int renderH = Math.max(BASE_HEIGHT, Math.round(this.currentAnimatedHeight));
         this.height = renderH;
 
@@ -235,38 +262,32 @@ public class TextInputPaneComponent extends BaseUIComponent {
         int borderRgb = this.focused ? 0x90CAF9 : (this.readOnly ? 0x80DEEA : 0x90A4AE);
         Color borderColor = Color.ofArgb(ARGB.color(borderAlpha, (borderRgb >> 16) & 0xFF, (borderRgb >> 8) & 0xFF, borderRgb & 0xFF));
 
-        float cx = x + width / 2.0f;
-        float cy = y + renderH / 2.0f;
         float halfW = width / 2.0f;
         float halfH = renderH / 2.0f;
 
         graphics.pose().pushMatrix();
-        graphics.pose().translate(cx, cy);
+        graphics.pose().translate(x + halfW, y + halfH);
 
         RenderUtil.drawRoundedPanel(graphics, (int) -halfW, (int) -halfH, width, renderH, 6.0f, paneBg, borderColor);
 
         float textStartY = -halfH + 7.0f;
         float textScale = 0.85f;
 
-        //绘制光标开始
         boolean blink = (System.currentTimeMillis() - this.lastActionTime < 300) || (System.currentTimeMillis() % 1000 < 500);
         boolean showCursor = !this.readOnly && this.focused && blink && !this.text.isEmpty();
-
         int textColor = this.selectAll ? 0xFF80DEEA : (this.readOnly ? (this.hovered ? 0xFFFFFFFF : 0xFFB2EBF2) : (this.focused ? 0xFFFFFFFF : 0xFFECEFF1));
 
-        List<LineInfo> lines = computeLines(font, stableWidth);
-        int cursorLineIdx = getCursorLineIndex(lines);
+        int cursorLineIdx = getCursorLineIndex(this.cachedLines);
 
         if (this.text.isEmpty() && !this.focused && !this.placeholder.isEmpty()) {
-            Component styledPlaceholder = FontManagerHelper.apply(this.placeholder);
             graphics.pose().pushMatrix();
             graphics.pose().translate(-halfW + 8.0f, textStartY);
             graphics.pose().scale(textScale, textScale);
-            graphics.drawText(styledPlaceholder, 0, 0, 1.0f, 0xFF607D8B, OwoUIGraphics.TextAnchor.TOP_LEFT);
+            graphics.drawText(this.styledPlaceholder, 0, 0, 1.0f, 0xFF607D8B, OwoUIGraphics.TextAnchor.TOP_LEFT);
             graphics.pose().popMatrix();
         } else {
-            for (int i = 0; i < lines.size(); i++) {
-                LineInfo line = lines.get(i);
+            for (int i = 0; i < this.cachedLines.size(); i++) {
+                LineInfo line = this.cachedLines.get(i);
                 float curLineY = (int) (textStartY + i * font.lineHeight);
 
                 graphics.pose().pushMatrix();
@@ -290,91 +311,36 @@ public class TextInputPaneComponent extends BaseUIComponent {
                 graphics.pose().popMatrix();
             }
         }
-        //绘制光标结束
 
-        //计算并调用righthint开始
-        if (!this.rightHint.isEmpty()) {
-            float inputW = 0.0f;
-            boolean isWrapped = lines.size() > 1;
-            if (!lines.isEmpty()) {
-                inputW = font.width(lines.get(0).styledText) * textScale;
-            }
-            float usableW = width - 16.0f;
-            float safeGap = 28.0f;
-            boolean forceHide = (this.text.isEmpty() && !this.placeholder.isEmpty()) || isWrapped;
-            this.rightHintWipe = renderRightHint(graphics, font, this.rightHint, halfW - 8.0f, textStartY, textScale, 0x607D8B, delta, this.rightHintWipe, inputW, usableW, safeGap, forceHide);
-        } else {
-            this.rightHintWipe = 0.0f;
-        }
+        drawRightHint(graphics, font, halfW, textStartY, textScale, width, delta);
 
         graphics.pose().popMatrix();
     }
-    //计算并调用righthint结束
 
-    //静态渲染righthint完整方法开始
-    public static float renderRightHint(OwoUIGraphics graphics, Font font, String hint,
-                                        float rightEdgeX, float startY, float scale, int rgb,
-                                        float delta, float currentWipe,
-                                        float inputW, float usableW, float safeGap, boolean forceHide) {
-        if (hint == null || hint.isEmpty()) return 0.0f;
-        float hintW = font.width(FontManagerHelper.apply(hint)) * scale;
+    private void drawRightHint(OwoUIGraphics graphics, Font font, float halfW, float textStartY,
+                               float textScale, int width, float delta) {
+        if (this.rightHint.isEmpty()) return;
 
-        float targetWipe;
-        if (forceHide) {
-            targetWipe = hintW + 100.0f;
-        } else {
-            float spaceForHint = usableW - inputW - safeGap;
-            if (spaceForHint >= hintW) {
-                targetWipe = 0.0f;
-            } else if (spaceForHint <= 0) {
-                targetWipe = hintW + 100.0f;
-            } else {
-                targetWipe = hintW - spaceForHint;
-            }
+        float scaledHintW = this.cachedRightHintWidth * textScale;
+        float firstLineW = this.cachedLines.isEmpty() ? 0.0f : (font.width(this.cachedLines.get(0).styledText) * textScale);
+
+        boolean hasSpace = (this.cachedLines.size() <= 1) && (!this.text.isEmpty() || this.placeholder.isEmpty())
+                && ((width - 16.0f - firstLineW - 24.0f) >= scaledHintW);
+
+        float targetAlpha = hasSpace ? 1.0f : 0.0f;
+        this.rightHintAlpha = Mth.clamp(this.rightHintAlpha + (targetAlpha - this.rightHintAlpha) * delta * 0.40f, 0.0f, 1.0f);
+
+        if (this.rightHintAlpha > 0.02f) {
+            int alpha = (int) (255 * this.rightHintAlpha);
+            int color = ARGB.color(alpha, 0x60, 0x7D, 0x8B);
+
+            graphics.pose().pushMatrix();
+            graphics.pose().translate(halfW - 8.0f, textStartY);
+            graphics.pose().scale(textScale, textScale);
+            graphics.drawText(this.styledRightHint, 0, 0, 1.0f, color, OwoUIGraphics.TextAnchor.TOP_RIGHT);
+            graphics.pose().popMatrix();
         }
-
-        float newWipe = currentWipe + (targetWipe - currentWipe) * Mth.clamp(delta * 0.40f, 0.0f, 1.0f);
-        if (Math.abs(targetWipe - newWipe) < 0.5f) {
-            newWipe = targetWipe;
-        }
-
-        int baseR = (rgb >> 16) & 0xFF;
-        int baseG = (rgb >> 8) & 0xFF;
-        int baseB = rgb & 0xFF;
-
-        float startX = rightEdgeX - hintW;
-
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(startX, startY);
-        graphics.pose().scale(scale, scale);
-
-        float charX = 0.0f;
-        for (int i = 0; i < hint.length(); i++) {
-            String ch = String.valueOf(hint.charAt(i));
-            Component styledCh = FontManagerHelper.apply(ch);
-            float chW = font.width(styledCh);
-
-            float charAlpha;
-            if (charX + chW <= newWipe) {
-                charAlpha = 0.0f;
-            } else if (charX >= newWipe) {
-                charAlpha = 1.0f;
-            } else {
-                charAlpha = (charX + chW - newWipe) / chW;
-            }
-
-            if (charAlpha > 0.01f) {
-                int a = (int) (255 * charAlpha);
-                int finalColor = ARGB.color(a, baseR, baseG, baseB);
-                graphics.drawText(styledCh, charX, 0, 1.0f, finalColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
-            }
-            charX += chW;
-        }
-        graphics.pose().popMatrix();
-
-        return newWipe;
     }
-    //静态渲染righthint完整方法结束
 
     private static String sequenceToString(FormattedCharSequence sequence) {
         StringBuilder sb = new StringBuilder();
@@ -419,15 +385,16 @@ public class TextInputPaneComponent extends BaseUIComponent {
             double textRelX = (localX - 8.0) / textScale;
             double textRelY = (localY - 7.0) / textScale;
 
-            List<LineInfo> lines = computeLines(font, Math.max(154, this.width() - 16));
-            if (lines.isEmpty()) {
+            updateLayoutCache(font, Math.max(154, this.width() - 16));
+
+            if (this.cachedLines.isEmpty()) {
                 this.cursorPos = this.text.length();
                 return true;
             }
 
             int lineIdx = (int) (textRelY / font.lineHeight);
 
-            if (lineIdx >= lines.size()) {
+            if (lineIdx >= this.cachedLines.size()) {
                 this.cursorPos = this.text.length();
                 return true;
             }
@@ -437,15 +404,11 @@ public class TextInputPaneComponent extends BaseUIComponent {
                 return true;
             }
 
-            LineInfo targetLine = lines.get(lineIdx);
+            LineInfo targetLine = this.cachedLines.get(lineIdx);
             int lineWidth = font.width(targetLine.styledText);
 
             if (textRelX >= lineWidth) {
-                if (lineIdx == lines.size() - 1) {
-                    this.cursorPos = this.text.length();
-                } else {
-                    this.cursorPos = targetLine.end;
-                }
+                this.cursorPos = (lineIdx == this.cachedLines.size() - 1) ? this.text.length() : targetLine.end;
             } else if (textRelX <= 0) {
                 this.cursorPos = targetLine.start;
             } else {
@@ -529,6 +492,9 @@ public class TextInputPaneComponent extends BaseUIComponent {
             return true;
         }
 
+        var font = Minecraft.getInstance().font;
+        updateLayoutCache(font, Math.max(154, this.width() - 16));
+
         // 光标上移
         if (input.key() == GLFW.GLFW_KEY_UP) {
             if (this.selectAll) {
@@ -537,12 +503,10 @@ public class TextInputPaneComponent extends BaseUIComponent {
                 resetCursorBlink();
                 return true;
             }
-            var font = Minecraft.getInstance().font;
-            List<LineInfo> lines = computeLines(font, Math.max(154, this.width() - 16));
-            int curLineIdx = getCursorLineIndex(lines);
+            int curLineIdx = getCursorLineIndex(this.cachedLines);
             if (curLineIdx > 0) {
-                LineInfo curLine = lines.get(curLineIdx);
-                LineInfo prevLine = lines.get(curLineIdx - 1);
+                LineInfo curLine = this.cachedLines.get(curLineIdx);
+                LineInfo prevLine = this.cachedLines.get(curLineIdx - 1);
 
                 int curOffset = Mth.clamp(this.cursorPos - curLine.start, 0, curLine.text.length());
                 int targetX = font.width(FontManagerHelper.apply(curLine.text.substring(0, curOffset)));
@@ -564,12 +528,10 @@ public class TextInputPaneComponent extends BaseUIComponent {
                 resetCursorBlink();
                 return true;
             }
-            var font = Minecraft.getInstance().font;
-            List<LineInfo> lines = computeLines(font, Math.max(154, this.width() - 16));
-            int curLineIdx = getCursorLineIndex(lines);
-            if (curLineIdx < lines.size() - 1) {
-                LineInfo curLine = lines.get(curLineIdx);
-                LineInfo nextLine = lines.get(curLineIdx + 1);
+            int curLineIdx = getCursorLineIndex(this.cachedLines);
+            if (curLineIdx < this.cachedLines.size() - 1) {
+                LineInfo curLine = this.cachedLines.get(curLineIdx);
+                LineInfo nextLine = this.cachedLines.get(curLineIdx + 1);
 
                 int curOffset = Mth.clamp(this.cursorPos - curLine.start, 0, curLine.text.length());
                 int targetX = font.width(FontManagerHelper.apply(curLine.text.substring(0, curOffset)));
@@ -589,10 +551,8 @@ public class TextInputPaneComponent extends BaseUIComponent {
             if (input.hasControlDown()) {
                 this.cursorPos = 0;
             } else {
-                var font = Minecraft.getInstance().font;
-                List<LineInfo> lines = computeLines(font, Math.max(154, this.width() - 16));
-                int curLineIdx = getCursorLineIndex(lines);
-                this.cursorPos = lines.get(curLineIdx).start;
+                int curLineIdx = getCursorLineIndex(this.cachedLines);
+                this.cursorPos = this.cachedLines.get(curLineIdx).start;
             }
             this.selectAll = false;
             clampCursor();
@@ -605,10 +565,8 @@ public class TextInputPaneComponent extends BaseUIComponent {
             if (input.hasControlDown()) {
                 this.cursorPos = this.text.length();
             } else {
-                var font = Minecraft.getInstance().font;
-                List<LineInfo> lines = computeLines(font, Math.max(154, this.width() - 16));
-                int curLineIdx = getCursorLineIndex(lines);
-                this.cursorPos = lines.get(curLineIdx).end;
+                int curLineIdx = getCursorLineIndex(this.cachedLines);
+                this.cursorPos = this.cachedLines.get(curLineIdx).end;
             }
             this.selectAll = false;
             clampCursor();
@@ -683,24 +641,16 @@ public class TextInputPaneComponent extends BaseUIComponent {
 
     private static int findPreviousWord(String text, int cursor) {
         int pos = cursor - 1;
-        while (pos > 0 && Character.isWhitespace(text.charAt(pos))) {
-            pos--;
-        }
-        while (pos > 0 && !Character.isWhitespace(text.charAt(pos - 1))) {
-            pos--;
-        }
+        while (pos > 0 && Character.isWhitespace(text.charAt(pos))) pos--;
+        while (pos > 0 && !Character.isWhitespace(text.charAt(pos - 1))) pos--;
         return Math.max(0, pos);
     }
 
     private static int findNextWord(String text, int cursor) {
         int pos = cursor;
         int len = text.length();
-        while (pos < len && !Character.isWhitespace(text.charAt(pos))) {
-            pos++;
-        }
-        while (pos < len && Character.isWhitespace(text.charAt(pos))) {
-            pos++;
-        }
+        while (pos < len && !Character.isWhitespace(text.charAt(pos))) pos++;
+        while (pos < len && Character.isWhitespace(text.charAt(pos))) pos++;
         return Math.min(len, pos);
     }
 }
