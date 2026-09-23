@@ -36,12 +36,11 @@ public class DynamicIslandModule extends Module {
         panel.child(TextInfoPaneComponent.header("外观设置"));
 
         final TextInputPaneComponent[] opacityInputHolder = new TextInputPaneComponent[1];
-        opacityInputHolder[0] = new TextInputPaneComponent("透明度 (例如: 80%)", input -> {
+        opacityInputHolder[0] = new TextInputPaneComponent("", input -> {
             IrcConfig config = IrcConfig.get();
             if (input == null || input.isBlank()) return;
 
             try {
-
                 String clean = input.trim().replace("%", "");
                 float val = Float.parseFloat(clean);
 
@@ -61,7 +60,7 @@ public class DynamicIslandModule extends Module {
                 int currentPercent = Math.round(config.islandOpacity * 100.0f);
                 opacityInputHolder[0].setText(currentPercent + "%");
             }
-        });
+        }, "透明度 (例如: 80%)");
 
         int currentPercent = Math.round(IrcConfig.get().islandOpacity * 100.0f);
         opacityInputHolder[0].setText(currentPercent + "%");

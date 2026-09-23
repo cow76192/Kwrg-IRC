@@ -25,6 +25,7 @@ public class TextInputPaneComponent extends BaseUIComponent {
     private static final int BASE_HEIGHT = 26;
 
     private final String placeholder;
+    private final String rightHint;
     private final Consumer<String> onEnterSubmit;
     private Consumer<String> onTextChanged = null;
     private Runnable onRightClick = null;
@@ -40,9 +41,15 @@ public class TextInputPaneComponent extends BaseUIComponent {
     private boolean focused = false;
     private float hoverAnimation = 0.0f;
     private float currentAnimatedHeight = BASE_HEIGHT;
+    private float rightHintWipe = 0.0f;
 
     public TextInputPaneComponent(String placeholder, Consumer<String> onEnterSubmit) {
-        this.placeholder = placeholder;
+        this(placeholder, onEnterSubmit, "");
+    }
+
+    public TextInputPaneComponent(String placeholder, Consumer<String> onEnterSubmit, String rightHint) {
+        this.placeholder = placeholder != null ? placeholder : "";
+        this.rightHint = rightHint != null ? rightHint : "";
         this.onEnterSubmit = onEnterSubmit;
 
         this.cursorStyle(CursorStyle.TEXT);
@@ -135,14 +142,14 @@ public class TextInputPaneComponent extends BaseUIComponent {
     private List<LineInfo> computeLines(Font font, int stableWidth) {
         List<LineInfo> result = new ArrayList<>();
         if (this.text.isEmpty()) {
-            result.add(new LineInfo(0, 0, "", Component.empty()));
+            result.add(new LineInfo(0, 0, "", Component.literal("")));
             return result;
         }
 
         Component styledText = FontManagerHelper.apply(this.text);
         List<FormattedCharSequence> wrappedLines = font.split(styledText, stableWidth);
         if (wrappedLines.isEmpty()) {
-            result.add(new LineInfo(0, 0, "", Component.empty()));
+            result.add(new LineInfo(0, 0, "", Component.literal("")));
             return result;
         }
 
@@ -200,6 +207,7 @@ public class TextInputPaneComponent extends BaseUIComponent {
         }
         return lineText.length();
     }
+
     @Override
     public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
         float targetHover = (this.hovered || this.focused) ? 1.0f : 0.0f;
@@ -240,7 +248,16 @@ public class TextInputPaneComponent extends BaseUIComponent {
         float textStartY = -halfH + 7.0f;
         float textScale = 0.85f;
 
-        if (this.text.isEmpty() && !this.focused) {
+        //绘制光标开始
+        boolean blink = (System.currentTimeMillis() - this.lastActionTime < 300) || (System.currentTimeMillis() % 1000 < 500);
+        boolean showCursor = !this.readOnly && this.focused && blink && !this.text.isEmpty();
+
+        int textColor = this.selectAll ? 0xFF80DEEA : (this.readOnly ? (this.hovered ? 0xFFFFFFFF : 0xFFB2EBF2) : (this.focused ? 0xFFFFFFFF : 0xFFECEFF1));
+
+        List<LineInfo> lines = computeLines(font, stableWidth);
+        int cursorLineIdx = getCursorLineIndex(lines);
+
+        if (this.text.isEmpty() && !this.focused && !this.placeholder.isEmpty()) {
             Component styledPlaceholder = FontManagerHelper.apply(this.placeholder);
             graphics.pose().pushMatrix();
             graphics.pose().translate(-halfW + 8.0f, textStartY);
@@ -248,15 +265,6 @@ public class TextInputPaneComponent extends BaseUIComponent {
             graphics.drawText(styledPlaceholder, 0, 0, 1.0f, 0xFF607D8B, OwoUIGraphics.TextAnchor.TOP_LEFT);
             graphics.pose().popMatrix();
         } else {
-            // 闪烁
-            boolean blink = (System.currentTimeMillis() - this.lastActionTime < 300) || (System.currentTimeMillis() % 1000 < 500);
-            boolean showCursor = !this.readOnly && this.focused && blink;
-
-            int textColor = this.selectAll ? 0xFF80DEEA : (this.readOnly ? (this.hovered ? 0xFFFFFFFF : 0xFFB2EBF2) : (this.focused ? 0xFFFFFFFF : 0xFFECEFF1));
-
-            List<LineInfo> lines = computeLines(font, stableWidth);
-            int cursorLineIdx = getCursorLineIndex(lines);
-
             for (int i = 0; i < lines.size(); i++) {
                 LineInfo line = lines.get(i);
                 float curLineY = (int) (textStartY + i * font.lineHeight);
@@ -272,20 +280,101 @@ public class TextInputPaneComponent extends BaseUIComponent {
 
                 graphics.drawText(line.styledText, 0, 0, 1.0f, textColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
 
-                // 绘制竖线光标
                 if (showCursor && !this.selectAll && i == cursorLineIdx) {
                     int offsetInLine = Mth.clamp(this.cursorPos - line.start, 0, line.text.length());
                     String subStr = line.text.substring(0, offsetInLine);
-                    int cursorX = font.width(FontManagerHelper.apply(subStr));
+                    int cursorX = subStr.isEmpty() ? 0 : font.width(FontManagerHelper.apply(subStr));
                     graphics.fill(cursorX, -1, cursorX + 1, font.lineHeight, 0xFFFFFFFF);
                 }
 
                 graphics.pose().popMatrix();
             }
         }
+        //绘制光标结束
+
+        //计算并调用righthint开始
+        if (!this.rightHint.isEmpty()) {
+            float inputW = 0.0f;
+            boolean isWrapped = lines.size() > 1;
+            if (!lines.isEmpty()) {
+                inputW = font.width(lines.get(0).styledText) * textScale;
+            }
+            float usableW = width - 16.0f;
+            float safeGap = 28.0f;
+            boolean forceHide = (this.text.isEmpty() && !this.placeholder.isEmpty()) || isWrapped;
+            this.rightHintWipe = renderRightHint(graphics, font, this.rightHint, halfW - 8.0f, textStartY, textScale, 0x607D8B, delta, this.rightHintWipe, inputW, usableW, safeGap, forceHide);
+        } else {
+            this.rightHintWipe = 0.0f;
+        }
 
         graphics.pose().popMatrix();
     }
+    //计算并调用righthint结束
+
+    //静态渲染righthint完整方法开始
+    public static float renderRightHint(OwoUIGraphics graphics, Font font, String hint,
+                                        float rightEdgeX, float startY, float scale, int rgb,
+                                        float delta, float currentWipe,
+                                        float inputW, float usableW, float safeGap, boolean forceHide) {
+        if (hint == null || hint.isEmpty()) return 0.0f;
+        float hintW = font.width(FontManagerHelper.apply(hint)) * scale;
+
+        float targetWipe;
+        if (forceHide) {
+            targetWipe = hintW + 100.0f;
+        } else {
+            float spaceForHint = usableW - inputW - safeGap;
+            if (spaceForHint >= hintW) {
+                targetWipe = 0.0f;
+            } else if (spaceForHint <= 0) {
+                targetWipe = hintW + 100.0f;
+            } else {
+                targetWipe = hintW - spaceForHint;
+            }
+        }
+
+        float newWipe = currentWipe + (targetWipe - currentWipe) * Mth.clamp(delta * 0.40f, 0.0f, 1.0f);
+        if (Math.abs(targetWipe - newWipe) < 0.5f) {
+            newWipe = targetWipe;
+        }
+
+        int baseR = (rgb >> 16) & 0xFF;
+        int baseG = (rgb >> 8) & 0xFF;
+        int baseB = rgb & 0xFF;
+
+        float startX = rightEdgeX - hintW;
+
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(startX, startY);
+        graphics.pose().scale(scale, scale);
+
+        float charX = 0.0f;
+        for (int i = 0; i < hint.length(); i++) {
+            String ch = String.valueOf(hint.charAt(i));
+            Component styledCh = FontManagerHelper.apply(ch);
+            float chW = font.width(styledCh);
+
+            float charAlpha;
+            if (charX + chW <= newWipe) {
+                charAlpha = 0.0f;
+            } else if (charX >= newWipe) {
+                charAlpha = 1.0f;
+            } else {
+                charAlpha = (charX + chW - newWipe) / chW;
+            }
+
+            if (charAlpha > 0.01f) {
+                int a = (int) (255 * charAlpha);
+                int finalColor = ARGB.color(a, baseR, baseG, baseB);
+                graphics.drawText(styledCh, charX, 0, 1.0f, finalColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
+            }
+            charX += chW;
+        }
+        graphics.pose().popMatrix();
+
+        graphics.pose().popMatrix();
+    }
+    //静态渲染righthint完整方法结束
 
     private static String sequenceToString(FormattedCharSequence sequence) {
         StringBuilder sb = new StringBuilder();

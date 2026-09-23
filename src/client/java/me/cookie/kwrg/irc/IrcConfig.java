@@ -56,7 +56,7 @@ public class IrcConfig {
     public boolean islandShowGpu = false;
     public boolean islandShowCpu = false;
     public boolean isShadowEnabled = true;
-    public float islandOpacity  = 1.0f;
+    public float islandOpacity  = 0.2f;
     public boolean onlyApplyToTab = true;
     public boolean onlyRenderTab = false;
 
