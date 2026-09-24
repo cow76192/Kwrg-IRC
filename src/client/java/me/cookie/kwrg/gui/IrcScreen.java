@@ -10,12 +10,15 @@ import me.cookie.kwrg.gui.component.ParticleBackgroundComponent;
 import me.cookie.kwrg.gui.component.RadialMenuComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.notification.NotificationManager;
+import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
@@ -28,6 +31,12 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
     private String directCategory = null;
     private String directModule = null;
 
+    private static final long SCALE_ANIM_DURATION = 280L;
+    private float currentScale = -1.0f; // -1 表示尚未初始化
+    private float fromScale = 1.0f;
+    private float targetScale = 1.0f;
+    private long scaleAnimStartTime = 0L;
+
     public void setDirectOpenTarget(String category, String module) {
         this.directCategory = category;
         this.directModule = module;
@@ -35,6 +44,10 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
     public IrcScreen() {
         super(Component.literal("Kwrg IRC"));
+        float initialConfigScale = Mth.clamp(IrcConfig.get().guiScale, 0.5f, 2.0f);
+        this.currentScale = initialConfigScale;
+        this.fromScale = initialConfigScale;
+        this.targetScale = initialConfigScale;
     }
 
     public static @Nullable IrcScreen getCurrentScreen() {
@@ -73,6 +86,8 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
     protected void build(StackLayout rootComponent) {
         currentInstance = this;
         this.rootLayout = rootComponent;
+
+        rootComponent.allowOverflow(true);
 
         updateSurface();
 
@@ -142,14 +157,134 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
         }
     }
 
+    public float getAnimatedScale() {
+        float configTarget = Mth.clamp(IrcConfig.get().guiScale, 0.5f, 2.0f);
+        long now = System.currentTimeMillis();
+
+        if (Math.abs(configTarget - this.targetScale) > 0.001f) {
+            this.fromScale = this.currentScale > 0 ? this.currentScale : configTarget;
+            this.targetScale = configTarget;
+            this.scaleAnimStartTime = now;
+        }
+
+        if (this.currentScale < 0) {
+            this.currentScale = this.targetScale;
+            return this.currentScale;
+        }
+
+        if (this.scaleAnimStartTime == 0L) {
+            return this.currentScale;
+        }
+
+        long elapsed = now - this.scaleAnimStartTime;
+        if (elapsed >= SCALE_ANIM_DURATION) {
+            this.currentScale = this.targetScale;
+            this.scaleAnimStartTime = 0L;
+        } else {
+            float progress = (float) elapsed / SCALE_ANIM_DURATION;
+            float ease = RenderUtil.easeOutCubic(progress);
+            this.currentScale = RenderUtil.lerp(ease, this.fromScale, this.targetScale);
+        }
+
+        return this.currentScale;
+    }
+
+    public double toVirtualX(double screenX) {
+        float scale = getAnimatedScale();
+        if (Math.abs(scale - 1.0f) < 0.001f) return screenX;
+        double cx = this.width / 2.0;
+        return cx + (screenX - cx) / scale;
+    }
+
+    public double toVirtualY(double screenY) {
+        float scale = getAnimatedScale();
+        if (Math.abs(scale - 1.0f) < 0.001f) return screenY;
+        double cy = this.height / 2.0;
+        return cy + (screenY - cy) / scale;
+    }
+
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
         me.cookie.kwrg.gui.util.GuiFpsLimiter.apply();
-        super.extractRenderState(graphics, mouseX, mouseY, a);
+
+        float scale = getAnimatedScale();
+        float cx = this.width / 2.0f;
+        float cy = this.height / 2.0f;
+
+        int vMouseX = (int) Math.round(toVirtualX(mouseX));
+        int vMouseY = (int) Math.round(toVirtualY(mouseY));
+
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(cx, cy);
+        graphics.pose().scale(scale, scale);
+        graphics.pose().translate(-cx, -cy);
+
+        super.extractRenderState(graphics, vMouseX, vMouseY, a);
+
+        graphics.pose().popMatrix();
+
         NotificationManager.render(graphics, mouseX, mouseY, a);
         DynamicIslandRenderer.render(graphics, a);
     }
 
+    @Override
+    public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
+        if (NotificationManager.onMouseDown(click)) {
+            return true;
+        }
+
+        float scale = getAnimatedScale();
+        if (Math.abs(scale - 1.0f) < 0.001f) {
+            return super.mouseClicked(click, doubled);
+        }
+
+        MouseButtonEvent virtualClick = new MouseButtonEvent(
+                toVirtualX(click.x()),
+                toVirtualY(click.y()),
+                click.buttonInfo()
+        );
+        return super.mouseClicked(virtualClick, doubled);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent click) {
+        float scale = getAnimatedScale();
+        if (Math.abs(scale - 1.0f) < 0.001f) {
+            return super.mouseReleased(click);
+        }
+
+        MouseButtonEvent virtualClick = new MouseButtonEvent(
+                toVirtualX(click.x()),
+                toVirtualY(click.y()),
+                click.buttonInfo()
+        );
+        return super.mouseReleased(virtualClick);
+    }
+
+    @Override
+    public boolean mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
+        float scale = getAnimatedScale();
+        if (Math.abs(scale - 1.0f) < 0.001f) {
+            return super.mouseDragged(click, deltaX, deltaY);
+        }
+
+        MouseButtonEvent virtualClick = new MouseButtonEvent(
+                toVirtualX(click.x()),
+                toVirtualY(click.y()),
+                click.buttonInfo()
+        );
+        return super.mouseDragged(virtualClick, deltaX / scale, deltaY / scale);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        return super.mouseScrolled(toVirtualX(mouseX), toVirtualY(mouseY), horizontalAmount, verticalAmount);
+    }
+
+    @Override
+    public void mouseMoved(double mouseX, double mouseY) {
+        super.mouseMoved(toVirtualX(mouseX), toVirtualY(mouseY));
+    }
 
     public void updateSurface() {
         if (this.rootLayout != null) {
@@ -158,7 +293,25 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
             } else {
                 float q = Math.max(0.5f, IrcConfig.get().blurQuality);
                 float s = Math.max(1.0f, IrcConfig.get().blurSize);
-                this.rootLayout.surface(Surface.blur(q, s));
+                Surface baseBlur = Surface.blur(q, s);
+
+                this.rootLayout.surface((graphics, component) -> {
+                    float scale = getAnimatedScale();
+                    if (Math.abs(scale - 1.0f) > 0.001f) {
+                        float cx = component.width() / 2.0f;
+                        float cy = component.height() / 2.0f;
+                        graphics.pose().pushMatrix();
+                        graphics.pose().translate(cx, cy);
+                        graphics.pose().scale(1.0f / scale, 1.0f / scale);
+                        graphics.pose().translate(-cx, -cy);
+
+                        baseBlur.draw(graphics, component);
+
+                        graphics.pose().popMatrix();
+                    } else {
+                        baseBlur.draw(graphics, component);
+                    }
+                });
             }
         }
     }

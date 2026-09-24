@@ -5,12 +5,12 @@ import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import io.wispforest.owo.ui.core.Sizing;
 import me.cookie.kwrg.gui.util.RenderUtil;
+import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-
 
 public class ParticleBackgroundComponent extends BaseUIComponent {
 
@@ -32,17 +32,20 @@ public class ParticleBackgroundComponent extends BaseUIComponent {
         lastNanoTime = now;
         dt = Mth.clamp(dt, 0.001f, 0.033f);
 
+        var window = Minecraft.getInstance().getWindow();
+        int screenW = window.getGuiScaledWidth();
+        int screenH = window.getGuiScaledHeight();
+
+        if (screenW <= 0 || screenH <= 0) return;
+
         float exactMouseX = RenderUtil.getExactMouseX();
         float exactMouseY = RenderUtil.getExactMouseY();
 
-        int w = this.width();
-        int h = this.height();
-
-        if (particles.isEmpty() && w > 0 && h > 0) {
+        if (particles.isEmpty()) {
             for (int i = 0; i < PARTICLE_COUNT; i++) {
                 particles.add(new Particle(
-                        random.nextFloat() * w,
-                        random.nextFloat() * h,
+                        random.nextFloat() * screenW,
+                        random.nextFloat() * screenH,
                         (random.nextFloat() - 0.5f) * 18.0f,
                         random.nextFloat() * 16.0f + 12.0f,
                         random.nextFloat() * 0.8f + 1.2f
@@ -54,25 +57,29 @@ public class ParticleBackgroundComponent extends BaseUIComponent {
         float connectDistSq = connectDist * connectDist;
         int connected = 0;
 
+        boolean mouseInWindow = exactMouseX >= 0 && exactMouseX <= screenW && exactMouseY >= 0 && exactMouseY <= screenH;
+
         for (Particle p : particles) {
-            p.update(dt, w, h);
+            p.update(dt, screenW, screenH);
 
-            float px = this.x() + p.x;
-            float py = this.y() + p.y;
+            float px = p.x;
+            float py = p.y;
 
-            float dx = exactMouseX - px;
-            float dy = exactMouseY - py;
-            float distSq = dx * dx + dy * dy;
+            if (mouseInWindow) {
+                float dx = exactMouseX - px;
+                float dy = exactMouseY - py;
+                float distSq = dx * dx + dy * dy;
 
-            if (distSq < connectDistSq && connected < 8) {
-                float dist = (float) Math.sqrt(distSq);
-                float factor = 1.0f - dist / connectDist;
-                int lineAlpha = (int) (PARTICLE_ALPHA * factor * factor * 0.85f);
+                if (distSq < connectDistSq && connected < 8) {
+                    float dist = (float) Math.sqrt(distSq);
+                    float factor = 1.0f - dist / connectDist;
+                    int lineAlpha = (int) (PARTICLE_ALPHA * factor * factor * 0.85f);
 
-                if (lineAlpha > 3) {
-                    Color lineColor = RenderUtil.withAlpha(0xFFFFFF, lineAlpha);
-                    RenderUtil.drawAALine(graphics, exactMouseX, exactMouseY, px, py, 0.5, lineColor);
-                    connected++;
+                    if (lineAlpha > 3) {
+                        Color lineColor = RenderUtil.withAlpha(0xFFFFFF, lineAlpha);
+                        RenderUtil.drawAALine(graphics, exactMouseX, exactMouseY, px, py, 0.5, lineColor);
+                        connected++;
+                    }
                 }
             }
 

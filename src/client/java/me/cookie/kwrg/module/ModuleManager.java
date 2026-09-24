@@ -41,6 +41,7 @@ public class ModuleManager {
         register(new DynamicIslandModule());
         register(new FontModule());
         register(new GuiColorModule());
+        register(new GuiScaleModule());
 
         // --- PLAY 模块 ---
         register(new PlayModule());
