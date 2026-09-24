@@ -232,7 +232,28 @@ public final class RenderUtil {
     }
 
     public static void drawAALine(OwoUIGraphics graphics, float x1, float y1, float x2, float y2, double thickness, Color color) {
-        graphics.drawLine(Math.round(x1), Math.round(y1), Math.round(x2), Math.round(y2), thickness, color);
+        float dx = x2 - x1;
+        float dy = y2 - y1;
+        float len = (float) Math.hypot(dx, dy);
+        if (len < 0.5f) return;
+
+        float angleRad = (float) Math.atan2(dy, dx);
+
+        int col = color.argb();
+        int fadeCol = col & 0x00FFFFFF;
+
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(x1, y1);
+
+        graphics.pose().rotate(angleRad);
+        float halfThick = Math.max(0.1f, (float) thickness / 2.0f);
+        float aa = 0.5f;
+
+        drawQuadGradient(graphics, 0.0f, -halfThick - aa, len, -halfThick, fadeCol, fadeCol, col, col);
+        fillSubpixel(graphics, 0.0f, -halfThick, len, halfThick, col);
+        drawQuadGradient(graphics, 0.0f, halfThick, len, halfThick + aa, col, col, fadeCol, fadeCol);
+
+        graphics.pose().popMatrix();
     }
 
     public static void drawFluidSubpixelText(OwoUIGraphics graphics, Component text, float x, float y, int color) {

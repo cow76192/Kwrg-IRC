@@ -74,6 +74,8 @@ public class IrcConfig {
     public String guiFont = "default";
     public String guiColor = "#11161F";
 
+    public float guiScale = 1.0f;
+
     private static IrcConfig instance = new IrcConfig();
     private static String currentProfileName = "default";
 
@@ -209,7 +211,9 @@ public class IrcConfig {
         }
 
         pendingSaveTask = SAVE_EXECUTOR.schedule(() -> {
-            save();
+            synchronized (IrcConfig.class) {
+                save();
+            }
         }, delayMs, TimeUnit.MILLISECONDS);
     }
 

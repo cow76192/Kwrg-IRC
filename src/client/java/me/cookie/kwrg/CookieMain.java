@@ -1,13 +1,13 @@
 package me.cookie.kwrg;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import java.util.concurrent.CompletableFuture;
 import me.cookie.kwrg.gui.util.TpsTracker;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcCommand;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.GreetingManager;
+import me.cookie.kwrg.util.SkyblockItemHelper;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -15,7 +15,8 @@ import net.minecraft.client.KeyMapping;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import me.cookie.kwrg.util.SkyblockItemHelper;
+
+import java.util.concurrent.CompletableFuture;
 
 public class CookieMain implements ClientModInitializer {
     public static final String MOD_ID = "kwrg";
@@ -62,5 +63,6 @@ public class CookieMain implements ClientModInitializer {
             IrcClient.disconnect();
         });
 
+        Runtime.getRuntime().addShutdownHook(new Thread(IrcConfig::save, "kwrg-shutdown-saver"));
     }
 }

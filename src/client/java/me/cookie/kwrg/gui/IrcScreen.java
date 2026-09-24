@@ -4,18 +4,22 @@ import io.wispforest.owo.ui.base.BaseOwoScreen;
 import io.wispforest.owo.ui.container.StackLayout;
 import io.wispforest.owo.ui.container.UIContainers;
 import io.wispforest.owo.ui.core.OwoUIAdapter;
+import io.wispforest.owo.ui.core.OwoUIGraphics;
 import io.wispforest.owo.ui.core.Positioning;
 import io.wispforest.owo.ui.core.Surface;
 import me.cookie.kwrg.gui.component.ParticleBackgroundComponent;
 import me.cookie.kwrg.gui.component.RadialMenuComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.notification.NotificationManager;
+import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
@@ -28,6 +32,15 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
     private String directCategory = null;
     private String directModule = null;
 
+    private final ParticleBackgroundComponent particleBackground = new ParticleBackgroundComponent();
+    private Surface fullscreenBlurSurface = null;
+
+    private static final long SCALE_ANIM_DURATION = 280L;
+    private float currentScale = -1.0f;
+    private float fromScale = 1.0f;
+    private float targetScale = 1.0f;
+    private long scaleAnimStartTime = 0L;
+
     public void setDirectOpenTarget(String category, String module) {
         this.directCategory = category;
         this.directModule = module;
@@ -35,6 +48,10 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
     public IrcScreen() {
         super(Component.literal("Kwrg IRC"));
+        float initialScale = Mth.clamp(IrcConfig.get().guiScale, 0.5f, 2.0f);
+        this.currentScale = initialScale;
+        this.fromScale = initialScale;
+        this.targetScale = initialScale;
     }
 
     public static @Nullable IrcScreen getCurrentScreen() {
@@ -75,8 +92,6 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
         this.rootLayout = rootComponent;
 
         updateSurface();
-
-        rootComponent.child(new ParticleBackgroundComponent());
 
         this.radialMenu = new RadialMenuComponent(this, rootComponent);
         this.radialMenu.positioning(Positioning.relative(50, 50));
@@ -142,23 +157,156 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
         }
     }
 
+    public float getAnimatedScale() {
+        float configTarget = Mth.clamp(IrcConfig.get().guiScale, 0.5f, 2.0f);
+        long now = System.currentTimeMillis();
+
+        if (Math.abs(configTarget - this.targetScale) > 0.001f) {
+            this.fromScale = this.currentScale > 0 ? this.currentScale : configTarget;
+            this.targetScale = configTarget;
+            this.scaleAnimStartTime = now;
+        }
+
+        if (this.currentScale < 0) {
+            this.currentScale = this.targetScale;
+            return this.currentScale;
+        }
+
+        if (this.scaleAnimStartTime == 0L) {
+            return this.currentScale;
+        }
+
+        long elapsed = now - this.scaleAnimStartTime;
+        if (elapsed >= SCALE_ANIM_DURATION) {
+            this.currentScale = this.targetScale;
+            this.scaleAnimStartTime = 0L;
+        } else {
+            float progress = (float) elapsed / SCALE_ANIM_DURATION;
+            float ease = RenderUtil.easeOutCubic(progress);
+            this.currentScale = RenderUtil.lerp(ease, this.fromScale, this.targetScale);
+        }
+
+        return this.currentScale;
+    }
+
+    public double toVirtualX(double screenX) {
+        float scale = getAnimatedScale();
+        if (Math.abs(scale - 1.0f) < 0.001f) return screenX;
+        double cx = this.width / 2.0;
+        return cx + (screenX - cx) / scale;
+    }
+
+    public double toVirtualY(double screenY) {
+        float scale = getAnimatedScale();
+        if (Math.abs(scale - 1.0f) < 0.001f) return screenY;
+        double cy = this.height / 2.0;
+        return cy + (screenY - cy) / scale;
+    }
+
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
         me.cookie.kwrg.gui.util.GuiFpsLimiter.apply();
-        super.extractRenderState(graphics, mouseX, mouseY, a);
+
+        // 包装官方 owo-ui 画笔
+        OwoUIGraphics owoGraphics = OwoUIGraphics.of(graphics);
+
+        // ================= 1. 第一层：全屏 100% 原始底座（无任何缩放，无任何 Scissor 裁剪！） =================
+        if (this.fullscreenBlurSurface != null && !IrcConfig.get().disableBlur && this.rootLayout != null) {
+            this.fullscreenBlurSurface.draw(owoGraphics, this.rootLayout);
+        }
+        this.particleBackground.drawDirect(owoGraphics, a);
+
+        // ================= 2. 第二层：核心菜单（轮盘 + 各级面板，50% ~ 200% 平滑缩放） =================
+        float scale = getAnimatedScale();
+        float cx = this.width / 2.0f;
+        float cy = this.height / 2.0f;
+
+        int vMouseX = (int) Math.round(toVirtualX(mouseX));
+        int vMouseY = (int) Math.round(toVirtualY(mouseY));
+
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(cx, cy);
+        graphics.pose().scale(scale, scale);
+        graphics.pose().translate(-cx, -cy);
+
+        super.extractRenderState(graphics, vMouseX, vMouseY, a);
+
+        graphics.pose().popMatrix();
+
+        // ================= 3. 第三层：全屏 100% 原始 HUD（通知与灵动岛） =================
         NotificationManager.render(graphics, mouseX, mouseY, a);
         DynamicIslandRenderer.render(graphics, a);
     }
 
+    @Override
+    public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
+        if (NotificationManager.onMouseDown(click)) {
+            return true;
+        }
+
+        float scale = getAnimatedScale();
+        if (Math.abs(scale - 1.0f) < 0.001f) {
+            return super.mouseClicked(click, doubled);
+        }
+
+        MouseButtonEvent virtualClick = new MouseButtonEvent(
+                toVirtualX(click.x()),
+                toVirtualY(click.y()),
+                click.buttonInfo()
+        );
+        return super.mouseClicked(virtualClick, doubled);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent click) {
+        float scale = getAnimatedScale();
+        if (Math.abs(scale - 1.0f) < 0.001f) {
+            return super.mouseReleased(click);
+        }
+
+        MouseButtonEvent virtualClick = new MouseButtonEvent(
+                toVirtualX(click.x()),
+                toVirtualY(click.y()),
+                click.buttonInfo()
+        );
+        return super.mouseReleased(virtualClick);
+    }
+
+    @Override
+    public boolean mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
+        float scale = getAnimatedScale();
+        if (Math.abs(scale - 1.0f) < 0.001f) {
+            return super.mouseDragged(click, deltaX, deltaY);
+        }
+
+        MouseButtonEvent virtualClick = new MouseButtonEvent(
+                toVirtualX(click.x()),
+                toVirtualY(click.y()),
+                click.buttonInfo()
+        );
+        return super.mouseDragged(virtualClick, deltaX / scale, deltaY / scale);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        return super.mouseScrolled(toVirtualX(mouseX), toVirtualY(mouseY), horizontalAmount, verticalAmount);
+    }
+
+    @Override
+    public void mouseMoved(double mouseX, double mouseY) {
+        super.mouseMoved(toVirtualX(mouseX), toVirtualY(mouseY));
+    }
 
     public void updateSurface() {
         if (this.rootLayout != null) {
+           this.rootLayout.surface(Surface.BLANK);
+
             if (IrcConfig.get().disableBlur) {
-                this.rootLayout.surface(Surface.BLANK);
+                this.fullscreenBlurSurface = null;
             } else {
                 float q = Math.max(0.5f, IrcConfig.get().blurQuality);
                 float s = Math.max(1.0f, IrcConfig.get().blurSize);
-                this.rootLayout.surface(Surface.blur(q, s));
+                this.fullscreenBlurSurface = Surface.blur(q, s);
             }
         }
     }

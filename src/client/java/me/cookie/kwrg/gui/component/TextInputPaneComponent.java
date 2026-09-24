@@ -636,6 +636,27 @@ public class TextInputPaneComponent extends BaseUIComponent {
             return true;
         }
 
+        // Ctrl + C 复制
+        if (input.hasControlDown() && input.key() == GLFW.GLFW_KEY_C) {
+            if (this.selectAll && !this.text.isEmpty()) {
+                Minecraft.getInstance().keyboardHandler.setClipboard(this.text);
+            }
+            return true;
+        }
+
+        // Ctrl + X 剪切
+        if (input.hasControlDown() && input.key() == GLFW.GLFW_KEY_X) {
+            if (!this.readOnly && this.selectAll && !this.text.isEmpty()) {
+                Minecraft.getInstance().keyboardHandler.setClipboard(this.text);
+                this.text = "";
+                this.cursorPos = 0;
+                this.selectAll = false;
+                notifyTextChanged();
+                resetCursorBlink();
+            }
+            return true;
+        }
+
         return super.onKeyPress(input);
     }
 
