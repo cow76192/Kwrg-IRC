@@ -3,6 +3,7 @@ package me.cookie.kwrg.gui.component;
 import io.wispforest.owo.ui.component.ColorPickerComponent;
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.core.*;
+import me.cookie.kwrg.gui.notification.NotificationManager;
 import me.cookie.kwrg.util.ColorUtil;
 
 import java.util.function.Consumer;
@@ -10,10 +11,12 @@ import java.util.function.Consumer;
 public class ColorSettingComponent extends FlowLayout {
 
     private final ColorPickerComponent picker;
-    private TextInfoPaneComponent hexPane;
-    private TextInfoPaneComponent rgbPane;
+    private final Consumer<String> onColorChanged;
+    private TextInputPaneComponent hexInput;
+    private TextInputPaneComponent rgbInput;
 
     private int currentRgbInt = 0x00F2FE;
+    private boolean applyingProgrammatic = false;
 
     public ColorSettingComponent(String initialColorStr, Consumer<String> onColorChanged) {
         this(initialColorStr, onColorChanged, true);
@@ -23,6 +26,7 @@ public class ColorSettingComponent extends FlowLayout {
         super(Sizing.fill(100), Sizing.content(), Algorithm.VERTICAL);
         this.margins(Insets.of(2, 0, 0, 0));
         this.surface(Surface.BLANK);
+        this.onColorChanged = onColorChanged;
 
         this.picker = new ColorPickerComponent();
         this.picker.sizing(Sizing.fill(100), Sizing.fixed(120));
@@ -42,19 +46,59 @@ public class ColorSettingComponent extends FlowLayout {
         this.child(this.picker);
 
         if (showInfoPanes) {
-            this.hexPane = new TextInfoPaneComponent("HEX", this::getHex);
-            this.rgbPane = new TextInfoPaneComponent("RGB", this::getRgb);
-            this.child(this.hexPane);
-            this.child(this.rgbPane);
+            this.hexInput = new TextInputPaneComponent("", input -> {
+                java.awt.Color c = ColorUtil.parseHexLoose(input);
+                if (c != null) {
+                    commitColor(c.getRGB() & 0xFFFFFF);
+                } else {
+                    NotificationManager.err("无法解析 HEX", "请输入3位或6位#HEX颜色");
+                    this.hexInput.setText(getHex());
+                }
+            }, "#RRGGBB");
+
+            this.rgbInput = new TextInputPaneComponent("", input -> {
+                java.awt.Color c = ColorUtil.parseRgbLoose(input);
+                if (c != null) {
+                    commitColor(c.getRGB() & 0xFFFFFF);
+                } else {
+                    NotificationManager.err("无法解析 RGB", "支持格式rgb(r,g,b)或r_g_b");
+                    this.rgbInput.setText(getRgb());
+                }
+            }, "r g b");
+
+            this.hexInput.setText(getHex());
+            this.rgbInput.setText(getRgb());
+
+            this.child(this.hexInput);
+            this.child(this.rgbInput);
         }
 
         this.picker.onChanged().subscribe(newColor -> {
+            if (this.applyingProgrammatic) return;
             this.currentRgbInt = newColor.rgb() & 0xFFFFFF;
-            String hex = getHex();
-            if (onColorChanged != null) {
-                onColorChanged.accept(hex);
+            syncInputTexts();
+            if (this.onColorChanged != null) {
+                this.onColorChanged.accept(getHex());
             }
         });
+    }
+
+    private void commitColor(int rgb) {
+        this.currentRgbInt = rgb;
+
+        this.applyingProgrammatic = true;
+        this.picker.selectedColor(Color.ofRgb(this.currentRgbInt));
+        this.applyingProgrammatic = false;
+
+        syncInputTexts();
+        if (this.onColorChanged != null) {
+            this.onColorChanged.accept(getHex());
+        }
+    }
+
+    private void syncInputTexts() {
+        if (this.hexInput != null) this.hexInput.setText(getHex());
+        if (this.rgbInput != null) this.rgbInput.setText(getRgb());
     }
 
     public String getHex() {

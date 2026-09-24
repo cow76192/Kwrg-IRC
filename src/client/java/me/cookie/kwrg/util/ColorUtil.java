@@ -21,6 +21,8 @@ public class ColorUtil {
     private static final Pattern HEX_PATTERN = Pattern.compile("#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})");
     private static final Pattern GRADIENT_PATTERN = Pattern.compile("(?:linear-)?gradient\\s*\\((.+)\\)", Pattern.CASE_INSENSITIVE);
 
+    private static final Pattern SPACE_RGB_PATTERN = Pattern.compile("^\\s*(\\d{1,3})\\s+(\\d{1,3})\\s+(\\d{1,3})\\s*$");
+
     public static Component applyStyle(String text, String styleConfig) {
         if (text == null || text.isEmpty()) return Component.empty();
         if (styleConfig == null || styleConfig.isBlank()) return Component.literal(text);
@@ -43,11 +45,9 @@ public class ColorUtil {
         boolean strikethrough = lower.contains("strikethrough") || lower.contains("text-decoration: line-through") || lower.contains("&m") || lower.contains("§m");
         boolean obfuscated = lower.contains("obfuscated") || lower.contains("&k") || lower.contains("§k");
 
-        // 默认让 rainbow 以及带有 flow/wave/animate 关键词，或任意渐变预设支持滚动
         boolean isAnimated = lower.contains("rainbow") || lower.contains("animate")
                 || lower.contains("flow") || lower.contains("wave") || lower.contains("scroll");
 
-        // 3秒一个完整周期（速度可以通过改 3000L 调节）
         float timePhase = (float) ((System.currentTimeMillis() % 3000L) / 3000.0);
 
         FontDescription fontDescription = null;
@@ -57,18 +57,15 @@ public class ColorUtil {
             fontDescription = new FontDescription.Resource(Identifier.withDefaultNamespace("uniform"));
         }
 
-        // 1. 彩虹流光
         if (lower.startsWith("rainbow") || lower.contains("rainbow")) {
             return buildRainbowComponent(transformedText, timePhase, bold, italic, underlined, strikethrough, obfuscated, fontDescription);
         }
 
-        // 2. 预设颜色流光（sunset, ocean, fire, sakura, neon, gold, purple 等）
         Color[] presetColors = getPresetColors(lower);
         if (presetColors != null) {
             return buildGradientFlowComponent(transformedText, presetColors, isAnimated ? timePhase : 0.0F, bold, italic, underlined, strikethrough, obfuscated, fontDescription);
         }
 
-        // 3. CSS linear-gradient 流光
         Matcher gradMatcher = GRADIENT_PATTERN.matcher(raw);
         if (gradMatcher.find()) {
             Color[] colors = parseColorList(gradMatcher.group(1));
@@ -77,7 +74,6 @@ public class ColorUtil {
             }
         }
 
-        // 4. 单色
         Color singleColor = parseSingleColor(raw);
         if (singleColor != null) {
             Style style = Style.EMPTY
@@ -95,16 +91,12 @@ public class ColorUtil {
         return Component.literal(legacy);
     }
 
-    /**
-     * 彩虹平滑滚动
-     */
     private static Component buildRainbowComponent(String text, float timePhase, boolean bold, boolean italic, boolean underlined, boolean strikethrough, boolean obfuscated, FontDescription font) {
         MutableComponent root = Component.empty();
         int[] codePoints = text.codePoints().toArray();
         int length = codePoints.length;
 
         for (int i = 0; i < length; i++) {
-            // 时间相位 + 字符间距偏移
             float hue = (timePhase + (float) i * 0.05F) % 1.0F;
             if (hue < 0) hue += 1.0F;
             int rgb = Color.HSBtoRGB(hue, 0.85F, 1.0F) & 0xFFFFFF;
@@ -123,9 +115,6 @@ public class ColorUtil {
         return root;
     }
 
-    /**
-     * 多色渐变平滑滚动核心引擎（支持任意多颜色列表，无缝循环滚动）
-     */
     private static Component buildGradientFlowComponent(String text, Color[] colors, float timePhase, boolean bold, boolean italic, boolean underlined, boolean strikethrough, boolean obfuscated, FontDescription font) {
         MutableComponent root = Component.empty();
         int[] codePoints = text.codePoints().toArray();
@@ -135,7 +124,6 @@ public class ColorUtil {
             return Component.literal(text);
         }
 
-        // 如果只有一种颜色，直接单色返回
         if (colors.length == 1) {
             Style style = Style.EMPTY
                     .withColor(TextColor.fromRgb(colors[0].getRGB() & 0xFFFFFF))
@@ -148,12 +136,11 @@ public class ColorUtil {
             return Component.literal(text).withStyle(style);
         }
 
-        // 构造首尾闭合的调色板（使渐变滚动首尾能够无缝连接）
         Color[] cycleColors;
         if (timePhase > 0.0F) {
             cycleColors = new Color[colors.length + 1];
             System.arraycopy(colors, 0, cycleColors, 0, colors.length);
-            cycleColors[colors.length] = colors[0]; // 尾部连回头部
+            cycleColors[colors.length] = colors[0];
         } else {
             cycleColors = colors;
         }
@@ -163,12 +150,10 @@ public class ColorUtil {
         for (int i = 0; i < length; i++) {
             float progress;
             if (timePhase > 0.0F) {
-                // 结合时间与字间距循环滚动
                 float charOffset = (float) i * 0.06F;
                 progress = (charOffset - timePhase) % 1.0F;
                 if (progress < 0) progress += 1.0F;
             } else {
-                // 静态线性渐变
                 progress = (length <= 1) ? 0 : (float) i / (float) (length - 1);
             }
 
@@ -179,7 +164,6 @@ public class ColorUtil {
             Color c1 = cycleColors[index];
             Color c2 = cycleColors[index + 1];
 
-            // 线性插值颜色计算
             int r = (int) (c1.getRed() + factor * (c2.getRed() - c1.getRed()));
             int g = (int) (c1.getGreen() + factor * (c2.getGreen() - c1.getGreen()));
             int b = (int) (c1.getBlue() + factor * (c2.getBlue() - c1.getBlue()));
@@ -247,6 +231,36 @@ public class ColorUtil {
         }
 
         return null;
+    }
+
+    public static Color parseHexLoose(String raw) {
+        if (raw == null) return null;
+        String clean = raw.trim();
+        if (clean.startsWith("#")) {
+            clean = clean.substring(1);
+        }
+        if (clean.matches("[A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}")) {
+            return parseSingleColor("#" + clean);
+        }
+        return null;
+    }
+
+    public static Color parseRgbLoose(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        Color direct = parseSingleColor(raw);
+        if (direct != null) return direct;
+        Matcher m = SPACE_RGB_PATTERN.matcher(raw);
+        if (m.matches()) {
+            int r = clamp255(Integer.parseInt(m.group(1)));
+            int g = clamp255(Integer.parseInt(m.group(2)));
+            int b = clamp255(Integer.parseInt(m.group(3)));
+            return new Color(r, g, b);
+        }
+        return null;
+    }
+
+    private static int clamp255(int v) {
+        return Math.min(255, Math.max(0, v));
     }
 
     private static Color[] parseColorList(String colorListStr) {
