@@ -209,7 +209,9 @@ public class IrcConfig {
         }
 
         pendingSaveTask = SAVE_EXECUTOR.schedule(() -> {
-            save();
+            synchronized (IrcConfig.class) {
+                save();
+            }
         }, delayMs, TimeUnit.MILLISECONDS);
     }
 

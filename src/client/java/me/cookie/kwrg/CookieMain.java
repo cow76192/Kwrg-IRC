@@ -63,5 +63,6 @@ public class CookieMain implements ClientModInitializer {
             IrcClient.disconnect();
         });
 
+        Runtime.getRuntime().addShutdownHook(new Thread(IrcConfig::save, "kwrg-shutdown-saver"));
     }
 }
