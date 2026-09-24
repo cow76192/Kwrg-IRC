@@ -4,6 +4,7 @@ import io.wispforest.owo.ui.base.BaseOwoScreen;
 import io.wispforest.owo.ui.container.StackLayout;
 import io.wispforest.owo.ui.container.UIContainers;
 import io.wispforest.owo.ui.core.OwoUIAdapter;
+import io.wispforest.owo.ui.core.OwoUIGraphics;
 import io.wispforest.owo.ui.core.Positioning;
 import io.wispforest.owo.ui.core.Surface;
 import me.cookie.kwrg.gui.component.ParticleBackgroundComponent;
@@ -31,8 +32,11 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
     private String directCategory = null;
     private String directModule = null;
 
+    private final ParticleBackgroundComponent particleBackground = new ParticleBackgroundComponent();
+    private Surface fullscreenBlurSurface = null;
+
     private static final long SCALE_ANIM_DURATION = 280L;
-    private float currentScale = -1.0f; // -1 表示尚未初始化
+    private float currentScale = -1.0f;
     private float fromScale = 1.0f;
     private float targetScale = 1.0f;
     private long scaleAnimStartTime = 0L;
@@ -44,10 +48,10 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
     public IrcScreen() {
         super(Component.literal("Kwrg IRC"));
-        float initialConfigScale = Mth.clamp(IrcConfig.get().guiScale, 0.5f, 2.0f);
-        this.currentScale = initialConfigScale;
-        this.fromScale = initialConfigScale;
-        this.targetScale = initialConfigScale;
+        float initialScale = Mth.clamp(IrcConfig.get().guiScale, 0.5f, 2.0f);
+        this.currentScale = initialScale;
+        this.fromScale = initialScale;
+        this.targetScale = initialScale;
     }
 
     public static @Nullable IrcScreen getCurrentScreen() {
@@ -87,11 +91,7 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
         currentInstance = this;
         this.rootLayout = rootComponent;
 
-        rootComponent.allowOverflow(true);
-
         updateSurface();
-
-        rootComponent.child(new ParticleBackgroundComponent());
 
         this.radialMenu = new RadialMenuComponent(this, rootComponent);
         this.radialMenu.positioning(Positioning.relative(50, 50));
@@ -207,6 +207,16 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
         me.cookie.kwrg.gui.util.GuiFpsLimiter.apply();
 
+        // 包装官方 owo-ui 画笔
+        OwoUIGraphics owoGraphics = OwoUIGraphics.of(graphics);
+
+        // ================= 1. 第一层：全屏 100% 原始底座（无任何缩放，无任何 Scissor 裁剪！） =================
+        if (this.fullscreenBlurSurface != null && !IrcConfig.get().disableBlur && this.rootLayout != null) {
+            this.fullscreenBlurSurface.draw(owoGraphics, this.rootLayout);
+        }
+        this.particleBackground.drawDirect(owoGraphics, a);
+
+        // ================= 2. 第二层：核心菜单（轮盘 + 各级面板，50% ~ 200% 平滑缩放） =================
         float scale = getAnimatedScale();
         float cx = this.width / 2.0f;
         float cy = this.height / 2.0f;
@@ -223,6 +233,7 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
         graphics.pose().popMatrix();
 
+        // ================= 3. 第三层：全屏 100% 原始 HUD（通知与灵动岛） =================
         NotificationManager.render(graphics, mouseX, mouseY, a);
         DynamicIslandRenderer.render(graphics, a);
     }
@@ -288,30 +299,14 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
     public void updateSurface() {
         if (this.rootLayout != null) {
+           this.rootLayout.surface(Surface.BLANK);
+
             if (IrcConfig.get().disableBlur) {
-                this.rootLayout.surface(Surface.BLANK);
+                this.fullscreenBlurSurface = null;
             } else {
                 float q = Math.max(0.5f, IrcConfig.get().blurQuality);
                 float s = Math.max(1.0f, IrcConfig.get().blurSize);
-                Surface baseBlur = Surface.blur(q, s);
-
-                this.rootLayout.surface((graphics, component) -> {
-                    float scale = getAnimatedScale();
-                    if (Math.abs(scale - 1.0f) > 0.001f) {
-                        float cx = component.width() / 2.0f;
-                        float cy = component.height() / 2.0f;
-                        graphics.pose().pushMatrix();
-                        graphics.pose().translate(cx, cy);
-                        graphics.pose().scale(1.0f / scale, 1.0f / scale);
-                        graphics.pose().translate(-cx, -cy);
-
-                        baseBlur.draw(graphics, component);
-
-                        graphics.pose().popMatrix();
-                    } else {
-                        baseBlur.draw(graphics, component);
-                    }
-                });
+                this.fullscreenBlurSurface = Surface.blur(q, s);
             }
         }
     }

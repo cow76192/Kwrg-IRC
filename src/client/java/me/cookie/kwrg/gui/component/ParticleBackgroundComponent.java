@@ -27,16 +27,19 @@ public class ParticleBackgroundComponent extends BaseUIComponent {
 
     @Override
     public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
+        this.drawDirect(graphics, delta);
+    }
+
+    public void drawDirect(OwoUIGraphics graphics, float delta) {
         long now = System.nanoTime();
         float dt = (now - lastNanoTime) / 1_000_000_000.0f;
         lastNanoTime = now;
         dt = Mth.clamp(dt, 0.001f, 0.033f);
 
         var window = Minecraft.getInstance().getWindow();
-        int screenW = window.getGuiScaledWidth();
-        int screenH = window.getGuiScaledHeight();
-
-        if (screenW <= 0 || screenH <= 0) return;
+        int w = window.getGuiScaledWidth();
+        int h = window.getGuiScaledHeight();
+        if (w <= 0 || h <= 0) return;
 
         float exactMouseX = RenderUtil.getExactMouseX();
         float exactMouseY = RenderUtil.getExactMouseY();
@@ -44,8 +47,8 @@ public class ParticleBackgroundComponent extends BaseUIComponent {
         if (particles.isEmpty()) {
             for (int i = 0; i < PARTICLE_COUNT; i++) {
                 particles.add(new Particle(
-                        random.nextFloat() * screenW,
-                        random.nextFloat() * screenH,
+                        random.nextFloat() * w,
+                        random.nextFloat() * h,
                         (random.nextFloat() - 0.5f) * 18.0f,
                         random.nextFloat() * 16.0f + 12.0f,
                         random.nextFloat() * 0.8f + 1.2f
@@ -57,10 +60,10 @@ public class ParticleBackgroundComponent extends BaseUIComponent {
         float connectDistSq = connectDist * connectDist;
         int connected = 0;
 
-        boolean mouseInWindow = exactMouseX >= 0 && exactMouseX <= screenW && exactMouseY >= 0 && exactMouseY <= screenH;
+        boolean mouseInWindow = exactMouseX >= 0 && exactMouseX <= w && exactMouseY >= 0 && exactMouseY <= h;
 
         for (Particle p : particles) {
-            p.update(dt, screenW, screenH);
+            p.update(dt, w, h);
 
             float px = p.x;
             float py = p.y;
