@@ -3,6 +3,7 @@ package me.cookie.kwrg.module.modules.functions;
 import me.cookie.kwrg.gui.component.ColorSettingComponent;
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.irc.manager.IrcGlowManager;
 import me.cookie.kwrg.module.Category;
@@ -13,21 +14,18 @@ import me.cookie.kwrg.util.ColorUtil;
 public class GlowColorModule extends Module {
 
     public GlowColorModule() {
-        // 【核心修改】：改为 TOGGLE 开关组件，状态实时绑定 IrcGlowManager.isGlowEnabled()
         super("glowColor", Category.FUNCTIONS, PanelItemComponent.ItemType.TOGGLE, () -> IrcGlowManager.isGlowEnabled());
     }
 
     @Override
     public void onExecute() {
-        // 【核心修改】：左键点击切换发光状态
         boolean newState = !IrcGlowManager.isGlowEnabled();
         IrcGlowManager.setGlowEnabled(newState);
-        ChatNotifier.send("§a[IRC] 发光效果已: " + (newState ? "§a开启" : "§c关闭"));
+        ChatNotifier.send("§a[IRC] 发光效果已: " + (newState ? "§a开启" : "§c关闭"), (newState ? NotificationType.SUCCESS : NotificationType.ERR));
     }
 
     @Override
     public void buildTertiaryUI(TertiaryPanelComponent panel) {
-        // 右键点击时依然打开专属的三级调色盘
         panel.child(new ColorSettingComponent(IrcConfig.get().glowColor, TertiaryPanelComponent::setGlowColor));
     }
 

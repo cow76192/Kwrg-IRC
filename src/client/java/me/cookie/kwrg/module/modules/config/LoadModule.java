@@ -6,6 +6,7 @@ import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.module.Category;
@@ -88,7 +89,7 @@ public class LoadModule extends Module {
 
             String error = validateProfileName(cleanName);
             if (error != null) {
-                ChatNotifier.send("§c[IRC] 创建失败: " + error);
+                ChatNotifier.send("§c[IRC] 创建失败: " + error, NotificationType.ERR);
                 return;
             }
 
@@ -102,15 +103,15 @@ public class LoadModule extends Module {
                     this.pendingImportJson = null;
 
                     IrcConfig.loadProfile(cleanName, true);
-                    ChatNotifier.send("§a[IRC] 成功从剪贴板导入并创建配置: §f" + cleanName + ".json");
+                    ChatNotifier.send("§a[IRC] 成功从剪贴板导入并创建配置: §f" + cleanName + ".json", NotificationType.SUCCESS);
                     renderConfigManagerUI(panel, cleanName);
                 } catch (Exception e) {
-                    ChatNotifier.send("§c[IRC] 保存导入配置失败: " + e.getMessage());
+                    ChatNotifier.send("§c[IRC] 保存导入配置失败: " + e.getMessage(), NotificationType.ERR);
                 }
             } else {
                 IrcConfig.createProfile(cleanName);
                 IrcConfig.save();
-                ChatNotifier.send("§a[IRC] 已新建并切换至配置: §f" + cleanName + ".json");
+                ChatNotifier.send("§a[IRC] 已新建并切换至配置: §f" + cleanName + ".json", NotificationType.SUCCESS);
                 renderConfigManagerUI(panel, cleanName);
             }
         });
@@ -118,7 +119,7 @@ public class LoadModule extends Module {
         inputPane.onRightClick(() -> {
             String clipboard = Minecraft.getInstance().keyboardHandler.getClipboard();
             if (clipboard == null || clipboard.isBlank()) {
-                ChatNotifier.send("§c[IRC] 剪贴板为空！请先复制配置的 JSON 文本。");
+                ChatNotifier.send("§c[IRC] 剪贴板为空！请先复制配置的 JSON 文本。", NotificationType.WARN);
                 return;
             }
 
@@ -137,13 +138,13 @@ public class LoadModule extends Module {
 
                 this.pendingImportJson = GSON.toJson(parsed);
 
-                ChatNotifier.send("§a[IRC] 剪贴板 JSON 解析成功！");
-                ChatNotifier.send("§e[IRC] 请在输入框输入该配置文件的名称，按回车键完成保存。");
+                ChatNotifier.send("§a[IRC] 剪贴板 JSON 解析成功！", NotificationType.SUCCESS);
+                ChatNotifier.send("§e[IRC] 请在输入框输入该配置文件的名称，按回车键完成保存。", NotificationType.INFO);
 
                 renderConfigManagerUI(panel, null);
             } catch (Exception e) {
                 this.pendingImportJson = null;
-                ChatNotifier.send("§c[IRC] 剪贴板内容不是有效的配置 JSON！解析失败。");
+                ChatNotifier.send("§c[IRC] 剪贴板内容不是有效的配置 JSON！解析失败。", NotificationType.ERR);
             }
         });
 
@@ -157,9 +158,9 @@ public class LoadModule extends Module {
                         Files.createDirectories(configDir);
                     }
                     net.minecraft.util.Util.getPlatform().openPath(configDir);
-                    ChatNotifier.send("§a[IRC] 已打开配置文件夹: §f" + configDir.toAbsolutePath());
+                    ChatNotifier.send("§a[IRC] 已打开配置文件夹: §f" + configDir.toAbsolutePath(), NotificationType.SUCCESS);
                 } catch (Exception e) {
-                    ChatNotifier.send("§c[IRC] 打开文件夹失败: " + e.getMessage());
+                    ChatNotifier.send("§c[IRC] 打开文件夹失败: " + e.getMessage(), NotificationType.ERR);
                 }
             }
         }));
@@ -178,7 +179,7 @@ public class LoadModule extends Module {
 
                         if (isShiftDown) {
                             if ("default".equalsIgnoreCase(profileName)) {
-                                ChatNotifier.send("§c[IRC] 默认配置文件 default.json 受保护不可删除！");
+                                ChatNotifier.send("§c[IRC] 默认配置文件 default.json 受保护不可删除！", NotificationType.WARN);
                                 return;
                             }
 
@@ -186,16 +187,16 @@ public class LoadModule extends Module {
                                 try {
                                     Path filePath = IrcConfig.getKwrgDir().resolve(profileName + ".json");
                                     Files.deleteIfExists(filePath);
-                                    ChatNotifier.send("§e[IRC] 已删除配置文件: §f" + profileName + ".json");
+                                    ChatNotifier.send("§e[IRC] 已删除配置文件: §f" + profileName + ".json", NotificationType.SUCCESS);
 
                                     if (profileName.equalsIgnoreCase(IrcConfig.getCurrentProfileName())) {
                                         IrcConfig.loadProfile("default", true);
-                                        ChatNotifier.send("§a[IRC] 当前配置已删除，已自动切换回: §fdefault.json");
+                                        ChatNotifier.send("§a[IRC] 当前配置已删除，已自动切换回: §fdefault.json", NotificationType.SUCCESS);
                                     }
 
                                     renderConfigManagerUI(panel, null);
                                 } catch (Exception e) {
-                                    ChatNotifier.send("§c[IRC] 删除文件失败: " + e.getMessage());
+                                    ChatNotifier.send("§c[IRC] 删除文件失败: " + e.getMessage(), NotificationType.ERR);
                                 }
                             });
                         } else {
@@ -210,19 +211,19 @@ public class LoadModule extends Module {
                                     String cleanedJson = GSON.toJson(jsonObject);
 
                                     Minecraft.getInstance().keyboardHandler.setClipboard(cleanedJson);
-                                    ChatNotifier.send("§a[IRC] 已复制 §f" + profileName + ".json §a的 JSON 内容到剪贴板！(已自动剔除频道数据)");
+                                    ChatNotifier.send("§a[IRC] 已复制 §f" + profileName + ".json §a的 JSON 内容到剪贴板！(已自动剔除频道数据)", NotificationType.SUCCESS);
                                 } else {
-                                    ChatNotifier.send("§e[IRC] 配置文件 §f" + profileName + ".json §e内容为空");
+                                    ChatNotifier.send("§e[IRC] 配置文件 §f" + profileName + ".json §e内容为空", NotificationType.WARN);
                                 }
                             } catch (Exception e) {
-                                ChatNotifier.send("§c[IRC] 读取文件失败: " + e.getMessage());
+                                ChatNotifier.send("§c[IRC] 读取文件失败: " + e.getMessage(), NotificationType.ERR);
                             }
                         }
                     },
                     btn -> {
                         boolean success = IrcConfig.loadProfile(profileName, false);
                         if (success) {
-                            ChatNotifier.send("§a[IRC] 已成功切换并加载配置: §f" + profileName + ".json");
+                            ChatNotifier.send("§a[IRC] 已成功切换并加载配置: §f" + profileName + ".json", NotificationType.SUCCESS);
                         }
                     },
                     () -> profileName.equalsIgnoreCase(IrcConfig.getCurrentProfileName())

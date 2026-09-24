@@ -4,6 +4,7 @@ import me.cookie.kwrg.gui.IrcScreen;
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -73,7 +74,7 @@ public class OnlineModule extends Module {
                         PanelItemComponent.ItemType.TRIGGER,
                         () -> {
                             Minecraft.getInstance().keyboardHandler.setClipboard(p);
-                            ChatNotifier.send("§a[IRC] 已复制玩家 ID: §f" + p);
+                            ChatNotifier.send("§a[IRC] 已复制玩家 ID: §f" + p, NotificationType.SUCCESS);
                         },
                         null,
                         () -> true

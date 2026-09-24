@@ -2,6 +2,7 @@ package me.cookie.kwrg.irc;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,8 +57,9 @@ public class IrcConfig {
     public boolean islandShowGpu = false;
     public boolean islandShowCpu = false;
     public boolean isShadowEnabled = true;
-    public float islandOpacity  = 1.0f;
-    public boolean onlyTab = true;
+    public float islandOpacity  = 0.2f;
+    public boolean onlyApplyToTab = true;
+    public boolean onlyRenderTab = false;
 
     public boolean disableBlur = false;
     public float blurQuality = 8.0f;
@@ -136,7 +138,11 @@ public class IrcConfig {
         try {
             if (Files.exists(profilePath)) {
                 String json = Files.readString(profilePath);
-                IrcConfig loaded = GSON.fromJson(json, IrcConfig.class);
+
+                JsonObject jsonObj = GSON.fromJson(json, JsonObject.class);
+                migrateLegacyFields(jsonObj);
+                IrcConfig loaded = GSON.fromJson(jsonObj, IrcConfig.class);
+
                 if (loaded == null) loaded = new IrcConfig();
                 if (loaded.importantPlayers == null) loaded.importantPlayers = new ArrayList<>();
                 if (loaded.playerFinderTargets == null) loaded.playerFinderTargets = new ArrayList<>();
@@ -156,6 +162,16 @@ public class IrcConfig {
             LOGGER.error("[Kwrg] 加载配置文件 {}.json 失败", cleanName, e);
         }
         return false;
+    }
+
+    private static void migrateLegacyFields(JsonObject jsonObj) {
+        if (jsonObj == null) return;
+
+        if (jsonObj.has("onlyTab") && !jsonObj.has("onlyApplyToTab")) {
+            jsonObj.add("onlyApplyToTab", jsonObj.get("onlyTab"));
+        }
+        //迁移旧配置扩展
+        jsonObj.remove("onlyTab");
     }
 
     public static void createProfile(String profileName) {

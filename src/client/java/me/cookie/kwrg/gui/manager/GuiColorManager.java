@@ -1,6 +1,7 @@
 package me.cookie.kwrg.gui.manager;
 
 import io.wispforest.owo.ui.core.Color;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -74,7 +75,7 @@ public class GuiColorManager {
 
     public static void resetDefault() {
         setGuiColor(DEFAULT_COLOR);
-        ChatNotifier.send("§a[IRC] GUI 主题颜色已重置为默认值: §f" + DEFAULT_COLOR);
+        ChatNotifier.send("§a[IRC] GUI 主题颜色已重置为默认值: §f" + DEFAULT_COLOR, NotificationType.INFO);
     }
 
     private static int calculateOutlineRgb(int bgRgb) {

@@ -5,6 +5,7 @@ import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.manager.GuiColorManager;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -40,7 +41,7 @@ public class GuiColorModule extends Module {
                         panel.clearChildren();
                         this.buildTertiaryUI(panel);
                     } else {
-                        ChatNotifier.send("§e[IRC] 提示: 请按住 §fShift + 左键 §e点击以重置为默认主题颜色！");
+                        ChatNotifier.send("§e[IRC] 提示: 请按住 §fShift + 左键 §e点击以重置为默认主题颜色！", NotificationType.INFO);
                     }
                 }
         );

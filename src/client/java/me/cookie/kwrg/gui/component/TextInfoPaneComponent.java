@@ -2,6 +2,7 @@ package me.cookie.kwrg.gui.component;
 
 import io.wispforest.owo.ui.base.BaseUIComponent;
 import io.wispforest.owo.ui.core.*;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -209,7 +210,7 @@ public class TextInfoPaneComponent extends BaseUIComponent {
             String val = this.componentSupplier != null ? this.componentSupplier.get().getString() : (this.valueSupplier != null ? this.valueSupplier.get() : "");
             if (!val.isEmpty()) {
                 Minecraft.getInstance().keyboardHandler.setClipboard(val);
-                ChatNotifier.send("§a[IRC] 已复制 " + this.label + ": §f" + val);
+                ChatNotifier.send("§a[IRC] 已复制 " + this.label + ": §f" + val, NotificationType.SUCCESS);
             }
             return true;
         }

@@ -4,6 +4,7 @@ import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -18,7 +19,6 @@ import java.util.Locale;
 
 public class ChatModule extends Module {
 
-    // 声音选项列表 (包含 6 款小猫声音与 1 款弓箭命中清脆叮声)
     private static final List<String> SOUND_OPTIONS = List.of(
             "CAT_AMBIENT_BABY",
             "CAT_PURREOW_BABY",
@@ -40,7 +40,7 @@ public class ChatModule extends Module {
         IrcConfig config = IrcConfig.get();
         config.chat = !config.chat;
         IrcConfig.save();
-        ChatNotifier.send("§a[IRC] 聊天提示音 (Chat) 已: " + (config.chat ? "§a开启" : "§c关闭"));
+        ChatNotifier.send("§a[IRC] 聊天提示音 (Chat) 已: " + (config.chat ? "§a开启" : "§c关闭"),(config.chat ? NotificationType.SUCCESS : NotificationType.ERR));
         if (config.chat) {
             playSound(config.chatSound);
         }
@@ -57,7 +57,6 @@ public class ChatModule extends Module {
         IrcConfig config = IrcConfig.get();
         String currentSound = (config.chatSound != null && !config.chatSound.isBlank()) ? config.chatSound : "CAT_AMBIENT_BABY";
 
-        // ① 顶部只读选择框 (点击展开/收起声音列表)
         String displayText = "提示音: " + currentSound;
         TextInputPaneComponent pickerPane = new TextInputPaneComponent(displayText, null)
                 .asButton(displayText, () -> {
@@ -67,22 +66,18 @@ public class ChatModule extends Module {
 
         panel.child(pickerPane);
 
-        // ② 下拉展示声音选项列表
         if (this.isDropdownOpen) {
             for (String soundKey : SOUND_OPTIONS) {
                 panel.child(new PanelItemComponent(
                         soundKey,
                         PanelItemComponent.ItemType.TRIGGER,
                         () -> {
-                            // 1. 存入配置
                             IrcConfig.get().chatSound = soundKey;
                             IrcConfig.save();
 
-                            // 2. 播放声音预览并提示
                             playSound(soundKey);
-                            ChatNotifier.send("§a[IRC] 提示音已应用: §f" + soundKey);
+                            ChatNotifier.send("§a[IRC] 提示音已应用: §f" + soundKey, NotificationType.SUCCESS);
 
-                            // 3. 回填名称并收起列表
                             this.isDropdownOpen = false;
                             renderChatUI(panel);
                         },
@@ -92,20 +87,12 @@ public class ChatModule extends Module {
             }
         }
 
-        // ③ 居中说明标题
         panel.child(TextInfoPaneComponent.header("提示音设置 (左键试听并应用)"));
     }
 
-    // =========================================================
-    // 【公共调用 API】：供外部在收到聊天/消息时调用
-    // =========================================================
-
-    /**
-     * 播放当前配置文件中设置的聊天提示音 (会自动检查 config.chat 开关是否开启)
-     */
     public static void playConfiguredSound() {
         IrcConfig config = IrcConfig.get();
-        if (!config.chat) return; // 如果未开启提示音则静默不播放
+        if (!config.chat) return;
 
         String soundKey = config.chatSound;
         playSound(soundKey);
@@ -120,13 +107,11 @@ public class ChatModule extends Module {
             SoundEvent event = getSoundEvent(soundKey);
             if (event == null) return;
 
-            // 针对不同声音进行音量增益 (Volume Boost) 与音调 (Pitch) 校准
-            float volume = 1.8F; // 默认放大音量
+            float volume = 1.8F; // 放大音量
             float pitch = 1.0F;
 
             String upper = soundKey != null ? soundKey.toUpperCase(Locale.ROOT) : "";
             if (upper.contains("BABY") || upper.contains("CAT")) {
-                // 【核心优化】：将小猫声音增益拉到 2.0F，音调提升到 1.35F，声音立刻清脆响亮可爱！
                 volume = 2.0F;
                 pitch = 1.35F;
             } else if (upper.contains("ARROW")) {
@@ -134,7 +119,6 @@ public class ChatModule extends Module {
                 pitch = 1.0F;
             }
 
-            // 使用 forUI 播放无距离衰减的清晰立体声音效
             mc.getSoundManager().play(SimpleSoundInstance.forUI(event, pitch, volume));
         } catch (Throwable t) {
             t.printStackTrace();
@@ -142,7 +126,7 @@ public class ChatModule extends Module {
     }
 
     /**
-     * 纯净名称映射到原版 SoundEvent
+     * 名称映射 SoundEvent
      */
     public static SoundEvent getSoundEvent(String key) {
         if (key == null) return SoundEvents.CAT_AMBIENT_BABY.value();

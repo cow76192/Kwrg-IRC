@@ -4,6 +4,7 @@ import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -23,9 +24,9 @@ public class DynamicIslandModule extends Module {
         IrcConfig.save();
 
         if (config.dynamicIsland) {
-            ChatNotifier.send("§adynamicIsland 已: §a开启");
+            ChatNotifier.send("§adynamicIsland 已: §a开启", NotificationType.SUCCESS);
         } else {
-            ChatNotifier.send("§edynamicIsland 已: §c关闭");
+            ChatNotifier.send("§edynamicIsland 已: §c关闭", NotificationType.ERR);
         }
     }
 
@@ -36,12 +37,11 @@ public class DynamicIslandModule extends Module {
         panel.child(TextInfoPaneComponent.header("外观设置"));
 
         final TextInputPaneComponent[] opacityInputHolder = new TextInputPaneComponent[1];
-        opacityInputHolder[0] = new TextInputPaneComponent("透明度 (例如: 80%)", input -> {
+        opacityInputHolder[0] = new TextInputPaneComponent("", input -> {
             IrcConfig config = IrcConfig.get();
             if (input == null || input.isBlank()) return;
 
             try {
-                // 去除空格与百分号
                 String clean = input.trim().replace("%", "");
                 float val = Float.parseFloat(clean);
 
@@ -54,15 +54,14 @@ public class DynamicIslandModule extends Module {
                 config.islandOpacity = percent / 100.0f;
                 IrcConfig.save();
 
-                // 自动刷新输入框为规范的百分比显示
                 opacityInputHolder[0].setText(percent + "%");
-                ChatNotifier.send("§a灵动岛透明度已设置为: §e" + percent + "%");
+                ChatNotifier.send("§a灵动岛透明度已设置为: §e" + percent + "%", NotificationType.INFO);
             } catch (NumberFormatException e) {
-                ChatNotifier.send("§c请输入有效的数字或百分比 (例如: 80 或 80%)");
+                ChatNotifier.send("§c请输入有效的数字或百分比 (例如: 80 或 80%)", NotificationType.WARN);
                 int currentPercent = Math.round(config.islandOpacity * 100.0f);
                 opacityInputHolder[0].setText(currentPercent + "%");
             }
-        });
+        }, "透明度 (例如: 80%)");
 
         int currentPercent = Math.round(IrcConfig.get().islandOpacity * 100.0f);
         opacityInputHolder[0].setText(currentPercent + "%");
@@ -70,15 +69,27 @@ public class DynamicIslandModule extends Module {
         panel.child(opacityInputHolder[0]);
 
         panel.child(new PanelItemComponent(
-                "onlyTab",
+                "OnlyApplytoTab",
                 PanelItemComponent.ItemType.TOGGLE,
                 () -> {
                     IrcConfig config = IrcConfig.get();
-                    config.onlyTab = !config.onlyTab;
+                    config.onlyApplyToTab = !config.onlyApplyToTab;
                     IrcConfig.save();
                 },
                 null,
-                () -> IrcConfig.get().onlyTab
+                () -> IrcConfig.get().onlyApplyToTab
+        ));
+
+        panel.child(new PanelItemComponent(
+                "onlyRenderTab (╯▔皿▔)╯",
+                PanelItemComponent.ItemType.TOGGLE,
+                () -> {
+                    IrcConfig config = IrcConfig.get();
+                    config.onlyRenderTab = !config.onlyRenderTab;
+                    IrcConfig.save();
+                },
+                null,
+                () -> IrcConfig.get().onlyRenderTab
         ));
 
         panel.child(new PanelItemComponent(
