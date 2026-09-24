@@ -263,6 +263,19 @@ public class ColorUtil {
         return Math.min(255, Math.max(0, v));
     }
 
+    public static int applyHslTransform(int rgb, float hue, float saturation, float lightness) {
+        int r = (rgb >> 16) & 0xFF;
+        int g = (rgb >> 8) & 0xFF;
+        int b = rgb & 0xFF;
+        float[] hsb = Color.RGBtoHSB(r, g, b, null);
+
+        hsb[0] = (hue / 360.0f) % 1.0f;
+        hsb[1] = Math.min(1.0f, Math.max(0.0f, hsb[1] * saturation));
+        hsb[2] = Math.min(1.0f, Math.max(0.0f, hsb[2] * lightness));
+
+        return Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]) & 0xFFFFFF;
+    }
+
     private static Color[] parseColorList(String colorListStr) {
         List<Color> result = new ArrayList<>();
         String[] parts = colorListStr.split(",");

@@ -73,6 +73,9 @@ public class IrcConfig {
 
     public String guiFont = "default";
     public String guiColor = "#11161F";
+    public float guiHue = 0.8f;
+    public float guiSaturation = 0.8f;
+    public float guiLightness = 0.8f;
 
     public float guiScale = 1.0f;
 
