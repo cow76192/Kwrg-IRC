@@ -238,20 +238,13 @@ public final class RenderUtil {
         if (len < 0.5f) return;
 
         float angleRad = (float) Math.atan2(dy, dx);
-
-        int col = color.argb();
-        int fadeCol = col & 0x00FFFFFF;
+        float halfThick = Math.max(0.25f, (float) thickness / 2.0f);
 
         graphics.pose().pushMatrix();
         graphics.pose().translate(x1, y1);
-
         graphics.pose().rotate(angleRad);
-        float halfThick = Math.max(0.1f, (float) thickness / 2.0f);
-        float aa = 0.5f;
 
-        drawQuadGradient(graphics, 0.0f, -halfThick - aa, len, -halfThick, fadeCol, fadeCol, col, col);
-        fillSubpixel(graphics, 0.0f, -halfThick, len, halfThick, col);
-        drawQuadGradient(graphics, 0.0f, halfThick, len, halfThick + aa, col, col, fadeCol, fadeCol);
+        fillSubpixel(graphics, 0.0f, -halfThick, len, halfThick, color.argb());
 
         graphics.pose().popMatrix();
     }
