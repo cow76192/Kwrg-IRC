@@ -2,7 +2,6 @@ package me.cookie.kwrg.gui;
 
 import io.wispforest.owo.ui.base.BaseOwoScreen;
 import io.wispforest.owo.ui.container.StackLayout;
-import io.wispforest.owo.ui.container.UIContainers;
 import io.wispforest.owo.ui.core.OwoUIAdapter;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import io.wispforest.owo.ui.core.Positioning;
@@ -80,16 +79,30 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
     public void closeGui() {
         this.onClose();
     }
-
     @Override
     protected @NotNull OwoUIAdapter<StackLayout> createAdapter() {
-        return OwoUIAdapter.create(this, UIContainers::stack);
+        return OwoUIAdapter.create(this, (sizingX, sizingY) -> new StackLayout(sizingX, sizingY) {
+            @Override
+            public boolean isInBoundingBox(double x, double y) {
+                return true;
+            }
+
+            @Override
+            public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
+                graphics.disableScissor();
+                super.draw(graphics, mouseX, mouseY, partialTicks, delta);
+                var window = Minecraft.getInstance().getWindow();
+                graphics.enableScissor(0, 0, window.getGuiScaledWidth(), window.getGuiScaledHeight());
+            }
+        });
     }
 
     @Override
     protected void build(StackLayout rootComponent) {
         currentInstance = this;
         this.rootLayout = rootComponent;
+
+        rootComponent.allowOverflow(true);
 
         updateSurface();
 
@@ -207,16 +220,13 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float a) {
         me.cookie.kwrg.gui.util.GuiFpsLimiter.apply();
 
-        // 包装官方 owo-ui 画笔
         OwoUIGraphics owoGraphics = OwoUIGraphics.of(graphics);
 
-        // ================= 1. 第一层：全屏 100% 原始底座（无任何缩放，无任何 Scissor 裁剪！） =================
         if (this.fullscreenBlurSurface != null && !IrcConfig.get().disableBlur && this.rootLayout != null) {
             this.fullscreenBlurSurface.draw(owoGraphics, this.rootLayout);
         }
         this.particleBackground.drawDirect(owoGraphics, a);
 
-        // ================= 2. 第二层：核心菜单（轮盘 + 各级面板，50% ~ 200% 平滑缩放） =================
         float scale = getAnimatedScale();
         float cx = this.width / 2.0f;
         float cy = this.height / 2.0f;
@@ -233,7 +243,6 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
         graphics.pose().popMatrix();
 
-        // ================= 3. 第三层：全屏 100% 原始 HUD（通知与灵动岛） =================
         NotificationManager.render(graphics, mouseX, mouseY, a);
         DynamicIslandRenderer.render(graphics, a);
     }
@@ -245,16 +254,32 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
         }
 
         float scale = getAnimatedScale();
-        if (Math.abs(scale - 1.0f) < 0.001f) {
-            return super.mouseClicked(click, doubled);
+        double vx = toVirtualX(click.x());
+        double vy = toVirtualY(click.y());
+
+        MouseButtonEvent virtualClick = (Math.abs(scale - 1.0f) < 0.001f)
+                ? click
+                : new MouseButtonEvent(vx, vy, click.buttonInfo());
+
+        boolean handled = super.mouseClicked(virtualClick, doubled);
+
+        if (!handled && click.button() == 1 && this.radialMenu != null) {
+            if (this.radialMenu.isTertiaryOpen()) {
+                boolean inside2nd = this.radialMenu.isClickInsidePanel(vx, vy);
+                boolean inside3rd = this.radialMenu.isClickInsideTertiary(vx, vy);
+                if (!inside2nd && !inside3rd) {
+                    this.radialMenu.closeTertiaryPanel();
+                    return true;
+                }
+            } else if (this.radialMenu.isPanelOpen()) {
+                if (!this.radialMenu.isClickInsidePanel(vx, vy)) {
+                    this.radialMenu.closeSecondaryPanel();
+                    return true;
+                }
+            }
         }
 
-        MouseButtonEvent virtualClick = new MouseButtonEvent(
-                toVirtualX(click.x()),
-                toVirtualY(click.y()),
-                click.buttonInfo()
-        );
-        return super.mouseClicked(virtualClick, doubled);
+        return handled;
     }
 
     @Override

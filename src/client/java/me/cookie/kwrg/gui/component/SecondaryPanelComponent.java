@@ -100,7 +100,7 @@ public class SecondaryPanelComponent extends FlowLayout {
 
     public void openTertiaryDirectly(String moduleName) {
         this.tertiaryOpen = true;
-        this.tertiaryAnimStartTime = 0L; // 0L 代表已处于完成态
+        this.tertiaryAnimStartTime = 0L;
 
         int rootW = this.parent() != null ? this.parent().width() : Minecraft.getInstance().getWindow().getGuiScaledWidth();
         int rootH = this.parent() != null ? this.parent().height() : Minecraft.getInstance().getWindow().getGuiScaledHeight();
@@ -113,7 +113,7 @@ public class SecondaryPanelComponent extends FlowLayout {
 
         this.tertiaryPanel = new TertiaryPanelComponent(moduleName);
         this.tertiaryPanel.setAnimationOrigin(originX, originY);
-        this.tertiaryPanel.setAnimationProgress(1.0f); // 直接满帧可见
+        this.tertiaryPanel.setAnimationProgress(1.0f);
         this.rootContainer.child(this.tertiaryPanel);
     }
 
@@ -205,7 +205,6 @@ public class SecondaryPanelComponent extends FlowLayout {
         Color outlineColor = RenderUtil.withAlpha(GuiColorManager.getOutlineColorRgb(), outlineAlpha);
 
         RenderUtil.drawRoundedPanel(graphics, px, py, width, height, 14.0f, panelBg, outlineColor);
-        graphics.enableScissor(px + 1, py + 1, px + width - 1, py + height - 1);
 
         int headerHeight = 44;
         int iconBadgeRadius = 13;
@@ -261,7 +260,6 @@ public class SecondaryPanelComponent extends FlowLayout {
             this.scrollbar.draw(graphics, px + width - 5, trackStartY, trackHeight, mouseX, mouseY, panelAlpha, delta);
         }
 
-        graphics.disableScissor();
     }
 
     public int getActualPanelX() {
