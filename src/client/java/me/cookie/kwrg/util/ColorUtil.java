@@ -306,6 +306,41 @@ public class ColorUtil {
         return p;
     }
 
+    public static int[] rgbToHsl(Color color) {
+        if (color == null) return new int[]{0, 0, 0};
+        float r = color.getRed() / 255.0f;
+        float g = color.getGreen() / 255.0f;
+        float b = color.getBlue() / 255.0f;
+
+        float max = Math.max(r, Math.max(g, b));
+        float min = Math.min(r, Math.min(g, b));
+        float delta = max - min;
+
+        float h = 0.0f;
+        float s = 0.0f;
+        float l = (max + min) / 2.0f;
+
+        if (delta > 0.00001f) {
+            s = (l < 0.5f) ? (delta / (max + min)) : (delta / (2.0f - max - min));
+
+            if (max == r) {
+                h = (g - b) / delta + (g < b ? 6.0f : 0.0f);
+            } else if (max == g) {
+                h = (b - r) / delta + 2.0f;
+            } else {
+                h = (r - g) / delta + 4.0f;
+            }
+            h *= 60.0f;
+        }
+
+        int hDeg = Math.round(h) % 360;
+        if (hDeg < 0) hDeg += 360;
+        int sPct = Math.round(s * 100.0f);
+        int lPct = Math.round(l * 100.0f);
+
+        return new int[]{hDeg, sPct, lPct};
+    }
+
     private static String capitalizeWords(String str) {
         String[] words = str.split("\\s+");
         StringBuilder sb = new StringBuilder();
