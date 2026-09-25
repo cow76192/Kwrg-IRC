@@ -122,13 +122,6 @@ public class TertiaryPanelComponent extends FlowLayout {
         Color outlineColor = RenderUtil.withAlpha(GuiColorManager.getOutlineColorRgb(), outlineAlpha);
 
         RenderUtil.drawRoundedPanel(graphics, px, py, width, height, 14.0f, panelBg, outlineColor);
-        int scissorX1 = px + 1;
-        int scissorY1 = py + 1;
-        int scissorX2 = px + width - 1;
-        int scissorY2 = py + height - 1;
-        if (scissorX2 <= scissorX1 || scissorY2 <= scissorY1) return;
-
-        graphics.enableScissor(scissorX1, scissorY1, scissorX2, scissorY2);
 
         int headerHeight = 44;
         int iconBadgeRadius = 13;
@@ -178,6 +171,8 @@ public class TertiaryPanelComponent extends FlowLayout {
 
             curY += footprint;
         }
+
+        graphics.enableScissor(px + 6, itemStartY, px + width - 6, py + height - 8);
 
         if (ease > 0.10f) {
             super.draw(graphics, mouseX, mouseY, partialTicks, delta);

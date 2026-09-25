@@ -147,7 +147,7 @@ public class RadialMenuComponent extends BaseUIComponent {
 
         this.secondaryPanel = new SecondaryPanelComponent(targetBtn.getTitle(), this.rootContainer);
         this.secondaryPanel.setAnimationOrigin(originX, originY);
-        this.secondaryPanel.setAnimationProgress(1.0f); // 直接就绪
+        this.secondaryPanel.setAnimationProgress(1.0f);
         this.rootContainer.child(this.secondaryPanel);
 
         if (moduleName != null) {
@@ -181,8 +181,15 @@ public class RadialMenuComponent extends BaseUIComponent {
         }
         float panelEase = RenderUtil.easeOutCubic(panelProgress);
 
-        int cx = this.parent() != null ? this.parent().width() / 2 : this.x();
-        int cy = this.parent() != null ? this.parent().height() / 2 : this.y();
+        var client = Minecraft.getInstance();
+        int screenW = client.screen != null ? client.screen.width : (this.parent() != null ? this.parent().width() : client.getWindow().getGuiScaledWidth());
+        int screenH = client.screen != null ? client.screen.height : (this.parent() != null ? this.parent().height() : client.getWindow().getGuiScaledHeight());
+
+        int cx = screenW / 2;
+        int cy = screenH / 2;
+
+        double maxSafeRadius = Math.max(45.0, (double) cy - 36.0);
+        double actualRingRadius = Math.min(BIG_RING_RADIUS, maxSafeRadius);
 
         float menuAlpha = (1.0f - panelEase) * mainEase;
 
@@ -195,7 +202,7 @@ public class RadialMenuComponent extends BaseUIComponent {
 
             int nodeCount = buttons.size();
             double stepDeg = 360.0 / nodeCount;
-            double gapDeg = Math.toDegrees(Math.asin(30.0 / BIG_RING_RADIUS));
+            double gapDeg = Math.toDegrees(Math.asin(30.0 / actualRingRadius));
 
             int ringAlpha = (int) (255 * 0.35f * menuAlpha);
             Color ringPeak = RenderUtil.withAlpha(0xFFFFFF, ringAlpha);
@@ -205,7 +212,7 @@ public class RadialMenuComponent extends BaseUIComponent {
                 double a1 = 90.0 + i * stepDeg + gapDeg;
                 double a2 = 90.0 + (i + 1) * stepDeg - gapDeg;
 
-                RenderUtil.drawAAArc(graphics, 0, 0, a1, a2, BIG_RING_RADIUS, ringPeak, ringFade);
+                RenderUtil.drawAAArc(graphics, 0, 0, a1, a2, actualRingRadius, ringPeak, ringFade);
             }
 
             graphics.pose().popMatrix();
@@ -213,13 +220,14 @@ public class RadialMenuComponent extends BaseUIComponent {
 
         double startAngleRad = -Math.PI / 2.0;
         double stepAngleRad = Math.PI * 2.0 / buttons.size();
+
         float styleTopX = (float) cx;
-        float styleTopY = (float) (cy - BIG_RING_RADIUS * mainEase);
+        float styleTopY = (float) (cy - actualRingRadius * mainEase);
 
         for (int i = 0; i < buttons.size(); i++) {
             CircleButtonComponent btn = buttons.get(i);
             double angle = startAngleRad + i * stepAngleRad;
-            double curRadius = BIG_RING_RADIUS * mainEase;
+            double curRadius = actualRingRadius * mainEase;
 
             float radialX = (float) (cx + Math.cos(angle) * curRadius);
             float radialY = (float) (cy + Math.sin(angle) * curRadius);

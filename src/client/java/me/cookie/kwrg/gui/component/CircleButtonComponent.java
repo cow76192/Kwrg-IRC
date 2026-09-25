@@ -125,6 +125,16 @@ public class CircleButtonComponent extends BaseUIComponent {
         return super.onMouseDown(click, doubled);
     }
 
+    @Override
+    public boolean isInBoundingBox(double x, double y) {
+        float cx = this.getExactCenterX();
+        float cy = this.getExactCenterY();
+        double r = BASE_RADIUS + 4.0;
+        double dx = x - cx;
+        double dy = y - cy;
+        return (dx * dx + dy * dy) <= (r * r);
+    }
+
     public String getTitle() {
         return this.title;
     }
