@@ -43,7 +43,7 @@ public class PlayerFinderRadarRenderer {
         float bob = (float) Math.sin((System.currentTimeMillis() % 1600L) / 1600.0 * Math.PI * 2.0) * 2.5f;
 
         for (Player target : mc.level.players()) {
-            if (!PlayerFinderManager.isTarget(target)) continue;
+            if (!PlayerFinderManager.shouldRenderEffects(target)) continue;
 
             double tx = Mth.lerp(delta, target.xo, target.getX());
             double ty = Mth.lerp(delta, target.yo, target.getY()) + target.getBbHeight() + 0.45;

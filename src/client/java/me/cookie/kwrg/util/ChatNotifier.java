@@ -127,11 +127,59 @@ public class ChatNotifier {
     }
 
     public static void send(String message, NotificationType type) {
+        send(message, type, false);
+    }
+
+    public static void send(String message, NotificationType type, boolean isAutoDuration) {
         if (message == null || message.isBlank()) return;
 
-        String raw = message.trim();
-        String clean = raw.replaceAll("§[0-9a-fk-or]", "").trim();
+        String[] split = splitTitleAndSubtitle(message);
+        NotificationManager.send(type, split[0], split[1], isAutoDuration);
+    }
 
+    public static void send(String message, NotificationType type, long durationMs) {
+        if (message == null || message.isBlank()) return;
+
+        String[] split = splitTitleAndSubtitle(message);
+        NotificationManager.send(type, split[0], split[1], null, durationMs);
+    }
+
+    public static void send(Component component, NotificationType type) {
+        send(component, type, false);
+    }
+
+    public static void send(Component component, NotificationType type, boolean isAutoDuration) {
+        if (component == null) return;
+
+        String raw = component.getString().trim();
+        if (raw.isBlank()) return;
+
+        String[] split = splitTitleAndSubtitle(raw);
+
+        if (split[1].isEmpty()) {
+            NotificationManager.send(type, component, Component.empty(), isAutoDuration);
+        } else {
+            NotificationManager.send(type, Component.literal(split[0]), Component.literal(split[1]), isAutoDuration);
+        }
+    }
+
+    public static void send(Component component, NotificationType type, long durationMs) {
+        if (component == null) return;
+
+        String raw = component.getString().trim();
+        if (raw.isBlank()) return;
+
+        String[] split = splitTitleAndSubtitle(raw);
+
+        if (split[1].isEmpty()) {
+            NotificationManager.send(type, component, Component.empty(), null, durationMs);
+        } else {
+            NotificationManager.send(type, Component.literal(split[0]), Component.literal(split[1]), null, durationMs);
+        }
+    }
+
+    private static String[] splitTitleAndSubtitle(String rawMessage) {
+        String clean = rawMessage.replaceAll("§[0-9a-fk-or]", "").trim();
         clean = clean.replaceFirst("^(?:\\[IRC\\]|\\[Kwrg\\])\\s*", "");
 
         String title = clean;
@@ -151,42 +199,8 @@ public class ChatNotifier {
             subtitle = parts[1].trim();
         }
 
-        NotificationManager.send(type, title, subtitle);
+        return new String[]{title, subtitle};
     }
-
-    public static void send(Component component, NotificationType type) {
-        if (component == null) return;
-
-        String raw = component.getString().trim();
-        if (raw.isBlank()) return;
-
-        String clean = raw.replaceAll("§[0-9a-fk-or]", "").trim();
-        clean = clean.replaceFirst("^(?:\\[IRC\\]|\\[Kwrg\\])\\s*", "");
-
-        String titleStr = clean;
-        String subtitleStr = "";
-
-        if (clean.contains(" | ")) {
-            String[] parts = clean.split(" \\| ", 2);
-            titleStr = parts[0].trim();
-            subtitleStr = parts[1].trim();
-        } else if (clean.contains(" -> ")) {
-            String[] parts = clean.split(" -> ", 2);
-            titleStr = parts[0].trim();
-            subtitleStr = parts[1].trim();
-        } else if (clean.contains(": ")) {
-            String[] parts = clean.split(": ", 2);
-            titleStr = parts[0].trim();
-            subtitleStr = parts[1].trim();
-        }
-
-        if (subtitleStr.isEmpty()) {
-            NotificationManager.send(type, component, Component.empty());
-        } else {
-            NotificationManager.send(type, Component.literal(titleStr), Component.literal(subtitleStr));
-        }
-    }
-
 
     public record AnimatedSegment(String text, String styleConfig, boolean isRaw) {}
 
@@ -262,7 +276,6 @@ public class ChatNotifier {
     }
 
     private static final java.util.Map<net.minecraft.client.multiplayer.chat.GuiMessage, MessageLineCache> DYNAMIC_LINE_CACHE = new java.util.WeakHashMap<>();
-    private static final java.util.Map<net.minecraft.client.multiplayer.chat.GuiMessage.Line, Integer> LINE_INDEX_MAP = new java.util.WeakHashMap<>();
 
     public static int getChatMaxWidth(Minecraft mc) {
         if (mc == null || mc.options == null) return 320;
@@ -277,7 +290,6 @@ public class ChatNotifier {
     public static boolean hasAnimation(net.minecraft.client.multiplayer.chat.GuiMessage msg) {
         return msg != null && ACTIVE_ANIMATIONS.containsKey(msg);
     }
-
 
     public static FormattedCharSequence createDynamicLine(
             net.minecraft.client.multiplayer.chat.GuiMessage parent,

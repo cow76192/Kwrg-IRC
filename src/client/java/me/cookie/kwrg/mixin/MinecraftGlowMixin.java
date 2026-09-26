@@ -16,7 +16,7 @@ public abstract class MinecraftGlowMixin {
     @Inject(method = "shouldEntityAppearGlowing", at = @At("HEAD"), cancellable = true)
     private void onShouldEntityAppearGlowing(Entity entity, CallbackInfoReturnable<Boolean> cir) {
         if (entity instanceof Player player) {
-            if (PlayerFinderManager.isTarget(player) || IrcGlowManager.isIrcPlayerGlowing(player)) {
+            if (PlayerFinderManager.shouldRenderEffects(player) || IrcGlowManager.isIrcPlayerGlowing(player)) {
                 cir.setReturnValue(true);
             }
         }
