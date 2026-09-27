@@ -51,7 +51,7 @@ public class PlayerFinderManager {
     );
 
     private static final Pattern PARTY_KICK_PATTERN = Pattern.compile(
-            "^(?:\\[[^\\]]+\\]\\s*)?([a-zA-Z0-9_]{2,16})\\s+(?:has been removed from|was removed from|was kicked from)\\s+the\\s+party\\.?.*",
+            "^(?:\\[[^\\]]+\\]\\s*)?([a-zA-Z0-9_]{2,16})\\s+(?:has been removed from|was removed from|was kicked from)\\s+(?:the|your)\\s+party.*",
             Pattern.CASE_INSENSITIVE
     );
 
@@ -70,6 +70,11 @@ public class PlayerFinderManager {
             Pattern.CASE_INSENSITIVE
     );
 
+    private static final Pattern PARTY_KICK_OFFLINE_PATTERN = Pattern.compile(
+            "^Kicked\\s+(?:\\[[^\\]]+\\]\\s*)?([a-zA-Z0-9_]{2,16})\\s+because\\s+they\\s+were\\s+offline\\.?.*",
+            Pattern.CASE_INSENSITIVE
+    );
+
     public static void setOnTargetsChangedListener(Runnable listener) {
         onTargetsChangedListener = listener;
     }
@@ -83,6 +88,7 @@ public class PlayerFinderManager {
     public static void reloadFromConfig() {
         PERSISTENT_TARGETS.clear();
         IrcConfig config = IrcConfig.get();
+        autoTrackPartyChanges = config.autoTrackPlayer;
         if (config.playerFinderTargets != null) {
             for (String name : config.playerFinderTargets) {
                 if (name != null && !name.isBlank()) {
@@ -125,6 +131,27 @@ public class PlayerFinderManager {
             return true;
         }
         return false;
+    }
+
+    public static void onImportantPlayerChanged(String username, boolean added) {
+        if (username == null || username.isBlank()) return;
+        String clean = username.trim().toLowerCase(Locale.ROOT);
+
+        if (PERSISTENT_TARGETS.contains(clean) || TEMP_TARGETS.contains(clean)) {
+            boolean changed;
+            if (added) {
+                changed = STARRED_PLAYERS.add(clean);
+            } else {
+                changed = STARRED_PLAYERS.remove(clean);
+            }
+            if (changed) {
+                notifyTargetsChanged();
+            }
+        }
+    }
+
+    public static void setAutoTrackEnabled(boolean enabled) {
+        autoTrackPartyChanges = enabled;
     }
 
     public static boolean isTarget(Player player) {
@@ -256,7 +283,7 @@ public class PlayerFinderManager {
         if (isDungeonEnterLine(line)) {
             long now = System.currentTimeMillis();
             if (waitingForStart && (now - prepareCombatTimestamp <= 3000L)) {
-                return false; // 10秒内已经触发过入场，忽略重复消息
+                return false; // 3 秒内已经触发过入场，忽略重复消息
             }
             waitingForStart = true;
             prepareCombatTimestamp = now;
@@ -272,7 +299,8 @@ public class PlayerFinderManager {
     }
 
     private static boolean handlePartyMemberChanges(String line) {
-        if (!autoTrackPartyChanges) return false;
+        if (!IrcConfig.get().autoTrackPlayer && !autoTrackPartyChanges) return false;
+
         if (PARTY_DISBAND_PATTERN.matcher(line).matches() || SELF_LEAVE_PATTERN.matcher(line).matches()) {
             if (!TEMP_TARGETS.isEmpty()) {
                 clearTempTargets();
@@ -306,6 +334,13 @@ public class PlayerFinderManager {
         if (joinMatcher.matches()) {
             String joinedPlayer = joinMatcher.group(1);
             onPlayerJoinedParty(joinedPlayer);
+            return true;
+        }
+
+        Matcher offlineMatcher = PARTY_KICK_OFFLINE_PATTERN.matcher(line);
+        if (offlineMatcher.matches()) {
+            String offlinePlayer = offlineMatcher.group(1);
+            onPlayerLeftParty(offlinePlayer);
             return true;
         }
 
@@ -356,14 +391,13 @@ public class PlayerFinderManager {
         }
     }
 
-    private static void clearTempTargets() {
+    public static void clearTempTargets() {
         for (String temp : TEMP_TARGETS) {
             if (!PERSISTENT_TARGETS.contains(temp)) {
                 STARRED_PLAYERS.remove(temp);
             }
         }
         TEMP_TARGETS.clear();
-        autoTrackPartyChanges = false;
         notifyTargetsChanged();
     }
 

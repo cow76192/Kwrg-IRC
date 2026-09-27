@@ -7,6 +7,7 @@ import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcConfig;
+import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.module.ModuleManager;
@@ -130,10 +131,12 @@ public class ImportantPlayerModule extends Module {
         boolean removed = config.importantPlayers.removeIf(p -> p.equalsIgnoreCase(player));
         if (removed) {
             IrcConfig.save();
+            PlayerFinderManager.onImportantPlayerChanged(player, false);
             ChatNotifier.send("§e[IRC] 已将玩家 §f" + player + " §e从关注名单中移除。", NotificationType.INFO);
         } else {
             config.importantPlayers.add(player);
             IrcConfig.save();
+            PlayerFinderManager.onImportantPlayerChanged(player, true);
             ChatNotifier.send("§a[IRC] 已将玩家 §f" + player + " §a添加到关注名单!", NotificationType.INFO);
         }
     }
@@ -143,10 +146,12 @@ public class ImportantPlayerModule extends Module {
         boolean removed = config.importantPlayers.removeIf(p -> p.equalsIgnoreCase(player));
         if (removed) {
             IrcConfig.save();
+            PlayerFinderManager.onImportantPlayerChanged(player, false);
             ChatNotifier.sendInChatScreen("§e[IRC] 已将玩家 §f" + player + " §e从关注名单中移除。");
         } else {
             config.importantPlayers.add(player);
             IrcConfig.save();
+            PlayerFinderManager.onImportantPlayerChanged(player, true);
             ChatNotifier.sendInChatScreen("§a[IRC] 已将玩家 §f" + player + " §a添加到关注名单!");
         }
         return 1;

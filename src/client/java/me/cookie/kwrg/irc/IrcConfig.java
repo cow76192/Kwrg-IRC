@@ -48,6 +48,7 @@ public class IrcConfig {
     public List<String> savedChannels = new ArrayList<>();
 
     public List<String> playerFinderTargets = new ArrayList<>();
+    public boolean autoTrackPlayer = false;
 
     public boolean dynamicIsland = false;
     public boolean islandShowFps = true;

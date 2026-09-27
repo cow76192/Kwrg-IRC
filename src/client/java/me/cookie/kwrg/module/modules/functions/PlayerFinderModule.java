@@ -71,7 +71,7 @@ public class PlayerFinderModule extends Module {
 
         panel.child(new ColorSettingComponent(IrcConfig.get().playerFinderColor, PlayerFinderModule::setFinderColor, false));
 
-        panel.child(TextInfoPaneComponent.header("目标列表"));
+        panel.child(TextInfoPaneComponent.header("目标列表\n(shift点击移除|ctrl点击星标)"));
 
         List<String> targetList = PlayerFinderManager.getPlayers();
         if (targetList.isEmpty()) {
