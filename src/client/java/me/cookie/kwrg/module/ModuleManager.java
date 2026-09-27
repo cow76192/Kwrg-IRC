@@ -31,7 +31,6 @@ public class ModuleManager {
         register(new OnlineModule());
         register(new ImportantPlayerModule());
         register(new PlayerFinderModule());
-        register(new AutoTrackPlayerModule());
         register(new ChannelModule());
 
         // --- STYLE 模块 ---

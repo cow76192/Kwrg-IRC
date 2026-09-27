@@ -39,11 +39,11 @@ public class PlayerFinderModule extends Module {
         this.activePanel = panel;
         panel.clearChildren();
 
-        TextInputPaneComponent inputPane = new TextInputPaneComponent("输入寻找玩家 (回车添加)...", player -> {
+        TextInputPaneComponent inputPane = new TextInputPaneComponent("输入寻找玩家 (回车添加，永久保存)...", player -> {
             String clean = player.trim();
             if (!clean.isEmpty()) {
                 PlayerFinderManager.addPlayer(clean);
-                ChatNotifier.send("§a已将 §f" + clean + " §a加入寻找名单！", NotificationType.SUCCESS);
+                ChatNotifier.send("§a[Finder] 已将 §f" + clean + " §a加入寻找名单！", NotificationType.SUCCESS);
                 this.currentInputText = "";
                 renderFinderUI(panel, clean);
             }
@@ -54,24 +54,23 @@ public class PlayerFinderModule extends Module {
 
         panel.child(inputPane);
 
+        panel.child(TextInfoPaneComponent.header("队伍管理"));
+
         panel.child(new PanelItemComponent(
-                "一键导入 Party 成员",
-                PanelItemComponent.ItemType.TRIGGER,
-                (btn, click) -> {
-                    Minecraft mc = Minecraft.getInstance();
-                    if (mc.player != null && mc.player.connection != null) {
-                        PlayerFinderManager.beginSilentPartyListFetch();
-                        mc.player.connection.sendCommand("party list");
-                        ChatNotifier.send("§e[Finder] 正在获取 Party 列表...", NotificationType.INFO);
-                    }
+                "自动导入并追踪队伍",
+                PanelItemComponent.ItemType.TOGGLE,
+                () -> {
+                    boolean nextState = !PlayerFinderManager.isPartyTracking();
+                    PlayerFinderManager.setPartyTracking(nextState);
+                    renderFinderUI(panel, null);
                 },
                 null,
-                () -> true
+                PlayerFinderManager::isPartyTracking
         ));
 
         panel.child(new ColorSettingComponent(IrcConfig.get().playerFinderColor, PlayerFinderModule::setFinderColor, false));
 
-        panel.child(TextInfoPaneComponent.header("目标列表\n(shift点击移除|ctrl点击星标)"));
+        panel.child(TextInfoPaneComponent.header("目标列表 (左键复制 | Shift移除 | Ctrl星标)"));
 
         List<String> targetList = PlayerFinderManager.getPlayers();
         if (targetList.isEmpty()) {

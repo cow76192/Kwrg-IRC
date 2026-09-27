@@ -18,6 +18,8 @@ public class PlayerFinderManager {
     private static final Set<String> TEMP_TARGETS = ConcurrentHashMap.newKeySet();
     private static final Set<String> STARRED_PLAYERS = ConcurrentHashMap.newKeySet();
 
+    private static volatile boolean partyTracking = false;
+
     // Party List 抓取状态机
     private static final Object PARTY_LOCK = new Object();
     private static boolean expectingPartyList = false;
@@ -30,8 +32,6 @@ public class PlayerFinderManager {
     private static volatile boolean waitingForStart = false;
     private static volatile long prepareCombatTimestamp = 0L;
     private static volatile boolean inSmallCombatScene = false;
-
-    private static volatile boolean autoTrackPartyChanges = false;
 
     private static Runnable onTargetsChangedListener = null;
 
@@ -55,6 +55,11 @@ public class PlayerFinderManager {
             Pattern.CASE_INSENSITIVE
     );
 
+    private static final Pattern PARTY_KICK_OFFLINE_PATTERN = Pattern.compile(
+            "^Kicked\\s+(?:\\[[^\\]]+\\]\\s*)?([a-zA-Z0-9_]{2,16})\\s+because\\s+they\\s+were\\s+offline\\.?.*",
+            Pattern.CASE_INSENSITIVE
+    );
+
     private static final Pattern PARTY_TRANSFER_LEAVE_PATTERN = Pattern.compile(
             "^The party was transferred to .*?\\s+because\\s+(?:\\[[^\\]]+\\]\\s*)?([a-zA-Z0-9_]{2,16})\\s+left\\.?.*",
             Pattern.CASE_INSENSITIVE
@@ -67,11 +72,6 @@ public class PlayerFinderManager {
 
     private static final Pattern SELF_LEAVE_PATTERN = Pattern.compile(
             "^(?:You left the party|You have been kicked from the party).*?\\.?",
-            Pattern.CASE_INSENSITIVE
-    );
-
-    private static final Pattern PARTY_KICK_OFFLINE_PATTERN = Pattern.compile(
-            "^Kicked\\s+(?:\\[[^\\]]+\\]\\s*)?([a-zA-Z0-9_]{2,16})\\s+because\\s+they\\s+were\\s+offline\\.?.*",
             Pattern.CASE_INSENSITIVE
     );
 
@@ -88,7 +88,6 @@ public class PlayerFinderManager {
     public static void reloadFromConfig() {
         PERSISTENT_TARGETS.clear();
         IrcConfig config = IrcConfig.get();
-        autoTrackPartyChanges = config.autoTrackPlayer;
         if (config.playerFinderTargets != null) {
             for (String name : config.playerFinderTargets) {
                 if (name != null && !name.isBlank()) {
@@ -131,27 +130,6 @@ public class PlayerFinderManager {
             return true;
         }
         return false;
-    }
-
-    public static void onImportantPlayerChanged(String username, boolean added) {
-        if (username == null || username.isBlank()) return;
-        String clean = username.trim().toLowerCase(Locale.ROOT);
-
-        if (PERSISTENT_TARGETS.contains(clean) || TEMP_TARGETS.contains(clean)) {
-            boolean changed;
-            if (added) {
-                changed = STARRED_PLAYERS.add(clean);
-            } else {
-                changed = STARRED_PLAYERS.remove(clean);
-            }
-            if (changed) {
-                notifyTargetsChanged();
-            }
-        }
-    }
-
-    public static void setAutoTrackEnabled(boolean enabled) {
-        autoTrackPartyChanges = enabled;
     }
 
     public static boolean isTarget(Player player) {
@@ -197,6 +175,40 @@ public class PlayerFinderManager {
         return STARRED_PLAYERS.contains(username.trim().toLowerCase(Locale.ROOT));
     }
 
+    public static boolean isPartyTracking() {
+        return partyTracking;
+    }
+
+    public static void setPartyTracking(boolean active) {
+        if (partyTracking == active) return;
+        partyTracking = active;
+
+        if (active) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player != null && mc.player.connection != null) {
+                beginSilentPartyListFetch();
+                mc.player.connection.sendCommand("party list");
+                ChatNotifier.send("§a已开启队伍自动追踪，正在获取队伍列表...", NotificationType.INFO);
+            } else {
+                ChatNotifier.send("§a已开启队伍自动追踪。", NotificationType.SUCCESS);
+            }
+        } else {
+            clearTempTargets();
+            ChatNotifier.send("§c已关闭队伍自动追踪，已清空临时成员名单。", NotificationType.INFO);
+        }
+        notifyTargetsChanged();
+    }
+
+    public static void clearTempTargets() {
+        for (String temp : TEMP_TARGETS) {
+            if (!PERSISTENT_TARGETS.contains(temp)) {
+                STARRED_PLAYERS.remove(temp);
+            }
+        }
+        TEMP_TARGETS.clear();
+        notifyTargetsChanged();
+    }
+
     public static boolean shouldRenderEffects(Player player) {
         if (!isTarget(player)) return false;
         if (inSmallCombatScene) {
@@ -205,13 +217,17 @@ public class PlayerFinderManager {
         return true;
     }
 
+    public static boolean isInSmallCombatScene() {
+        return inSmallCombatScene;
+    }
+
     private static void setInSmallCombatScene(boolean value) {
         if (inSmallCombatScene != value) {
             inSmallCombatScene = value;
             if (value) {
-                ChatNotifier.send("§c战斗开始！仅显示星标队友", NotificationType.WARN, 6000L);
+                ChatNotifier.send("§c 战斗开始！仅显示星标队友", NotificationType.WARN, 6000L);
             } else {
-                ChatNotifier.send("§a已退出战斗", NotificationType.SUCCESS);
+                ChatNotifier.send("§a离开战斗场景", NotificationType.SUCCESS);
             }
             notifyTargetsChanged();
         }
@@ -231,7 +247,6 @@ public class PlayerFinderManager {
     }
 
     public static void beginSilentPartyListFetch() {
-        autoTrackPartyChanges = true;
         synchronized (PARTY_LOCK) {
             expectingPartyList = true;
             silentPartyFetch = true;
@@ -282,8 +297,8 @@ public class PlayerFinderManager {
 
         if (isDungeonEnterLine(line)) {
             long now = System.currentTimeMillis();
-            if (waitingForStart && (now - prepareCombatTimestamp <= 3000L)) {
-                return false; // 3 秒内已经触发过入场，忽略重复消息
+            if (waitingForStart && (now - prepareCombatTimestamp <= 10000L)) {
+                return false;
             }
             waitingForStart = true;
             prepareCombatTimestamp = now;
@@ -299,16 +314,17 @@ public class PlayerFinderManager {
     }
 
     private static boolean handlePartyMemberChanges(String line) {
-        if (!IrcConfig.get().autoTrackPlayer && !autoTrackPartyChanges) return false;
+        if (!partyTracking) return false;
 
+        // 队伍解散或自己退队
         if (PARTY_DISBAND_PATTERN.matcher(line).matches() || SELF_LEAVE_PATTERN.matcher(line).matches()) {
-            if (!TEMP_TARGETS.isEmpty()) {
-                clearTempTargets();
-                ChatNotifier.send("§e队伍已解散或离开，已清空临时名单", NotificationType.INFO);
-            }
+            partyTracking = false;
+            clearTempTargets();
+            ChatNotifier.send("§e队伍已解散或离开，已关闭队伍追踪并清空临时名单", NotificationType.INFO);
             return true;
         }
 
+        // 队长退出导致转移
         Matcher transferMatcher = PARTY_TRANSFER_LEAVE_PATTERN.matcher(line);
         if (transferMatcher.matches()) {
             String leftPlayer = transferMatcher.group(1);
@@ -316,6 +332,7 @@ public class PlayerFinderManager {
             return true;
         }
 
+        // 玩家主动离开
         Matcher leaveMatcher = PARTY_LEAVE_PATTERN.matcher(line);
         if (leaveMatcher.matches()) {
             String leftPlayer = leaveMatcher.group(1);
@@ -323,6 +340,7 @@ public class PlayerFinderManager {
             return true;
         }
 
+        // 玩家被移出队伍 (断线)
         Matcher kickMatcher = PARTY_KICK_PATTERN.matcher(line);
         if (kickMatcher.matches()) {
             String kickedPlayer = kickMatcher.group(1);
@@ -330,17 +348,19 @@ public class PlayerFinderManager {
             return true;
         }
 
-        Matcher joinMatcher = PARTY_JOIN_PATTERN.matcher(line);
-        if (joinMatcher.matches()) {
-            String joinedPlayer = joinMatcher.group(1);
-            onPlayerJoinedParty(joinedPlayer);
-            return true;
-        }
-
+        // 离线踢出
         Matcher offlineMatcher = PARTY_KICK_OFFLINE_PATTERN.matcher(line);
         if (offlineMatcher.matches()) {
             String offlinePlayer = offlineMatcher.group(1);
             onPlayerLeftParty(offlinePlayer);
+            return true;
+        }
+
+        // 玩家加入队伍
+        Matcher joinMatcher = PARTY_JOIN_PATTERN.matcher(line);
+        if (joinMatcher.matches()) {
+            String joinedPlayer = joinMatcher.group(1);
+            onPlayerJoinedParty(joinedPlayer);
             return true;
         }
 
@@ -365,17 +385,18 @@ public class PlayerFinderManager {
             }
             notifyTargetsChanged();
             if (starred) {
-                ChatNotifier.send("§a" + name + " §a加入队伍，已临时追踪并标星", NotificationType.SUCCESS);
+                ChatNotifier.send("§a" + name + " §a加入队伍，已临时追踪并标星！", NotificationType.SUCCESS);
             } else {
-                ChatNotifier.send("§a" + name + " §a加入队伍，已加入临时名单", NotificationType.SUCCESS);
+                ChatNotifier.send("§a" + name + " §a加入队伍，已加入临时名单！", NotificationType.SUCCESS);
             }
         }
     }
 
     private static void onPlayerLeftParty(String name) {
         if (isSelf(name)) {
+            partyTracking = false;
             clearTempTargets();
-            ChatNotifier.send("§e 你已离开队伍，已清空临时名单", NotificationType.INFO);
+            ChatNotifier.send("§e你已离开队伍，已关闭队伍追踪并清空临时名单", NotificationType.INFO);
             return;
         }
 
@@ -387,18 +408,25 @@ public class PlayerFinderManager {
 
         if (removedTemp) {
             notifyTargetsChanged();
-            ChatNotifier.send("§e" + name + " §e离开队伍，已从临时名单移除", NotificationType.INFO);
+            ChatNotifier.send("§e§f" + name + " §e离开队伍，已从临时名单移除", NotificationType.INFO);
         }
     }
 
-    public static void clearTempTargets() {
-        for (String temp : TEMP_TARGETS) {
-            if (!PERSISTENT_TARGETS.contains(temp)) {
-                STARRED_PLAYERS.remove(temp);
+    public static void onImportantPlayerChanged(String username, boolean added) {
+        if (username == null || username.isBlank()) return;
+        String clean = username.trim().toLowerCase(Locale.ROOT);
+
+        if (PERSISTENT_TARGETS.contains(clean) || TEMP_TARGETS.contains(clean)) {
+            boolean changed;
+            if (added) {
+                changed = STARRED_PLAYERS.add(clean);
+            } else {
+                changed = STARRED_PLAYERS.remove(clean);
+            }
+            if (changed) {
+                notifyTargetsChanged();
             }
         }
-        TEMP_TARGETS.clear();
-        notifyTargetsChanged();
     }
 
     private static boolean isDungeonEnterLine(String line) {
@@ -422,7 +450,9 @@ public class PlayerFinderManager {
                 boolean cancel = silentPartyFetch;
                 expectingPartyList = false;
                 silentPartyFetch = false;
-                ChatNotifier.send("§e获取失败：你当前不在任何队伍中。", NotificationType.WARN);
+                partyTracking = false;
+                notifyTargetsChanged();
+                ChatNotifier.send("§e开启失败：你当前不在任何队伍中。", NotificationType.WARN);
                 return cancel;
             }
 
@@ -483,13 +513,13 @@ public class PlayerFinderManager {
         }
 
         if (addedTemp > 0 && starredChanged) {
-            ChatNotifier.send("§a 已添加 " + addedTemp + " 名临时成员并星标", NotificationType.SUCCESS);
+            ChatNotifier.send("§a已添加 " + addedTemp + " 名 Party 临时成员，并星标了关注玩家", NotificationType.SUCCESS);
         } else if (addedTemp > 0) {
-            ChatNotifier.send("§a 已添加 " + addedTemp + " 名临时成员。", NotificationType.SUCCESS);
+            ChatNotifier.send("§a已添加 " + addedTemp + " 名 Party 临时成员", NotificationType.SUCCESS);
         } else if (starredChanged) {
-            ChatNotifier.send("§6已将队伍中的关注玩家设为星标队友。", NotificationType.SUCCESS);
+            ChatNotifier.send("§6已将队伍中的关注玩家设为星标队友", NotificationType.SUCCESS);
         } else {
-            ChatNotifier.send("§eParty 成员已都在当前寻找名单中。", NotificationType.INFO);
+            ChatNotifier.send("§eParty 成员已都在当前寻找名单中", NotificationType.INFO);
         }
     }
 
@@ -530,7 +560,7 @@ public class PlayerFinderManager {
         PERSISTENT_TARGETS.clear();
         TEMP_TARGETS.clear();
         STARRED_PLAYERS.clear();
-        autoTrackPartyChanges = false;
+        partyTracking = false;
         saveToConfig();
         notifyTargetsChanged();
     }
