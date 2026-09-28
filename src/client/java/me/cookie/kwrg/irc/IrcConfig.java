@@ -180,9 +180,11 @@ public class IrcConfig {
 
     private static void migrateLegacyFields(JsonObject jsonObj) {
         if (jsonObj == null) return;
+
         if (jsonObj.has("onlyTab") && !jsonObj.has("onlyApplyToTab")) {
             jsonObj.add("onlyApplyToTab", jsonObj.get("onlyTab"));
         }
+        //迁移旧配置扩展
         jsonObj.remove("onlyTab");
     }
 

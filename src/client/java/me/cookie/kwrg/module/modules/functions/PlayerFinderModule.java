@@ -57,7 +57,7 @@ public class PlayerFinderModule extends Module {
         panel.child(TextInfoPaneComponent.header("队伍管理"));
 
         panel.child(new PanelItemComponent(
-                "!派对模式! (开启后将自动追踪队伍成员)",
+                "自动导入并追踪队伍",
                 PanelItemComponent.ItemType.TOGGLE,
                 () -> {
                     boolean nextState = !PlayerFinderManager.isPartyTracking();
