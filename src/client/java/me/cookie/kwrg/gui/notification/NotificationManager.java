@@ -15,52 +15,132 @@ public class NotificationManager {
     private static final List<NotificationToast> TOASTS = new CopyOnWriteArrayList<>();
     private static final int ITEM_SPACING = 8;
 
+    public static final long DEFAULT_INFO_DURATION = 3500L;
+    public static final long DEFAULT_WARN_DURATION = 4000L;
+    public static final long DEFAULT_ERR_DURATION = 4500L;
+
+    public static final long MIN_AUTO_DURATION = 2500L;
+    public static final long MAX_AUTO_DURATION = 8000L;
+
+    public static long getDefaultDuration(NotificationType type) {
+        if (type == null) return DEFAULT_INFO_DURATION;
+        return switch (type) {
+            case WARN -> DEFAULT_WARN_DURATION;
+            case ERR -> DEFAULT_ERR_DURATION;
+            default -> DEFAULT_INFO_DURATION;
+        };
+    }
+
+    public static long computeAutoDuration(String title, String subtitle) {
+        int len = (title != null ? title.length() : 0) + (subtitle != null ? subtitle.length() : 0);
+        long duration = 2500L + len * 60L;
+        return Math.min(MAX_AUTO_DURATION, Math.max(MIN_AUTO_DURATION, duration));
+    }
+
+    public static long computeAutoDuration(Component title, Component subtitle) {
+        String t = title != null ? title.getString() : "";
+        String s = subtitle != null ? subtitle.getString() : "";
+        return computeAutoDuration(t, s);
+    }
+
     public static void send(String title) {
-        send(NotificationType.INFO, Component.literal(title), Component.empty(), null, 3500L);
+        send(title, false);
+    }
+
+    public static void send(String title, boolean isAutoDuration) {
+        send(NotificationType.INFO, Component.literal(title), Component.empty(), null,
+                isAutoDuration ? computeAutoDuration(title, "") : DEFAULT_INFO_DURATION);
     }
 
     public static void send(String title, String subtitle) {
-        send(NotificationType.INFO, Component.literal(title), Component.literal(subtitle), null, 3500L);
+        send(title, subtitle, false);
+    }
+
+    public static void send(String title, String subtitle, boolean isAutoDuration) {
+        send(NotificationType.INFO, Component.literal(title), Component.literal(subtitle), null,
+                isAutoDuration ? computeAutoDuration(title, subtitle) : DEFAULT_INFO_DURATION);
     }
 
     public static void send(NotificationType type, String title, String subtitle) {
-        send(type, Component.literal(title), Component.literal(subtitle), null, 3500L);
+        send(type, title, subtitle, false);
+    }
+
+    public static void send(NotificationType type, String title, String subtitle, boolean isAutoDuration) {
+        long duration = isAutoDuration ? computeAutoDuration(title, subtitle) : getDefaultDuration(type);
+        send(type, Component.literal(title), subtitle != null && !subtitle.isEmpty() ? Component.literal(subtitle) : Component.empty(), null, duration);
     }
 
     public static void send(NotificationType type, Component title, Component subtitle) {
-        send(type, title, subtitle, null, 3500L);
+        send(type, title, subtitle, false);
+    }
+
+    public static void send(NotificationType type, Component title, Component subtitle, boolean isAutoDuration) {
+        long duration = isAutoDuration ? computeAutoDuration(title, subtitle) : getDefaultDuration(type);
+        send(type, title, subtitle, null, duration);
     }
 
     public static void info(String title, String subtitle) {
-        send(NotificationType.INFO, Component.literal(title), Component.literal(subtitle), null, 3500L);
+        send(NotificationType.INFO, title, subtitle, false);
+    }
+
+    public static void info(String title, String subtitle, boolean isAutoDuration) {
+        send(NotificationType.INFO, title, subtitle, isAutoDuration);
     }
 
     public static void info(Component title, Component subtitle) {
-        send(NotificationType.INFO, title, subtitle, null, 3500L);
+        send(NotificationType.INFO, title, subtitle, false);
+    }
+
+    public static void info(Component title, Component subtitle, boolean isAutoDuration) {
+        send(NotificationType.INFO, title, subtitle, isAutoDuration);
     }
 
     public static void success(String title, String subtitle) {
-        send(NotificationType.SUCCESS, Component.literal(title), Component.literal(subtitle), null, 3500L);
+        send(NotificationType.SUCCESS, title, subtitle, false);
+    }
+
+    public static void success(String title, String subtitle, boolean isAutoDuration) {
+        send(NotificationType.SUCCESS, title, subtitle, isAutoDuration);
     }
 
     public static void success(Component title, Component subtitle) {
-        send(NotificationType.SUCCESS, title, subtitle, null, 3500L);
+        send(NotificationType.SUCCESS, title, subtitle, false);
+    }
+
+    public static void success(Component title, Component subtitle, boolean isAutoDuration) {
+        send(NotificationType.SUCCESS, title, subtitle, isAutoDuration);
     }
 
     public static void warn(String title, String subtitle) {
-        send(NotificationType.WARN, Component.literal(title), Component.literal(subtitle), null, 4000L);
+        send(NotificationType.WARN, title, subtitle, false);
+    }
+
+    public static void warn(String title, String subtitle, boolean isAutoDuration) {
+        send(NotificationType.WARN, title, subtitle, isAutoDuration);
     }
 
     public static void warn(Component title, Component subtitle) {
-        send(NotificationType.WARN, title, subtitle, null, 4000L);
+        send(NotificationType.WARN, title, subtitle, false);
+    }
+
+    public static void warn(Component title, Component subtitle, boolean isAutoDuration) {
+        send(NotificationType.WARN, title, subtitle, isAutoDuration);
     }
 
     public static void err(String title, String subtitle) {
-        send(NotificationType.ERR, Component.literal(title), Component.literal(subtitle), null, 4500L);
+        send(NotificationType.ERR, title, subtitle, false);
+    }
+
+    public static void err(String title, String subtitle, boolean isAutoDuration) {
+        send(NotificationType.ERR, title, subtitle, isAutoDuration);
     }
 
     public static void err(Component title, Component subtitle) {
-        send(NotificationType.ERR, title, subtitle, null, 4500L);
+        send(NotificationType.ERR, title, subtitle, false);
+    }
+
+    public static void err(Component title, Component subtitle, boolean isAutoDuration) {
+        send(NotificationType.ERR, title, subtitle, isAutoDuration);
     }
 
     public static void send(NotificationType type, String title, String subtitle, Runnable onClick, long durationMs) {

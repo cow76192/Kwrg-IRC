@@ -16,7 +16,7 @@ public abstract class EntityGlowMixin {
     private void onIsCurrentlyGlowing(CallbackInfoReturnable<Boolean> cir) {
         if ((Object) this instanceof Player player) {
             // 【核心拓展】：优先判断是否为追踪目标，其次判断普通 IRC 玩家
-            if (PlayerFinderManager.isTarget(player) || IrcGlowManager.isIrcPlayerGlowing(player)) {
+            if (PlayerFinderManager.shouldRenderEffects(player) || IrcGlowManager.isIrcPlayerGlowing(player)) {
                 cir.setReturnValue(true);
             }
         }
@@ -26,7 +26,7 @@ public abstract class EntityGlowMixin {
     private void onGetTeamColor(CallbackInfoReturnable<Integer> cir) {
         if ((Object) this instanceof Player player) {
             // 【核心拓展】：如果是追踪目标，返回 playerFinderColor；否则返回 IRC glowColor
-            if (PlayerFinderManager.isTarget(player)) {
+            if (PlayerFinderManager.shouldRenderEffects(player)) {
                 cir.setReturnValue(PlayerFinderManager.getGlowColorRgb());
             } else if (IrcGlowManager.isIrcPlayerGlowing(player)) {
                 cir.setReturnValue(IrcGlowManager.getGlowColorRgb());
