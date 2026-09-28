@@ -32,7 +32,8 @@ public class ModuleManager {
         register(new ImportantPlayerModule());
         register(new PlayerFinderModule());
         register(new ChannelModule());
-
+        register(new ModelScaleModule());
+        register(new CustomCapeModule());
         // --- STYLE 模块 ---
         register(new RankModule());
         register(new NameStyleModule());
@@ -42,7 +43,6 @@ public class ModuleManager {
         register(new FontModule());
         register(new GuiColorModule());
         register(new GuiScaleModule());
-
         // --- PLAY 模块 ---
         register(new PlayModule());
     }

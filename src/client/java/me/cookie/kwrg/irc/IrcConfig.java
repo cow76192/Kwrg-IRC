@@ -50,6 +50,9 @@ public class IrcConfig {
     public List<String> playerFinderTargets = new ArrayList<>();
     public boolean autoTrackPlayer = false;
 
+    public float myScale = 1.0f;
+    public String myCape = "";
+
     public boolean dynamicIsland = false;
     public boolean islandShowFps = true;
     public boolean islandShowPing = true;
@@ -149,6 +152,7 @@ public class IrcConfig {
                 if (loaded == null) loaded = new IrcConfig();
                 if (loaded.importantPlayers == null) loaded.importantPlayers = new ArrayList<>();
                 if (loaded.playerFinderTargets == null) loaded.playerFinderTargets = new ArrayList<>();
+                if (loaded.myCape == null) loaded.myCape = "";
 
                 instance = loaded;
                 currentProfileName = cleanName;

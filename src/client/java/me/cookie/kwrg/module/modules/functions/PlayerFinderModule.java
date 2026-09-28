@@ -57,7 +57,7 @@ public class PlayerFinderModule extends Module {
         panel.child(TextInfoPaneComponent.header("队伍管理"));
 
         panel.child(new PanelItemComponent(
-                "自动导入并追踪队伍",
+                "!派对模式! (开启后将自动追踪队伍成员)",
                 PanelItemComponent.ItemType.TOGGLE,
                 () -> {
                     boolean nextState = !PlayerFinderManager.isPartyTracking();
@@ -70,7 +70,7 @@ public class PlayerFinderModule extends Module {
 
         panel.child(new ColorSettingComponent(IrcConfig.get().playerFinderColor, PlayerFinderModule::setFinderColor, false));
 
-        panel.child(TextInfoPaneComponent.header("目标列表 (左键复制 | Shift移除 | Ctrl星标)"));
+        panel.child(TextInfoPaneComponent.header("目标列表\nShift左键移除 | Ctrl左键星标"));
 
         List<String> targetList = PlayerFinderManager.getPlayers();
         if (targetList.isEmpty()) {
