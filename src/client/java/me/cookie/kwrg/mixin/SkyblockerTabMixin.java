@@ -68,15 +68,7 @@ public abstract class SkyblockerTabMixin {
     @Inject(method = "extractRenderStates", at = @At("HEAD"))
     private void kwrg$onExtractStatesHead(@Coerce Object graphicsObj, int screenWidth, int screenHeight, boolean config, CallbackInfo ci) {
         kwrg$scissored = false;
-        if (!IrcConfig.get().dynamicIsland || !kwrg$isTabLayer() || config) {
-            return;
-        }
-
-        if (!kwrg$isSkyblockerTabEnabled()) {
-            return;
-        }
-
-        if (!kwrg$hasValidTabWidgets()) {
+        if (!IrcConfig.get().dynamicIsland || !kwrg$isTabLayer() || config || !kwrg$isSkyblockerTabEnabled() || !kwrg$hasValidTabWidgets()) {
             return;
         }
 
@@ -99,6 +91,7 @@ public abstract class SkyblockerTabMixin {
             DynamicIslandRenderer.beginTabScissorDirect();
 
             graphics.pose().popMatrix();
+
             kwrg$scissored = true;
         }
     }

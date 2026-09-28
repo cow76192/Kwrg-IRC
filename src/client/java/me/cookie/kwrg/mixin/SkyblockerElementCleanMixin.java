@@ -2,6 +2,7 @@ package me.cookie.kwrg.mixin;
 
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
 import org.spongepowered.asm.mixin.Shadow;
@@ -20,16 +21,22 @@ public abstract class SkyblockerElementCleanMixin {
     @Unique
     private float kwrg$savedOpacity = 0.75f;
 
-    @Inject(method = "extractInternal", at = @At("HEAD"))
-    private void kwrg$onExtractInternalHead(CallbackInfo ci) {
-        kwrg$savedOpacity = this.backgroundOpacity;
+    @Inject(
+            method = "extractWidgetRenderState",
+            at = @At("HEAD")
+    )
+    private void kwrg$onExtractWidgetRenderStateHead(GuiGraphicsExtractor context, float delta, CallbackInfo ci) {
+        this.kwrg$savedOpacity = this.backgroundOpacity;
         if (IrcConfig.get().dynamicIsland && DynamicIslandRenderer.getTabProgress() > 0.005f) {
             this.backgroundOpacity = 0.0f;
         }
     }
 
-    @Inject(method = "extractInternal", at = @At("TAIL"))
-    private void kwrg$onExtractInternalTail(CallbackInfo ci) {
-        this.backgroundOpacity = kwrg$savedOpacity;
+    @Inject(
+            method = "extractWidgetRenderState",
+            at = @At("TAIL")
+    )
+    private void kwrg$onExtractWidgetRenderStateTail(GuiGraphicsExtractor context, float delta, CallbackInfo ci) {
+        this.backgroundOpacity = this.kwrg$savedOpacity;
     }
 }
