@@ -16,8 +16,8 @@ import net.minecraft.util.Mth;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Consumer;
 
 public class TextInputPaneComponent extends BaseUIComponent {
@@ -72,7 +72,10 @@ public class TextInputPaneComponent extends BaseUIComponent {
     private int activeSlot = -1;
     private Consumer<String[]> onTripleChanged = null;
     private Consumer<String[]> onTripleSubmit = null;
-    private int[][] slotBounds = null;
+
+    private double[][] slotBounds = null;
+    private double dragStep = 1.0;
+    private int decimalPrecision = 0;
     private boolean isDraggingSlot = false;
     private double dragAccumulator = 0.0;
     private static final double DRAG_SENSITIVITY = 1.2;
@@ -117,7 +120,6 @@ public class TextInputPaneComponent extends BaseUIComponent {
         this.leftLabel = leftLabel != null ? leftLabel : "";
         this.styledLeftLabel = FontManagerHelper.apply(this.leftLabel);
 
-        // 动态计算槽位数量
         int count = 1;
         if (suffixes != null && suffixes.length > 0) {
             count = suffixes.length;
@@ -174,18 +176,56 @@ public class TextInputPaneComponent extends BaseUIComponent {
         return this;
     }
 
-    public TextInputPaneComponent bounds(int[][] bounds) {
+    public TextInputPaneComponent bounds(double[][] bounds) {
         this.slotBounds = bounds;
         return this;
     }
 
-    private int clampSlotValue(int slotIndex, int value) {
+    public TextInputPaneComponent bounds(int[][] bounds) {
+        if (bounds == null) {
+            this.slotBounds = null;
+            return this;
+        }
+        this.slotBounds = new double[bounds.length][2];
+        for (int i = 0; i < bounds.length; i++) {
+            if (bounds[i] != null) {
+                this.slotBounds[i][0] = bounds[i][0];
+                this.slotBounds[i][1] = bounds[i][1];
+            }
+        }
+        return this;
+    }
+
+    /**
+     * 设置左右拖动时的步长（例如 0.1, 0.05, 1.0）
+     */
+    public TextInputPaneComponent dragStep(double step) {
+        this.dragStep = step;
+        return this;
+    }
+
+    /**
+     * 设置小数位数（0 表示整数模式，>0 表示保留的小数位数）
+     */
+    public TextInputPaneComponent precision(int precision) {
+        this.decimalPrecision = Math.max(0, precision);
+        return this;
+    }
+
+    private double clampSlotValue(int slotIndex, double value) {
         if (this.slotBounds != null && slotIndex >= 0 && slotIndex < this.slotBounds.length && this.slotBounds[slotIndex] != null) {
-            int min = this.slotBounds[slotIndex][0];
-            int max = this.slotBounds[slotIndex][1];
+            double min = this.slotBounds[slotIndex][0];
+            double max = this.slotBounds[slotIndex][1];
             return Mth.clamp(value, min, max);
         }
         return value;
+    }
+
+    private String formatSlotValue(double value) {
+        if (this.decimalPrecision <= 0) {
+            return String.valueOf(Math.round(value));
+        }
+        return String.format(Locale.ROOT, "%." + this.decimalPrecision + "f", value);
     }
 
     public String getText() {
@@ -299,17 +339,21 @@ public class TextInputPaneComponent extends BaseUIComponent {
                 for (int i = 0; i < this.slotCount; i++) {
                     String cur = this.slotValues[i].trim();
                     if (cur.isEmpty()) {
-                        this.slotValues[i] = String.valueOf(this.slotBounds[i][0]);
+                        this.slotValues[i] = formatSlotValue(this.slotBounds[i][0]);
                         actualChanged = true;
                     } else {
                         try {
-                            int val = Integer.parseInt(cur);
-                            int clamped = clampSlotValue(i, val);
-                            if (clamped != val) {
-                                this.slotValues[i] = String.valueOf(clamped);
+                            double val = Double.parseDouble(cur);
+                            double clamped = clampSlotValue(i, val);
+                            String formatted = formatSlotValue(clamped);
+                            if (!formatted.equals(cur)) {
+                                this.slotValues[i] = formatted;
                                 actualChanged = true;
                             }
-                        } catch (NumberFormatException ignored) {}
+                        } catch (NumberFormatException ignored) {
+                            this.slotValues[i] = formatSlotValue(this.slotBounds[i][0]);
+                            actualChanged = true;
+                        }
                     }
                 }
             }
@@ -506,7 +550,7 @@ public class TextInputPaneComponent extends BaseUIComponent {
             graphics.pose().popMatrix();
         }
 
-        float slotLineWidth = this.slotCount == 1 ? 32.0f : 26.0f;
+        float slotLineWidth = this.slotCount == 1 ? (this.decimalPrecision > 0 ? 38.0f : 32.0f) : (this.decimalPrecision > 0 ? 30.0f : 26.0f);
         float slotGap = 8.0f;
         float rightEdge = halfW - 8.0f;
 
@@ -650,17 +694,17 @@ public class TextInputPaneComponent extends BaseUIComponent {
                     this.dragAccumulator -= deltaStep * DRAG_SENSITIVITY;
 
                     String currentStr = this.slotValues[this.activeSlot].trim();
-                    int currentVal = 0;
+                    double currentVal = 0.0;
                     if (!currentStr.isEmpty()) {
                         try {
-                            currentVal = Integer.parseInt(currentStr);
+                            currentVal = Double.parseDouble(currentStr);
                         } catch (NumberFormatException ignored) {}
                     }
 
-                    int newVal = currentVal + deltaStep;
+                    double newVal = currentVal + deltaStep * this.dragStep;
                     newVal = clampSlotValue(this.activeSlot, newVal);
 
-                    this.slotValues[this.activeSlot] = String.valueOf(newVal);
+                    this.slotValues[this.activeSlot] = formatSlotValue(newVal);
                     this.cursorPos = this.slotValues[this.activeSlot].length();
 
                     notifyTripleChanged();
@@ -710,7 +754,7 @@ public class TextInputPaneComponent extends BaseUIComponent {
             if (this.mode == Mode.TRIPLE_SLOT) {
                 var font = Minecraft.getInstance().font;
                 float textScale = 0.85f;
-                float slotLineWidth = this.slotCount == 1 ? 32.0f : 26.0f;
+                float slotLineWidth = this.slotCount == 1 ? (this.decimalPrecision > 0 ? 38.0f : 32.0f) : (this.decimalPrecision > 0 ? 30.0f : 26.0f);
                 float slotGap = 8.0f;
                 float rightEdge = this.width() - 8.0f;
 
@@ -810,31 +854,43 @@ public class TextInputPaneComponent extends BaseUIComponent {
             if (this.mode == Mode.TRIPLE_SLOT) {
                 if (this.activeSlot < 0 || this.activeSlot >= this.slotCount) return false;
 
-                if (this.slotBounds != null && (c < '0' || c > '9')) {
-                    return false;
-                }
-
                 String curVal = this.selectAll ? "" : this.slotValues[this.activeSlot];
                 if (this.selectAll) {
                     this.cursorPos = 0;
                     this.selectAll = false;
                 }
-
                 clampCursor();
+
+                // 字符合法性判断
+                if (this.slotBounds != null) {
+                    boolean isDigit = c >= '0' && c <= '9';
+                    boolean isDot = (c == '.' && this.decimalPrecision > 0 && !curVal.contains("."));
+                    boolean isMinus = (c == '-' && this.cursorPos == 0 && !curVal.contains("-") && this.slotBounds[this.activeSlot][0] < 0);
+
+                    if (!isDigit && !isDot && !isMinus) {
+                        return false;
+                    }
+                }
+
                 String candidate = curVal.substring(0, this.cursorPos) + c + curVal.substring(this.cursorPos);
 
                 if (this.slotBounds != null) {
-                    try {
-                        int num = Integer.parseInt(candidate);
-                        int max = this.slotBounds[this.activeSlot][1];
-                        if (num > max) {
-                            candidate = String.valueOf(max);
-                            this.cursorPos = candidate.length();
-                        } else {
-                            this.cursorPos++;
+                    // 若处于输入过渡态（仅输入了负号或小数点），暂时放行
+                    if (!candidate.equals("-") && !candidate.equals(".") && !candidate.equals("-.")) {
+                        try {
+                            double num = Double.parseDouble(candidate);
+                            double max = this.slotBounds[this.activeSlot][1];
+                            if (num > max) {
+                                candidate = formatSlotValue(max);
+                                this.cursorPos = candidate.length();
+                            } else {
+                                this.cursorPos++;
+                            }
+                        } catch (NumberFormatException ignored) {
+                            return false;
                         }
-                    } catch (NumberFormatException ignored) {
-                        return false;
+                    } else {
+                        this.cursorPos++;
                     }
                 } else {
                     this.cursorPos++;
@@ -1127,7 +1183,7 @@ public class TextInputPaneComponent extends BaseUIComponent {
         var font = Minecraft.getInstance().font;
         updateLayoutCache(font, Math.max(154, this.width() - 16));
 
-        // 光标上移 (单行/多行模式专属)
+        // 光标上移
         if (input.key() == GLFW.GLFW_KEY_UP) {
             if (this.selectAll) {
                 this.selectAll = false;
@@ -1153,7 +1209,7 @@ public class TextInputPaneComponent extends BaseUIComponent {
             return true;
         }
 
-        // 光标下移 (单行/多行模式专属)
+        // 光标下移
         if (input.key() == GLFW.GLFW_KEY_DOWN) {
             if (this.selectAll) {
                 this.selectAll = false;
