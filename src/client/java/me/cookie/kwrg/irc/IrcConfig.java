@@ -77,6 +77,9 @@ public class IrcConfig {
 
     public float guiScale = 1.0f;
 
+    public boolean nickEnabled = false;
+    public String customNick = "";
+
     private static IrcConfig instance = new IrcConfig();
     private static String currentProfileName = "default";
 

@@ -32,6 +32,7 @@ public class ModuleManager {
         register(new ImportantPlayerModule());
         register(new PlayerFinderModule());
         register(new ChannelModule());
+        register(new NickModule());
 
         // --- STYLE 模块 ---
         register(new RankModule());
