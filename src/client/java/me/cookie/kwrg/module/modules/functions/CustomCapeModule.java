@@ -62,8 +62,7 @@ public class CustomCapeModule extends Module {
 
                         IrcConfig.get().capeCanvasSize = closest;
                         IrcConfig.save();
-                        PlayerCustomizationManager.setMyCape(PlayerCustomizationManager.getMyCape());
-                        ChatNotifier.send("§e[Cape] 已自动修正画布尺寸: §f" + closest + "§e, 需 F3+T 重载资源生效", NotificationType.INFO);
+                        ChatNotifier.send("§e[Cape] 画布尺寸已修正: §f" + closest + "§e, 需 F3+T 重载资源生效", NotificationType.INFO);
                         renderCapeUI(panel);
                     } catch (NumberFormatException e) {
                         ChatNotifier.send("§c[Cape] 请输入有效的数字", NotificationType.ERR);
@@ -95,13 +94,6 @@ public class CustomCapeModule extends Module {
                 ));
             }
         }
-
-        panel.child(new PanelItemComponent("循环切换披风", PanelItemComponent.ItemType.TRIGGER,
-                (btn, click) -> {
-                    String next = PlayerCustomizationManager.cycleMyCape();
-                    ChatNotifier.send("§a[Cape] 披风已设为: §e" + (next == null ? "(无)" : next), NotificationType.SUCCESS);
-                    renderCapeUI(panel);
-                }, null, () -> false));
 
         panel.child(new PanelItemComponent("✖ 移除披风", PanelItemComponent.ItemType.TRIGGER,
                 (btn, click) -> {

@@ -93,21 +93,17 @@ public class PlayerCustomizationManager {
         triggerAsyncLoad(IrcConfig.get().myCape);
     }
 
-    public static String cycleMyCape() {
-        List<String> available = getAvailableCapes();
-        String current = getMyCape();
-        String next;
-        if (current == null) {
-            next = available.isEmpty() ? null : available.get(0);
-        } else {
-            int idx = -1;
-            for (int i = 0; i < available.size(); i++) {
-                if (available.get(i).equalsIgnoreCase(current)) { idx = i; break; }
+    public static void clearCapeCache() {
+        Minecraft mc = Minecraft.getInstance();
+        for (Identifier[] ids : CAPE_IDS_CACHE.values()) {
+            if (ids != null) {
+                for (Identifier id : ids) {
+                    mc.getTextureManager().release(id);
+                }
             }
-            next = (idx == -1 || idx + 1 >= available.size()) ? null : available.get(idx + 1);
         }
-        setMyCape(next);
-        return next;
+        CAPE_TYPE_CACHE.clear();
+        CAPE_IDS_CACHE.clear();
     }
 
     private static void triggerAsyncLoad(String value) {

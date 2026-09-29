@@ -22,6 +22,7 @@ public class ModuleManager {
         register(new DisableBlurModule());
         register(new GuiFpsModule());
         register(new DynamicIslandAAValve());
+        register(new ClearCapeCacheModule());
         // --- CONFIG 模块 ---
         register(new LoadModule());
         register(new ShareModule());
