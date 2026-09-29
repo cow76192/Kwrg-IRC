@@ -32,7 +32,25 @@ public class CustomCapeModule extends Module {
     private void renderCapeUI(TertiaryPanelComponent panel) {
         panel.clearChildren();
         String current = PlayerCustomizationManager.getMyCape();
-        panel.child(new TextInfoPaneComponent("当前我的披风", () -> current == null ? "无 (原版)" : current, false, false));
+        panel.child(new TextInfoPaneComponent("当前我的披风",
+                () -> PlayerCustomizationManager.displayCapeName(current), false, false));
+
+        panel.child(TextInfoPaneComponent.header("内置像素披风"));
+        for (String[] preset : PlayerCustomizationManager.BUILTIN_PRESETS) {
+            String value = "builtin:" + preset[0];
+            panel.child(new PanelItemComponent(
+                    preset[1],
+                    PanelItemComponent.ItemType.TOGGLE,
+                    () -> {
+                        PlayerCustomizationManager.setMyCape(value);
+                        ChatNotifier.send("§a[Cape] 我的披风已设为内置: §e" + preset[1], NotificationType.SUCCESS);
+                        renderCapeUI(panel);
+                    },
+                    null,
+                    () -> value.equals(PlayerCustomizationManager.getMyCape())
+            ));
+        }
+
         panel.child(TextInfoPaneComponent.header("披风文件 (Shift+左键打开目录)", (pane, click) -> {
             boolean isShiftDown = (click.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0 || click.hasShiftDown();
             if (isShiftDown) {
@@ -53,23 +71,13 @@ public class CustomCapeModule extends Module {
                             renderCapeUI(panel);
                         },
                         null,
-                        () -> f.equalsIgnoreCase(PlayerCustomizationManager.getMyCape())
+                        () -> f.equals(PlayerCustomizationManager.getMyCape())
                 ));
             }
         }
+
         panel.child(new PanelItemComponent(
-                "循环切换披风",
-                PanelItemComponent.ItemType.TRIGGER,
-                (btn, click) -> {
-                    String next = PlayerCustomizationManager.cycleMyCape();
-                    ChatNotifier.send("§a[Cape] 我的披风已设为: §e" + (next == null ? "(无/原版)" : next), NotificationType.SUCCESS);
-                    renderCapeUI(panel);
-                },
-                null,
-                () -> false
-        ));
-        panel.child(new PanelItemComponent(
-                "移除自定义披风",
+                "✖ 移除自定义披风",
                 PanelItemComponent.ItemType.TRIGGER,
                 (btn, click) -> {
                     PlayerCustomizationManager.setMyCape(null);
