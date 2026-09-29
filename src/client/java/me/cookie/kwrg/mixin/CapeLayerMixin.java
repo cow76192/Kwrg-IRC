@@ -7,7 +7,7 @@ import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.layers.CapeLayer;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
-import net.minecraft.core.ClientAsset;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.PlayerSkin;
 import org.spongepowered.asm.mixin.Mixin;
@@ -26,7 +26,7 @@ public abstract class CapeLayerMixin {
         kwrg$inCape = false;
         if (!PlayerCustomizationManager.isLocalRenderState(state)) return;
         if (PlayerCustomizationManager.getMyCape() == null) return;
-        if (PlayerCustomizationManager.resolveMyCapeTexture() == null) return;
+        if (PlayerCustomizationManager.resolveMyCapeRenderType() == null) return;
 
         PlayerSkin skin = state.skin;
         if (skin != null && skin.body() != null) {
@@ -45,13 +45,13 @@ public abstract class CapeLayerMixin {
 
     @WrapOperation(
             method = "submit",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/core/ClientAsset$Texture;texturePath()Lnet/minecraft/resources/Identifier;")
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/rendertype/RenderTypes;entitySolid(Lnet/minecraft/resources/Identifier;)Lnet/minecraft/client/renderer/rendertype/RenderType;")
     )
-    private Identifier kwrg$replaceCapePath(ClientAsset.Texture self, Operation<Identifier> original) {
+    private RenderType kwrg$replaceCapeType(Identifier texture, Operation<RenderType> original) {
         if (kwrg$inCape) {
-            Identifier custom = PlayerCustomizationManager.resolveMyCapeTexture();
+            RenderType custom = PlayerCustomizationManager.resolveMyCapeRenderType();
             if (custom != null) return custom;
         }
-        return original.call(self);
+        return original.call(texture);
     }
 }

@@ -4,6 +4,7 @@ import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 
@@ -325,5 +326,14 @@ public final class RenderUtil {
         var client = Minecraft.getInstance();
         var window = client.getWindow();
         return (float) (client.mouseHandler.ypos() * ((double) window.getGuiScaledHeight() / (double) window.getScreenHeight()));
+    }
+
+    public static void drawTexture(OwoUIGraphics graphics, Identifier texture, float x, float y, float width, float height, int textureWidth, int textureHeight) {
+        if (textureWidth <= 0 || textureHeight <= 0 || width <= 0.0f || height <= 0.0f) return;
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(x, y);
+        graphics.pose().scale(width / textureWidth, height / textureHeight);
+        graphics.blit(texture, 0, 0, 0, 0, textureWidth, textureHeight, textureWidth, textureHeight);
+        graphics.pose().popMatrix();
     }
 }

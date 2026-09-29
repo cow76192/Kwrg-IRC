@@ -7,6 +7,7 @@ import me.cookie.kwrg.gui.util.RenderUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 
@@ -24,6 +25,7 @@ public class PanelItemComponent extends BaseUIComponent {
     public static final int BASE_HEIGHT = 28;
     public static final int ITEM_SPACING = 4;
     public static final int FULL_FOOTPRINT = BASE_HEIGHT + ITEM_SPACING; // 32px
+    public static final int PREVIEW_TEX_SIZE = 64;
 
     private final String title;
     private final ItemType type;
@@ -42,6 +44,8 @@ public class PanelItemComponent extends BaseUIComponent {
     private boolean isDismissing = false;
     private float dismissProgress = 0.0f;
     private Runnable onDismissComplete = null;
+
+    private Identifier previewTexture = null;
 
     public PanelItemComponent(String title, Runnable leftClickAction, Consumer<PanelItemComponent> rightClickAction) {
         this(title, ItemType.TRIGGER, (item, click) -> {
@@ -94,6 +98,11 @@ public class PanelItemComponent extends BaseUIComponent {
     public PanelItemComponent withSpawnAnimation() {
         this.playSpawnAnimation = true;
         this.spawnProgress = 0.0f;
+        return this;
+    }
+
+    public PanelItemComponent withPreview(Identifier previewTexture) {
+        this.previewTexture = previewTexture;
         return this;
     }
 
@@ -211,8 +220,17 @@ public class PanelItemComponent extends BaseUIComponent {
         int textB = (int) Mth.lerp(Math.max(this.activeAnimation, this.hoverAnimation), 220f, 255f);
         int textColor = ARGB.color((int) (255 * totalAlpha), textR, textG, textB);
 
+        float textOffsetX = 10.0f;
+        if (this.previewTexture != null) {
+            float previewSize = BASE_HEIGHT - 8;
+            float previewX = -halfW + 4;
+            float previewY = -previewSize / 2.0f;
+            RenderUtil.drawTexture(graphics, this.previewTexture, previewX, previewY, previewSize, previewSize, PREVIEW_TEX_SIZE, PREVIEW_TEX_SIZE);
+            textOffsetX = 4 + previewSize + 4;
+        }
+
         Component displayTitle = Component.literal(this.title).setStyle(FontManagerHelper.getGuiStyle());
-        graphics.drawText(displayTitle, -halfW + 10.0f, -textH / 2.0f, textScale, textColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
+        graphics.drawText(displayTitle, -halfW + textOffsetX, -textH / 2.0f, textScale, textColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
 
         int dotX = halfW - 12;
         int dotY = 0;

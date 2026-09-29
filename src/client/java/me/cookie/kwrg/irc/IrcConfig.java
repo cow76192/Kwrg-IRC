@@ -53,6 +53,9 @@ public class IrcConfig {
     public float myScale = 1.0f;
     public String myCape = "";
 
+    public int capeCanvasSize = 4096;
+    public int capeAnimFps = 10;
+
     public boolean dynamicIsland = false;
     public boolean islandShowFps = true;
     public boolean islandShowPing = true;
@@ -154,6 +157,10 @@ public class IrcConfig {
                 if (loaded.playerFinderTargets == null) loaded.playerFinderTargets = new ArrayList<>();
                 if (loaded.myCape == null) loaded.myCape = "";
 
+                if (loaded.myScale <= 0.0f || Float.isNaN(loaded.myScale)) loaded.myScale = 1.0f;
+                if (loaded.capeCanvasSize < 64) loaded.capeCanvasSize = 4096;
+                if (loaded.capeAnimFps <= 0) loaded.capeAnimFps = 10;
+
                 instance = loaded;
                 currentProfileName = cleanName;
                 saveSelectorMeta(cleanName);
@@ -173,11 +180,9 @@ public class IrcConfig {
 
     private static void migrateLegacyFields(JsonObject jsonObj) {
         if (jsonObj == null) return;
-
         if (jsonObj.has("onlyTab") && !jsonObj.has("onlyApplyToTab")) {
             jsonObj.add("onlyApplyToTab", jsonObj.get("onlyTab"));
         }
-        //迁移旧配置扩展
         jsonObj.remove("onlyTab");
     }
 

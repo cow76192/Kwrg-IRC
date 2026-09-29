@@ -1,9 +1,11 @@
 package me.cookie.kwrg.module.modules.functions;
 
 import me.cookie.kwrg.gui.component.PanelItemComponent;
+import me.cookie.kwrg.gui.component.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -33,33 +35,51 @@ public class CustomCapeModule extends Module {
         panel.clearChildren();
         String current = PlayerCustomizationManager.getMyCape();
         panel.child(new TextInfoPaneComponent("当前我的披风",
-                () -> PlayerCustomizationManager.displayCapeName(current), false, false));
+                () -> current == null ? "无 (原版)" : current, false, false));
 
-        panel.child(TextInfoPaneComponent.header("内置像素披风"));
-        for (String[] preset : PlayerCustomizationManager.BUILTIN_PRESETS) {
-            String value = "builtin:" + preset[0];
-            panel.child(new PanelItemComponent(
-                    preset[1],
-                    PanelItemComponent.ItemType.TOGGLE,
-                    () -> {
-                        PlayerCustomizationManager.setMyCape(value);
-                        ChatNotifier.send("§a[Cape] 我的披风已设为内置: §e" + preset[1], NotificationType.SUCCESS);
+        panel.child(new TextInputPaneComponent(
+                "画布尺寸",
+                new String[]{String.valueOf(IrcConfig.get().capeCanvasSize)},
+                new String[]{"px"},
+                values -> {
+                    try {
+                        int v = Integer.parseInt(values[0].trim());
+                        int closest;
+                        if (v <= 64) {
+                            closest = 64;
+                        } else if (v >= 8192) {
+                            closest = 8192;
+                        } else {
+                            int lower = Integer.highestOneBit(v);
+                            int upper = lower << 1;
+                            if (v - lower <= upper - v) {
+                                closest = lower;
+                            } else {
+                                closest = upper;
+                            }
+                        }
+                        closest = Math.max(64, Math.min(8192, closest));
+
+                        IrcConfig.get().capeCanvasSize = closest;
+                        IrcConfig.save();
+                        PlayerCustomizationManager.setMyCape(PlayerCustomizationManager.getMyCape());
+                        ChatNotifier.send("§e[Cape] 已自动修正画布尺寸: §f" + closest + "§e, 需 F3+T 重载资源生效", NotificationType.INFO);
                         renderCapeUI(panel);
-                    },
-                    null,
-                    () -> value.equals(PlayerCustomizationManager.getMyCape())
-            ));
-        }
+                    } catch (NumberFormatException e) {
+                        ChatNotifier.send("§c[Cape] 请输入有效的数字", NotificationType.ERR);
+                    } catch (Exception ignored) {}
+                },
+                null
+        ).bounds(new int[][]{{64, 8192}}));
 
-        panel.child(TextInfoPaneComponent.header("披风文件 (Shift+左键打开目录)", (pane, click) -> {
+        panel.child(TextInfoPaneComponent.header("披风文件 (建议 PNG/JPG, 比例 5:8)\nShift+左键打开目录", (pane, click) -> {
             boolean isShiftDown = (click.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0 || click.hasShiftDown();
-            if (isShiftDown) {
-                openCapeDir();
-            }
+            if (isShiftDown) openCapeDir();
         }));
+
         List<String> available = PlayerCustomizationManager.getAvailableCapes();
         if (available.isEmpty()) {
-            panel.child(new PanelItemComponent("capes 目录暂无 png/jpg 文件"));
+            panel.child(new PanelItemComponent("capes 目录暂无文件"));
         } else {
             for (String f : available) {
                 panel.child(new PanelItemComponent(
@@ -67,7 +87,7 @@ public class CustomCapeModule extends Module {
                         PanelItemComponent.ItemType.TOGGLE,
                         () -> {
                             PlayerCustomizationManager.setMyCape(f);
-                            ChatNotifier.send("§a[Cape] 我的披风已设为: §e" + f, NotificationType.SUCCESS);
+                            ChatNotifier.send("§a[Cape] 披风已设为: §e" + f, NotificationType.SUCCESS);
                             renderCapeUI(panel);
                         },
                         null,
@@ -76,17 +96,19 @@ public class CustomCapeModule extends Module {
             }
         }
 
-        panel.child(new PanelItemComponent(
-                "✖ 移除自定义披风",
-                PanelItemComponent.ItemType.TRIGGER,
+        panel.child(new PanelItemComponent("循环切换披风", PanelItemComponent.ItemType.TRIGGER,
+                (btn, click) -> {
+                    String next = PlayerCustomizationManager.cycleMyCape();
+                    ChatNotifier.send("§a[Cape] 披风已设为: §e" + (next == null ? "(无)" : next), NotificationType.SUCCESS);
+                    renderCapeUI(panel);
+                }, null, () -> false));
+
+        panel.child(new PanelItemComponent("✖ 移除披风", PanelItemComponent.ItemType.TRIGGER,
                 (btn, click) -> {
                     PlayerCustomizationManager.setMyCape(null);
-                    ChatNotifier.send("§e[Cape] 已恢复原版披风", NotificationType.INFO);
+                    ChatNotifier.send("§e[Cape] 已恢复原版", NotificationType.INFO);
                     renderCapeUI(panel);
-                },
-                null,
-                () -> false
-        ));
+                }, null, () -> false));
     }
 
     private static void openCapeDir() {
@@ -94,9 +116,9 @@ public class CustomCapeModule extends Module {
         try {
             if (!Files.exists(dir)) Files.createDirectories(dir);
             Util.getPlatform().openPath(dir);
-            ChatNotifier.send("§a[Cape] 已打开披风文件夹: §f" + dir.toAbsolutePath(), NotificationType.SUCCESS);
+            ChatNotifier.send("§a[Cape] 已打开目录: §f" + dir.toAbsolutePath(), NotificationType.SUCCESS);
         } catch (Exception e) {
-            ChatNotifier.send("§c[Cape] 打开文件夹失败: " + e.getMessage(), NotificationType.ERR);
+            ChatNotifier.send("§c[Cape] 打开失败: " + e.getMessage(), NotificationType.ERR);
         }
     }
 }
