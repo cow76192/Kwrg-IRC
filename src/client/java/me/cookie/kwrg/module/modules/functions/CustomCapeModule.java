@@ -62,7 +62,8 @@ public class CustomCapeModule extends Module {
 
                         IrcConfig.get().capeCanvasSize = closest;
                         IrcConfig.save();
-                        ChatNotifier.send("§e[Cape] 画布尺寸已修正: §f" + closest + "§e, 需 F3+T 重载资源生效", NotificationType.INFO);
+                        PlayerCustomizationManager.setMyCape(PlayerCustomizationManager.getMyCape());
+                        ChatNotifier.send("§e[Cape] 画布尺寸已修正并应用: §f" + closest, NotificationType.INFO);
                         renderCapeUI(panel);
                     } catch (NumberFormatException e) {
                         ChatNotifier.send("§c[Cape] 请输入有效的数字", NotificationType.ERR);
@@ -70,6 +71,25 @@ public class CustomCapeModule extends Module {
                 },
                 null
         ).bounds(new int[][]{{64, 8192}}));
+
+        panel.child(new TextInputPaneComponent(
+                "动画帧率",
+                new String[]{String.valueOf(IrcConfig.get().capeAnimFps)},
+                new String[]{"FPS"},
+                values -> {
+                    try {
+                        int v = Integer.parseInt(values[0].trim());
+                        v = Math.max(1, Math.min(60, v));
+                        IrcConfig.get().capeAnimFps = v;
+                        IrcConfig.save();
+                        ChatNotifier.send("§e[Cape] 动画帧率已设为: §f" + v + " FPS", NotificationType.INFO);
+                        renderCapeUI(panel);
+                    } catch (NumberFormatException e) {
+                        ChatNotifier.send("§c[Cape] 请输入有效的数字", NotificationType.ERR);
+                    } catch (Exception ignored) {}
+                },
+                null
+        ).bounds(new int[][]{{1, 60}}));
 
         panel.child(TextInfoPaneComponent.header("披风文件 (建议 PNG/JPG, 比例 5:8)\nShift+左键打开目录", (pane, click) -> {
             boolean isShiftDown = (click.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0 || click.hasShiftDown();

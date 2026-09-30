@@ -12,7 +12,6 @@
 		"MinecraftGlowMixin",
 		"PlayerScaleMixin",
 		"CapeLayerMixin",
-		"CapeGeometryMixin",
 		"OptionsMixin",
 		"MinecraftKeybindMixin",
 		"HudNotificationMixin",

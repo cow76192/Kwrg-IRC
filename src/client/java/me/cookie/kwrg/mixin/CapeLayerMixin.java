@@ -19,14 +19,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(CapeLayer.class)
 public abstract class CapeLayerMixin {
 
-    @Unique private static boolean kwrg$inCape = false;
+    @Unique private static final ThreadLocal<RenderType> kwrg$pendingCustomType = new ThreadLocal<>();
 
     @Inject(method = "submit", at = @At("HEAD"))
     private void kwrg$onSubmitHead(PoseStack poseStack, SubmitNodeCollector submitNodeCollector, int lightCoords, AvatarRenderState state, float yRot, float xRot, CallbackInfo ci) {
-        kwrg$inCape = false;
+        kwrg$pendingCustomType.remove();
+
         if (!PlayerCustomizationManager.isLocalRenderState(state)) return;
         if (PlayerCustomizationManager.getMyCape() == null) return;
-        if (PlayerCustomizationManager.resolveMyCapeRenderType() == null) return;
+        RenderType customType = PlayerCustomizationManager.resolveMyCapeRenderType();
+        if (customType == null) return;
 
         PlayerSkin skin = state.skin;
         if (skin != null && skin.body() != null) {
@@ -34,13 +36,13 @@ public abstract class CapeLayerMixin {
                 state.skin = new PlayerSkin(skin.body(), skin.body(), skin.elytra(), skin.model(), skin.secure());
             }
             state.showCape = true;
-            kwrg$inCape = true;
+            kwrg$pendingCustomType.set(customType);
         }
     }
 
     @Inject(method = "submit", at = @At("RETURN"))
     private void kwrg$onSubmitReturn(PoseStack poseStack, SubmitNodeCollector submitNodeCollector, int lightCoords, AvatarRenderState state, float yRot, float xRot, CallbackInfo ci) {
-        kwrg$inCape = false;
+        kwrg$pendingCustomType.remove();
     }
 
     @WrapOperation(
@@ -48,9 +50,9 @@ public abstract class CapeLayerMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/rendertype/RenderTypes;entitySolid(Lnet/minecraft/resources/Identifier;)Lnet/minecraft/client/renderer/rendertype/RenderType;")
     )
     private RenderType kwrg$replaceCapeType(Identifier texture, Operation<RenderType> original) {
-        if (kwrg$inCape) {
-            RenderType custom = PlayerCustomizationManager.resolveMyCapeRenderType();
-            if (custom != null) return custom;
+        RenderType customType = kwrg$pendingCustomType.get();
+        if (customType != null) {
+            return customType;
         }
         return original.call(texture);
     }
