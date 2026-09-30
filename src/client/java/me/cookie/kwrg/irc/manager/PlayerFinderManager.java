@@ -14,8 +14,8 @@ import java.util.regex.Pattern;
 
 public class PlayerFinderManager {
 
-    private static final Set<String> PERSISTENT_TARGETS = ConcurrentHashMap.newKeySet();
-    private static final Set<String> TEMP_TARGETS = ConcurrentHashMap.newKeySet();
+    private static final Map<String, String> PERSISTENT_TARGETS = new ConcurrentHashMap<>();
+    private static final Map<String, String> TEMP_TARGETS = new ConcurrentHashMap<>();
     private static final Set<String> STARRED_PLAYERS = ConcurrentHashMap.newKeySet();
 
     private static volatile boolean partyTracking = false;
@@ -88,10 +88,11 @@ public class PlayerFinderManager {
     public static void reloadFromConfig() {
         PERSISTENT_TARGETS.clear();
         IrcConfig config = IrcConfig.get();
-        if (config.playerFinderTargets != null) {
+        if (config != null && config.playerFinderTargets != null) {
             for (String name : config.playerFinderTargets) {
                 if (name != null && !name.isBlank()) {
-                    PERSISTENT_TARGETS.add(name.trim().toLowerCase(Locale.ROOT));
+                    String clean = name.trim();
+                    PERSISTENT_TARGETS.put(clean.toLowerCase(Locale.ROOT), clean);
                 }
             }
         }
@@ -99,16 +100,18 @@ public class PlayerFinderManager {
 
     private static void saveToConfig() {
         IrcConfig config = IrcConfig.get();
-        config.playerFinderTargets = new ArrayList<>(PERSISTENT_TARGETS);
+        if (config == null) return;
+        config.playerFinderTargets = new ArrayList<>(PERSISTENT_TARGETS.values());
         IrcConfig.saveDelayed(600L);
     }
 
     public static void addPlayer(String username) {
         if (username == null || username.isBlank()) return;
-        String clean = username.trim().toLowerCase(Locale.ROOT);
+        String original = username.trim();
+        String lower = original.toLowerCase(Locale.ROOT);
 
-        TEMP_TARGETS.remove(clean);
-        if (PERSISTENT_TARGETS.add(clean)) {
+        TEMP_TARGETS.remove(lower);
+        if (PERSISTENT_TARGETS.put(lower, original) == null || !PERSISTENT_TARGETS.get(lower).equals(original)) {
             saveToConfig();
             notifyTargetsChanged();
         }
@@ -116,11 +119,11 @@ public class PlayerFinderManager {
 
     public static boolean removePlayer(String username) {
         if (username == null || username.isBlank()) return false;
-        String clean = username.trim().toLowerCase(Locale.ROOT);
+        String lower = username.trim().toLowerCase(Locale.ROOT);
 
-        boolean removedPersistent = PERSISTENT_TARGETS.remove(clean);
-        boolean removedTemp = TEMP_TARGETS.remove(clean);
-        STARRED_PLAYERS.remove(clean);
+        boolean removedPersistent = PERSISTENT_TARGETS.remove(lower) != null;
+        boolean removedTemp = TEMP_TARGETS.remove(lower) != null;
+        STARRED_PLAYERS.remove(lower);
 
         if (removedPersistent) {
             saveToConfig();
@@ -140,18 +143,18 @@ public class PlayerFinderManager {
             return false;
         }
         String lower = name.toLowerCase(Locale.ROOT);
-        return PERSISTENT_TARGETS.contains(lower) || TEMP_TARGETS.contains(lower);
+        return PERSISTENT_TARGETS.containsKey(lower) || TEMP_TARGETS.containsKey(lower);
     }
 
     public static boolean isTemporary(String username) {
         if (username == null) return false;
-        return TEMP_TARGETS.contains(username.trim().toLowerCase(Locale.ROOT));
+        return TEMP_TARGETS.containsKey(username.trim().toLowerCase(Locale.ROOT));
     }
 
     public static List<String> getPlayers() {
-        Set<String> all = new LinkedHashSet<>(PERSISTENT_TARGETS);
-        all.addAll(TEMP_TARGETS);
-        return new ArrayList<>(all);
+        Map<String, String> all = new LinkedHashMap<>(PERSISTENT_TARGETS);
+        all.putAll(TEMP_TARGETS);
+        return new ArrayList<>(all.values());
     }
 
     public static void toggleStarred(String username) {
@@ -200,9 +203,9 @@ public class PlayerFinderManager {
     }
 
     public static void clearTempTargets() {
-        for (String temp : TEMP_TARGETS) {
-            if (!PERSISTENT_TARGETS.contains(temp)) {
-                STARRED_PLAYERS.remove(temp);
+        for (String tempLower : TEMP_TARGETS.keySet()) {
+            if (!PERSISTENT_TARGETS.containsKey(tempLower)) {
+                STARRED_PLAYERS.remove(tempLower);
             }
         }
         TEMP_TARGETS.clear();
@@ -316,7 +319,6 @@ public class PlayerFinderManager {
     private static boolean handlePartyMemberChanges(String line) {
         if (!partyTracking) return false;
 
-        // 队伍解散或自己退队
         if (PARTY_DISBAND_PATTERN.matcher(line).matches() || SELF_LEAVE_PATTERN.matcher(line).matches()) {
             partyTracking = false;
             clearTempTargets();
@@ -324,7 +326,6 @@ public class PlayerFinderManager {
             return true;
         }
 
-        // 队长退出导致转移
         Matcher transferMatcher = PARTY_TRANSFER_LEAVE_PATTERN.matcher(line);
         if (transferMatcher.matches()) {
             String leftPlayer = transferMatcher.group(1);
@@ -332,7 +333,6 @@ public class PlayerFinderManager {
             return true;
         }
 
-        // 玩家主动离开
         Matcher leaveMatcher = PARTY_LEAVE_PATTERN.matcher(line);
         if (leaveMatcher.matches()) {
             String leftPlayer = leaveMatcher.group(1);
@@ -340,7 +340,6 @@ public class PlayerFinderManager {
             return true;
         }
 
-        // 玩家被移出队伍 (断线)
         Matcher kickMatcher = PARTY_KICK_PATTERN.matcher(line);
         if (kickMatcher.matches()) {
             String kickedPlayer = kickMatcher.group(1);
@@ -348,7 +347,6 @@ public class PlayerFinderManager {
             return true;
         }
 
-        // 离线踢出
         Matcher offlineMatcher = PARTY_KICK_OFFLINE_PATTERN.matcher(line);
         if (offlineMatcher.matches()) {
             String offlinePlayer = offlineMatcher.group(1);
@@ -356,7 +354,6 @@ public class PlayerFinderManager {
             return true;
         }
 
-        // 玩家加入队伍
         Matcher joinMatcher = PARTY_JOIN_PATTERN.matcher(line);
         if (joinMatcher.matches()) {
             String joinedPlayer = joinMatcher.group(1);
@@ -374,13 +371,13 @@ public class PlayerFinderManager {
 
     private static void onPlayerJoinedParty(String name) {
         if (isSelf(name)) return;
-        String clean = name.toLowerCase(Locale.ROOT);
+        String lower = name.toLowerCase(Locale.ROOT);
 
-        if (!PERSISTENT_TARGETS.contains(clean) && TEMP_TARGETS.add(clean)) {
+        if (!PERSISTENT_TARGETS.containsKey(lower) && TEMP_TARGETS.put(lower, name) == null) {
             boolean starred = false;
             IrcConfig config = IrcConfig.get();
             if (config.importantPlayers != null && config.importantPlayers.stream().anyMatch(name::equalsIgnoreCase)) {
-                STARRED_PLAYERS.add(clean);
+                STARRED_PLAYERS.add(lower);
                 starred = true;
             }
             notifyTargetsChanged();
@@ -400,10 +397,10 @@ public class PlayerFinderManager {
             return;
         }
 
-        String clean = name.toLowerCase(Locale.ROOT);
-        boolean removedTemp = TEMP_TARGETS.remove(clean);
-        if (!PERSISTENT_TARGETS.contains(clean)) {
-            STARRED_PLAYERS.remove(clean);
+        String lower = name.toLowerCase(Locale.ROOT);
+        boolean removedTemp = TEMP_TARGETS.remove(lower) != null;
+        if (!PERSISTENT_TARGETS.containsKey(lower)) {
+            STARRED_PLAYERS.remove(lower);
         }
 
         if (removedTemp) {
@@ -414,14 +411,14 @@ public class PlayerFinderManager {
 
     public static void onImportantPlayerChanged(String username, boolean added) {
         if (username == null || username.isBlank()) return;
-        String clean = username.trim().toLowerCase(Locale.ROOT);
+        String lower = username.trim().toLowerCase(Locale.ROOT);
 
-        if (PERSISTENT_TARGETS.contains(clean) || TEMP_TARGETS.contains(clean)) {
+        if (PERSISTENT_TARGETS.containsKey(lower) || TEMP_TARGETS.containsKey(lower)) {
             boolean changed;
             if (added) {
-                changed = STARRED_PLAYERS.add(clean);
+                changed = STARRED_PLAYERS.add(lower);
             } else {
-                changed = STARRED_PLAYERS.remove(clean);
+                changed = STARRED_PLAYERS.remove(lower);
             }
             if (changed) {
                 notifyTargetsChanged();
@@ -489,9 +486,9 @@ public class PlayerFinderManager {
 
         int addedTemp = 0;
         for (String member : members) {
-            String clean = member.toLowerCase(Locale.ROOT);
-            if (!PERSISTENT_TARGETS.contains(clean)) {
-                if (TEMP_TARGETS.add(clean)) {
+            String lower = member.toLowerCase(Locale.ROOT);
+            if (!PERSISTENT_TARGETS.containsKey(lower)) {
+                if (TEMP_TARGETS.put(lower, member) == null) {
                     addedTemp++;
                 }
             }
