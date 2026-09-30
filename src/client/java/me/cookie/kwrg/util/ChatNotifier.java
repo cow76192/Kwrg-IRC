@@ -37,7 +37,8 @@ public class ChatNotifier {
 
     public static void sendInChatScreen(Component component) {
         if (component == null) return;
-        Component parsed = parseUrls(component);
+        Component protectedComp = me.cookie.kwrg.irc.manager.NickManager.protectComponent(component);
+        Component parsed = parseUrls(protectedComp);
         PENDING_MESSAGES.offer(parsed);
         Minecraft.getInstance().execute(ChatNotifier::flush);
     }
@@ -214,10 +215,11 @@ public class ChatNotifier {
         boolean hasAnimation = false;
 
         for (AnimatedSegment seg : segments) {
+            String safeText = me.cookie.kwrg.irc.manager.NickManager.protectText(seg.text());
             if (seg.isRaw()) {
-                root.append(Component.literal(seg.text()));
+                root.append(Component.literal(safeText));
             } else {
-                root.append(ColorUtil.applyStyle(seg.text(), seg.styleConfig()));
+                root.append(ColorUtil.applyStyle(safeText, seg.styleConfig()));
                 if (ColorUtil.isAnimatedStyle(seg.styleConfig())) {
                     hasAnimation = true;
                 }
@@ -254,10 +256,11 @@ public class ChatNotifier {
 
         MutableComponent root = Component.empty();
         for (AnimatedSegment seg : segs) {
+            String safeText = me.cookie.kwrg.irc.manager.NickManager.protectText(seg.text());
             if (seg.isRaw()) {
-                root.append(Component.literal(seg.text()));
+                root.append(Component.literal(safeText));
             } else {
-                root.append(ColorUtil.applyStyle(seg.text(), seg.styleConfig()));
+                root.append(ColorUtil.applyStyle(safeText, seg.styleConfig()));
             }
         }
         return parseUrls(root);

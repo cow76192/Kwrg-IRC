@@ -35,6 +35,8 @@ public class ModuleManager {
         register(new ChannelModule());
         register(new ModelScaleModule());
         register(new CustomCapeModule());
+        register(new NickModule());
+
         // --- STYLE 模块 ---
         register(new RankModule());
         register(new NameStyleModule());

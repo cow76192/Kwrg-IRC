@@ -22,6 +22,7 @@
 		"SkyblockerWidgetManagerMixin",
 		"SkyblockerUnblockMixin",
 		"SkyblockerElementCleanMixin",
+		"FontMixin",
 		"FontManagerMixin",
 		"AvatarRenderStateMixin",
 		"accessor.FontManagerAccessor",

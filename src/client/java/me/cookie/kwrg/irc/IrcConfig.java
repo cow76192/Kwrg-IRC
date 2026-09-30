@@ -3,6 +3,7 @@ package me.cookie.kwrg.irc;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,6 +83,11 @@ public class IrcConfig {
     public String guiColor = "#11161F";
 
     public float guiScale = 1.0f;
+
+    public boolean nickEnabled = false;
+    public String customNick = "";
+    public String nickRank = "MVP+";
+    public String nickPlusColor = "RED";
 
     private static IrcConfig instance = new IrcConfig();
     private static String currentProfileName = "default";
@@ -164,6 +170,9 @@ public class IrcConfig {
                 instance = loaded;
                 currentProfileName = cleanName;
                 saveSelectorMeta(cleanName);
+
+                PlayerFinderManager.reloadFromConfig();
+
                 LOGGER.info("[Kwrg] 已加载配置文件: {}.json", cleanName);
                 return true;
             } else if (createIfMissing) {
