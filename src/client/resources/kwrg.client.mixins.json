@@ -23,9 +23,11 @@
 		"SkyblockerUnblockMixin",
 		"SkyblockerElementCleanMixin",
 		"FontManagerMixin",
+		"AvatarRenderStateMixin",
 		"accessor.FontManagerAccessor",
 		"accessor.FontSetAccessor",
-		"accessor.MinecraftAccessor"
+		"accessor.MinecraftAccessor",
+		"accessor.NativeImageAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1

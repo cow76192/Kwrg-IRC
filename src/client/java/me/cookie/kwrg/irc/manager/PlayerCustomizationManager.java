@@ -5,6 +5,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.textures.GpuSampler;
 import me.cookie.kwrg.irc.IrcConfig;
+import me.cookie.kwrg.mixin.accessor.NativeImageAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
@@ -12,23 +13,20 @@ import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.player.Player;
+import org.lwjgl.system.MemoryUtil;
 
 import javax.imageio.ImageIO;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 public class PlayerCustomizationManager {
@@ -41,14 +39,22 @@ public class PlayerCustomizationManager {
     private static final Map<String, NativeImage> CAPE_ACTIVE_IMAGE = new ConcurrentHashMap<>();
     private static final Map<String, Long> CAPE_LAST_FRAME_TIME = new ConcurrentHashMap<>();
     private static final Map<String, Integer> CAPE_CURRENT_FRAME_INDEX = new ConcurrentHashMap<>();
+    private static final Map<UUID, String> IRC_PLAYER_CAPES = new ConcurrentHashMap<>();
+    private static final Map<UUID, Float> IRC_PLAYER_SCALES = new ConcurrentHashMap<>();
+    private static final Map<String, Set<UUID>> CAPE_ACTIVE_USERS = new ConcurrentHashMap<>();
+
 
     private static volatile Object localRenderState = null;
 
-    private static volatile Thread capeWorker = null;
-    private static final BlockingQueue<Runnable> CAPE_TASK_QUEUE = new LinkedBlockingQueue<>();
+    private static final ExecutorService CAPE_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "kwrg-cape-loader");
+        t.setDaemon(true);
+        return t;
+    });
 
-    private static volatile String loadingCapeValue = null;
-    private static volatile CompletableFuture<List<NativeImage>> loadingFuture = null;
+    private static final AtomicLong CURRENT_LOAD_TOKEN = new AtomicLong(0);
+    private static volatile String activeCapeName = null;
+    private static volatile String loadingCapeName = null;
 
     public static float getMyScale() { return IrcConfig.get().myScale; }
     public static void setMyScale(float scale) { IrcConfig.get().myScale = scale; IrcConfig.save(); }
@@ -63,6 +69,12 @@ public class PlayerCustomizationManager {
         }
         setMyScale(1.0f);
         return 1.0f;
+    }
+
+    public static void reloadCurrentCape() {
+        String current = getMyCape();
+        if (current == null || current.isBlank()) return;
+        triggerAsyncLoad(current, true);
     }
 
     public static void markLocalRenderState(Object state) { localRenderState = state; }
@@ -86,26 +98,135 @@ public class PlayerCustomizationManager {
         }
     }
 
+    public static void setIrcPlayerCustomization(UUID uuid, String capeFile, float scale) {
+        if (capeFile != null && !capeFile.isBlank()) {
+            IRC_PLAYER_CAPES.put(uuid, capeFile);
+
+            boolean isNearby = CAPE_ACTIVE_USERS.values().stream().anyMatch(set -> set.contains(uuid));
+            if (isNearby) {
+                bindPlayerCape(uuid, capeFile);
+            }
+        } else {
+            IRC_PLAYER_CAPES.remove(uuid);
+            unbindPlayer(uuid);
+        }
+
+        if (scale > 0.1f && scale <= 5.0f) {
+            IRC_PLAYER_SCALES.put(uuid, scale);
+        } else {
+            IRC_PLAYER_SCALES.remove(uuid);
+        }
+    }
+
+    public static void bindPlayerCape(UUID playerUuid, String newCape) {
+        String oldCape = null;
+        for (Map.Entry<String, Set<UUID>> entry : CAPE_ACTIVE_USERS.entrySet()) {
+            if (entry.getValue().remove(playerUuid)) {
+                oldCape = entry.getKey();
+                if (entry.getValue().isEmpty()) {
+                    CAPE_ACTIVE_USERS.remove(oldCape);
+                    releaseSpecificCape(oldCape);
+                }
+                break;
+            }
+        }
+
+        if (newCape != null && !newCape.isBlank()) {
+            CAPE_ACTIVE_USERS.computeIfAbsent(newCape, k -> ConcurrentHashMap.newKeySet()).add(playerUuid);
+            triggerAsyncLoad(newCape);
+        }
+    }
+
+    public static void preloadIrcPlayer(UUID uuid) {
+        String capeName = IRC_PLAYER_CAPES.get(uuid);
+        if (capeName != null && !capeName.isBlank()) {
+            bindPlayerCape(uuid, capeName);
+        }
+    }
+
+
+    public static void unbindPlayer(UUID playerUuid) {
+        bindPlayerCape(playerUuid, null);
+    }
+
+    public static void removeIrcPlayer(UUID uuid) {
+        IRC_PLAYER_CAPES.remove(uuid);
+        IRC_PLAYER_SCALES.remove(uuid);
+    }
+
+    public static float getPlayerScale(Player player) {
+        Minecraft mc = Minecraft.getInstance();
+        if (player == mc.player) {
+            return getMyScale();
+        }
+        return IRC_PLAYER_SCALES.getOrDefault(player.getUUID(), 1.0f);
+    }
+
+    public static RenderType getPlayerCapeRenderType(Player player) {
+        Minecraft mc = Minecraft.getInstance();
+        String capeName;
+        if (player == mc.player) {
+            capeName = getMyCape();
+        } else {
+            capeName = IRC_PLAYER_CAPES.get(player.getUUID());
+        }
+
+        if (capeName == null || capeName.isBlank()) return null;
+
+        RenderType type = CAPE_TYPE_CACHE.get(capeName);
+        if (type != null) {
+            updateFrameIfNeeded(capeName);
+            return type;
+        }
+
+        triggerAsyncLoad(capeName);
+        return null;
+    }
+
     public static String getMyCape() {
         String cape = IrcConfig.get().myCape;
         return (cape != null && !cape.isBlank()) ? cape : null;
     }
 
     public static void setMyCape(String fileName) {
-        IrcConfig.get().myCape = (fileName != null && !fileName.isBlank()) ? fileName : "";
+        String target = (fileName != null && !fileName.isBlank()) ? fileName : "";
+        IrcConfig.get().myCape = target;
         IrcConfig.save();
-        triggerAsyncLoad(IrcConfig.get().myCape);
+
+        if (target.isBlank()) {
+            CURRENT_LOAD_TOKEN.incrementAndGet();
+            loadingCapeName = null;
+            clearCapeCache();
+            activeCapeName = null;
+        } else {
+            if (!target.equals(loadingCapeName)) {
+                loadingCapeName = null;
+            }
+            triggerAsyncLoad(target);
+        }
     }
 
     public static void clearCapeCache() {
         Minecraft mc = Minecraft.getInstance();
+        if (!mc.isSameThread()) {
+            mc.execute(PlayerCustomizationManager::clearCapeCache);
+            return;
+        }
+
         for (Identifier id : CAPE_IDS_CACHE.values()) {
             mc.getTextureManager().release(id);
         }
-        for (List<NativeImage> frames : CAPE_FRAMES_CACHE.values()) {
-            for (NativeImage img : frames) img.close();
+
+        for (Map.Entry<String, List<NativeImage>> entry : CAPE_FRAMES_CACHE.entrySet()) {
+            List<NativeImage> frames = entry.getValue();
+            NativeImage active = CAPE_ACTIVE_IMAGE.get(entry.getKey());
+            if (active != null && (frames == null || !frames.contains(active))) {
+                active.close();
+            }
+            if (frames != null) {
+                for (NativeImage img : frames) img.close();
+            }
         }
-        for (NativeImage img : CAPE_ACTIVE_IMAGE.values()) img.close();
 
         CAPE_TYPE_CACHE.clear();
         CAPE_IDS_CACHE.clear();
@@ -113,60 +234,161 @@ public class PlayerCustomizationManager {
         CAPE_ACTIVE_IMAGE.clear();
         CAPE_LAST_FRAME_TIME.clear();
         CAPE_CURRENT_FRAME_INDEX.clear();
+        activeCapeName = null;
+        loadingCapeName = null;
     }
 
-    private static void ensureCapeWorkerStarted() {
-        if (capeWorker != null) return;
-        Thread t = new Thread(() -> {
-            while (!Thread.currentThread().isInterrupted()) {
-                try {
-                    Runnable task = CAPE_TASK_QUEUE.take();
-                    task.run();
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    break;
-                } catch (Exception ignored) {}
-            }
-        }, "kwrg-cape-loader");
-        t.setDaemon(true);
-        capeWorker = t;
-        t.start();
+    private static void releaseSpecificCape(String capeName) {
+        if (capeName == null) return;
+        Minecraft mc = Minecraft.getInstance();
+
+        Identifier id = CAPE_IDS_CACHE.remove(capeName);
+        if (id != null) {
+            mc.getTextureManager().release(id);
+        }
+
+        List<NativeImage> frames = CAPE_FRAMES_CACHE.remove(capeName);
+        NativeImage active = CAPE_ACTIVE_IMAGE.remove(capeName);
+
+        if (active != null && (frames == null || !frames.contains(active))) {
+            active.close();
+        }
+        if (frames != null) {
+            for (NativeImage img : frames) img.close();
+        }
+
+        CAPE_TYPE_CACHE.remove(capeName);
+        CAPE_LAST_FRAME_TIME.remove(capeName);
+        CAPE_CURRENT_FRAME_INDEX.remove(capeName);
+    }
+
+    private static void cleanupLoading(long token) {
+        if (token == CURRENT_LOAD_TOKEN.get()) {
+            loadingCapeName = null;
+        }
     }
 
     private static void triggerAsyncLoad(String value) {
-        ensureCapeWorkerStarted();
-        clearCapeCache();
+        triggerAsyncLoad(value, false);
+    }
 
-        if (loadingFuture != null) loadingFuture.cancel(true);
+    private static void triggerAsyncLoad(String value, boolean force) {
+        if (value == null || value.isBlank()) return;
 
-        if (value == null || value.isBlank()) {
-            loadingCapeValue = null;
-            loadingFuture = null;
+        if (!force && value.equals(activeCapeName) && CAPE_TYPE_CACHE.containsKey(value)) {
+            return;
+        }
+        if (!force && value.equals(loadingCapeName)) {
             return;
         }
 
-        loadingCapeValue = value;
-        CompletableFuture<List<NativeImage>> future = new CompletableFuture<>();
-        loadingFuture = future;
+        loadingCapeName = value;
+        final long token = CURRENT_LOAD_TOKEN.incrementAndGet();
 
-        CAPE_TASK_QUEUE.offer(() -> {
+        CAPE_EXECUTOR.submit(() -> {
+            List<NativeImage> frames = new ArrayList<>();
+            NativeImage activeImage = null;
             try {
                 Path file = getCapeDir().resolve(value);
-                if (!Files.exists(file)) { future.complete(null); return; }
-                BufferedImage src = ImageIO.read(file.toFile());
-                if (src == null) { future.complete(null); return; }
-                List<BufferedImage> blocks = layoutFrames(src, value);
-                if (blocks == null || blocks.isEmpty()) { future.complete(null); return; }
-
-                List<NativeImage> frames = new ArrayList<>();
-                for (BufferedImage block : blocks) {
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    ImageIO.write(block, "png", baos);
-                    frames.add(NativeImage.read(new ByteArrayInputStream(baos.toByteArray())));
+                if (!Files.exists(file) || token != CURRENT_LOAD_TOKEN.get()) {
+                    cleanupLoading(token);
+                    return;
                 }
-                future.complete(frames);
+
+                BufferedImage src = ImageIO.read(file.toFile());
+                if (src == null || token != CURRENT_LOAD_TOKEN.get()) {
+                    cleanupLoading(token);
+                    return;
+                }
+
+                List<BufferedImage> blocks = layoutFrames(src, value);
+                if (blocks == null || blocks.isEmpty() || token != CURRENT_LOAD_TOKEN.get()) {
+                    cleanupLoading(token);
+                    return;
+                }
+
+                for (BufferedImage block : blocks) {
+                    if (token != CURRENT_LOAD_TOKEN.get()) {
+                        frames.forEach(NativeImage::close);
+                        cleanupLoading(token);
+                        return;
+                    }
+                    frames.add(toNativeImage(block));
+                }
+
+                if (frames.size() > 1) {
+                    NativeImage firstFrame = frames.get(0);
+                    activeImage = new NativeImage(firstFrame.getWidth(), firstFrame.getHeight(), false);
+                    activeImage.copyFrom(firstFrame);
+                } else {
+                    activeImage = frames.get(0);
+                }
+
+                if (token != CURRENT_LOAD_TOKEN.get()) {
+                    if (activeImage != frames.get(0)) activeImage.close();
+                    frames.forEach(NativeImage::close);
+                    cleanupLoading(token);
+                    return;
+                }
+
+                final NativeImage finalActive = activeImage;
+                Minecraft.getInstance().execute(() -> {
+                    try {
+                        if (token != CURRENT_LOAD_TOKEN.get()) {
+                            if (finalActive != frames.get(0)) finalActive.close();
+                            frames.forEach(NativeImage::close);
+                            return;
+                        }
+
+                        Minecraft mc = Minecraft.getInstance();
+                        Identifier id = Identifier.fromNamespaceAndPath("kwrg", sanitizePath(value));
+
+                        DynamicTexture tex = new DynamicTexture(() -> "kwrg_cape", finalActive);
+                        mc.getTextureManager().register(id, tex);
+
+                        int blockWidth = finalActive.getWidth();
+                        FilterMode filterMode = (blockWidth <= 256) ? FilterMode.NEAREST : FilterMode.LINEAR;
+                        GpuSampler sampler = (filterMode == FilterMode.NEAREST)
+                                ? RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST)
+                                : RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR);
+
+                        RenderType out = RenderType.create("kwrg_cape", RenderSetup.builder(RenderPipelines.ENTITY_SOLID)
+                                .withTexture("Sampler0", id, () -> sampler)
+                                .useLightmap()
+                                .useOverlay()
+                                .affectsCrumbling()
+                                .setOutline(RenderSetup.OutlineProperty.AFFECTS_OUTLINE)
+                                .createRenderSetup());
+
+                        List<NativeImage> prevFrames = CAPE_FRAMES_CACHE.remove(value);
+                        NativeImage prevActive = CAPE_ACTIVE_IMAGE.remove(value);
+                        if (prevActive != null && (prevFrames == null || !prevFrames.contains(prevActive))) {
+                            prevActive.close();
+                        }
+                        if (prevFrames != null) {
+                            for (NativeImage img : prevFrames) img.close();
+                        }
+
+                        CAPE_FRAMES_CACHE.put(value, frames);
+                        CAPE_ACTIVE_IMAGE.put(value, finalActive);
+                        CAPE_TYPE_CACHE.put(value, out);
+                        CAPE_IDS_CACHE.put(value, id);
+                        CAPE_CURRENT_FRAME_INDEX.put(value, 0);
+                        CAPE_LAST_FRAME_TIME.put(value, System.currentTimeMillis());
+
+                        activeCapeName = value;
+                    } catch (Exception e) {
+                        if (finalActive != frames.get(0)) finalActive.close();
+                        frames.forEach(NativeImage::close);
+                    } finally {
+                        cleanupLoading(token);
+                    }
+                });
+
             } catch (Exception e) {
-                future.complete(null);
+                if (activeImage != null && (frames.isEmpty() || activeImage != frames.get(0))) activeImage.close();
+                frames.forEach(NativeImage::close);
+                cleanupLoading(token);
             }
         });
     }
@@ -181,50 +403,21 @@ public class PlayerCustomizationManager {
             return type;
         }
 
-        if (!value.equals(loadingCapeValue) || loadingFuture == null) {
+        if (activeCapeName != null) {
+            RenderType oldType = CAPE_TYPE_CACHE.get(activeCapeName);
+            if (oldType != null) {
+                if (!value.equals(loadingCapeName)) {
+                    triggerAsyncLoad(value);
+                }
+                return oldType;
+            }
+        }
+
+        if (!value.equals(loadingCapeName)) {
             triggerAsyncLoad(value);
-            return null;
         }
 
-        if (!loadingFuture.isDone()) return null;
-
-        try {
-            List<NativeImage> frames = loadingFuture.get();
-            loadingFuture = null;
-
-            if (frames == null || frames.isEmpty()) return null;
-
-            Minecraft mc = Minecraft.getInstance();
-            GpuSampler linearSampler = RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR);
-            Identifier id = Identifier.fromNamespaceAndPath("kwrg", sanitizePath(value));
-
-            NativeImage firstFrame = frames.get(0);
-            NativeImage activeImage = new NativeImage(firstFrame.getWidth(), firstFrame.getHeight(), false);
-            activeImage.copyFrom(firstFrame);
-
-            DynamicTexture tex = new DynamicTexture(() -> "kwrg_cape", activeImage);
-            mc.getTextureManager().register(id, tex);
-
-            RenderType out = RenderType.create("kwrg_cape", RenderSetup.builder(RenderPipelines.ENTITY_SOLID)
-                    .withTexture("Sampler0", id, () -> linearSampler)
-                    .useLightmap()
-                    .useOverlay()
-                    .affectsCrumbling()
-                    .setOutline(RenderSetup.OutlineProperty.AFFECTS_OUTLINE)
-                    .createRenderSetup());
-
-            CAPE_FRAMES_CACHE.put(value, frames);
-            CAPE_ACTIVE_IMAGE.put(value, activeImage);
-            CAPE_TYPE_CACHE.put(value, out);
-            CAPE_IDS_CACHE.put(value, id);
-            CAPE_CURRENT_FRAME_INDEX.put(value, 0);
-            CAPE_LAST_FRAME_TIME.put(value, System.currentTimeMillis());
-
-            return out;
-        } catch (Exception e) {
-            loadingFuture = null;
-            return null;
-        }
+        return null;
     }
 
     private static void updateFrameIfNeeded(String value) {
@@ -243,7 +436,22 @@ public class PlayerCustomizationManager {
             NativeImage activeImage = CAPE_ACTIVE_IMAGE.get(value);
             Identifier id = CAPE_IDS_CACHE.get(value);
             if (activeImage != null && id != null) {
-                activeImage.copyFrom(frames.get(nextIndex));
+                NativeImage nextFrame = frames.get(nextIndex);
+
+                int block = activeImage.getWidth();
+                int u = block / 64;
+                int validWidth = Math.min(block, 22 * u + 2);
+                int validHeight = Math.min(block / 2, 17 * u + 2);
+
+                long srcPtr = ((NativeImageAccessor) (Object) nextFrame).kwrg$getPixels();
+                long dstPtr = ((NativeImageAccessor) (Object) activeImage).kwrg$getPixels();
+                int bytesPerRow = validWidth * 4; // 每个像素 4 字节 (RGBA)
+                int srcStride = nextFrame.getWidth() * 4;
+                int dstStride = activeImage.getWidth() * 4;
+
+                for (int y = 0; y < validHeight; y++) {
+                    MemoryUtil.memCopy(srcPtr + (long) y * srcStride, dstPtr + (long) y * dstStride, bytesPerRow);
+                }
 
                 Minecraft mc = Minecraft.getInstance();
                 AbstractTexture tex = mc.getTextureManager().getTexture(id);
@@ -263,11 +471,17 @@ public class PlayerCustomizationManager {
         int srcW = src.getWidth();
         int srcH = src.getHeight();
 
-        int faceW = block * 10 / 64;
-        int faceH = block * 32 / 64;
-
         int requestedFrames = parseRequestedFrameCount(fileName);
-        if (requestedFrames >= 2 && srcW % requestedFrames == 0) {
+        boolean isAnimated = requestedFrames >= 2 && srcW >= requestedFrames;
+
+        if (isAnimated) {
+            block = Math.min(block, 1024);
+        }
+
+        int faceW = block * 10 / 64;
+        int faceH = block * 16 / 64;
+
+        if (isAnimated) {
             int frameWidth = srcW / requestedFrames;
             for (int k = 0; k < requestedFrames; k++) {
                 BufferedImage frame = src.getSubimage(k * frameWidth, 0, frameWidth, srcH);
@@ -299,53 +513,54 @@ public class PlayerCustomizationManager {
 
     private static BufferedImage paintBlock(BufferedImage face, int block, int faceW, int faceH) {
         int u = block / 64;
+        int width = block;
+        int height = block / 2;
 
-        BufferedImage canvas = new BufferedImage(block, block, BufferedImage.TYPE_INT_ARGB);
+        BufferedImage canvas = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = canvas.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 
-        g.drawImage(face, 1 * u, 0, 11 * u, 2 * u, 0, 0, faceW, 1, null);
-        g.drawImage(face, 11 * u, 0, 21 * u, 2 * u, 0, faceH - 1, faceW, faceH, null);
+        g.drawImage(face, 1 * u, 0, 11 * u, 1 * u, 0, 0, faceW, 1, null);
+        g.drawImage(face, 11 * u, 0, 21 * u, 1 * u, 0, faceH - 1, faceW, faceH, null);
 
-        g.drawImage(face, 0, 2 * u, 1 * u, 34 * u, 0, 0, 1, faceH, null);
-        g.drawImage(face, 1 * u, 2 * u, 11 * u, 34 * u, 0, 0, faceW, faceH, null);
-        g.drawImage(face, 11 * u, 2 * u, 12 * u, 34 * u, faceW - 1, 0, faceW, faceH, null);
-        g.drawImage(face, 12 * u, 2 * u, 22 * u, 34 * u, 0, 0, faceW, faceH, null);
-        g.drawImage(face, 21 * u, 2 * u, 22 * u, 34 * u, faceW - 1, 0, faceW, faceH, null);
-        g.drawImage(face, 22 * u, 2 * u, block, 34 * u, faceW - 1, 0, faceW, faceH, null);
-
-        g.drawImage(face, 0, 0, 1 * u, 2 * u, 0, 0, 1, 1, null);
-        g.drawImage(face, 21 * u, 0, block, 2 * u, faceW - 1, faceH - 1, faceW, faceH, null);
-
-        g.drawImage(face, 0, 34 * u, 1 * u, block, 0, faceH - 1, 1, faceH, null);
-        g.drawImage(face, 1 * u, 34 * u, 11 * u, block, 0, faceH - 1, faceW, faceH, null);
-        g.drawImage(face, 11 * u, 34 * u, 12 * u, block, faceW - 1, faceH - 1, faceW, faceH, null);
-        g.drawImage(face, 12 * u, 34 * u, 22 * u, block, 0, faceH - 1, faceW, faceH, null);
-        g.drawImage(face, 22 * u, 34 * u, block, block, faceW - 1, faceH - 1, faceW, faceH, null);
+        g.drawImage(face, 0, 1 * u, 1 * u, 17 * u, 0, 0, 1, faceH, null);              // 右侧厚度 (West)
+        g.drawImage(face, 1 * u, 1 * u, 11 * u, 17 * u, 0, 0, faceW, faceH, null);      // 正面朝内 (North)
+        g.drawImage(face, 11 * u, 1 * u, 12 * u, 17 * u, faceW - 1, 0, faceW, faceH, null); // 左侧厚度 (East)
+        g.drawImage(face, 12 * u, 1 * u, 22 * u, 17 * u, 0, 0, faceW, faceH, null);     // 背面朝外 (South)
 
         g.dispose();
         return canvas;
     }
 
     private static BufferedImage downscaleSmooth(BufferedImage src, int tw, int th) {
+        // 快速短路
+        if (src.getWidth() == tw && src.getHeight() == th) {
+            return src;
+        }
+
         BufferedImage cur = src;
-        while (cur.getWidth() > tw * 2 && cur.getHeight() > th * 2) {
-            int nw = Math.max(tw, cur.getWidth() / 2);
-            int nh = Math.max(th, cur.getHeight() / 2);
+
+        // 如果目标是极小的像素 (如 10x16)，绝不要反复减半 8 次，最多减半到 4 倍尺寸即可，防止对比度被磨平！
+        int minStepW = Math.max(tw * 2, 64);
+        int minStepH = Math.max(th * 2, 64);
+
+        while (cur.getWidth() > minStepW && cur.getHeight() > minStepH) {
+            int nw = Math.max(minStepW, cur.getWidth() / 2);
+            int nh = Math.max(minStepH, cur.getHeight() / 2);
             BufferedImage step = new BufferedImage(nw, nh, BufferedImage.TYPE_INT_ARGB);
             Graphics2D sg = step.createGraphics();
-            sg.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            sg.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
             sg.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
             sg.drawImage(cur, 0, 0, nw, nh, null);
             sg.dispose();
             cur = step;
         }
+
         BufferedImage out = new BufferedImage(tw, th, BufferedImage.TYPE_INT_ARGB);
         Graphics2D og = out.createGraphics();
-        og.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        og.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
         og.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        og.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         og.drawImage(cur, 0, 0, tw, th, null);
         og.dispose();
         return out;
@@ -364,5 +579,23 @@ public class PlayerCustomizationManager {
         clean = clean.replaceAll("[^a-z0-9._-]", "_");
 
         return clean.isEmpty() || clean.equals("_") ? "unknown_cape" : clean;
+    }
+
+    private static NativeImage toNativeImage(BufferedImage bufferedImage) {
+        int width = bufferedImage.getWidth();
+        int height = bufferedImage.getHeight();
+        NativeImage nativeImage = new NativeImage(width, height, false);
+
+        int[] argbPixels = new int[width * height];
+        bufferedImage.getRGB(0, 0, width, height, argbPixels, 0, width);
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int argb = argbPixels[y * width + x];
+                nativeImage.setPixel(x, y, argb);
+            }
+        }
+
+        return nativeImage;
     }
 }

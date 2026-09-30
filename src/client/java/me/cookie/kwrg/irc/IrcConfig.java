@@ -53,7 +53,7 @@ public class IrcConfig {
     public float myScale = 1.0f;
     public String myCape = "";
 
-    public int capeCanvasSize = 4096;
+    public int capeCanvasSize = 2048;
     public int capeAnimFps = 10;
 
     public boolean dynamicIsland = false;

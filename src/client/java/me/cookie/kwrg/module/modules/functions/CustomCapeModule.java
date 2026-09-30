@@ -62,6 +62,7 @@ public class CustomCapeModule extends Module {
 
                         IrcConfig.get().capeCanvasSize = closest;
                         IrcConfig.save();
+                        PlayerCustomizationManager.reloadCurrentCape();
                         PlayerCustomizationManager.setMyCape(PlayerCustomizationManager.getMyCape());
                         ChatNotifier.send("§e[Cape] 画布尺寸已修正并应用: §f" + closest, NotificationType.INFO);
                         renderCapeUI(panel);
