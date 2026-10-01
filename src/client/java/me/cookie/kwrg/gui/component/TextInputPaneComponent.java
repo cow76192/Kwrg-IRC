@@ -78,12 +78,19 @@ public class TextInputPaneComponent extends BaseUIComponent {
     private int decimalPrecision = 0;
     private boolean isDraggingSlot = false;
     private double dragAccumulator = 0.0;
-    private static final double DRAG_SENSITIVITY = 1.2;
+    private double dragSensitivity = 1.2;
+    private double presetDragSensitivity = 16.0;
 
+    private boolean isMultiplicative = false;
+    private double dragMultiplier = 1.1;
+    private final List<String>[] slotPresets;
+
+    @SuppressWarnings("unchecked")
     public TextInputPaneComponent(String placeholder, Consumer<String> onEnterSubmit) {
         this(placeholder, onEnterSubmit, "");
     }
 
+    @SuppressWarnings("unchecked")
     public TextInputPaneComponent(String placeholder, Consumer<String> onEnterSubmit, String rightHint) {
         this.mode = Mode.NORMAL;
         this.placeholder = placeholder != null ? placeholder : "";
@@ -102,12 +109,14 @@ public class TextInputPaneComponent extends BaseUIComponent {
         this.slotSuffixes = new String[0];
         this.styledSlotSuffixes = new Component[0];
         this.slotFocusProgress = new float[0];
+        this.slotPresets = (List<String>[]) new List[0];
 
         this.cursorStyle(CursorStyle.TEXT);
         this.sizing(Sizing.fill(100), Sizing.fixed(BASE_HEIGHT));
         this.margins(Insets.vertical(2));
     }
 
+    @SuppressWarnings("unchecked")
     public TextInputPaneComponent(String leftLabel, String[] initialValues, String[] suffixes,
                                   Consumer<String[]> onTripleSubmit, Consumer<String[]> onTripleChanged) {
         this.mode = Mode.TRIPLE_SLOT;
@@ -132,12 +141,14 @@ public class TextInputPaneComponent extends BaseUIComponent {
         this.slotSuffixes = new String[count];
         this.styledSlotSuffixes = new Component[count];
         this.slotFocusProgress = new float[count];
+        this.slotPresets = (List<String>[]) new List[count];
 
         for (int i = 0; i < count; i++) {
             this.slotValues[i] = (initialValues != null && i < initialValues.length && initialValues[i] != null) ? initialValues[i] : "";
             this.slotSuffixes[i] = (suffixes != null && i < suffixes.length && suffixes[i] != null) ? suffixes[i] : "";
             this.styledSlotSuffixes[i] = FontManagerHelper.apply(this.slotSuffixes[i]);
             this.slotFocusProgress[i] = 0.0f;
+            this.slotPresets[i] = null;
         }
 
         this.onTripleSubmit = onTripleSubmit;
@@ -197,10 +208,36 @@ public class TextInputPaneComponent extends BaseUIComponent {
     }
 
     /**
-     * 设置左右拖动时的步长（例如 0.1, 0.05, 1.0）
+     * 设置左右拖动时的固定加减步长
      */
     public TextInputPaneComponent dragStep(double step) {
         this.dragStep = step;
+        this.isMultiplicative = false;
+        return this;
+    }
+
+    /**
+     * 启用按倍数增长/减少（例如 1.1 表示向右拖动增大约 10%，向左拖动缩减约 10%）
+     */
+    public TextInputPaneComponent dragMultiplier(double multiplier) {
+        this.dragMultiplier = Math.max(1.0001, multiplier);
+        this.isMultiplicative = true;
+        return this;
+    }
+
+    /**
+     * 设置左右拖动灵敏度（数值步进每 step 消耗的像素距离）
+     */
+    public TextInputPaneComponent dragSensitivity(double sensitivity) {
+        this.dragSensitivity = Math.max(0.1, sensitivity);
+        return this;
+    }
+
+    /**
+     * 设置预设选项拖拽时的灵敏度（切换一项消耗的像素距离，默认 16px）
+     */
+    public TextInputPaneComponent presetDragSensitivity(double sensitivity) {
+        this.presetDragSensitivity = Math.max(1.0, sensitivity);
         return this;
     }
 
@@ -210,6 +247,64 @@ public class TextInputPaneComponent extends BaseUIComponent {
     public TextInputPaneComponent precision(int precision) {
         this.decimalPrecision = Math.max(0, precision);
         return this;
+    }
+
+    /**
+     * 为所有槽位设置相同的预设列表（可传 String, Number, Enum 等任意对象列表）
+     */
+    public TextInputPaneComponent presets(List<?> presets) {
+        for (int i = 0; i < this.slotCount; i++) {
+            presetSlot(i, presets);
+        }
+        return this;
+    }
+
+    /**
+     * 为所有槽位设置相同的预设（变长参数形式）
+     */
+    public TextInputPaneComponent presets(Object... presets) {
+        List<String> list = new ArrayList<>();
+        if (presets != null) {
+            for (Object obj : presets) {
+                if (obj != null) list.add(String.valueOf(obj));
+            }
+        }
+        return presets(list);
+    }
+
+    /**
+     * 为指定槽位设置预设列表（重命名避免歧义）
+     */
+    public TextInputPaneComponent presetSlot(int slotIndex, List<?> presets) {
+        if (slotIndex >= 0 && slotIndex < this.slotCount) {
+            if (presets == null || presets.isEmpty()) {
+                this.slotPresets[slotIndex] = null;
+            } else {
+                List<String> strList = new ArrayList<>();
+                for (Object obj : presets) {
+                    if (obj != null) strList.add(String.valueOf(obj));
+                }
+                this.slotPresets[slotIndex] = strList;
+            }
+        }
+        return this;
+    }
+
+    /**
+     * 为指定槽位设置预设（变长参数，重命名避免歧义）
+     */
+    public TextInputPaneComponent presetSlot(int slotIndex, Object... presets) {
+        List<String> list = new ArrayList<>();
+        if (presets != null) {
+            for (Object obj : presets) {
+                if (obj != null) list.add(String.valueOf(obj));
+            }
+        }
+        return presetSlot(slotIndex, list);
+    }
+
+    private boolean hasSlotPresets(int slotIndex) {
+        return slotIndex >= 0 && slotIndex < this.slotCount && this.slotPresets[slotIndex] != null && !this.slotPresets[slotIndex].isEmpty();
     }
 
     private double clampSlotValue(int slotIndex, double value) {
@@ -337,6 +432,8 @@ public class TextInputPaneComponent extends BaseUIComponent {
             boolean actualChanged = false;
             if (this.slotBounds != null) {
                 for (int i = 0; i < this.slotCount; i++) {
+                    if (hasSlotPresets(i)) continue;
+
                     String cur = this.slotValues[i].trim();
                     if (cur.isEmpty()) {
                         this.slotValues[i] = formatSlotValue(this.slotBounds[i][0]);
@@ -689,24 +786,68 @@ public class TextInputPaneComponent extends BaseUIComponent {
             }
 
             if (this.isDraggingSlot) {
-                int deltaStep = (int) (this.dragAccumulator / DRAG_SENSITIVITY);
-                if (deltaStep != 0) {
-                    this.dragAccumulator -= deltaStep * DRAG_SENSITIVITY;
+                boolean hasPreset = hasSlotPresets(this.activeSlot);
+                double sensitivity = hasPreset ? this.presetDragSensitivity : this.dragSensitivity;
 
-                    String currentStr = this.slotValues[this.activeSlot].trim();
-                    double currentVal = 0.0;
-                    if (!currentStr.isEmpty()) {
-                        try {
-                            currentVal = Double.parseDouble(currentStr);
-                        } catch (NumberFormatException ignored) {}
+                int deltaStep = (int) (this.dragAccumulator / sensitivity);
+                if (deltaStep != 0) {
+                    this.dragAccumulator -= deltaStep * sensitivity;
+
+                    if (hasPreset) {
+                        List<String> presets = this.slotPresets[this.activeSlot];
+                        String currentStr = this.slotValues[this.activeSlot].trim();
+                        int currentIndex = presets.indexOf(currentStr);
+
+                        if (currentIndex == -1) {
+                            for (int idx = 0; idx < presets.size(); idx++) {
+                                if (presets.get(idx).equalsIgnoreCase(currentStr)) {
+                                    currentIndex = idx;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (currentIndex == -1) {
+                            currentIndex = deltaStep > 0 ? -1 : presets.size();
+                        }
+
+                        int newIndex = Mth.clamp(currentIndex + deltaStep, 0, presets.size() - 1);
+                        this.slotValues[this.activeSlot] = presets.get(newIndex);
+                    } else if (this.isMultiplicative) {
+                        String currentStr = this.slotValues[this.activeSlot].trim();
+                        double currentVal = 0.0;
+                        if (!currentStr.isEmpty()) {
+                            try {
+                                currentVal = Double.parseDouble(currentStr);
+                            } catch (NumberFormatException ignored) {}
+                        }
+
+                        if (Math.abs(currentVal) < 1e-9) {
+                            currentVal = (deltaStep > 0 ? 1 : -1) * (this.dragStep > 0 ? this.dragStep : 1.0);
+                            deltaStep = deltaStep > 0 ? deltaStep - 1 : deltaStep + 1;
+                        }
+
+                        double factor = Math.pow(this.dragMultiplier, Math.abs(deltaStep));
+                        double newVal = deltaStep > 0 ? (currentVal * factor) : (currentVal / factor);
+                        newVal = clampSlotValue(this.activeSlot, newVal);
+
+                        this.slotValues[this.activeSlot] = formatSlotValue(newVal);
+                    } else {
+                        String currentStr = this.slotValues[this.activeSlot].trim();
+                        double currentVal = 0.0;
+                        if (!currentStr.isEmpty()) {
+                            try {
+                                currentVal = Double.parseDouble(currentStr);
+                            } catch (NumberFormatException ignored) {}
+                        }
+
+                        double newVal = currentVal + deltaStep * this.dragStep;
+                        newVal = clampSlotValue(this.activeSlot, newVal);
+
+                        this.slotValues[this.activeSlot] = formatSlotValue(newVal);
                     }
 
-                    double newVal = currentVal + deltaStep * this.dragStep;
-                    newVal = clampSlotValue(this.activeSlot, newVal);
-
-                    this.slotValues[this.activeSlot] = formatSlotValue(newVal);
                     this.cursorPos = this.slotValues[this.activeSlot].length();
-
                     notifyTripleChanged();
                     resetCursorBlink();
                 }
@@ -861,7 +1002,7 @@ public class TextInputPaneComponent extends BaseUIComponent {
                 }
                 clampCursor();
 
-                // 字符合法性判断
+                // 字符合法性判断（预设模式下如果不设置 slotBounds，则不强制只允许数字）
                 if (this.slotBounds != null) {
                     boolean isDigit = c >= '0' && c <= '9';
                     boolean isDot = (c == '.' && this.decimalPrecision > 0 && !curVal.contains("."));
