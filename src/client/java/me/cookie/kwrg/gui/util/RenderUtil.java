@@ -4,6 +4,7 @@ import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 
@@ -159,7 +160,7 @@ public final class RenderUtil {
 
                 if (height > 2.0f * r) {
                     fillSubpixel(graphics, 0.0f, r, stroke - aa, height - r, borderRgb);
-                    drawQuadGradient(graphics, stroke - aa, r, stroke, height - r, borderRgb, borderFadeRgb, borderFadeRgb, borderRgb);
+                    drawQuadGradient(graphics, stroke - aa, r, stroke, height - r, borderRgb, borderRgb, borderFadeRgb, borderFadeRgb);
 
                     drawQuadGradient(graphics, width - stroke, r, width - stroke + aa, height - r, borderFadeRgb, borderRgb, borderRgb, borderFadeRgb);
                     fillSubpixel(graphics, width - stroke + aa, r, width, height - r, borderRgb);
@@ -325,5 +326,10 @@ public final class RenderUtil {
         var client = Minecraft.getInstance();
         var window = client.getWindow();
         return (float) (client.mouseHandler.ypos() * ((double) window.getGuiScaledHeight() / (double) window.getScreenHeight()));
+    }
+
+    public static void drawTexture(OwoUIGraphics graphics, Identifier texture, float x, float y, float width, float height, int textureWidth, int textureHeight) {
+        if (textureWidth <= 0 || textureHeight <= 0 || width <= 0.0f || height <= 0.0f) return;
+        graphics.blit(texture, (int) x, (int) y, (int) width, (int) height, 0.0f, 0.0f, 1.0f, 1.0f);
     }
 }

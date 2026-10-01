@@ -9,7 +9,7 @@ import me.cookie.kwrg.module.modules.debug.ClearIndexCacheModule;
 import me.cookie.kwrg.module.modules.functions.GlowColorModule;
 import me.cookie.kwrg.module.modules.functions.HideArmorModule;
 import me.cookie.kwrg.module.modules.functions.ImportantPlayerModule;
-import me.cookie.kwrg.module.modules.play.PlayModule;
+import me.cookie.kwrg.module.modules.play.TotemEffectModule;
 import me.cookie.kwrg.module.modules.style.MessageStyleModule;
 import me.cookie.kwrg.module.modules.style.NameStyleModule;
 import me.cookie.kwrg.module.modules.style.RankModule;
@@ -230,7 +230,7 @@ public class IrcCommand {
                         .then(argument("player", StringArgumentType.string())
                                 .then(argument("item", StringArgumentType.greedyString())
                                         .suggests(ITEM_SUGGESTIONS)
-                                        .executes(context -> PlayModule.handlePlayCommand(
+                                        .executes(context -> TotemEffectModule.handlePlayCommand(
                                                 StringArgumentType.getString(context, "player"),
                                                 StringArgumentType.getString(context, "item")
                                         )))))
@@ -238,7 +238,7 @@ public class IrcCommand {
                         .then(argument("player", StringArgumentType.string())
                                 .then(argument("item", StringArgumentType.greedyString())
                                         .suggests(ITEM_SUGGESTIONS)
-                                        .executes(context -> PlayModule.handlePlayCommand(
+                                        .executes(context -> TotemEffectModule.handlePlayCommand(
                                                 StringArgumentType.getString(context, "player"),
                                                 StringArgumentType.getString(context, "item")
                                         )))))

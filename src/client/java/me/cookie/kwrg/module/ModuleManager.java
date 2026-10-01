@@ -3,7 +3,8 @@ package me.cookie.kwrg.module;
 import me.cookie.kwrg.module.modules.config.*;
 import me.cookie.kwrg.module.modules.debug.*;
 import me.cookie.kwrg.module.modules.functions.*;
-import me.cookie.kwrg.module.modules.play.PlayModule;
+import me.cookie.kwrg.module.modules.play.TotemEffectModule;
+import me.cookie.kwrg.module.modules.play.TicTacToeModule;
 import me.cookie.kwrg.module.modules.style.*;
 
 import java.util.*;
@@ -44,7 +45,8 @@ public class ModuleManager {
         register(new GuiScaleModule());
 
         // --- PLAY 模块 ---
-        register(new PlayModule());
+        register(new TotemEffectModule());
+        register(new TicTacToeModule());
     }
 
     public static void register(Module module) {

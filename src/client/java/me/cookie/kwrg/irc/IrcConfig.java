@@ -1,254 +1,274 @@
-package me.cookie.kwrg.irc;
+    package me.cookie.kwrg.irc;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
-import net.minecraft.client.Minecraft;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+    import com.google.gson.Gson;
+    import com.google.gson.GsonBuilder;
+    import com.google.gson.JsonObject;
+    import me.cookie.kwrg.irc.manager.PlayerFinderManager;
+    import net.minecraft.client.Minecraft;
+    import org.slf4j.Logger;
+    import org.slf4j.LoggerFactory;
 
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+    import java.nio.file.DirectoryStream;
+    import java.nio.file.Files;
+    import java.nio.file.Path;
+    import java.util.ArrayList;
+    import java.util.List;
+    import java.util.concurrent.Executors;
+    import java.util.concurrent.ScheduledExecutorService;
+    import java.util.concurrent.ScheduledFuture;
+    import java.util.concurrent.TimeUnit;
 
-public class IrcConfig {
+    public class IrcConfig {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("kwrg-irc-config");
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+        private static final Logger LOGGER = LoggerFactory.getLogger("kwrg-irc-config");
+        private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    private static final ScheduledExecutorService SAVE_EXECUTOR = Executors.newSingleThreadScheduledExecutor(r -> {
-        Thread t = new Thread(r, "kwrg-config-saver");
-        t.setDaemon(true);
-        return t;
-    });
-    private static ScheduledFuture<?> pendingSaveTask = null;
+        private static final ScheduledExecutorService SAVE_EXECUTOR = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "kwrg-config-saver");
+            t.setDaemon(true);
+            return t;
+        });
+        private static ScheduledFuture<?> pendingSaveTask = null;
 
-    public String rank = "&7[Member&7]";
-    public String namestyle = "";
-    public String chatstyle = "";
-    public boolean hideArmor = false;
-    public boolean glowEnabled = true;
-    public String glowColor = "#00FF88";
-    public List<String> importantPlayers = new ArrayList<>();
+        public String rank = "&7[Member&7]";
+        public String namestyle = "";
+        public String chatstyle = "";
+        public boolean hideArmor = false;
+        public boolean glowEnabled = true;
+        public String glowColor = "#00FF88";
+        public List<String> importantPlayers = new ArrayList<>();
 
-    public boolean chat = true;
-    public String chatSound = "CAT_AMBIENT_BABY";
+        public boolean chat = true;
+        public String chatSound = "CAT_AMBIENT_BABY";
 
-    public boolean importantPlayer = true;
-    public String playerFinderColor = "#FF3333";
+        public boolean importantPlayer = true;
+        public String playerFinderColor = "#FF3333";
 
-    public boolean channelEnabled = false;
-    public String currentChannel = "";
-    public List<String> savedChannels = new ArrayList<>();
+        public boolean channelEnabled = false;
+        public String currentChannel = "";
+        public List<String> savedChannels = new ArrayList<>();
 
-    public List<String> playerFinderTargets = new ArrayList<>();
-    public boolean autoTrackPlayer = false;
+        public List<String> playerFinderTargets = new ArrayList<>();
+        public boolean autoTrackPlayer = false;
 
-    public boolean dynamicIsland = false;
-    public boolean islandShowFps = true;
-    public boolean islandShowPing = true;
-    public boolean islandShowTps = true;
-    public boolean islandShowRam = false;
-    public boolean islandShowGpu = false;
-    public boolean islandShowCpu = false;
-    public boolean isShadowEnabled = true;
-    public float islandOpacity  = 0.2f;
-    public boolean onlyApplyToTab = true;
-    public boolean onlyRenderTab = false;
+        public float myScale = 1.0f;
+        public String myCape = "";
 
-    public boolean disableBlur = false;
-    public float blurQuality = 8.0f;
-    public float blurSize = 16.0f;
+        public int capeCanvasSize = 2048;
+        public int capeAnimFps = 10;
 
-    public int guiFpsLimit = 60;
+        public boolean dynamicIsland = false;
+        public boolean islandShowFps = true;
+        public boolean islandShowPing = true;
+        public boolean islandShowTps = true;
+        public boolean islandShowRam = false;
+        public boolean islandShowGpu = false;
+        public boolean islandShowCpu = false;
+        public boolean isShadowEnabled = true;
+        public float islandOpacity  = 0.2f;
+        public boolean onlyApplyToTab = true;
+        public boolean onlyRenderTab = false;
 
-    public float dynamicIslandAAValue = 0.35f;
+        public boolean disableBlur = false;
+        public float blurQuality = 8.0f;
+        public float blurSize = 16.0f;
 
-    public boolean connectPublicChannelFirst = true;
+        public int guiFpsLimit = 60;
 
-    public String guiFont = "default";
-    public String guiColor = "#11161F";
+        public float dynamicIslandAAValue = 0.35f;
 
-    public float guiScale = 1.0f;
+        public boolean connectPublicChannelFirst = true;
 
-    private static IrcConfig instance = new IrcConfig();
-    private static String currentProfileName = "default";
+        public String guiFont = "default";
+        public String guiColor = "#11161F";
 
-    public static IrcConfig get() {
-        return instance;
-    }
+        public float guiScale = 1.0f;
 
-    public static String getCurrentProfileName() {
-        return currentProfileName;
-    }
+        public boolean nickEnabled = false;
+        public String customNick = "";
+        public String nickRank = "MVP+";
+        public String nickPlusColor = "RED";
 
-    public static Path getKwrgDir() {
-        return Minecraft.getInstance().gameDirectory.toPath().resolve("kwrg");
-    }
+        private static IrcConfig instance = new IrcConfig();
+        private static String currentProfileName = "default";
 
-    private static Path getMetaPath() {
-        return getKwrgDir().resolve("config.json");
-    }
-
-    private static Path getProfilePath(String profileName) {
-        return getKwrgDir().resolve(profileName + ".json");
-    }
-
-    private static String sanitizeProfileName(String name) {
-        if (name == null || name.isBlank()) return "default";
-        String clean = name.trim();
-        if (clean.endsWith(".json")) {
-            clean = clean.substring(0, clean.length() - 5);
+        public static IrcConfig get() {
+            return instance;
         }
-        return clean.isEmpty() ? "default" : clean;
-    }
 
-    private static class ProfileSelector {
-        String selected = "default";
-    }
+        public static String getCurrentProfileName() {
+            return currentProfileName;
+        }
 
-    public static void load() {
-        try {
-            Path metaPath = getMetaPath();
+        public static Path getKwrgDir() {
+            return Minecraft.getInstance().gameDirectory.toPath().resolve("kwrg");
+        }
+
+        private static Path getMetaPath() {
+            return getKwrgDir().resolve("config.json");
+        }
+
+        private static Path getProfilePath(String profileName) {
+            return getKwrgDir().resolve(profileName + ".json");
+        }
+
+        private static String sanitizeProfileName(String name) {
+            if (name == null || name.isBlank()) return "default";
+            String clean = name.trim();
+            if (clean.endsWith(".json")) {
+                clean = clean.substring(0, clean.length() - 5);
+            }
+            return clean.isEmpty() ? "default" : clean;
+        }
+
+        private static class ProfileSelector {
             String selected = "default";
-
-            if (Files.exists(metaPath)) {
-                String metaJson = Files.readString(metaPath);
-                ProfileSelector selector = GSON.fromJson(metaJson, ProfileSelector.class);
-                if (selector != null && selector.selected != null && !selector.selected.isBlank()) {
-                    selected = sanitizeProfileName(selector.selected);
-                }
-            }
-
-            loadProfile(selected, true);
-        } catch (Exception e) {
-            LOGGER.error("[Kwrg] 初始化读取配置文件失败，启用内存默认配置", e);
-            instance = new IrcConfig();
-            currentProfileName = "default";
-        }
-    }
-
-    public static boolean loadProfile(String profileName, boolean createIfMissing) {
-        String cleanName = sanitizeProfileName(profileName);
-        Path profilePath = getProfilePath(cleanName);
-
-        try {
-            if (Files.exists(profilePath)) {
-                String json = Files.readString(profilePath);
-
-                JsonObject jsonObj = GSON.fromJson(json, JsonObject.class);
-                migrateLegacyFields(jsonObj);
-                IrcConfig loaded = GSON.fromJson(jsonObj, IrcConfig.class);
-
-                if (loaded == null) loaded = new IrcConfig();
-                if (loaded.importantPlayers == null) loaded.importantPlayers = new ArrayList<>();
-                if (loaded.playerFinderTargets == null) loaded.playerFinderTargets = new ArrayList<>();
-
-                instance = loaded;
-                currentProfileName = cleanName;
-                saveSelectorMeta(cleanName);
-                LOGGER.info("[Kwrg] 已加载配置文件: {}.json", cleanName);
-                return true;
-            } else if (createIfMissing) {
-                instance = new IrcConfig();
-                currentProfileName = cleanName;
-                save();
-                return true;
-            }
-        } catch (Exception e) {
-            LOGGER.error("[Kwrg] 加载配置文件 {}.json 失败", cleanName, e);
-        }
-        return false;
-    }
-
-    private static void migrateLegacyFields(JsonObject jsonObj) {
-        if (jsonObj == null) return;
-
-        if (jsonObj.has("onlyTab") && !jsonObj.has("onlyApplyToTab")) {
-            jsonObj.add("onlyApplyToTab", jsonObj.get("onlyTab"));
-        }
-        //迁移旧配置扩展
-        jsonObj.remove("onlyTab");
-    }
-
-    public static void createProfile(String profileName) {
-        String cleanName = sanitizeProfileName(profileName);
-        instance = new IrcConfig();
-        currentProfileName = cleanName;
-        LOGGER.info("[Kwrg] 已在内存中新建配置 [{}]（尚未保存到磁盘）", cleanName);
-    }
-
-    public static synchronized boolean save() {
-        if (pendingSaveTask != null && !pendingSaveTask.isDone()) {
-            pendingSaveTask.cancel(false);
         }
 
-        try {
-            Path dir = getKwrgDir();
-            Files.createDirectories(dir);
+        public static void load() {
+            try {
+                Path metaPath = getMetaPath();
+                String selected = "default";
 
-            Path profilePath = getProfilePath(currentProfileName);
-            Files.writeString(profilePath, GSON.toJson(instance));
-
-            saveSelectorMeta(currentProfileName);
-
-            LOGGER.info("[Kwrg] 配置已成功保存至: {}.json", currentProfileName);
-            return true;
-        } catch (Exception e) {
-            LOGGER.error("[Kwrg] 保存配置文件失败", e);
-            return false;
-        }
-    }
-
-    public static synchronized void saveDelayed(long delayMs) {
-        if (pendingSaveTask != null && !pendingSaveTask.isDone()) {
-            pendingSaveTask.cancel(false);
-        }
-
-        pendingSaveTask = SAVE_EXECUTOR.schedule(() -> {
-            synchronized (IrcConfig.class) {
-                save();
-            }
-        }, delayMs, TimeUnit.MILLISECONDS);
-    }
-
-    private static void saveSelectorMeta(String selected) {
-        try {
-            Path dir = getKwrgDir();
-            Files.createDirectories(dir);
-
-            ProfileSelector selector = new ProfileSelector();
-            selector.selected = selected;
-            Files.writeString(getMetaPath(), GSON.toJson(selector));
-        } catch (Exception e) {
-            LOGGER.error("[Kwrg] 更新 config.json 失败", e);
-        }
-    }
-
-    public static List<String> listExistingProfiles() {
-        List<String> list = new ArrayList<>();
-        Path dir = getKwrgDir();
-        if (Files.exists(dir)) {
-            try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.json")) {
-                for (Path p : stream) {
-                    String fileName = p.getFileName().toString();
-                    if (!fileName.equalsIgnoreCase("config.json")) {
-                        list.add(fileName.substring(0, fileName.length() - 5));
+                if (Files.exists(metaPath)) {
+                    String metaJson = Files.readString(metaPath);
+                    ProfileSelector selector = GSON.fromJson(metaJson, ProfileSelector.class);
+                    if (selector != null && selector.selected != null && !selector.selected.isBlank()) {
+                        selected = sanitizeProfileName(selector.selected);
                     }
                 }
-            } catch (Exception ignored) {
+
+                loadProfile(selected, true);
+            } catch (Exception e) {
+                LOGGER.error("[Kwrg] 初始化读取配置文件失败，启用内存默认配置", e);
+                instance = new IrcConfig();
+                currentProfileName = "default";
             }
         }
-        return list;
-    }
 
-    public static Path getFontDir() {
-        return getKwrgDir().resolve("font");
+        public static boolean loadProfile(String profileName, boolean createIfMissing) {
+            String cleanName = sanitizeProfileName(profileName);
+            Path profilePath = getProfilePath(cleanName);
+
+            try {
+                if (Files.exists(profilePath)) {
+                    String json = Files.readString(profilePath);
+
+                    JsonObject jsonObj = GSON.fromJson(json, JsonObject.class);
+                    migrateLegacyFields(jsonObj);
+                    IrcConfig loaded = GSON.fromJson(jsonObj, IrcConfig.class);
+
+                    if (loaded == null) loaded = new IrcConfig();
+                    if (loaded.importantPlayers == null) loaded.importantPlayers = new ArrayList<>();
+                    if (loaded.playerFinderTargets == null) loaded.playerFinderTargets = new ArrayList<>();
+                    if (loaded.myCape == null) loaded.myCape = "";
+
+                    if (loaded.myScale <= 0.0f || Float.isNaN(loaded.myScale)) loaded.myScale = 1.0f;
+                    if (loaded.capeCanvasSize < 64) loaded.capeCanvasSize = 4096;
+                    if (loaded.capeAnimFps <= 0) loaded.capeAnimFps = 10;
+
+                    instance = loaded;
+                    currentProfileName = cleanName;
+                    saveSelectorMeta(cleanName);
+
+                    PlayerFinderManager.reloadFromConfig();
+
+                    LOGGER.info("[Kwrg] 已加载配置文件: {}.json", cleanName);
+                    return true;
+                } else if (createIfMissing) {
+                    instance = new IrcConfig();
+                    currentProfileName = cleanName;
+                    save();
+                    return true;
+                }
+            } catch (Exception e) {
+                LOGGER.error("[Kwrg] 加载配置文件 {}.json 失败", cleanName, e);
+            }
+            return false;
+        }
+
+        private static void migrateLegacyFields(JsonObject jsonObj) {
+            if (jsonObj == null) return;
+
+            if (jsonObj.has("onlyTab") && !jsonObj.has("onlyApplyToTab")) {
+                jsonObj.add("onlyApplyToTab", jsonObj.get("onlyTab"));
+            }
+            //迁移旧配置扩展
+            jsonObj.remove("onlyTab");
+        }
+
+        public static void createProfile(String profileName) {
+            String cleanName = sanitizeProfileName(profileName);
+            instance = new IrcConfig();
+            currentProfileName = cleanName;
+            LOGGER.info("[Kwrg] 已在内存中新建配置 [{}]（尚未保存到磁盘）", cleanName);
+        }
+
+        public static synchronized boolean save() {
+            if (pendingSaveTask != null && !pendingSaveTask.isDone()) {
+                pendingSaveTask.cancel(false);
+            }
+
+            try {
+                Path dir = getKwrgDir();
+                Files.createDirectories(dir);
+
+                Path profilePath = getProfilePath(currentProfileName);
+                Files.writeString(profilePath, GSON.toJson(instance));
+
+                saveSelectorMeta(currentProfileName);
+
+                LOGGER.info("[Kwrg] 配置已成功保存至: {}.json", currentProfileName);
+                return true;
+            } catch (Exception e) {
+                LOGGER.error("[Kwrg] 保存配置文件失败", e);
+                return false;
+            }
+        }
+
+        public static synchronized void saveDelayed(long delayMs) {
+            if (pendingSaveTask != null && !pendingSaveTask.isDone()) {
+                pendingSaveTask.cancel(false);
+            }
+
+            pendingSaveTask = SAVE_EXECUTOR.schedule(() -> {
+                synchronized (IrcConfig.class) {
+                    save();
+                }
+            }, delayMs, TimeUnit.MILLISECONDS);
+        }
+
+        private static void saveSelectorMeta(String selected) {
+            try {
+                Path dir = getKwrgDir();
+                Files.createDirectories(dir);
+
+                ProfileSelector selector = new ProfileSelector();
+                selector.selected = selected;
+                Files.writeString(getMetaPath(), GSON.toJson(selector));
+            } catch (Exception e) {
+                LOGGER.error("[Kwrg] 更新 config.json 失败", e);
+            }
+        }
+
+        public static List<String> listExistingProfiles() {
+            List<String> list = new ArrayList<>();
+            Path dir = getKwrgDir();
+            if (Files.exists(dir)) {
+                try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.json")) {
+                    for (Path p : stream) {
+                        String fileName = p.getFileName().toString();
+                        if (!fileName.equalsIgnoreCase("config.json")) {
+                            list.add(fileName.substring(0, fileName.length() - 5));
+                        }
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+            return list;
+        }
+
+        public static Path getFontDir() {
+            return getKwrgDir().resolve("font");
+        }
     }
-}

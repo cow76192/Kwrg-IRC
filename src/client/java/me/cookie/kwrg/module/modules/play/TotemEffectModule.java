@@ -20,14 +20,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
-public class PlayModule extends Module {
+public class TotemEffectModule extends Module {
 
     private String selectedPlayer = null;
     private boolean isPlayerPickerOpen = false;
     private String searchKeyword = "";
 
-    public PlayModule() {
-        super("play", Category.PLAY, PanelItemComponent.ItemType.TRIGGER);
+    public TotemEffectModule() {
+        super("totem effect", Category.PLAY, PanelItemComponent.ItemType.TRIGGER);
     }
 
     @Override
@@ -55,7 +55,6 @@ public class PlayModule extends Module {
 
         panel.child(playerPickerPane);
 
-        // 展开在线玩家列表
         if (this.isPlayerPickerOpen) {
             List<String> onlineList = ModuleManager.getCachedOnlinePlayers();
             if (onlineList == null || onlineList.isEmpty()) {
@@ -89,7 +88,6 @@ public class PlayModule extends Module {
 
         panel.child(searchInput);
 
-        // 搜索结果
         if (!this.searchKeyword.isEmpty()) {
             List<String> results = searchMatchingItems(this.searchKeyword);
 
@@ -98,7 +96,7 @@ public class PlayModule extends Module {
             } else {
                 for (String itemResult : results) {
                     panel.child(new PanelItemComponent(itemResult, () -> {
-                        PlayModule.handlePlayCommandWithGui(this.selectedPlayer, itemResult);
+                        TotemEffectModule.handlePlayCommandWithGui(this.selectedPlayer, itemResult);
                     }));
                 }
             }
