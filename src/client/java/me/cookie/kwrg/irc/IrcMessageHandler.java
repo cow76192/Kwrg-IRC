@@ -11,6 +11,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.*;
 
 import java.util.Objects;
+import java.util.UUID;
 
 public class IrcMessageHandler {
 
@@ -87,6 +88,9 @@ public class IrcMessageHandler {
 
                 if ("hideArmor".equalsIgnoreCase(function)) {
                     HideArmorManager.setPlayerHideArmor(user, enabled);
+                } else if ("modelScale".equalsIgnoreCase(function)) {
+                    float scale = obj.has("scale") ? obj.get("scale").getAsFloat() : 1.0f;
+                    me.cookie.kwrg.irc.manager.PlayerCustomizationManager.setRemotePlayerScale(user, scale);
                 }
                 return;
             }
@@ -104,6 +108,7 @@ public class IrcMessageHandler {
             if ("player_leave".equalsIgnoreCase(type)) {
                 String user = obj.has("username") ? obj.get("username").getAsString() : "Unknown";
                 HideArmorManager.setRemotePlayerHideArmor(user, false);
+                me.cookie.kwrg.irc.manager.PlayerCustomizationManager.setRemotePlayerScale(user, 1.0f);
                 me.cookie.kwrg.irc.manager.IrcGlowManager.removePlayer(user);
                 IrcMessageHandler.printMessage("§7[IRC] 玩家 §f" + user + " §7退出了 IRC");
                 return;
@@ -126,6 +131,55 @@ public class IrcMessageHandler {
                 IrcGlowManager.setOnlinePlayers(list);
                 IrcMessageHandler.printMessage("§6===== [IRC 在线玩家 (" + count + "人)] =====");
                 IrcMessageHandler.printMessage("§f" + (list.isEmpty() ? "§7暂无其他在线玩家" : String.join("§7, §f", list)));
+                return;
+            }
+
+            if ("function_sync".equalsIgnoreCase(type)) {
+                String function = obj.has("function") ? obj.get("function").getAsString() : "";
+                String user = obj.has("username") ? obj.get("username").getAsString() : "";
+                String senderUuidStr = obj.has("senderId") ? obj.get("senderId").getAsString() : "";
+
+                if ("hideArmor".equalsIgnoreCase(function)) {
+                    boolean enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
+                    HideArmorManager.setPlayerHideArmor(user, enabled);
+                } else if ("modelScale".equalsIgnoreCase(function)) {
+                    float scale = obj.has("scale") ? obj.get("scale").getAsFloat() : 1.0f;
+                    try {
+                        UUID senderUuid = UUID.fromString(senderUuidStr);
+                        me.cookie.kwrg.irc.manager.PlayerCustomizationManager.setIrcPlayerCustomization(senderUuid, null, scale);
+                    } catch (Exception ignored) {}
+                }
+                return;
+            }
+
+            if ("cape_check_result".equalsIgnoreCase(type)) {
+                String hash = obj.has("hash") ? obj.get("hash").getAsString() : "";
+                boolean exists = obj.has("exists") && obj.get("exists").getAsBoolean();
+                me.cookie.kwrg.irc.manager.IrcCapeManager.handleCheckResult(hash, exists);
+                return;
+            }
+
+            if ("cape_sync".equalsIgnoreCase(type)) {
+                String senderUuidStr = obj.has("senderId") ? obj.get("senderId").getAsString() : "";
+                String hash = obj.has("hash") ? obj.get("hash").getAsString() : "";
+                String fileName = obj.has("fileName") ? obj.get("fileName").getAsString() : "";
+
+                if (mc.player != null && senderUuidStr.equals(mc.player.getStringUUID())) {
+                    return;
+                }
+
+                try {
+                    UUID uuid = UUID.fromString(senderUuidStr);
+                    me.cookie.kwrg.irc.manager.IrcCapeManager.handleRemoteCapeSync(uuid, hash, fileName);
+                } catch (Exception ignored) {}
+                return;
+            }
+
+            if ("cape_data".equalsIgnoreCase(type)) {
+                String hash = obj.has("hash") ? obj.get("hash").getAsString() : "";
+                String fileName = obj.has("fileName") ? obj.get("fileName").getAsString() : "";
+                String data = obj.has("data") ? obj.get("data").getAsString() : "";
+                me.cookie.kwrg.irc.manager.IrcCapeManager.handleIncomingCapeData(hash, fileName, data);
                 return;
             }
 

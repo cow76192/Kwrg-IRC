@@ -22,6 +22,7 @@ public class ModuleManager {
         register(new DisableBlurModule());
         register(new GuiFpsModule());
         register(new DynamicIslandAAValve());
+        register(new ClearCapeCacheModule());
         // --- CONFIG 模块 ---
         register(new LoadModule());
         register(new ShareModule());
@@ -32,6 +33,8 @@ public class ModuleManager {
         register(new ImportantPlayerModule());
         register(new PlayerFinderModule());
         register(new ChannelModule());
+        register(new ModelScaleModule());
+        register(new CustomCapeModule());
         register(new NickModule());
 
         // --- STYLE 模块 ---
@@ -43,7 +46,6 @@ public class ModuleManager {
         register(new FontModule());
         register(new GuiColorModule());
         register(new GuiScaleModule());
-
         // --- PLAY 模块 ---
         register(new PlayModule());
     }

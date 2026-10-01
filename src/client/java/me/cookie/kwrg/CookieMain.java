@@ -5,13 +5,17 @@ import me.cookie.kwrg.gui.util.TpsTracker;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcCommand;
 import me.cookie.kwrg.irc.IrcConfig;
+import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.GreetingManager;
 import me.cookie.kwrg.util.SkyblockItemHelper;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.player.Player;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +65,18 @@ public class CookieMain implements ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             GreetingManager.onSessionDisconnect();
             IrcClient.disconnect();
+        });
+
+        ClientEntityEvents.ENTITY_LOAD.register((entity, world) -> {
+            if (entity instanceof Player player && player != Minecraft.getInstance().player) {
+                PlayerCustomizationManager.preloadIrcPlayer(player.getUUID());
+            }
+        });
+
+        ClientEntityEvents.ENTITY_UNLOAD.register((entity, world) -> {
+            if (entity instanceof Player player && player != Minecraft.getInstance().player) {
+                PlayerCustomizationManager.unbindPlayer(player.getUUID());
+            }
         });
 
         Runtime.getRuntime().addShutdownHook(new Thread(IrcConfig::save, "kwrg-shutdown-saver"));

@@ -70,7 +70,7 @@ public class PlayerFinderModule extends Module {
 
         panel.child(new ColorSettingComponent(IrcConfig.get().playerFinderColor, PlayerFinderModule::setFinderColor, false));
 
-        panel.child(TextInfoPaneComponent.header("目标列表 (左键复制 | Shift移除 | Ctrl星标)"));
+        panel.child(TextInfoPaneComponent.header("目标列表\n（Shift左键移除 | Ctrl左键星标）"));
 
         List<String> targetList = PlayerFinderManager.getPlayers();
         if (targetList.isEmpty()) {
