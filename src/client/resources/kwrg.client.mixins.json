@@ -24,6 +24,7 @@
 		"SkyblockerElementCleanMixin",
 		"FontMixin",
 		"FontManagerMixin",
+		"InventoryScreenMixin",
 		"AvatarRenderStateMixin",
 		"accessor.FontManagerAccessor",
 		"accessor.FontSetAccessor",

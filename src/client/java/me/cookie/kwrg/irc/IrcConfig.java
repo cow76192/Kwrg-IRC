@@ -54,6 +54,7 @@ public class IrcConfig {
     public float myScale = 1.0f;
     public String myCape = "";
 
+    public int remoteCapeCanvasSize = 1024;
     public int capeCanvasSize = 2048;
     public int capeAnimFps = 10;
 

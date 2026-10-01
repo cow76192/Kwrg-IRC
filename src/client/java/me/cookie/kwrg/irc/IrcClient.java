@@ -136,6 +136,8 @@ public class IrcClient {
                 sendRaw(GSON.toJson(joinJson));
 
                 sendFunctionSync("hideArmor", IrcConfig.get().hideArmor);
+                sendScaleSync(IrcConfig.get().myScale);
+                me.cookie.kwrg.irc.manager.IrcCapeManager.syncMyCape();
                 sendChannelSync(IrcConfig.get().currentChannel, IrcConfig.get().channelEnabled, IrcConfig.get().savedChannels);
                 queryOnline();
                 startHeartbeat();
@@ -199,7 +201,17 @@ public class IrcClient {
                         continue;
                     }
 
-                    LOGGER.info("[IRC-RECV] 收到服务端广播: {}", rawJson);
+                    if (LOGGER.isInfoEnabled()) {
+                        String logText = rawJson;
+                        if (logText.contains("\"data\"")) {
+                            logText = logText.replaceAll("\"data\"\\s*:\\s*\"[^\"]+\"", "\"data\":\"<Base64 Image Omitted>\"");
+                        }
+                        if (logText.length() > 250) {
+                            logText = logText.substring(0, 250) + "... [总长 " + rawJson.length() + " 字节]";
+                        }
+                        LOGGER.info("[IRC-RECV] 收到服务端广播: {}", logText);
+                    }
+
                     Minecraft.getInstance().execute(() -> IrcMessageHandler.handleIncomingJson(rawJson));
                 }
             }
@@ -456,6 +468,66 @@ public class IrcClient {
 
     public static void sendInvite(String targetPlayer, String inviteType, String content) {
         sendShare(targetPlayer, "invite", inviteType, content);
+    }
+
+    public static void sendScaleSync(float scale) {
+        Minecraft mc = Minecraft.getInstance();
+        String senderId = mc.player != null ? mc.player.getStringUUID() : mc.getUser().getProfileId().toString();
+        String username = mc.getUser().getName();
+
+        JsonObject json = new JsonObject();
+        json.addProperty("type", "function_sync");
+        json.addProperty("function", "modelScale");
+        json.addProperty("senderId", senderId);
+        json.addProperty("username", username);
+        json.addProperty("scale", scale);
+
+        sendRaw(GSON.toJson(json));
+    }
+
+    // 检查服务端是否已有该披风哈希
+    public static void sendCapeCheck(String hash, String fileName) {
+        Minecraft mc = Minecraft.getInstance();
+        JsonObject json = new JsonObject();
+        json.addProperty("type", "cape_check");
+        json.addProperty("senderId", mc.getUser().getProfileId().toString());
+        json.addProperty("username", mc.getUser().getName());
+        json.addProperty("hash", hash);
+        json.addProperty("fileName", fileName);
+        sendRaw(GSON.toJson(json));
+    }
+
+    // 向服务端上传披风的完整 Base64
+    public static void sendCapeUpload(String hash, String fileName, String base64Data) {
+        Minecraft mc = Minecraft.getInstance();
+        JsonObject json = new JsonObject();
+        json.addProperty("type", "cape_upload");
+        json.addProperty("senderId", mc.getUser().getProfileId().toString());
+        json.addProperty("username", mc.getUser().getName());
+        json.addProperty("hash", hash);
+        json.addProperty("fileName", fileName);
+        json.addProperty("data", base64Data);
+        sendRaw(GSON.toJson(json));
+    }
+
+    // 广播佩戴指定哈希的披风
+    public static void sendCapeSync(String hash, String fileName) {
+        Minecraft mc = Minecraft.getInstance();
+        JsonObject json = new JsonObject();
+        json.addProperty("type", "cape_sync");
+        json.addProperty("senderId", mc.getUser().getProfileId().toString());
+        json.addProperty("username", mc.getUser().getName());
+        json.addProperty("hash", hash);
+        json.addProperty("fileName", fileName);
+        sendRaw(GSON.toJson(json));
+    }
+
+    // 向服务端请求下载未命中的披风
+    public static void sendCapeDownload(String hash) {
+        JsonObject json = new JsonObject();
+        json.addProperty("type", "cape_download");
+        json.addProperty("hash", hash);
+        sendRaw(GSON.toJson(json));
     }
 
     public static void queryOnline() {

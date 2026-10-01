@@ -74,6 +74,37 @@ public class CustomCapeModule extends Module {
         ).bounds(new int[][]{{64, 8192}}));
 
         panel.child(new TextInputPaneComponent(
+                "其余玩家画布尺寸",
+                new String[]{String.valueOf(IrcConfig.get().remoteCapeCanvasSize)},
+                new String[]{"px"},
+                values -> {
+                    try {
+                        int v = Integer.parseInt(values[0].trim());
+                        int closest;
+                        if (v <= 64) {
+                            closest = 64;
+                        } else if (v >= 4096) {
+                            closest = 4096;
+                        } else {
+                            int lower = Integer.highestOneBit(v);
+                            int upper = lower << 1;
+                            closest = (v - lower <= upper - v) ? lower : upper;
+                        }
+                        closest = Math.max(64, Math.min(4096, closest));
+
+                        IrcConfig.get().remoteCapeCanvasSize = closest;
+                        IrcConfig.save();
+                        PlayerCustomizationManager.reloadRemoteCapes();
+                        ChatNotifier.send("§a[Cape] 其余玩家画布尺寸已设为: §f" + closest + "px", NotificationType.SUCCESS);
+                        renderCapeUI(panel);
+                    } catch (NumberFormatException e) {
+                        ChatNotifier.send("§c[Cape] 请输入有效的数字", NotificationType.ERR);
+                    } catch (Exception ignored) {}
+                },
+                null
+        ).bounds(new int[][]{{64, 4096}}));
+
+        panel.child(new TextInputPaneComponent(
                 "动画帧率",
                 new String[]{String.valueOf(IrcConfig.get().capeAnimFps)},
                 new String[]{"FPS"},
