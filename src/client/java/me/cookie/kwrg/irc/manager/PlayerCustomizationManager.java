@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.textures.GpuSampler;
+import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.mixin.accessor.NativeImageAccessor;
 import net.minecraft.client.Minecraft;
@@ -42,6 +43,8 @@ public class PlayerCustomizationManager {
     private static final Map<UUID, String> IRC_PLAYER_CAPES = new ConcurrentHashMap<>();
     private static final Map<UUID, Float> IRC_PLAYER_SCALES = new ConcurrentHashMap<>();
     private static final Map<String, Set<UUID>> CAPE_ACTIVE_USERS = new ConcurrentHashMap<>();
+    private static final Map<String, Float> REMOTE_PLAYER_SCALES = new ConcurrentHashMap<>();
+    public static volatile boolean inInventoryRendering = false;
 
 
     private static volatile Object localRenderState = null;
@@ -57,7 +60,36 @@ public class PlayerCustomizationManager {
     private static volatile String loadingCapeName = null;
 
     public static float getMyScale() { return IrcConfig.get().myScale; }
-    public static void setMyScale(float scale) { IrcConfig.get().myScale = scale; IrcConfig.save(); }
+
+    public static void setMyScale(float scale) {
+        IrcConfig.get().myScale = scale;
+        IrcConfig.save();
+        IrcClient.sendScaleSync(scale);
+    }
+
+    public static void setRemotePlayerScale(String username, float scale) {
+        if (username == null || username.isBlank()) return;
+        String key = username.toLowerCase(Locale.ROOT);
+        if (Math.abs(scale - 1.0f) > 0.001f) {
+            REMOTE_PLAYER_SCALES.put(key, scale);
+        } else {
+            REMOTE_PLAYER_SCALES.remove(key);
+        }
+    }
+
+    public static float getPlayerScale(Player player) {
+        Minecraft mc = Minecraft.getInstance();
+        if (player == mc.player) {
+            return getMyScale();
+        }
+        String name = player.getGameProfile().name().toLowerCase(Locale.ROOT);
+        return REMOTE_PLAYER_SCALES.getOrDefault(name, 1.0f);
+    }
+
+    public static void clearRemotePlayerScales() {
+        REMOTE_PLAYER_SCALES.clear();
+    }
+
     public static float cycleMyScale() {
         float current = getMyScale();
         for (int i = 0; i < SCALE_STEPS.length; i++) {
@@ -154,14 +186,6 @@ public class PlayerCustomizationManager {
         IRC_PLAYER_SCALES.remove(uuid);
     }
 
-    public static float getPlayerScale(Player player) {
-        Minecraft mc = Minecraft.getInstance();
-        if (player == mc.player) {
-            return getMyScale();
-        }
-        return IRC_PLAYER_SCALES.getOrDefault(player.getUUID(), 1.0f);
-    }
-
     public static RenderType getPlayerCapeRenderType(Player player) {
         Minecraft mc = Minecraft.getInstance();
         String capeName;
@@ -203,6 +227,7 @@ public class PlayerCustomizationManager {
                 loadingCapeName = null;
             }
             triggerAsyncLoad(target);
+            IrcCapeManager.syncMyCape();
         }
     }
 
@@ -467,7 +492,10 @@ public class PlayerCustomizationManager {
 
     private static List<BufferedImage> layoutFrames(BufferedImage src, String fileName) {
         List<BufferedImage> blocks = new ArrayList<>();
-        int block = IrcConfig.get().capeCanvasSize;
+
+        boolean isRemote = fileName != null && fileName.startsWith("cache/");
+        int block = isRemote ? IrcConfig.get().remoteCapeCanvasSize : IrcConfig.get().capeCanvasSize;
+
         int srcW = src.getWidth();
         int srcH = src.getHeight();
 
@@ -475,7 +503,11 @@ public class PlayerCustomizationManager {
         boolean isAnimated = requestedFrames >= 2 && srcW >= requestedFrames;
 
         if (isAnimated) {
-            block = Math.min(block, 1024);
+            if (isRemote) {
+                block = Math.min(block, 512);
+            } else {
+                block = Math.min(block, 1024);
+            }
         }
 
         int faceW = block * 10 / 64;
@@ -492,6 +524,14 @@ public class PlayerCustomizationManager {
 
         blocks.add(paintBlock(downscaleSmooth(src, faceW, faceH), block, faceW, faceH));
         return blocks;
+    }
+
+    public static void reloadRemoteCapes() {
+        for (String key : new ArrayList<>(CAPE_TYPE_CACHE.keySet())) {
+            if (key.startsWith("cache/")) {
+                releaseSpecificCape(key);
+            }
+        }
     }
 
     private static int parseRequestedFrameCount(String fileName) {
