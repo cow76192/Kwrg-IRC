@@ -21,7 +21,7 @@ public class GlowColorModule extends Module {
     public void onExecute() {
         boolean newState = !IrcGlowManager.isGlowEnabled();
         IrcGlowManager.setGlowEnabled(newState);
-        ChatNotifier.send("§a[IRC] 发光效果已: " + (newState ? "§a开启" : "§c关闭"), (newState ? NotificationType.SUCCESS : NotificationType.ERR));
+        ChatNotifier.send("§a[IRC] irc玩家发光效果已: " + (newState ? "§a开启" : "§c关闭"), (newState ? NotificationType.SUCCESS : NotificationType.ERR));
     }
 
     @Override

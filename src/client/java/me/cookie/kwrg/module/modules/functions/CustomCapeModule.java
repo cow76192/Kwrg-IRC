@@ -34,7 +34,7 @@ public class CustomCapeModule extends Module {
     private void renderCapeUI(TertiaryPanelComponent panel) {
         panel.clearChildren();
         String current = PlayerCustomizationManager.getMyCape();
-        panel.child(new TextInfoPaneComponent("当前我的披风",
+        panel.child(new TextInfoPaneComponent("当前披风",
                 () -> current == null ? "无 (原版)" : current, false, false));
 
         panel.child(new TextInputPaneComponent(
@@ -52,11 +52,7 @@ public class CustomCapeModule extends Module {
                         } else {
                             int lower = Integer.highestOneBit(v);
                             int upper = lower << 1;
-                            if (v - lower <= upper - v) {
-                                closest = lower;
-                            } else {
-                                closest = upper;
-                            }
+                            closest = (v - lower <= upper - v) ? lower : upper;
                         }
                         closest = Math.max(64, Math.min(8192, closest));
 
@@ -64,14 +60,14 @@ public class CustomCapeModule extends Module {
                         IrcConfig.save();
                         PlayerCustomizationManager.reloadCurrentCape();
                         PlayerCustomizationManager.setMyCape(PlayerCustomizationManager.getMyCape());
-                        ChatNotifier.send("§e[Cape] 画布尺寸已修正并应用: §f" + closest, NotificationType.INFO);
+                        ChatNotifier.send("§e[Cape] 画布尺寸已修正并应用: §f" + closest, NotificationType.SUCCESS);
                         renderCapeUI(panel);
                     } catch (NumberFormatException e) {
                         ChatNotifier.send("§c[Cape] 请输入有效的数字", NotificationType.ERR);
                     } catch (Exception ignored) {}
                 },
                 null
-        ).bounds(new int[][]{{64, 8192}}));
+        ).presets(64, 128, 256, 512, 1024, 2048, 4096, 8192));
 
         panel.child(new TextInputPaneComponent(
                 "其余玩家画布尺寸",
@@ -102,7 +98,7 @@ public class CustomCapeModule extends Module {
                     } catch (Exception ignored) {}
                 },
                 null
-        ).bounds(new int[][]{{64, 4096}}));
+        ).presets(64, 128, 256, 512, 1024, 2048, 4096));
 
         panel.child(new TextInputPaneComponent(
                 "动画帧率",
