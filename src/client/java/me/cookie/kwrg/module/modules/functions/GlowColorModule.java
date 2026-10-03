@@ -1,6 +1,6 @@
 package me.cookie.kwrg.module.modules.functions;
 
-import me.cookie.kwrg.gui.component.ColorSettingComponent;
+import me.cookie.kwrg.gui.component.pane.ColorSettingComponent;
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;

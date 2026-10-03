@@ -1,9 +1,8 @@
 package me.cookie.kwrg.module.modules.functions;
 
-import me.cookie.kwrg.gui.component.PanelItemComponent;
-import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
-import me.cookie.kwrg.gui.component.TextInputPaneComponent;
-import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
+import me.cookie.kwrg.gui.component.*;
+import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
+import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
 import me.cookie.kwrg.module.Category;
@@ -28,7 +27,7 @@ public class ModelScaleModule extends Module {
         panel.clearChildren();
         panel.child(new TextInfoPaneComponent("当前模型大小", () -> Math.round(PlayerCustomizationManager.getMyScale() * 100) + "%", false, false));
 
-        panel.child(new TextInputPaneComponent(
+        panel.child(new SlotInputPaneComponent(
                 "自定义大小",
                 new String[]{String.valueOf(Math.round(PlayerCustomizationManager.getMyScale() * 100))},
                 new String[]{"%"},

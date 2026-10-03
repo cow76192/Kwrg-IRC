@@ -1,24 +1,24 @@
-package me.cookie.kwrg.gui.component;
+package me.cookie.kwrg.gui.component.pane;
 
-import io.wispforest.owo.ui.base.BaseUIComponent;
-import io.wispforest.owo.ui.core.*;
+import io.wispforest.owo.ui.core.CursorStyle;
+import io.wispforest.owo.ui.core.OwoUIGraphics;
+import me.cookie.kwrg.gui.component.BasePaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
-import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.FormattedCharSequence;
-import net.minecraft.util.Mth;
 
 import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
-public class TextInfoPaneComponent extends BaseUIComponent {
+public class TextInfoPaneComponent extends BasePaneComponent {
 
-    private static final int BG_COLOR_RGB = 0x161D26;
     private static final int BASE_HEIGHT = 24;
 
     private final String label;
@@ -27,11 +27,8 @@ public class TextInfoPaneComponent extends BaseUIComponent {
     private final boolean copyable;
     private final boolean isHeader;
 
-    private float hoverAnimation = 0.0f;
     private float clickFeedback = 0.0f;
-    private float currentAnimatedHeight = BASE_HEIGHT;
-
-    private java.util.function.BiConsumer<TextInfoPaneComponent, MouseButtonEvent> clickAction = null;
+    private BiConsumer<TextInfoPaneComponent, MouseButtonEvent> clickAction = null;
 
     public TextInfoPaneComponent(String label, Supplier<String> valueSupplier) {
         this(label, valueSupplier, null, true, false);
@@ -50,22 +47,28 @@ public class TextInfoPaneComponent extends BaseUIComponent {
         this.clickAction = (pane, click) -> {
             if (clickAction != null) clickAction.run();
         };
+        this.cursorStyle(CursorStyle.HAND);
     }
 
-    public TextInfoPaneComponent(String label, Supplier<Component> componentSupplier, java.util.function.BiConsumer<TextInfoPaneComponent, MouseButtonEvent> clickAction) {
+    public TextInfoPaneComponent(String label, Supplier<Component> componentSupplier, BiConsumer<TextInfoPaneComponent, MouseButtonEvent> clickAction) {
         this(label, () -> componentSupplier.get().getString(), componentSupplier, true, false);
         this.clickAction = clickAction;
         this.cursorStyle(CursorStyle.HAND);
     }
 
-    public static TextInfoPaneComponent header(String centeredTitle, java.util.function.BiConsumer<TextInfoPaneComponent, MouseButtonEvent> clickAction) {
+    public static TextInfoPaneComponent header(String centeredTitle, BiConsumer<TextInfoPaneComponent, MouseButtonEvent> clickAction) {
         TextInfoPaneComponent pane = new TextInfoPaneComponent(centeredTitle, () -> "", false, true);
         pane.clickAction = clickAction;
         pane.cursorStyle(CursorStyle.HAND);
         return pane;
     }
 
+    public static TextInfoPaneComponent header(String centeredTitle) {
+        return new TextInfoPaneComponent(centeredTitle, () -> "", null, false, true);
+    }
+
     public TextInfoPaneComponent(String label, Supplier<String> valueSupplier, Supplier<Component> componentSupplier, boolean copyable, boolean isHeader) {
+        super(BASE_HEIGHT);
         this.label = label;
         this.valueSupplier = valueSupplier;
         this.componentSupplier = componentSupplier;
@@ -73,25 +76,21 @@ public class TextInfoPaneComponent extends BaseUIComponent {
         this.isHeader = isHeader;
 
         this.cursorStyle(copyable ? CursorStyle.HAND : CursorStyle.NONE);
-        this.sizing(Sizing.fill(100), Sizing.fixed(BASE_HEIGHT));
-        this.margins(Insets.vertical(2));
-    }
-
-    public static TextInfoPaneComponent header(String centeredTitle) {
-        return new TextInfoPaneComponent(centeredTitle, () -> "", null, false, true);
     }
 
     @Override
-    public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
-        float targetHover = (this.hovered && this.copyable) ? 1.0f : 0.0f;
-        this.hoverAnimation = Mth.clamp(this.hoverAnimation + (targetHover - this.hoverAnimation) * delta * 0.35f, 0.0f, 1.0f);
+    protected int getBorderColorArgb() {
+        int borderAlpha = (int) (40 + this.hoverAnimation * 160);
+        return ARGB.color(borderAlpha, 144, 164, 174);
+    }
 
+    @Override
+    protected void renderPaneContent(OwoUIGraphics graphics, Font font, float halfW, float halfH,
+                                     float textStartY, float textScale, float delta) {
         if (this.clickFeedback > 0.01f) {
             this.clickFeedback = Math.max(0.0f, this.clickFeedback - delta * 0.25f);
         }
 
-        var font = Minecraft.getInstance().font;
-        float textScale = 0.85f;
         int stableWidth = Math.max(154, this.width() - 16);
 
         Component valComp = this.componentSupplier != null ? this.componentSupplier.get() : null;
@@ -101,38 +100,16 @@ public class TextInfoPaneComponent extends BaseUIComponent {
 
         List<FormattedCharSequence> wrappedLines = font.split(FontManagerHelper.apply(fullDisplayText), stableWidth);
         int lineCount = Math.max(1, wrappedLines.size());
-        int targetHeight = BASE_HEIGHT + (lineCount - 1) * font.lineHeight;
+        this.targetHeight = BASE_HEIGHT + (lineCount - 1) * font.lineHeight;
 
-        this.currentAnimatedHeight = Mth.lerp(delta * 0.35f, this.currentAnimatedHeight, (float) targetHeight);
-        int renderH = Math.max(BASE_HEIGHT, (int) Math.round(this.currentAnimatedHeight));
-        this.height = renderH;
-
-        int x = this.x();
-        int y = this.y();
-        int width = this.width();
-
-        Color paneBg = Color.ofRgb(BG_COLOR_RGB);
-        int borderAlpha = (int) (40 + this.hoverAnimation * 160);
-        Color grayBorderColor = Color.ofArgb(ARGB.color(borderAlpha, 144, 164, 174));
-
-        float cx = x + width / 2.0f;
-        float cy = y + renderH / 2.0f;
-        float halfW = width / 2.0f;
-        float halfH = renderH / 2.0f;
-
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(cx, cy);
-
-        RenderUtil.drawRoundedPanel(graphics, (int) -halfW, (int) -halfH, width, renderH, 6.0f, paneBg, grayBorderColor);
-
-        float textStartY = -halfH + 6.0f;
+        float headerStartY = -halfH + 6.0f;
 
         if (this.isHeader) {
             for (int i = 0; i < wrappedLines.size(); i++) {
                 String lineStr = sequenceToString(wrappedLines.get(i));
                 Component styledHeaderLine = FontManagerHelper.apply(lineStr);
                 float titleW = font.width(styledHeaderLine) * textScale;
-                int curLineY = (int) (textStartY + i * font.lineHeight);
+                int curLineY = (int) (headerStartY + i * font.lineHeight);
 
                 graphics.pose().pushMatrix();
                 graphics.pose().translate(-titleW / 2.0f, curLineY);
@@ -174,7 +151,7 @@ public class TextInfoPaneComponent extends BaseUIComponent {
                 for (int i = 0; i < wrappedLines.size(); i++) {
                     String lineStr = sequenceToString(wrappedLines.get(i));
                     Component styledLine = FontManagerHelper.apply(lineStr);
-                    int curLineY = (int) (textStartY + i * font.lineHeight);
+                    int curLineY = (int) (headerStartY + i * font.lineHeight);
 
                     graphics.pose().pushMatrix();
                     graphics.pose().translate(-halfW + 8.0f, curLineY);
@@ -184,8 +161,6 @@ public class TextInfoPaneComponent extends BaseUIComponent {
                 }
             }
         }
-
-        graphics.pose().popMatrix();
     }
 
     private static String sequenceToString(FormattedCharSequence sequence) {
@@ -199,6 +174,8 @@ public class TextInfoPaneComponent extends BaseUIComponent {
 
     @Override
     public boolean onMouseDown(MouseButtonEvent click, boolean doubled) {
+        if (super.onMouseDown(click, doubled)) return true;
+
         if (click.button() == 0 && this.clickAction != null) {
             this.clickFeedback = 1.0f;
             this.clickAction.accept(this, click);
@@ -214,6 +191,6 @@ public class TextInfoPaneComponent extends BaseUIComponent {
             }
             return true;
         }
-        return super.onMouseDown(click, doubled);
+        return false;
     }
 }

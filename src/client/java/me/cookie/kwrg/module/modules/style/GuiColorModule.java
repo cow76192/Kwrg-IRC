@@ -1,6 +1,9 @@
 package me.cookie.kwrg.module.modules.style;
 
 import me.cookie.kwrg.gui.component.*;
+import me.cookie.kwrg.gui.component.pane.ColorSettingComponent;
+import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
+import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.manager.GuiColorManager;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.module.Category;
@@ -36,12 +39,12 @@ public class GuiColorModule extends Module {
         int[] initHsl = ColorUtil.rgbToHsl(initialColor);
 
         ColorSettingComponent[] settingHolder = new ColorSettingComponent[1];
-        TextInputPaneComponent[] rgbPaneHolder = new TextInputPaneComponent[1];
-        TextInputPaneComponent[] hslPaneHolder = new TextInputPaneComponent[1];
+        SlotInputPaneComponent[] rgbPaneHolder = new SlotInputPaneComponent[1];
+        SlotInputPaneComponent[] hslPaneHolder = new SlotInputPaneComponent[1];
 
         boolean[] isUpdating = new boolean[]{false};
 
-        TextInputPaneComponent customRgbPane = new TextInputPaneComponent(
+        SlotInputPaneComponent customRgbPane = new SlotInputPaneComponent(
                 "#RRGGBB",
                 new String[]{String.valueOf(initR), String.valueOf(initG), String.valueOf(initB)},
                 new String[]{"", "", ""},
@@ -50,7 +53,7 @@ public class GuiColorModule extends Module {
         ).bounds(new int[][]{{0, 255}, {0, 255}, {0, 255}});
         rgbPaneHolder[0] = customRgbPane;
 
-        TextInputPaneComponent customHslPane = new TextInputPaneComponent(
+        SlotInputPaneComponent customHslPane = new SlotInputPaneComponent(
                 "HSL 调色",
                 new String[]{String.valueOf(initHsl[0]), String.valueOf(initHsl[1]), String.valueOf(initHsl[2])},
                 new String[]{"°", "%", "%"},
@@ -113,7 +116,7 @@ public class GuiColorModule extends Module {
     }
 
     private static void onRgbChanged(String[] values, ColorSettingComponent setting,
-                                     TextInputPaneComponent hslPane, boolean[] isUpdating) {
+                                     SlotInputPaneComponent hslPane, boolean[] isUpdating) {
         if (isUpdating[0] || setting == null || values == null || values.length < 3) return;
         try {
             int r = Mth.clamp(Integer.parseInt(values[0].trim()), 0, 255);
@@ -136,7 +139,7 @@ public class GuiColorModule extends Module {
     }
 
     private static void onHslChanged(String[] values, ColorSettingComponent setting,
-                                     TextInputPaneComponent rgbPane, boolean[] isUpdating) {
+                                     SlotInputPaneComponent rgbPane, boolean[] isUpdating) {
         if (isUpdating[0] || setting == null || values == null || values.length < 3) return;
         try {
             int h = Mth.clamp(Integer.parseInt(values[0].trim()), 0, 360);

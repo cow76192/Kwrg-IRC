@@ -1,4 +1,4 @@
-package me.cookie.kwrg.gui.component;
+package me.cookie.kwrg.gui.component.pane;
 
 import io.wispforest.owo.ui.component.ColorPickerComponent;
 import io.wispforest.owo.ui.container.FlowLayout;
