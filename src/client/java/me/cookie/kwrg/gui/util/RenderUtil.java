@@ -160,7 +160,7 @@ public final class RenderUtil {
 
                 if (height > 2.0f * r) {
                     fillSubpixel(graphics, 0.0f, r, stroke - aa, height - r, borderRgb);
-                    drawQuadGradient(graphics, stroke - aa, r, stroke, height - r, borderRgb, borderFadeRgb, borderFadeRgb, borderRgb);
+                    drawQuadGradient(graphics, stroke - aa, r, stroke, height - r, borderRgb, borderRgb, borderFadeRgb, borderFadeRgb);
 
                     drawQuadGradient(graphics, width - stroke, r, width - stroke + aa, height - r, borderFadeRgb, borderRgb, borderRgb, borderFadeRgb);
                     fillSubpixel(graphics, width - stroke + aa, r, width, height - r, borderRgb);
@@ -330,10 +330,6 @@ public final class RenderUtil {
 
     public static void drawTexture(OwoUIGraphics graphics, Identifier texture, float x, float y, float width, float height, int textureWidth, int textureHeight) {
         if (textureWidth <= 0 || textureHeight <= 0 || width <= 0.0f || height <= 0.0f) return;
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(x, y);
-        graphics.pose().scale(width / textureWidth, height / textureHeight);
-        graphics.blit(texture, 0, 0, 0, 0, textureWidth, textureHeight, textureWidth, textureHeight);
-        graphics.pose().popMatrix();
+        graphics.blit(texture, (int) x, (int) y, (int) width, (int) height, 0.0f, 0.0f, 1.0f, 1.0f);
     }
 }

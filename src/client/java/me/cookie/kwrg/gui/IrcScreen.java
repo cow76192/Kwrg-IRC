@@ -1,6 +1,7 @@
 package me.cookie.kwrg.gui;
 
 import io.wispforest.owo.ui.base.BaseOwoScreen;
+import io.wispforest.owo.ui.base.BaseUIComponent;
 import io.wispforest.owo.ui.container.StackLayout;
 import io.wispforest.owo.ui.core.OwoUIAdapter;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
@@ -23,6 +24,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
     private static IrcScreen currentInstance = null;
@@ -39,6 +43,9 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
     private float fromScale = 1.0f;
     private float targetScale = 1.0f;
     private long scaleAnimStartTime = 0L;
+
+    private BaseUIComponent currentOverlay = null;
+    private final List<io.wispforest.owo.ui.core.UIComponent> hiddenRootChildren = new ArrayList<>();
 
     public void setDirectOpenTarget(String category, String module) {
         this.directCategory = category;
@@ -324,7 +331,7 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
     public void updateSurface() {
         if (this.rootLayout != null) {
-           this.rootLayout.surface(Surface.BLANK);
+            this.rootLayout.surface(Surface.BLANK);
 
             if (IrcConfig.get().disableBlur) {
                 this.fullscreenBlurSurface = null;
@@ -354,5 +361,28 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
             return true;
         }
         return super.keyPressed(input);
+    }
+
+    public void showOverlay(BaseUIComponent overlay) {
+        if (this.currentOverlay != null) {
+            this.rootLayout.removeChild(this.currentOverlay);
+        }
+        for (io.wispforest.owo.ui.core.UIComponent child : new ArrayList<>(this.rootLayout.children())) {
+            this.rootLayout.removeChild(child);
+            this.hiddenRootChildren.add(child);
+        }
+        this.currentOverlay = overlay;
+        this.rootLayout.child(overlay);
+    }
+
+    public void hideOverlay() {
+        if (this.currentOverlay != null) {
+            this.rootLayout.removeChild(this.currentOverlay);
+            this.currentOverlay = null;
+        }
+        for (io.wispforest.owo.ui.core.UIComponent child : this.hiddenRootChildren) {
+            this.rootLayout.child(child);
+        }
+        this.hiddenRootChildren.clear();
     }
 }
