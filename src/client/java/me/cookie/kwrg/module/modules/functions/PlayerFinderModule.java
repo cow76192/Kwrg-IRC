@@ -1,6 +1,9 @@
 package me.cookie.kwrg.module.modules.functions;
 
 import me.cookie.kwrg.gui.component.*;
+import me.cookie.kwrg.gui.component.pane.ColorSettingComponent;
+import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
+import me.cookie.kwrg.gui.component.pane.TextInputPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;

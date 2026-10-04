@@ -1,9 +1,9 @@
 package me.cookie.kwrg.module.modules.style;
 
-import me.cookie.kwrg.gui.component.PanelItemComponent;
-import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
-import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
-import me.cookie.kwrg.gui.component.TextInputPaneComponent;
+import me.cookie.kwrg.gui.component.*;
+import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
+import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
+import me.cookie.kwrg.gui.component.pane.TextInputPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.module.Category;
@@ -31,7 +31,7 @@ public class GuiScaleModule extends Module {
 
         panel.child(new TextInfoPaneComponent("当前缩放", () -> (int) (IrcConfig.get().guiScale * 100) + "%"));
 
-        panel.child(new TextInputPaneComponent(
+        panel.child(new SlotInputPaneComponent(
                 "自定义缩放",
                 new String[]{String.valueOf((int) (IrcConfig.get().guiScale * 100))},
                 new String[]{"%"},

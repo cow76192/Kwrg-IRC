@@ -3,7 +3,7 @@ package me.cookie.kwrg.module.modules.functions;
 import me.cookie.kwrg.gui.IrcScreen;
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
-import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
+import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.module.Category;

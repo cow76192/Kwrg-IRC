@@ -1,9 +1,8 @@
 package me.cookie.kwrg.module.modules.functions;
 
-import me.cookie.kwrg.gui.component.PanelItemComponent;
-import me.cookie.kwrg.gui.component.TextInputPaneComponent;
-import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
-import me.cookie.kwrg.gui.component.TextInfoPaneComponent;
+import me.cookie.kwrg.gui.component.*;
+import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
+import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
@@ -37,7 +36,7 @@ public class CustomCapeModule extends Module {
         panel.child(new TextInfoPaneComponent("当前披风",
                 () -> current == null ? "无 (原版)" : current, false, false));
 
-        panel.child(new TextInputPaneComponent(
+        panel.child(new SlotInputPaneComponent(
                 "画布尺寸",
                 new String[]{String.valueOf(IrcConfig.get().capeCanvasSize)},
                 new String[]{"px"},
@@ -69,7 +68,7 @@ public class CustomCapeModule extends Module {
                 null
         ).presets(64, 128, 256, 512, 1024, 2048, 4096, 8192));
 
-        panel.child(new TextInputPaneComponent(
+        panel.child(new SlotInputPaneComponent(
                 "其余玩家画布尺寸",
                 new String[]{String.valueOf(IrcConfig.get().remoteCapeCanvasSize)},
                 new String[]{"px"},
@@ -100,7 +99,7 @@ public class CustomCapeModule extends Module {
                 null
         ).presets(64, 128, 256, 512, 1024, 2048, 4096));
 
-        panel.child(new TextInputPaneComponent(
+        panel.child(new SlotInputPaneComponent(
                 "动画帧率",
                 new String[]{String.valueOf(IrcConfig.get().capeAnimFps)},
                 new String[]{"FPS"},
