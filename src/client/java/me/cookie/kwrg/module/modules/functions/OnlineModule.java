@@ -5,6 +5,7 @@ import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.gui.util.RemoteTextureCache;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -18,6 +19,7 @@ public class OnlineModule extends Module {
 
     private static final List<String> CACHED_ONLINE_PLAYERS = new CopyOnWriteArrayList<>();
     private static volatile boolean pendingGuiQuery = false;
+    private static final int HEAD_TEX = 64;
 
     public OnlineModule() {
         super("online", Category.FUNCTIONS, PanelItemComponent.ItemType.TRIGGER);
@@ -67,19 +69,29 @@ public class OnlineModule extends Module {
     private static void renderOnlineList(TertiaryPanelComponent panel, List<String> players) {
         if (players == null || players.isEmpty()) {
             panel.child(new PanelItemComponent("Fetching...", PanelItemComponent.ItemType.TRIGGER, () -> {}, null, () -> false));
-        } else {
-            for (String p : players) {
-                panel.child(new PanelItemComponent(
-                        p,
-                        PanelItemComponent.ItemType.TRIGGER,
-                        () -> {
-                            Minecraft.getInstance().keyboardHandler.setClipboard(p);
-                            ChatNotifier.send("§a[IRC] 已复制玩家 ID: §f" + p, NotificationType.SUCCESS);
-                        },
-                        null,
-                        () -> true
-                ));
+            return;
+        }
+
+        for (String p : players) {
+            PanelItemComponent item = new PanelItemComponent(
+                    p,
+                    PanelItemComponent.ItemType.TRIGGER,
+                    () -> {
+                        Minecraft.getInstance().keyboardHandler.setClipboard(p);
+                        ChatNotifier.send("§a[IRC] 已复制玩家 ID: §f" + p, NotificationType.SUCCESS);
+                    },
+                    null,
+                    () -> true
+            );
+
+            String clean = p.replaceAll("[^A-Za-z0-9_]", "");
+            if (!clean.isEmpty() && clean.length() <= 16) {
+                String url = "https://minotar.net/helm/" + clean + "/" + HEAD_TEX + ".png";
+                RemoteTextureCache.request(url, HEAD_TEX, HEAD_TEX);
+                item.withPreview(() -> RemoteTextureCache.peek(url), HEAD_TEX, HEAD_TEX);
             }
+
+            panel.child(item);
         }
     }
 

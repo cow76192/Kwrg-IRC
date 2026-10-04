@@ -46,8 +46,21 @@ public class PlayerCustomizationManager {
     private static final Map<String, Float> REMOTE_PLAYER_SCALES = new ConcurrentHashMap<>();
     public static volatile boolean inInventoryRendering = false;
 
-
     private static volatile Object localRenderState = null;
+
+    public static final int CAPE_PREVIEW_W = 40;
+    public static final int CAPE_PREVIEW_H = 64;
+
+    private record CapePreview(Identifier id, long lastModified) {}
+
+    private static final Map<String, CapePreview> CAPE_PREVIEW_CACHE = new ConcurrentHashMap<>();
+    private static final Set<String> CAPE_PREVIEW_LOADING = ConcurrentHashMap.newKeySet();
+
+    private static final ExecutorService PREVIEW_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "kwrg-cape-preview");
+        t.setDaemon(true);
+        return t;
+    });
 
     private static final ExecutorService CAPE_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "kwrg-cape-loader");
@@ -60,6 +73,86 @@ public class PlayerCustomizationManager {
     private static volatile String loadingCapeName = null;
 
     public static float getMyScale() { return IrcConfig.get().myScale; }
+
+    public static Identifier peekCapePreview(String fileName) {
+        CapePreview p = CAPE_PREVIEW_CACHE.get(fileName);
+        return p == null ? null : p.id();
+    }
+
+    public static void requestCapePreview(String fileName) {
+        if (fileName == null || fileName.isBlank()) return;
+
+        Path file = getCapeDir().resolve(fileName);
+        long modified;
+        try {
+            modified = Files.getLastModifiedTime(file).toMillis();
+        } catch (Exception e) {
+            return;
+        }
+
+        CapePreview cached = CAPE_PREVIEW_CACHE.get(fileName);
+        if (cached != null && cached.lastModified() == modified) return;
+        if (!CAPE_PREVIEW_LOADING.add(fileName)) return;
+
+        PREVIEW_EXECUTOR.submit(() -> {
+            NativeImage img = null;
+            boolean handedOver = false;
+            try {
+                BufferedImage src = ImageIO.read(file.toFile());
+                if (src == null) {
+                    return;
+                }
+
+                int frames = parseRequestedFrameCount(fileName);
+                if (frames >= 2 && src.getWidth() >= frames) {
+                    src = src.getSubimage(0, 0, src.getWidth() / frames, src.getHeight());
+                }
+
+                img = toNativeImage(downscaleSmooth(src, CAPE_PREVIEW_W, CAPE_PREVIEW_H));
+                final NativeImage finalImg = img;
+
+                Minecraft mc = Minecraft.getInstance();
+                mc.execute(() -> {
+                    try {
+                        CapePreview old = CAPE_PREVIEW_CACHE.get(fileName);
+                        if (old != null) mc.getTextureManager().release(old.id());
+
+                        Identifier id = Identifier.fromNamespaceAndPath("kwrg",
+                                "cape_preview/" + sanitizePath(fileName) + "_" + Integer.toHexString(fileName.hashCode()));
+                        mc.getTextureManager().register(id,
+                                new DynamicTexture(() -> "kwrg_cape_preview", finalImg));
+                        CAPE_PREVIEW_CACHE.put(fileName, new CapePreview(id, modified));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        finalImg.close();
+                    } finally {
+                        CAPE_PREVIEW_LOADING.remove(fileName);
+                    }
+                });
+                handedOver = true;
+            } catch (Exception e) {
+                System.err.println("[KWRG Preview] load failed: " + fileName);
+                e.printStackTrace();
+            } finally {
+                if (!handedOver) {
+                    if (img != null) img.close();
+                    CAPE_PREVIEW_LOADING.remove(fileName);
+                }
+            }
+        });
+    }
+
+    public static void clearCapePreviews() {
+        Minecraft mc = Minecraft.getInstance();
+        if (!mc.isSameThread()) {
+            mc.execute(PlayerCustomizationManager::clearCapePreviews);
+            return;
+        }
+        for (CapePreview p : CAPE_PREVIEW_CACHE.values()) {
+            mc.getTextureManager().release(p.id());
+        }
+        CAPE_PREVIEW_CACHE.clear();
+    }
 
     public static void setMyScale(float scale) {
         IrcConfig.get().myScale = scale;
