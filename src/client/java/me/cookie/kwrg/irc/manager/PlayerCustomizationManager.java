@@ -1,16 +1,12 @@
 package me.cookie.kwrg.irc.manager;
 
 import com.mojang.blaze3d.platform.NativeImage;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
-import com.mojang.blaze3d.textures.GpuSampler;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.mixin.accessor.NativeImageAccessor;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
@@ -372,18 +368,8 @@ public class PlayerCustomizationManager {
                         mc.getTextureManager().register(id, tex);
 
                         int blockWidth = finalActive.getWidth();
-                        FilterMode filterMode = (blockWidth <= 256) ? FilterMode.NEAREST : FilterMode.LINEAR;
-                        GpuSampler sampler = (filterMode == FilterMode.NEAREST)
-                                ? RenderSystem.getSamplerCache().getClampToEdge(FilterMode.NEAREST)
-                                : RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR);
 
-                        RenderType out = RenderType.create("kwrg_cape", RenderSetup.builder(RenderPipelines.ENTITY_SOLID)
-                                .withTexture("Sampler0", id, () -> sampler)
-                                .useLightmap()
-                                .useOverlay()
-                                .affectsCrumbling()
-                                .setOutline(RenderSetup.OutlineProperty.AFFECTS_OUTLINE)
-                                .createRenderSetup());
+                        RenderType out = RenderTypes.entitySolid(id);
 
                         List<NativeImage> prevFrames = CAPE_FRAMES_CACHE.remove(value);
                         NativeImage prevActive = CAPE_ACTIVE_IMAGE.remove(value);

@@ -1,4 +1,4 @@
-package me.cookie.kwrg.module.modules.play;
+package me.cookie.kwrg.module.modules.play.tictactoe;
 
 public class TicTacToeGame {
     private int[][] board;

@@ -1,30 +1,29 @@
-package me.cookie.kwrg.render;
+package me.cookie.kwrg.module.modules.play.tictactoe;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import me.cookie.kwrg.gui.notification.NotificationManager;
-import me.cookie.kwrg.module.modules.play.TicTacToeAI;
-import me.cookie.kwrg.module.modules.play.TicTacToeGame;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
-import net.minecraft.client.renderer.texture.TextureAtlas;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.client.resources.model.sprite.SpriteId;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
+import org.joml.Vector3fc;
 
-import java.lang.reflect.Method;
 import java.util.Random;
 
 public final class TttWorldPanel {
@@ -32,7 +31,7 @@ public final class TttWorldPanel {
     private static final Identifier BG_TEXTURE = Identifier.fromNamespaceAndPath("kwrg", "textures/gui/ttt/background.png");
     private static final Identifier X_TEXTURE = Identifier.fromNamespaceAndPath("kwrg", "textures/gui/ttt/x.png");
     private static final Identifier O_TEXTURE = Identifier.fromNamespaceAndPath("kwrg", "textures/gui/ttt/o.png");
-    private static final Identifier STONE_TEXTURE = Identifier.withDefaultNamespace("block/stone");
+    private static final Identifier BUTTON_TEXTURE = Identifier.fromNamespaceAndPath("kwrg", "textures/gui/ttt/button.png");
 
     private static final float PX_W = 1024.0f;
     private static final float PX_H = 768.0f;
@@ -53,12 +52,9 @@ public final class TttWorldPanel {
     private static final float PIECE_Z = 1.0f;
     private static final float CELL_HALF_W = 59.75f;
     private static final float CELL_HALF_H = 60.0f;
-    private static final int SHADE_TOP = 255;
-    private static final int SHADE_BOTTOM = 130;
-    private static final int SHADE_SIDE = 205;
-
-    private static final String[] POS_NAMES = {"position", "getPosition", "getPos"};
-    private static final String[] LOOK_NAMES = {"getLookAngle", "lookAngle", "getLookVector", "lookVector", "getLookDirection", "getViewVector", "getRotationVector"};
+    private static final int SHADE_TOP = 199;
+    private static final int SHADE_BOTTOM = 91;
+    private static final int SHADE_SIDE = 139;
 
     private static final TicTacToeGame GAME = new TicTacToeGame();
     private static boolean active = false;
@@ -75,16 +71,12 @@ public final class TttWorldPanel {
     private static long lastMissNotify = 0L;
     private static int rightClickDelay = 0;
     private static boolean prevUseDown = false;
-    private static int[] overlayUv = null;
 
     private static final boolean[] BTN_PRESSED = new boolean[9];
     private static final float[] BTN_OFFSET = new float[9];
     private static final int[] BTN_PRESS_TICKS_LEFT = new int[9];
 
-    private static RenderType stoneRenderType = null;
-    private static TextureAtlasSprite stoneSprite = null;
-    private static Method clientSwingMethod = null;
-    private static boolean handsBusyLookupAttempted = false;
+    private static java.lang.reflect.Method clientSwingMethod = null;
 
     private TttWorldPanel() {}
 
@@ -92,7 +84,7 @@ public final class TttWorldPanel {
         if (hooksRegistered) return;
         hooksRegistered = true;
 
-        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(ctx -> {
+        LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register((LevelRenderContext ctx) -> {
             if (active) render(ctx);
         });
 
@@ -112,13 +104,22 @@ public final class TttWorldPanel {
             if (active) return InteractionResult.FAIL;
             return InteractionResult.PASS;
         });
+
+        // 面板的挥手必须只走本地动画：LocalPlayer.swing 会发送 ServerboundSwingPacket，
+        // 而 AbstractClientPlayer 没有声明 swing，只能反射取 LivingEntity 的实现来绕过覆写。
+        try {
+            clientSwingMethod = LivingEntity.class.getDeclaredMethod("swing", InteractionHand.class);
+            clientSwingMethod.setAccessible(true);
+        } catch (Throwable ignored) {
+            clientSwingMethod = null;
+        }
     }
 
     public static void openAtPlayer() {
         Minecraft mc = Minecraft.getInstance();
         ensureHooks();
 
-        double[] cp = cameraPosSmooth(mc);
+        double[] cp = cameraPos(mc);
         double[] lk = originLook(mc);
 
         if (lk == null) {
@@ -140,7 +141,6 @@ public final class TttWorldPanel {
         resetButtons();
         rightClickDelay = 0;
         active = true;
-        renderErrorNotified = false;
         notifyInfo("面板已生成在视线高度，准星瞄准+右键交互");
     }
 
@@ -191,25 +191,7 @@ public final class TttWorldPanel {
 
     private static boolean isHandsBusy(Minecraft mc) {
         if (mc.player == null) return true;
-        if (!handsBusyLookupAttempted) {
-            handsBusyLookupAttempted = true;
-            try {
-                clientSwingMethod = LivingEntity.class.getDeclaredMethod("swing", InteractionHand.class);
-                clientSwingMethod.setAccessible(true);
-            } catch (Throwable ignored) {
-                clientSwingMethod = null;
-            }
-        }
-        try {
-            for (Method m : mc.player.getClass().getMethods()) {
-                if (m.getName().equals("isHandsBusy") && m.getParameterCount() == 0) {
-                    Object r = m.invoke(mc.player);
-                    if (r instanceof Boolean) return (Boolean) r;
-                    return false;
-                }
-            }
-        } catch (Throwable ignored) {}
-        return false;
+        return mc.player.isHandsBusy();
     }
 
     private static void swingClientOnly(Minecraft mc) {
@@ -235,90 +217,39 @@ public final class TttWorldPanel {
         Minecraft.getInstance().execute(() -> NotificationManager.err("Tic Tac Toe", msg));
     }
 
-    private static double[] cameraPosSmooth(Minecraft mc) {
-        Object cam = getCamera(mc);
-        if (cam != null) {
-            double[] v = vec3(cam, POS_NAMES);
-            if (v != null) return v;
-        }
+    private static double[] cameraPos(Minecraft mc) {
+        Vec3 cam = mc.gameRenderer.getMainCamera().position();
+        if (cam != null) return new double[]{cam.x, cam.y, cam.z};
         return eyePos(mc);
     }
 
     private static double[] eyePos(Minecraft mc) {
         if (mc.player != null) {
-            for (String n : new String[]{"getEyePosition", "eyePosition"}) {
-                for (Method m : mc.player.getClass().getMethods()) {
-                    if (m.getName().equals(n) && m.getParameterCount() == 0) {
-                        try {
-                            Object v = m.invoke(mc.player);
-                            if (v != null) return new double[]{num(v, "x"), num(v, "y"), num(v, "z")};
-                        } catch (Throwable ignored) {}
-                    }
-                }
-            }
-            double[] p = vec3(mc.player, POS_NAMES);
-            if (p != null) return new double[]{p[0], p[1] + 1.62, p[2]};
+            Vec3 eye = mc.player.getEyePosition();
+            return new double[]{eye.x, eye.y, eye.z};
         }
         return new double[]{0, 0, 0};
     }
 
     private static double[] originLook(Minecraft mc) {
+        Camera camera = mc.gameRenderer.getMainCamera();
+        if (camera != null && camera.isInitialized()) {
+            Vector3fc forward = camera.forwardVector();
+            if (forward.x() != 0.0f || forward.y() != 0.0f || forward.z() != 0.0f) {
+                return new double[]{forward.x(), forward.y(), forward.z()};
+            }
+        }
         if (mc.player != null) {
-            double[] v = vec3(mc.player, LOOK_NAMES);
-            if (v != null) return v;
-        }
-        Object cam = getCamera(mc);
-        if (cam != null) return vec3(cam, LOOK_NAMES);
-        return null;
-    }
-
-    private static Object getCamera(Minecraft mc) {
-        try {
-            Object gr = mc.gameRenderer;
-            for (String n : new String[]{"getMainCamera", "mainCamera", "getCamera", "camera"}) {
-                for (Method m : gr.getClass().getMethods()) {
-                    if (m.getName().equals(n) && m.getParameterCount() == 0) {
-                        return m.invoke(gr);
-                    }
-                }
-            }
-        } catch (Throwable ignored) {}
-        return null;
-    }
-
-    private static double[] vec3(Object obj, String[] names) {
-        if (obj == null) return null;
-        for (String n : names) {
-            try {
-                for (Method m : obj.getClass().getMethods()) {
-                    if (m.getName().equals(n) && m.getParameterCount() == 0) {
-                        Object v = m.invoke(obj);
-                        if (v == null) continue;
-                        return new double[]{num(v, "x"), num(v, "y"), num(v, "z")};
-                    }
-                }
-            } catch (Throwable ignored) {}
+            Vec3 look = mc.player.getLookAngle();
+            return new double[]{look.x, look.y, look.z};
         }
         return null;
-    }
-
-    private static double num(Object vec, String field) {
-        try {
-            return vec.getClass().getField(field).getDouble(vec);
-        } catch (Throwable t) {
-            try {
-                Method m = vec.getClass().getMethod(field);
-                return ((Number) m.invoke(vec)).doubleValue();
-            } catch (Throwable t2) {
-                return 0;
-            }
-        }
     }
 
     private static boolean tryClick() {
         if (!active) return false;
         Minecraft mc = Minecraft.getInstance();
-        double[] cp = cameraPosSmooth(mc);
+        double[] cp = cameraPos(mc);
         double[] lk = originLook(mc);
         if (cp == null || lk == null) return false;
 
@@ -342,7 +273,7 @@ public final class TttWorldPanel {
     }
 
     private static boolean handleClick(float gx, float gy) {
-        if (gx >= PX_W - 160 && gy <= 64) {
+        if (gx >= PX_W - 160 && gy <= 76) {
             close();
             notifyInfo("面板已关闭");
             return true;
@@ -429,24 +360,16 @@ public final class TttWorldPanel {
         else notifyInfo(GAME.getCurrentPlayer() == 1 ? "你的回合" : "AI 思考中");
     }
 
-    private static void render(Object ctx) {
+    private static void render(LevelRenderContext ctx) {
         try {
             tickPendingAi();
             tickButtons();
 
-            PoseStack ps = (PoseStack) ctx.getClass().getMethod("poseStack").invoke(ctx);
-            MultiBufferSource consumers = (MultiBufferSource) ctx.getClass().getMethod("bufferSource").invoke(ctx);
-
-            if (ps == null || consumers == null) {
-                if (!renderErrorNotified) {
-                    renderErrorNotified = true;
-                    notifyErr("渲染上下文获取失败 (ps/consumers 为 null)");
-                }
-                return;
-            }
+            PoseStack ps = ctx.poseStack();
+            MultiBufferSource consumers = ctx.bufferSource();
 
             Minecraft mc = Minecraft.getInstance();
-            double[] cam = cameraPosSmooth(mc);
+            double[] cam = cameraPos(mc);
 
             RenderType bgType = RenderTypes.text(BG_TEXTURE);
             RenderType xType = RenderTypes.text(X_TEXTURE);
@@ -501,7 +424,7 @@ public final class TttWorldPanel {
             Font font = Minecraft.getInstance().font;
             int light = 15728880;
             drawText(font, consumers, tp, "TIC TAC TOE", PX_W / 2 - 60, 30, 0xFFFFFFFF, light);
-            drawText(font, consumers, tp, "X", PX_W - 60, 30, 0xFFB0BEC5, light);
+            drawText(font, consumers, tp, "X", PX_W - 60, 44, 0xFFECEFF1, light, 3.0f);
             drawText(font, consumers, tp, "人类", PX_W * 0.36f, 80, isUltron ? 0xFF78909C : 0xFFFFFFFF, light);
             drawText(font, consumers, tp, "奥创", PX_W * 0.60f, 80, isUltron ? 0xFFFFFFFF : 0xFF78909C, light);
             drawText(font, consumers, tp, "重新开始", PX_W / 2 - 30, PX_H - 45, 0xFFECEFF1, light);
@@ -515,23 +438,9 @@ public final class TttWorldPanel {
         }
     }
 
-    private static RenderType stoneRenderType() {
-        if (stoneSprite != null) return stoneRenderType;
-        try {
-            stoneSprite = Minecraft.getInstance().getAtlasManager()
-                    .get(new SpriteId(TextureAtlas.LOCATION_BLOCKS, STONE_TEXTURE));
-            stoneRenderType = RenderTypes.entitySolid(TextureAtlas.LOCATION_BLOCKS);
-        } catch (Throwable ignored) {
-            stoneSprite = null;
-            stoneRenderType = null;
-        }
-        return stoneRenderType;
-    }
-
     private static void drawButton(MultiBufferSource consumers, Matrix4f pose, int index) {
-        RenderType type = stoneRenderType();
-        TextureAtlasSprite sprite = stoneSprite;
-        if (type == null || sprite == null) return;
+        RenderType type = RenderTypes.text(BUTTON_TEXTURE);
+        if (type == null) return;
 
         float cx = buttonCenterX(index) - PX_W / 2.0f;
         float cy = PX_H / 2.0f - buttonCenterY(index);
@@ -544,76 +453,57 @@ public final class TttWorldPanel {
         float y0 = cy - BTN_HALF_H * s;
         float y1 = cy + BTN_HALF_H * s;
 
-        float u0 = sprite.getU(5.0f / 16.0f);
-        float u1 = sprite.getU(11.0f / 16.0f);
-        float u2 = sprite.getU(6.0f / 16.0f);
-        float u3 = sprite.getU(10.0f / 16.0f);
-        float v0 = sprite.getV(6.0f / 16.0f);
-        float v1 = sprite.getV(10.0f / 16.0f);
-        float v2 = sprite.getV(14.0f / 16.0f);
-        float v3 = sprite.getV(16.0f / 16.0f);
-
         VertexConsumer vc = consumers.getBuffer(type);
         int light = 15728880;
-        int[] ov = overlayUv();
 
-        texQuad(vc, pose, x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1, u0, v2, u1, v2, u1, v3, u0, v3, SHADE_TOP, ov, light, 0.0f, 0.0f, 1.0f);
-        texQuad(vc, pose, x0, y1, z0, x1, y1, z0, x1, y0, z0, x0, y0, z0, u0, v3, u1, v3, u1, v2, u0, v2, SHADE_BOTTOM, ov, light, 0.0f, 0.0f, -1.0f);
-        texQuad(vc, pose, x0, y1, z1, x0, y1, z0, x1, y1, z0, x1, y1, z1, u0, v0, u0, v1, u1, v1, u1, v0, SHADE_TOP, ov, light, 0.0f, 1.0f, 0.0f);
-        texQuad(vc, pose, x0, y0, z0, x1, y0, z0, x1, y0, z1, x0, y0, z1, u0, v0, u1, v0, u1, v1, u0, v1, SHADE_BOTTOM, ov, light, 0.0f, -1.0f, 0.0f);
-        texQuad(vc, pose, x1, y0, z1, x1, y0, z0, x1, y1, z0, x1, y1, z1, u3, v3, u3, v2, u2, v2, u2, v3, SHADE_SIDE, ov, light, 1.0f, 0.0f, 0.0f);
-        texQuad(vc, pose, x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0, u3, v3, u2, v3, u2, v2, u3, v2, SHADE_SIDE, ov, light, -1.0f, 0.0f, 0.0f);
+        texQuad(vc, pose, x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1, SHADE_TOP, light, 0.0f, 0.0f, 1.0f);
+        texQuad(vc, pose, x0, y0, z0, x0, y1, z0, x1, y1, z0, x1, y0, z0, SHADE_BOTTOM, light, 0.0f, 0.0f, -1.0f);
+        texQuad(vc, pose, x0, y1, z1, x1, y1, z1, x1, y1, z0, x0, y1, z0, SHADE_TOP, light, 0.0f, 1.0f, 0.0f);
+        texQuad(vc, pose, x0, y0, z0, x1, y0, z0, x1, y0, z1, x0, y0, z1, SHADE_BOTTOM, light, 0.0f, -1.0f, 0.0f);
+        texQuad(vc, pose, x1, y0, z1, x1, y0, z0, x1, y1, z0, x1, y1, z1, SHADE_SIDE, light, 1.0f, 0.0f, 0.0f);
+        texQuad(vc, pose, x0, y0, z0, x0, y0, z1, x0, y1, z1, x0, y1, z0, SHADE_SIDE, light, -1.0f, 0.0f, 0.0f);
     }
 
     private static void texQuad(VertexConsumer vc, Matrix4f pose,
                                 float ax, float ay, float az, float bx, float by, float bz,
                                 float cx, float cy, float cz, float dx, float dy, float dz,
-                                float u0, float v0, float u1, float v1, float u2, float v2, float u3, float v3,
-                                int shade, int[] ov, int light, float nx, float ny, float nz) {
-        vc.addVertex(pose, ax, ay, az).setColor(shade, shade, shade, 255).setUv(u0, v0).setUv1(ov[0], ov[1]).setLight(light).setNormal(nx, ny, nz);
-        vc.addVertex(pose, bx, by, bz).setColor(shade, shade, shade, 255).setUv(u1, v1).setUv1(ov[0], ov[1]).setLight(light).setNormal(nx, ny, nz);
-        vc.addVertex(pose, cx, cy, cz).setColor(shade, shade, shade, 255).setUv(u2, v2).setUv1(ov[0], ov[1]).setLight(light).setNormal(nx, ny, nz);
-        vc.addVertex(pose, dx, dy, dz).setColor(shade, shade, shade, 255).setUv(u3, v3).setUv1(ov[0], ov[1]).setLight(light).setNormal(nx, ny, nz);
+                                int shade, int light, float nx, float ny, float nz) {
+        vc.addVertex(pose, ax, ay, az).setColor(shade, shade, shade, 255).setUv(0.0f, 1.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(nx, ny, nz);
+        vc.addVertex(pose, bx, by, bz).setColor(shade, shade, shade, 255).setUv(1.0f, 1.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(nx, ny, nz);
+        vc.addVertex(pose, cx, cy, cz).setColor(shade, shade, shade, 255).setUv(1.0f, 0.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(nx, ny, nz);
+        vc.addVertex(pose, dx, dy, dz).setColor(shade, shade, shade, 255).setUv(0.0f, 0.0f).setOverlay(OverlayTexture.NO_OVERLAY).setLight(light).setNormal(nx, ny, nz);
     }
 
     private static void drawText(Font font, MultiBufferSource consumers, Matrix4f pose, String text, float x, float y, int color, int light) {
-        font.drawInBatch(Component.literal(text), x - PX_W / 2.0f, y - PX_H / 2.0f, color, false, pose, consumers, Font.DisplayMode.NORMAL, 0, light);
+        drawText(font, consumers, pose, text, x, y, color, light, 1.0f);
+    }
+
+    private static void drawText(Font font, MultiBufferSource consumers, Matrix4f pose, String text, float x, float y, int color, int light, float scale) {
+        Matrix4f glyphPose = pose;
+        if (scale != 1.0f) {
+            float ax = x - PX_W / 2.0f;
+            float ay = y - PX_H / 2.0f;
+            glyphPose = new Matrix4f(pose)
+                    .translate(ax, ay, 0.0f)
+                    .scale(scale, scale, 1.0f)
+                    .translate(-ax, -ay, 0.0f);
+        }
+        font.drawInBatch(Component.literal(text), x - PX_W / 2.0f, y - PX_H / 2.0f, color, false, glyphPose, consumers, Font.DisplayMode.NORMAL, 0, light);
     }
 
     private static void quad(VertexConsumer vc, Matrix4f pose, float x0, float y0, float x1, float y1, float z,
                              float u0, float v0, float u1, float v1) {
-        int[] ov = overlayUv();
-        vc.addVertex(pose, x0, y1, z).setUv(u0, v0).setColor(255, 255, 255, 255).setLight(15728880).setUv1(ov[0], ov[1]).setNormal(0.0F, 0.0F, 1.0F);
-        vc.addVertex(pose, x0, y0, z).setUv(u0, v1).setColor(255, 255, 255, 255).setLight(15728880).setUv1(ov[0], ov[1]).setNormal(0.0F, 0.0F, 1.0F);
-        vc.addVertex(pose, x1, y0, z).setUv(u1, v1).setColor(255, 255, 255, 255).setLight(15728880).setUv1(ov[0], ov[1]).setNormal(0.0F, 0.0F, 1.0F);
-        vc.addVertex(pose, x1, y1, z).setUv(u1, v0).setColor(255, 255, 255, 255).setLight(15728880).setUv1(ov[0], ov[1]).setNormal(0.0F, 0.0F, 1.0F);
+        vc.addVertex(pose, x0, y1, z).setUv(u0, v0).setColor(255, 255, 255, 255).setLight(15728880).setOverlay(OverlayTexture.NO_OVERLAY).setNormal(0.0F, 0.0F, 1.0F);
+        vc.addVertex(pose, x0, y0, z).setUv(u0, v1).setColor(255, 255, 255, 255).setLight(15728880).setOverlay(OverlayTexture.NO_OVERLAY).setNormal(0.0F, 0.0F, 1.0F);
+        vc.addVertex(pose, x1, y0, z).setUv(u1, v1).setColor(255, 255, 255, 255).setLight(15728880).setOverlay(OverlayTexture.NO_OVERLAY).setNormal(0.0F, 0.0F, 1.0F);
+        vc.addVertex(pose, x1, y1, z).setUv(u1, v0).setColor(255, 255, 255, 255).setLight(15728880).setOverlay(OverlayTexture.NO_OVERLAY).setNormal(0.0F, 0.0F, 1.0F);
     }
 
     private static void quadBack(VertexConsumer vc, Matrix4f pose, float x0, float y0, float x1, float y1, float z,
                                  float u0, float v0, float u1, float v1) {
-        int[] ov = overlayUv();
-        vc.addVertex(pose, x1, y1, z).setUv(u1, v0).setColor(255, 255, 255, 255).setLight(15728880).setUv1(ov[0], ov[1]).setNormal(0.0F, 0.0F, -1.0F);
-        vc.addVertex(pose, x1, y0, z).setUv(u1, v1).setColor(255, 255, 255, 255).setLight(15728880).setUv1(ov[0], ov[1]).setNormal(0.0F, 0.0F, -1.0F);
-        vc.addVertex(pose, x0, y0, z).setUv(u0, v1).setColor(255, 255, 255, 255).setLight(15728880).setUv1(ov[0], ov[1]).setNormal(0.0F, 0.0F, -1.0F);
-        vc.addVertex(pose, x0, y1, z).setUv(u0, v0).setColor(255, 255, 255, 255).setLight(15728880).setUv1(ov[0], ov[1]).setNormal(0.0F, 0.0F, -1.0F);
-    }
-
-    private static int[] overlayUv() {
-        if (overlayUv == null) {
-            int packed = -1;
-            for (String cn : new String[]{
-                    "net.minecraft.client.renderer.texture.OverlayTexture",
-                    "net.minecraft.client.renderer.OverlayTexture",
-                    "net.minecraft.client.renderer.texture.overlay.OverlayTexture"}) {
-                try {
-                    Class<?> c = Class.forName(cn);
-                    packed = c.getField("NO_OVERLAY").getInt(null);
-                    break;
-                } catch (Throwable ignored) {}
-            }
-            if (packed == -1) packed = (10 << 16) | 0;
-            overlayUv = new int[]{packed & 0xFFFF, (packed >> 16) & 0xFFFF};
-        }
-        return overlayUv;
+        vc.addVertex(pose, x1, y1, z).setUv(u1, v0).setColor(255, 255, 255, 255).setLight(15728880).setOverlay(OverlayTexture.NO_OVERLAY).setNormal(0.0F, 0.0F, -1.0F);
+        vc.addVertex(pose, x1, y0, z).setUv(u1, v1).setColor(255, 255, 255, 255).setLight(15728880).setOverlay(OverlayTexture.NO_OVERLAY).setNormal(0.0F, 0.0F, -1.0F);
+        vc.addVertex(pose, x0, y0, z).setUv(u0, v1).setColor(255, 255, 255, 255).setLight(15728880).setOverlay(OverlayTexture.NO_OVERLAY).setNormal(0.0F, 0.0F, -1.0F);
+        vc.addVertex(pose, x0, y1, z).setUv(u0, v0).setColor(255, 255, 255, 255).setLight(15728880).setOverlay(OverlayTexture.NO_OVERLAY).setNormal(0.0F, 0.0F, -1.0F);
     }
 }

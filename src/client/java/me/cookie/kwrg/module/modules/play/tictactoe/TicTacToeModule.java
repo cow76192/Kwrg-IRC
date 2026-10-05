@@ -1,10 +1,9 @@
-package me.cookie.kwrg.module.modules.play;
+package me.cookie.kwrg.module.modules.play.tictactoe;
 
 import me.cookie.kwrg.gui.IrcScreen;
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
-import me.cookie.kwrg.render.TttWorldPanel;
 
 import java.util.function.Consumer;
 

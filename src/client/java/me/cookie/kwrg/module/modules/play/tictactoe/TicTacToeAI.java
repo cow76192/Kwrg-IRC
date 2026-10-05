@@ -1,4 +1,4 @@
-package me.cookie.kwrg.module.modules.play;
+package me.cookie.kwrg.module.modules.play.tictactoe;
 
 import java.util.ArrayList;
 import java.util.List;

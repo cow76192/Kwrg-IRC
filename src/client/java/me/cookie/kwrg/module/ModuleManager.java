@@ -3,8 +3,8 @@ package me.cookie.kwrg.module;
 import me.cookie.kwrg.module.modules.config.*;
 import me.cookie.kwrg.module.modules.debug.*;
 import me.cookie.kwrg.module.modules.functions.*;
-import me.cookie.kwrg.module.modules.play.TicTacToeModule;
 import me.cookie.kwrg.module.modules.play.TotemEffectModule;
+import me.cookie.kwrg.module.modules.play.tictactoe.TicTacToeModule;
 import me.cookie.kwrg.module.modules.style.*;
 
 import java.util.*;
