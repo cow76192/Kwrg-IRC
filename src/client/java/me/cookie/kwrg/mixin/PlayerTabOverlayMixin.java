@@ -20,6 +20,7 @@ public abstract class PlayerTabOverlayMixin {
     @Unique private static int kwrg$minY;
     @Unique private static int kwrg$maxX;
     @Unique private static int kwrg$maxY;
+    @Unique private static boolean kwrg$translated;
 
     @Inject(method = "extractRenderState", at = @At("HEAD"))
     private void kwrg$onTabRenderHead(GuiGraphicsExtractor graphics, int screenWidth, Scoreboard scoreboard, Objective displayObjective, CallbackInfo ci) {
@@ -31,10 +32,17 @@ public abstract class PlayerTabOverlayMixin {
         kwrg$minY = Integer.MAX_VALUE;
         kwrg$maxX = Integer.MIN_VALUE;
         kwrg$maxY = Integer.MIN_VALUE;
+        kwrg$translated = false;
 
         if (DynamicIslandRenderer.getTabProgress() > 0.005f) {
             DynamicIslandRenderer.renderTabBackground(graphics);
             DynamicIslandRenderer.beginTabScissor(graphics);
+
+            float shiftX = DynamicIslandRenderer.getTabShiftX();
+            float shiftY = DynamicIslandRenderer.getTabShiftY();
+            if (Math.abs(shiftX) > 0.01f || Math.abs(shiftY) > 0.01f) {
+                kwrg$translated = DynamicIslandRenderer.pushTabContentShift(1.0f);
+            }
         }
     }
 
@@ -61,8 +69,13 @@ public abstract class PlayerTabOverlayMixin {
         graphics.fill(minX, minY, maxX, maxY, color);
     }
 
-    @Inject(method = "extractRenderState", at = @At("TAIL"))
-    private void kwrg$onTabRenderTail(GuiGraphicsExtractor graphics, int screenWidth, Scoreboard scoreboard, Objective displayObjective, CallbackInfo ci) {
+    @Inject(method = "extractRenderState", at = @At("RETURN"))
+    private void kwrg$onTabRenderReturn(GuiGraphicsExtractor graphics, int screenWidth, Scoreboard scoreboard, Objective displayObjective, CallbackInfo ci) {
+
+        if (kwrg$translated) {
+            kwrg$translated = false;
+            DynamicIslandRenderer.popTabContentShift();
+        }
 
         if (!IrcConfig.get().dynamicIsland) {
             return;

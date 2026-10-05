@@ -3,6 +3,7 @@ package me.cookie.kwrg.irc;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
@@ -12,7 +13,10 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -69,6 +73,8 @@ public class IrcConfig {
     public float islandOpacity  = 0.2f;
     public boolean onlyApplyToTab = true;
     public boolean onlyRenderTab = false;
+    public boolean islandPosAffectsTab = true;
+    public Map<String, HudElement.State> hudElements = new LinkedHashMap<>();
 
     public boolean disableBlur = false;
     public float blurQuality = 8.0f;
@@ -168,6 +174,13 @@ public class IrcConfig {
                 if (loaded.capeCanvasSize < 64) loaded.capeCanvasSize = 4096;
                 if (loaded.capeAnimFps <= 0) loaded.capeAnimFps = 10;
 
+                if (loaded.hudElements == null) {
+                    loaded.hudElements = new LinkedHashMap<>();
+                } else {
+                    loaded.hudElements.values().removeIf(Objects::isNull);
+                    loaded.hudElements.values().forEach(HudElement.State::sanitize);
+                }
+
                 instance = loaded;
                 currentProfileName = cleanName;
                 saveSelectorMeta(cleanName);
@@ -196,6 +209,34 @@ public class IrcConfig {
         }
         //迁移旧配置扩展
         jsonObj.remove("onlyTab");
+
+        migrateIslandPositionFields(jsonObj);
+    }
+
+    private static void migrateIslandPositionFields(JsonObject jsonObj) {
+        String[][] legacy = {
+                {"islandAnchorX", "anchorX"}, {"islandAnchorY", "anchorY"},
+                {"islandOffsetX", "offsetX"}, {"islandOffsetY", "offsetY"}
+        };
+
+        JsonObject island = new JsonObject();
+        boolean hasLegacy = false;
+        for (String[] pair : legacy) {
+            if (jsonObj.has(pair[0])) {
+                island.add(pair[1], jsonObj.get(pair[0]));
+                hasLegacy = true;
+            }
+            jsonObj.remove(pair[0]);
+        }
+        if (!hasLegacy) return;
+
+        JsonObject hud = jsonObj.has("hudElements") && jsonObj.get("hudElements").isJsonObject()
+                ? jsonObj.getAsJsonObject("hudElements")
+                : new JsonObject();
+        if (!hud.has("dynamicIsland")) {
+            hud.add("dynamicIsland", island);
+        }
+        jsonObj.add("hudElements", hud);
     }
 
     public static void createProfile(String profileName) {

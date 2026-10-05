@@ -46,6 +46,7 @@ public class ModuleManager {
         register(new FontModule());
         register(new GuiColorModule());
         register(new GuiScaleModule());
+        register(new HudEditorModule());
         // --- PLAY 模块 ---
         register(new PlayModule());
     }

@@ -90,7 +90,17 @@ public class NotificationToast {
         return BASE_HEIGHT;
     }
 
-    public void draw(OwoUIGraphics graphics, int screenWidth, int mouseX, int mouseY, float delta) {
+    public int getCardWidth() {
+        var font = Minecraft.getInstance().font;
+        Component styledTitle = FontManagerHelper.apply(this.titleComp);
+        Component styledSubtitle = FontManagerHelper.apply(this.subtitleComp);
+        int titleW = font.width(styledTitle);
+        boolean hasSub = !this.subtitleComp.getString().isEmpty();
+        int subtitleW = hasSub ? (font.width(styledSubtitle) + 8) : 0;
+        return Math.max(160, 32 + titleW + subtitleW + 16);
+    }
+
+    public void draw(OwoUIGraphics graphics, float targetX, int mouseX, int mouseY, float delta) {
         long now = System.currentTimeMillis();
 
         long spawnElapsed = now - this.createTime;
@@ -117,7 +127,6 @@ public class NotificationToast {
         int cardWidth = Math.max(160, 32 + titleW + subtitleW + 16);
         int cardHeight = BASE_HEIGHT;
 
-        int targetX = screenWidth - cardWidth - 16;
         float renderY = this.smoothY;
 
         boolean isHovered = mouseX >= targetX && mouseX <= targetX + cardWidth && mouseY >= renderY && mouseY <= renderY + cardHeight;
@@ -192,19 +201,10 @@ public class NotificationToast {
         graphics.pose().popMatrix();
     }
 
-    public boolean onClick(double mouseX, double mouseY, int screenWidth) {
+    public boolean onClick(double mouseX, double mouseY, float targetX) {
         if (this.isDismissing) return false;
 
-        Component styledTitle = FontManagerHelper.apply(this.titleComp);
-        Component styledSubtitle = FontManagerHelper.apply(this.subtitleComp);
-
-        var font = Minecraft.getInstance().font;
-        int titleW = font.width(styledTitle);
-        boolean hasSub = !this.subtitleComp.getString().isEmpty();
-        int subtitleW = hasSub ? (font.width(styledSubtitle) + 8) : 0;
-        int cardWidth = Math.max(160, 32 + titleW + subtitleW + 16);
-
-        int targetX = screenWidth - cardWidth - 16;
+        int cardWidth = getCardWidth();
         float renderY = this.smoothY;
 
         if (mouseX >= targetX && mouseX <= targetX + cardWidth && mouseY >= renderY && mouseY <= renderY + BASE_HEIGHT) {

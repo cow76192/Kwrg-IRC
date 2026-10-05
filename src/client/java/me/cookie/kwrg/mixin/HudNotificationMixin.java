@@ -42,6 +42,7 @@ public abstract class HudNotificationMixin {
     private void kwrg$onExtractStateHead(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker, CallbackInfo ci) {
         me.cookie.kwrg.render.DynamicIslandRenderer.setCurrentExtractor(graphics);
         me.cookie.kwrg.render.DynamicIslandRenderer.updateAnimationState();
+        me.cookie.kwrg.gui.hud.HudElementRegistry.tickResetAnimations();
     }
 
     @Inject(method = "extractRenderState", at = @At("TAIL"))

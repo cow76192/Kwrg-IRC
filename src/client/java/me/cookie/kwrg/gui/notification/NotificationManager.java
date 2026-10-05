@@ -1,6 +1,8 @@
 package me.cookie.kwrg.gui.notification;
 
 import io.wispforest.owo.ui.core.OwoUIGraphics;
+import me.cookie.kwrg.gui.hud.HudElement;
+import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -155,15 +157,69 @@ public class NotificationManager {
         render(OwoUIGraphics.of(graphics), mouseX, mouseY, delta);
     }
 
+    public static final int PLACEHOLDER_WIDTH = 200;
+
+    private static NotificationToast previewToast = null;
+
+    public static void setEditorPreview(boolean enabled) {
+        if (enabled) {
+            if (previewToast == null) {
+                previewToast = new NotificationToast(NotificationType.INFO, "通知", "预览 · 拖动调整位置", null, 3_600_000L);
+                TOASTS.add(previewToast);
+            }
+        } else if (previewToast != null) {
+            TOASTS.remove(previewToast);
+            previewToast = null;
+        }
+    }
+
+    public static boolean hasToasts() {
+        return !TOASTS.isEmpty();
+    }
+
+    public static float[] getGroupBounds() {
+        var window = Minecraft.getInstance().getWindow();
+        int screenW = window != null ? window.getGuiScaledWidth() : 0;
+        int screenH = window != null ? window.getGuiScaledHeight() : 0;
+
+        HudElement.State state = HudElementRegistry.state(HudElementRegistry.NOTIFICATIONS);
+        float[] size = measureGroup();
+        float groupX = HudElement.Anchor.resolveX(state.anchorX, state.marginX, state.offsetX, size[0], screenW);
+        float groupY = HudElement.Anchor.resolveY(state.anchorY, state.marginY, state.offsetY, size[1], screenH);
+        return new float[]{groupX, groupY, size[0], size[1]};
+    }
+
+    private static float[] measureGroup() {
+        float width = 0.0f;
+        float height = 0.0f;
+        for (NotificationToast toast : TOASTS) {
+            width = Math.max(width, toast.getCardWidth());
+            height += toast.getLayoutFootprint() + ITEM_SPACING;
+        }
+        if (height > 0.0f) height -= ITEM_SPACING;
+        return new float[]{Math.max(width, PLACEHOLDER_WIDTH), Math.max(height, NotificationToast.BASE_HEIGHT)};
+    }
+
+    private static float resolveToastX(HudElement.State state, float groupX, float groupW, int cardWidth) {
+        return switch (HudElement.Anchor.normalizeX(state.anchorX)) {
+            case HudElement.Anchor.LEFT -> groupX;
+            case HudElement.Anchor.RIGHT -> groupX + groupW - cardWidth;
+            default -> groupX + (groupW - cardWidth) / 2.0f;
+        };
+    }
+
     public static void render(OwoUIGraphics graphics, int mouseX, int mouseY, float delta) {
         if (TOASTS.isEmpty()) return;
 
-        var window = Minecraft.getInstance().getWindow();
-        int screenWidth = window.getGuiScaledWidth();
-        int screenHeight = window.getGuiScaledHeight();
+        HudElement.State state = HudElementRegistry.state(HudElementRegistry.NOTIFICATIONS);
+        float[] bounds = getGroupBounds();
+        float groupX = bounds[0];
+        float groupY = bounds[1];
+        float groupW = bounds[2];
+        float groupH = bounds[3];
 
-        int bottomBaseY = screenHeight - 20 - NotificationToast.BASE_HEIGHT;
-        int currentStackY = bottomBaseY;
+        boolean stackDown = !HudElement.Anchor.BOTTOM.equals(HudElement.Anchor.normalizeY(state.anchorY));
+        float cursor = stackDown ? groupY : groupY + groupH;
 
         List<NotificationToast> toRemove = new ArrayList<>();
 
@@ -171,26 +227,37 @@ public class NotificationManager {
             NotificationToast toast = TOASTS.get(i);
 
             if (toast.isFinished()) {
+                if (toast == previewToast) previewToast = null;
                 toRemove.add(toast);
                 continue;
             }
 
-            toast.update(currentStackY, delta);
-            toast.draw(graphics, screenWidth, mouseX, mouseY, delta);
+            float footprint = toast.getLayoutFootprint();
+            float toastY = stackDown ? cursor : cursor - footprint;
+            cursor += stackDown ? (footprint + ITEM_SPACING) : -(footprint + ITEM_SPACING);
 
-            currentStackY -= (toast.getLayoutFootprint() + ITEM_SPACING);
+            toast.update((int) toastY, delta);
+
+            if (!state.enabled) continue;
+
+            toast.draw(graphics, resolveToastX(state, groupX, groupW, toast.getCardWidth()), mouseX, mouseY, delta);
         }
 
         TOASTS.removeAll(toRemove);
     }
 
     public static boolean onMouseDown(MouseButtonEvent click) {
-        if (click.button() == 0 && !TOASTS.isEmpty()) {
-            int screenWidth = Minecraft.getInstance().getWindow().getGuiScaledWidth();
-            for (NotificationToast toast : TOASTS) {
-                if (toast.onClick(click.x(), click.y(), screenWidth)) {
-                    return true;
-                }
+        if (click.button() != 0 || TOASTS.isEmpty()) return false;
+
+        HudElement.State state = HudElementRegistry.state(HudElementRegistry.NOTIFICATIONS);
+        if (!state.enabled) return false;
+
+        float[] bounds = getGroupBounds();
+
+        for (int i = TOASTS.size() - 1; i >= 0; i--) {
+            NotificationToast toast = TOASTS.get(i);
+            if (toast.onClick(click.x(), click.y(), resolveToastX(state, bounds[0], bounds[2], toast.getCardWidth()))) {
+                return true;
             }
         }
         return false;

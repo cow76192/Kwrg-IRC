@@ -25,6 +25,7 @@ public abstract class SkyblockerTabMixin {
     public abstract Collection<?> getRendered();
 
     @Unique private static boolean kwrg$scissored = false;
+    @Unique private static boolean kwrg$shifted = false;
     @Unique private static Field kwrg$widgetField;
     @Unique private static Field kwrg$visibleField;
     @Unique private static Field kwrg$fromTabField;
@@ -68,6 +69,7 @@ public abstract class SkyblockerTabMixin {
     @Inject(method = "extractRenderStates", at = @At("HEAD"))
     private void kwrg$onExtractStatesHead(@Coerce Object graphicsObj, int screenWidth, int screenHeight, boolean config, CallbackInfo ci) {
         kwrg$scissored = false;
+        kwrg$shifted = false;
         if (!IrcConfig.get().dynamicIsland || !kwrg$isTabLayer() || config || !kwrg$isSkyblockerTabEnabled() || !kwrg$hasValidTabWidgets()) {
             return;
         }
@@ -92,12 +94,19 @@ public abstract class SkyblockerTabMixin {
 
             graphics.pose().popMatrix();
 
+            kwrg$shifted = DynamicIslandRenderer.pushTabContentShift(scale);
+
             kwrg$scissored = true;
         }
     }
 
-    @Inject(method = "extractRenderStates", at = @At("TAIL"))
-    private void kwrg$onExtractStatesTail(@Coerce Object graphicsObj, int screenWidth, int screenHeight, boolean config, CallbackInfo ci) {
+    @Inject(method = "extractRenderStates", at = @At("RETURN"))
+    private void kwrg$onExtractStatesReturn(@Coerce Object graphicsObj, int screenWidth, int screenHeight, boolean config, CallbackInfo ci) {
+        if (kwrg$shifted) {
+            kwrg$shifted = false;
+            DynamicIslandRenderer.popTabContentShift();
+        }
+
         if (!IrcConfig.get().dynamicIsland || !kwrg$isTabLayer() || config || !kwrg$isSkyblockerTabEnabled()) {
             return;
         }

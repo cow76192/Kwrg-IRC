@@ -19,16 +19,28 @@ import java.util.List;
 @Mixin(targets = "at.hannibal2.skyhanni.features.misc.compacttablist.TabListRenderer", remap = false)
 public abstract class SkyHanniTabMixin {
 
+    @Unique private boolean kwrg$translated = false;
+
     @Inject(method = "drawTabList", at = @At("HEAD"))
     private void kwrg$onDrawTabListHead(CallbackInfo ci) {
         DynamicIslandRenderer.setSkyHanniInstance(this);
         DynamicIslandRenderer.markSkyHanniTabRendered();
         DynamicIslandRenderer.renderTabBackgroundDirect();
         DynamicIslandRenderer.beginTabScissorDirect();
+
+        float shiftX = DynamicIslandRenderer.getTabShiftX();
+        float shiftY = DynamicIslandRenderer.getTabShiftY();
+        if (Math.abs(shiftX) > 0.01f || Math.abs(shiftY) > 0.01f) {
+            kwrg$translated = DynamicIslandRenderer.pushTabContentShift(1.0f);
+        }
     }
 
-    @Inject(method = "drawTabList", at = @At("TAIL"))
-    private void kwrg$onDrawTabListTail(CallbackInfo ci) {
+    @Inject(method = "drawTabList", at = @At("RETURN"))
+    private void kwrg$onDrawTabListReturn(CallbackInfo ci) {
+        if (kwrg$translated) {
+            kwrg$translated = false;
+            DynamicIslandRenderer.popTabContentShift();
+        }
         DynamicIslandRenderer.endTabScissorDirect();
     }
 

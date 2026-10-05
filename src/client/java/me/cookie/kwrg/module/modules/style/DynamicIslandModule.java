@@ -104,6 +104,19 @@ public class DynamicIslandModule extends Module {
                 () -> IrcConfig.get().isShadowEnabled
         ));
 
+        panel.child(TextInfoPaneComponent.header("位置 (在 hudEditor 里编辑)"));
+        panel.child(new PanelItemComponent(
+                "Tab 列表跟随位置",
+                PanelItemComponent.ItemType.TOGGLE,
+                () -> {
+                    IrcConfig config = IrcConfig.get();
+                    config.islandPosAffectsTab = !config.islandPosAffectsTab;
+                    IrcConfig.save();
+                },
+                null,
+                () -> IrcConfig.get().islandPosAffectsTab
+        ));
+
         panel.child(TextInfoPaneComponent.header("基础数据"));
 
         panel.child(new PanelItemComponent(
