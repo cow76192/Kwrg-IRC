@@ -167,30 +167,24 @@ public final class RenderUtil {
                     fillSubpixel(graphics, width - stroke + aa, r, width, height - r, borderRgb);
                 }
 
-                float rInner       = Math.max(0.0f, r - stroke);
-                float rInnerMid    = Math.max(0.0f, r - stroke + aa);
-                float rOuter       = r;
-                float rOuterFringe = r + aa;
+                float rInner    = Math.max(0.0f, r - stroke);
+                float rInnerMid = Math.max(0.0f, r - stroke + aa);
 
                 // 左上圆角
                 drawSubpixelRingGradient(graphics, r, r, 0.0, 90.0, segments, rInner, rInnerMid, fadeBorder, borderColor); // 内羽化
-                drawSubpixelRingGradient(graphics, r, r, 0.0, 90.0, segments, rInnerMid, rOuter, borderColor, borderColor); // 实心核
-                drawSubpixelRingGradient(graphics, r, r, 0.0, 90.0, segments, rOuter, rOuterFringe, borderColor, fadeBorder); // 外羽化
+                drawSubpixelRingGradient(graphics, r, r, 0.0, 90.0, segments, rInnerMid, r, borderColor, borderColor); // 实心核
 
                 // 右上圆角
                 drawSubpixelRingGradient(graphics, width - r, r, 90.0, 180.0, segments, rInner, rInnerMid, fadeBorder, borderColor);
-                drawSubpixelRingGradient(graphics, width - r, r, 90.0, 180.0, segments, rInnerMid, rOuter, borderColor, borderColor);
-                drawSubpixelRingGradient(graphics, width - r, r, 90.0, 180.0, segments, rOuter, rOuterFringe, borderColor, fadeBorder);
+                drawSubpixelRingGradient(graphics, width - r, r, 90.0, 180.0, segments, rInnerMid, r, borderColor, borderColor);
 
                 // 右下圆角
                 drawSubpixelRingGradient(graphics, width - r, height - r, 180.0, 270.0, segments, rInner, rInnerMid, fadeBorder, borderColor);
-                drawSubpixelRingGradient(graphics, width - r, height - r, 180.0, 270.0, segments, rInnerMid, rOuter, borderColor, borderColor);
-                drawSubpixelRingGradient(graphics, width - r, height - r, 180.0, 270.0, segments, rOuter, rOuterFringe, borderColor, fadeBorder);
+                drawSubpixelRingGradient(graphics, width - r, height - r, 180.0, 270.0, segments, rInnerMid, r, borderColor, borderColor);
 
                 // 左下圆角
                 drawSubpixelRingGradient(graphics, r, height - r, 270.0, 360.0, segments, rInner, rInnerMid, fadeBorder, borderColor);
-                drawSubpixelRingGradient(graphics, r, height - r, 270.0, 360.0, segments, rInnerMid, rOuter, borderColor, borderColor);
-                drawSubpixelRingGradient(graphics, r, height - r, 270.0, 360.0, segments, rOuter, rOuterFringe, borderColor, fadeBorder);
+                drawSubpixelRingGradient(graphics, r, height - r, 270.0, 360.0, segments, rInnerMid, r, borderColor, borderColor);
 
             } else {
                 fillSubpixel(graphics, 0.0f, 0.0f, width, stroke, borderRgb);
