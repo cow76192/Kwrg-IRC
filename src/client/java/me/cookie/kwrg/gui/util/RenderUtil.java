@@ -3,6 +3,7 @@ package me.cookie.kwrg.gui.util;
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
@@ -333,7 +334,10 @@ public final class RenderUtil {
         graphics.pose().pushMatrix();
         graphics.pose().translate(x, y);
         graphics.pose().scale(width / textureWidth, height / textureHeight);
-        graphics.blit(texture, 0, 0, 0, 0, textureWidth, textureHeight, textureWidth, textureHeight);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, texture,
+                0, 0, 0f, 0f,
+                textureWidth, textureHeight,
+                textureWidth, textureHeight);
         graphics.pose().popMatrix();
     }
 }

@@ -47,6 +47,10 @@ public class PanelItemComponent extends BaseUIComponent {
 
     private Identifier previewTexture = null;
 
+    private java.util.function.Supplier<Identifier> previewSupplier = null;
+    private int previewTexW = PREVIEW_TEX_SIZE;
+    private int previewTexH = PREVIEW_TEX_SIZE;
+
     public PanelItemComponent(String title, Runnable leftClickAction, Consumer<PanelItemComponent> rightClickAction) {
         this(title, ItemType.TRIGGER, (item, click) -> {
             if (leftClickAction != null) leftClickAction.run();
@@ -101,8 +105,16 @@ public class PanelItemComponent extends BaseUIComponent {
         return this;
     }
 
+    /** Static texture (square, old behaviour). */
     public PanelItemComponent withPreview(Identifier previewTexture) {
-        this.previewTexture = previewTexture;
+        return withPreview(() -> previewTexture, PREVIEW_TEX_SIZE, PREVIEW_TEX_SIZE);
+    }
+
+    /** Lazy texture: the supplier may return null while loading. texW/texH decide the aspect ratio. */
+    public PanelItemComponent withPreview(java.util.function.Supplier<Identifier> supplier, int texW, int texH) {
+        this.previewSupplier = supplier;
+        this.previewTexW = texW;
+        this.previewTexH = texH;
         return this;
     }
 
@@ -221,14 +233,18 @@ public class PanelItemComponent extends BaseUIComponent {
         int textColor = ARGB.color((int) (255 * totalAlpha), textR, textG, textB);
 
         float textOffsetX = 10.0f;
-        if (this.previewTexture != null) {
-            float previewSize = BASE_HEIGHT - 8;
-            float previewX = -halfW + 4;
-            float previewY = -previewSize / 2.0f;
-            RenderUtil.drawTexture(graphics, this.previewTexture, previewX, previewY, previewSize, previewSize, PREVIEW_TEX_SIZE, PREVIEW_TEX_SIZE);
-            textOffsetX = 4 + previewSize + 4;
-        }
+        if (this.previewSupplier != null) {
+            float ph = BASE_HEIGHT - 8;
+            float pw = ph * this.previewTexW / (float) this.previewTexH; // keeps 5:8
+            float px = -halfW + 4;
+            float py = -ph / 2.0f;
 
+            Identifier preview = this.previewSupplier.get();
+            if (preview != null) {
+                RenderUtil.drawTexture(graphics, preview, px, py, pw, ph, this.previewTexW, this.previewTexH);
+            }
+            textOffsetX = 4 + pw + 6;
+        }
         Component displayTitle = Component.literal(this.title).setStyle(FontManagerHelper.getGuiStyle());
         graphics.drawText(displayTitle, -halfW + textOffsetX, -textH / 2.0f, textScale, textColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
 

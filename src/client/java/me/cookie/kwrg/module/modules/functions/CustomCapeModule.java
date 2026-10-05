@@ -128,6 +128,8 @@ public class CustomCapeModule extends Module {
             panel.child(new PanelItemComponent("capes 目录暂无文件"));
         } else {
             for (String f : available) {
+                PlayerCustomizationManager.requestCapePreview(f);
+
                 panel.child(new PanelItemComponent(
                         f,
                         PanelItemComponent.ItemType.TOGGLE,
@@ -138,7 +140,10 @@ public class CustomCapeModule extends Module {
                         },
                         null,
                         () -> f.equals(PlayerCustomizationManager.getMyCape())
-                ));
+                ).withPreview(
+                        () -> PlayerCustomizationManager.peekCapePreview(f),
+                        PlayerCustomizationManager.CAPE_PREVIEW_W,
+                        PlayerCustomizationManager.CAPE_PREVIEW_H));
             }
         }
 
