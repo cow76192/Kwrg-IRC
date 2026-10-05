@@ -57,6 +57,7 @@ public class IrcConfig {
     public int remoteCapeCanvasSize = 1024;
     public int capeCanvasSize = 2048;
     public int capeAnimFps = 10;
+    public int capeRenderMaxFps = 120;
 
     public boolean dynamicIsland = false;
     public boolean islandShowFps = true;
@@ -167,6 +168,11 @@ public class IrcConfig {
                 if (loaded.myScale <= 0.0f || Float.isNaN(loaded.myScale)) loaded.myScale = 1.0f;
                 if (loaded.capeCanvasSize < 64) loaded.capeCanvasSize = 4096;
                 if (loaded.capeAnimFps <= 0) loaded.capeAnimFps = 10;
+                if (loaded.capeRenderMaxFps <= 0) loaded.capeRenderMaxFps = 120;
+                if (loaded.capeRenderMaxFps > me.cookie.kwrg.irc.manager.PlayerCustomizationManager.CAPE_MAX_FPS_LIMIT) {
+                    loaded.capeRenderMaxFps = me.cookie.kwrg.irc.manager.PlayerCustomizationManager.CAPE_MAX_FPS_LIMIT;
+                }
+                if (loaded.capeAnimFps > loaded.capeRenderMaxFps) loaded.capeAnimFps = loaded.capeRenderMaxFps;
 
                 instance = loaded;
                 currentProfileName = cleanName;

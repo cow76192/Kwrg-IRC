@@ -18,9 +18,16 @@ import net.minecraft.world.entity.player.Player;
 import org.lwjgl.system.MemoryUtil;
 
 import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.metadata.IIOMetadata;
+import javax.imageio.stream.ImageInputStream;
+import org.w3c.dom.Node;
+import java.awt.AlphaComposite;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -34,15 +41,18 @@ public class PlayerCustomizationManager {
 
     public static final float[] SCALE_STEPS = {0.25f, 0.5f, 0.75f, 1.0f, 1.5f, 2.0f};
 
+    public static final int CAPE_MAX_FPS_LIMIT = 1000;
+
     private static final Map<String, RenderType> CAPE_TYPE_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, Identifier> CAPE_IDS_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, List<NativeImage>> CAPE_FRAMES_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, NativeImage> CAPE_ACTIVE_IMAGE = new ConcurrentHashMap<>();
     private static final Map<String, Long> CAPE_LAST_FRAME_TIME = new ConcurrentHashMap<>();
     private static final Map<String, Integer> CAPE_CURRENT_FRAME_INDEX = new ConcurrentHashMap<>();
-    private static final Map<UUID, String> IRC_PLAYER_CAPES = new ConcurrentHashMap<>();
-    private static final Map<UUID, Float> IRC_PLAYER_SCALES = new ConcurrentHashMap<>();
-    private static final Map<String, Set<UUID>> CAPE_ACTIVE_USERS = new ConcurrentHashMap<>();
+    private static final Map<String, int[]> CAPE_FRAME_DELAYS = new ConcurrentHashMap<>();
+    private static final Map<String, String> IRC_PLAYER_CAPES = new ConcurrentHashMap<>();
+    private static final Map<String, Float> IRC_PLAYER_SCALES = new ConcurrentHashMap<>();
+    private static final Map<String, Set<String>> CAPE_ACTIVE_USERS = new ConcurrentHashMap<>();
     private static final Map<String, Float> REMOTE_PLAYER_SCALES = new ConcurrentHashMap<>();
     public static volatile boolean inInventoryRendering = false;
 
@@ -71,6 +81,8 @@ public class PlayerCustomizationManager {
     private static final AtomicLong CURRENT_LOAD_TOKEN = new AtomicLong(0);
     private static volatile String activeCapeName = null;
     private static volatile String loadingCapeName = null;
+    private static volatile String syncedPresetCape = null;
+    private static volatile String syncedGifCape = null;
 
     public static float getMyScale() { return IrcConfig.get().myScale; }
 
@@ -103,7 +115,7 @@ public class PlayerCustomizationManager {
                     return;
                 }
 
-                int frames = parseRequestedFrameCount(fileName);
+                int frames = "gif".equals(capeMagic(file)) ? 1 : parseRequestedFrameCount(fileName);
                 if (frames >= 2 && src.getWidth() >= frames) {
                     src = src.getSubimage(0, 0, src.getWidth() / frames, src.getHeight());
                 }
@@ -215,7 +227,7 @@ public class PlayerCustomizationManager {
                     .map(p -> p.getFileName().toString())
                     .filter(n -> {
                         String lower = n.toLowerCase(Locale.ROOT);
-                        return lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg");
+                        return lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".gif");
                     })
                     .collect(Collectors.toList());
         } catch (Exception e) {
@@ -223,30 +235,36 @@ public class PlayerCustomizationManager {
         }
     }
 
-    public static void setIrcPlayerCustomization(UUID uuid, String capeFile, float scale) {
-        if (capeFile != null && !capeFile.isBlank()) {
-            IRC_PLAYER_CAPES.put(uuid, capeFile);
+    public static void setIrcPlayerCustomization(String username, String capeFile, float scale) {
+        String key = capeKey(username);
+        if (key.isEmpty()) return;
 
-            boolean isNearby = CAPE_ACTIVE_USERS.values().stream().anyMatch(set -> set.contains(uuid));
+        if (capeFile != null && !capeFile.isBlank()) {
+            IRC_PLAYER_CAPES.put(key, capeFile);
+
+            boolean isNearby = CAPE_ACTIVE_USERS.values().stream().anyMatch(set -> set.contains(key));
             if (isNearby) {
-                bindPlayerCape(uuid, capeFile);
+                bindPlayerCape(key, capeFile);
             }
         } else {
-            IRC_PLAYER_CAPES.remove(uuid);
-            unbindPlayer(uuid);
+            IRC_PLAYER_CAPES.remove(key);
+            unbindPlayer(key);
         }
 
         if (scale > 0.1f && scale <= 5.0f) {
-            IRC_PLAYER_SCALES.put(uuid, scale);
+            IRC_PLAYER_SCALES.put(key, scale);
         } else {
-            IRC_PLAYER_SCALES.remove(uuid);
+            IRC_PLAYER_SCALES.remove(key);
         }
     }
 
-    public static void bindPlayerCape(UUID playerUuid, String newCape) {
+    public static void bindPlayerCape(String username, String newCape) {
+        String key = capeKey(username);
+        if (key.isEmpty()) return;
+
         String oldCape = null;
-        for (Map.Entry<String, Set<UUID>> entry : CAPE_ACTIVE_USERS.entrySet()) {
-            if (entry.getValue().remove(playerUuid)) {
+        for (Map.Entry<String, Set<String>> entry : CAPE_ACTIVE_USERS.entrySet()) {
+            if (entry.getValue().remove(key)) {
                 oldCape = entry.getKey();
                 if (entry.getValue().isEmpty()) {
                     CAPE_ACTIVE_USERS.remove(oldCape);
@@ -257,26 +275,31 @@ public class PlayerCustomizationManager {
         }
 
         if (newCape != null && !newCape.isBlank()) {
-            CAPE_ACTIVE_USERS.computeIfAbsent(newCape, k -> ConcurrentHashMap.newKeySet()).add(playerUuid);
+            CAPE_ACTIVE_USERS.computeIfAbsent(newCape, k -> ConcurrentHashMap.newKeySet()).add(key);
             triggerAsyncLoad(newCape);
         }
     }
 
-    public static void preloadIrcPlayer(UUID uuid) {
-        String capeName = IRC_PLAYER_CAPES.get(uuid);
+    public static void preloadIrcPlayer(String username) {
+        String capeName = IRC_PLAYER_CAPES.get(capeKey(username));
         if (capeName != null && !capeName.isBlank()) {
-            bindPlayerCape(uuid, capeName);
+            bindPlayerCape(username, capeName);
         }
     }
 
 
-    public static void unbindPlayer(UUID playerUuid) {
-        bindPlayerCape(playerUuid, null);
+    public static void unbindPlayer(String username) {
+        bindPlayerCape(username, null);
     }
 
-    public static void removeIrcPlayer(UUID uuid) {
-        IRC_PLAYER_CAPES.remove(uuid);
-        IRC_PLAYER_SCALES.remove(uuid);
+    public static void removeIrcPlayer(String username) {
+        String key = capeKey(username);
+        IRC_PLAYER_CAPES.remove(key);
+        IRC_PLAYER_SCALES.remove(key);
+    }
+
+    private static String capeKey(String username) {
+        return username == null ? "" : username.toLowerCase(Locale.ROOT);
     }
 
     public static RenderType getPlayerCapeRenderType(Player player) {
@@ -285,7 +308,7 @@ public class PlayerCustomizationManager {
         if (player == mc.player) {
             capeName = getMyCape();
         } else {
-            capeName = IRC_PLAYER_CAPES.get(player.getUUID());
+            capeName = IRC_PLAYER_CAPES.get(capeKey(player.getGameProfile().name()));
         }
 
         if (capeName == null || capeName.isBlank()) return null;
@@ -315,13 +338,45 @@ public class PlayerCustomizationManager {
             loadingCapeName = null;
             clearCapeCache();
             activeCapeName = null;
+            syncedPresetCape = null;
+            syncedGifCape = null;
         } else {
             if (!target.equals(loadingCapeName)) {
                 loadingCapeName = null;
             }
             triggerAsyncLoad(target);
             IrcCapeManager.syncMyCape();
+            applyCapePresetFps(target);
         }
+    }
+
+    private static void applyCapePresetFps(String capeName) {
+        if (capeName.equals(syncedPresetCape)) return;
+        syncedPresetCape = capeName;
+
+        if (parseRequestedFrameCount(capeName) < 2) return;
+
+        int preset = getCapePresetFps(capeName);
+        if (preset <= 0) return;
+
+        IrcConfig.get().capeAnimFps = preset;
+        IrcConfig.save();
+        refreshFrameTiming();
+    }
+
+    private static void applyGifPresetFps(String capeName, int[] delays) {
+        if (!capeName.equals(getMyCape())) return;
+        if (capeName.equals(syncedGifCape)) return;
+        syncedGifCape = capeName;
+        if (getCapePresetFps(capeName) > 0) return;
+
+        long sum = 0;
+        for (int delay : delays) sum += delay;
+        if (sum <= 0) return;
+
+        IrcConfig.get().capeAnimFps = clampFps((int) Math.max(1L, 1000L * delays.length / sum));
+        IrcConfig.save();
+        refreshFrameTiming();
     }
 
     public static void clearCapeCache() {
@@ -352,6 +407,7 @@ public class PlayerCustomizationManager {
         CAPE_ACTIVE_IMAGE.clear();
         CAPE_LAST_FRAME_TIME.clear();
         CAPE_CURRENT_FRAME_INDEX.clear();
+        CAPE_FRAME_DELAYS.clear();
         activeCapeName = null;
         loadingCapeName = null;
     }
@@ -378,6 +434,7 @@ public class PlayerCustomizationManager {
         CAPE_TYPE_CACHE.remove(capeName);
         CAPE_LAST_FRAME_TIME.remove(capeName);
         CAPE_CURRENT_FRAME_INDEX.remove(capeName);
+        CAPE_FRAME_DELAYS.remove(capeName);
     }
 
     private static void cleanupLoading(long token) {
@@ -413,13 +470,30 @@ public class PlayerCustomizationManager {
                     return;
                 }
 
-                BufferedImage src = ImageIO.read(file.toFile());
-                if (src == null || token != CURRENT_LOAD_TOKEN.get()) {
+                String magic = capeMagic(file);
+                boolean gifSource = "gif".equals(magic);
+                String extension = capeExtension(value);
+                if (!magicMatchesExtension(magic, extension)) {
+                    System.err.println("[KWRG Cape] " + value + " extension=" + extension + " content=" + magic);
+                }
+
+                BufferedImage src = gifSource ? null : ImageIO.read(file.toFile());
+                if ((!gifSource && src == null) || token != CURRENT_LOAD_TOKEN.get()) {
                     cleanupLoading(token);
                     return;
                 }
 
-                List<BufferedImage> blocks = layoutFrames(src, value);
+                List<BufferedImage> blocks;
+                if (gifSource) {
+                    blocks = layoutGifFrames(file, value);
+                    if (blocks == null || blocks.isEmpty()) {
+                        System.err.println("[KWRG Cape] " + value + " gif decode failed, fallback to first frame");
+                        BufferedImage first = ImageIO.read(file.toFile());
+                        blocks = first == null ? null : layoutFrames(first, plainCapeName(value));
+                    }
+                } else {
+                    blocks = layoutFrames(src, value);
+                }
                 if (blocks == null || blocks.isEmpty() || token != CURRENT_LOAD_TOKEN.get()) {
                     cleanupLoading(token);
                     return;
@@ -495,6 +569,9 @@ public class PlayerCustomizationManager {
                         CAPE_LAST_FRAME_TIME.put(value, System.currentTimeMillis());
 
                         activeCapeName = value;
+
+                        int[] gifDelays = CAPE_FRAME_DELAYS.get(value);
+                        if (gifDelays != null) applyGifPresetFps(value, gifDelays);
                     } catch (Exception e) {
                         if (finalActive != frames.get(0)) finalActive.close();
                         frames.forEach(NativeImage::close);
@@ -542,13 +619,24 @@ public class PlayerCustomizationManager {
         List<NativeImage> frames = CAPE_FRAMES_CACHE.get(value);
         if (frames == null || frames.size() <= 1) return;
 
-        int fps = IrcConfig.get().capeAnimFps;
-        long interval = fps > 0 ? 1000L / fps : 100L;
+        int fps = resolvePlaybackFps(value);
+        int currentIndex = CAPE_CURRENT_FRAME_INDEX.getOrDefault(value, 0);
+        int[] delays = CAPE_FRAME_DELAYS.get(value);
+
+        long interval;
+        if (delays != null && delays.length == frames.size()) {
+            long sum = 0;
+            for (int delay : delays) sum += delay;
+            long average = Math.max(1L, sum / delays.length);
+            interval = Math.max(1L, delays[currentIndex] * (1000L / fps) / average);
+        } else {
+            interval = 1000L / fps;
+        }
+
         long now = System.currentTimeMillis();
         long lastTime = CAPE_LAST_FRAME_TIME.getOrDefault(value, 0L);
 
         if (now - lastTime >= interval) {
-            int currentIndex = CAPE_CURRENT_FRAME_INDEX.getOrDefault(value, 0);
             int nextIndex = (currentIndex + 1) % frames.size();
 
             NativeImage activeImage = CAPE_ACTIVE_IMAGE.get(value);
@@ -619,6 +707,177 @@ public class PlayerCustomizationManager {
         return blocks;
     }
 
+    private static String capeMagic(Path file) {
+        try (InputStream in = Files.newInputStream(file)) {
+            byte[] header = new byte[12];
+            int read = in.read(header);
+
+            if (read >= 3 && header[0] == 'G' && header[1] == 'I' && header[2] == 'F') return "gif";
+            if (read >= 8 && (header[0] & 0xFF) == 0x89 && header[1] == 'P' && header[2] == 'N' && header[3] == 'G') {
+                return hasPngAnimationChunk(file) ? "apng" : "png";
+            }
+            if (read >= 3 && (header[0] & 0xFF) == 0xFF && (header[1] & 0xFF) == 0xD8) return "jpg";
+            if (read >= 12 && header[0] == 'R' && header[1] == 'I' && header[2] == 'F' && header[3] == 'F'
+                    && header[8] == 'W' && header[9] == 'E' && header[10] == 'B' && header[11] == 'P') return "webp";
+
+            if (read <= 0) return "empty";
+            StringBuilder hex = new StringBuilder();
+            for (int i = 0; i < Math.min(read, 8); i++) hex.append(String.format("%02X", header[i]));
+            return "raw:" + hex;
+        } catch (Exception e) {
+            return "unreadable";
+        }
+    }
+
+    private static boolean hasPngAnimationChunk(Path file) {
+        try (InputStream in = Files.newInputStream(file)) {
+            byte[] chunk = new byte[4096];
+            int read = in.read(chunk);
+            if (read <= 0) return false;
+            return new String(chunk, 0, read, StandardCharsets.ISO_8859_1).contains("acTL");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static String plainCapeName(String fileName) {
+        if (fileName == null) return null;
+        return fileName.replace('@', '_').replace('#', '_');
+    }
+
+    private static String capeExtension(String fileName) {
+        int dot = fileName == null ? -1 : fileName.lastIndexOf('.');
+        return dot >= 0 ? fileName.substring(dot + 1).toLowerCase(Locale.ROOT) : "";
+    }
+
+    private static boolean magicMatchesExtension(String magic, String extension) {
+        if ("jpg".equals(extension) || "jpeg".equals(extension)) return "jpg".equals(magic);
+        if ("gif".equals(extension)) return "gif".equals(magic);
+        if ("png".equals(extension)) return "png".equals(magic);
+        return true;
+    }
+
+    private static List<BufferedImage> layoutGifFrames(Path file, String fileName) throws Exception {
+        boolean isRemote = fileName != null && fileName.startsWith("cache/");
+        int block = isRemote ? Math.min(IrcConfig.get().remoteCapeCanvasSize, 512) : Math.min(IrcConfig.get().capeCanvasSize, 1024);
+        int faceW = block * 10 / 64;
+        int faceH = block * 16 / 64;
+
+        List<BufferedImage> blocks = new ArrayList<>();
+        ImageReader reader = null;
+        try (ImageInputStream input = ImageIO.createImageInputStream(file.toFile())) {
+            if (input == null) return null;
+
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(input);
+            if (!readers.hasNext()) return null;
+
+            reader = readers.next();
+            input.seek(0);
+            reader.setInput(input, false, false);
+
+            int count = reader.getNumImages(true);
+            if (count <= 0) return null;
+
+            int[] delays = new int[count];
+            BufferedImage canvas = new BufferedImage(reader.getWidth(0), reader.getHeight(0), BufferedImage.TYPE_INT_ARGB);
+            BufferedImage previous = null;
+
+            for (int i = 0; i < count; i++) {
+                BufferedImage frame = reader.read(i);
+                int[] info = gifFrameInfo(reader.getImageMetadata(i));
+                int left = info[0];
+                int top = info[1];
+                int disposal = info[2];
+                delays[i] = Math.max(10, info[3]);
+
+                if (disposal == 3) previous = copyOf(canvas);
+
+                boolean fullSize = frame.getWidth() == canvas.getWidth() && frame.getHeight() == canvas.getHeight();
+                int x = fullSize ? 0 : left;
+                int y = fullSize ? 0 : top;
+
+                Graphics2D g = canvas.createGraphics();
+                g.drawImage(frame, x, y, null);
+                g.dispose();
+
+                blocks.add(paintBlock(downscaleSmooth(copyOf(canvas), faceW, faceH), block, faceW, faceH));
+
+                if (disposal == 2) {
+                    Graphics2D clear = canvas.createGraphics();
+                    clear.setComposite(AlphaComposite.Clear);
+                    clear.fillRect(x, y, frame.getWidth(), frame.getHeight());
+                    clear.dispose();
+                } else if (disposal == 3 && previous != null) {
+                    canvas = copyOf(previous);
+                }
+            }
+
+            CAPE_FRAME_DELAYS.put(fileName, delays);
+        } finally {
+            if (reader != null) reader.dispose();
+        }
+
+        return blocks;
+    }
+
+    private static int[] gifFrameInfo(IIOMetadata metadata) {
+        int[] info = {0, 0, 1, 100};
+        if (metadata == null) return info;
+
+        String format = metadata.getNativeMetadataFormatName();
+        if (format == null) return info;
+
+        try {
+            gifCollect(metadata.getAsTree(format), info);
+        } catch (Exception ignored) {}
+        return info;
+    }
+
+    private static void gifCollect(Node node, int[] info) {
+        String name = node.getNodeName();
+        if ("ImageDescriptor".equalsIgnoreCase(name)) {
+            info[0] = gifAttr(node, "imageLeftPosition", info[0]);
+            info[1] = gifAttr(node, "imageTopPosition", info[1]);
+        } else if ("GraphicControlExtension".equalsIgnoreCase(name)) {
+            info[2] = gifDisposal(node, info[2]);
+            int delay = gifAttr(node, "delayTime", -1);
+            if (delay >= 0) info[3] = delay * 10;
+        }
+
+        for (Node child = node.getFirstChild(); child != null; child = child.getNextSibling()) {
+            gifCollect(child, info);
+        }
+    }
+
+    private static int gifAttr(Node node, String attribute, int fallback) {
+        Node value = node.getAttributes() == null ? null : node.getAttributes().getNamedItem(attribute);
+        if (value == null) return fallback;
+        try {
+            return Integer.parseInt(value.getNodeValue().trim());
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
+    private static int gifDisposal(Node node, int fallback) {
+        Node value = node.getAttributes() == null ? null : node.getAttributes().getNamedItem("disposalMethod");
+        if (value == null) return fallback;
+
+        String mode = value.getNodeValue();
+        if ("restoreToBackgroundColor".equalsIgnoreCase(mode)) return 2;
+        if ("restoreToPrevious".equalsIgnoreCase(mode)) return 3;
+        if ("none".equalsIgnoreCase(mode)) return 0;
+        return fallback;
+    }
+
+    private static BufferedImage copyOf(BufferedImage src) {
+        BufferedImage copy = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = copy.createGraphics();
+        g.drawImage(src, 0, 0, null);
+        g.dispose();
+        return copy;
+    }
+
     public static void reloadRemoteCapes() {
         for (String key : new ArrayList<>(CAPE_TYPE_CACHE.keySet())) {
             if (key.startsWith("cache/")) {
@@ -634,6 +893,8 @@ public class PlayerCustomizationManager {
         if (at < 0 || at + 1 >= fileName.length()) return 1;
 
         int dot = fileName.indexOf('.', at);
+        int hash = fileName.indexOf('#', at);
+        if (hash >= 0 && (dot < 0 || hash < dot)) dot = hash;
         String num = dot >= 0 ? fileName.substring(at + 1, dot) : fileName.substring(at + 1);
 
         try {
@@ -642,6 +903,44 @@ public class PlayerCustomizationManager {
         } catch (Exception ignored) {
             return 1;
         }
+    }
+
+    public static int getCapeFrameCount(String fileName) {
+        return parseRequestedFrameCount(fileName);
+    }
+
+    public static int getCapePresetFps(String fileName) {
+        if (fileName == null || fileName.isBlank()) return -1;
+
+        int atMark = fileName.lastIndexOf('@');
+        int hashMark = fileName.lastIndexOf('#');
+        if (atMark < 0 || hashMark < atMark || hashMark + 1 >= fileName.length()) return -1;
+
+        int dot = fileName.indexOf('.', hashMark);
+        String num = dot >= 0 ? fileName.substring(hashMark + 1, dot) : fileName.substring(hashMark + 1);
+
+        try {
+            int n = Integer.parseInt(num);
+            return n >= 1 ? clampFps(n) : -1;
+        } catch (Exception ignored) {
+            return -1;
+        }
+    }
+
+    public static int clampFps(int fps) {
+        return Math.max(1, Math.min(fps, IrcConfig.get().capeRenderMaxFps));
+    }
+
+    public static void refreshFrameTiming() {
+        CAPE_LAST_FRAME_TIME.clear();
+    }
+
+    private static int resolvePlaybackFps(String capeName) {
+        if (capeName == null || !capeName.equals(getMyCape())) {
+            int preset = getCapePresetFps(capeName);
+            if (preset > 0) return preset;
+        }
+        return clampFps(IrcConfig.get().capeAnimFps);
     }
 
     private static BufferedImage paintBlock(BufferedImage face, int block, int faceW, int faceH) {

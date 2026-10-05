@@ -144,10 +144,7 @@ public class IrcMessageHandler {
                     HideArmorManager.setPlayerHideArmor(user, enabled);
                 } else if ("modelScale".equalsIgnoreCase(function)) {
                     float scale = obj.has("scale") ? obj.get("scale").getAsFloat() : 1.0f;
-                    try {
-                        UUID senderUuid = UUID.fromString(senderUuidStr);
-                        me.cookie.kwrg.irc.manager.PlayerCustomizationManager.setIrcPlayerCustomization(senderUuid, null, scale);
-                    } catch (Exception ignored) {}
+                    me.cookie.kwrg.irc.manager.PlayerCustomizationManager.setIrcPlayerCustomization(user, null, scale);
                 }
                 return;
             }
@@ -160,18 +157,15 @@ public class IrcMessageHandler {
             }
 
             if ("cape_sync".equalsIgnoreCase(type)) {
-                String senderUuidStr = obj.has("senderId") ? obj.get("senderId").getAsString() : "";
+                String username = obj.has("username") ? obj.get("username").getAsString() : "";
                 String hash = obj.has("hash") ? obj.get("hash").getAsString() : "";
                 String fileName = obj.has("fileName") ? obj.get("fileName").getAsString() : "";
 
-                if (mc.player != null && senderUuidStr.equals(mc.player.getStringUUID())) {
+                if (username.isBlank() || username.equalsIgnoreCase(mc.getUser().getName())) {
                     return;
                 }
 
-                try {
-                    UUID uuid = UUID.fromString(senderUuidStr);
-                    me.cookie.kwrg.irc.manager.IrcCapeManager.handleRemoteCapeSync(uuid, hash, fileName);
-                } catch (Exception ignored) {}
+                me.cookie.kwrg.irc.manager.IrcCapeManager.handleRemoteCapeSync(username, hash, fileName);
                 return;
             }
 

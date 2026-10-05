@@ -11,7 +11,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class IrcCapeManager {
 
-    private static final Map<String, Set<UUID>> PENDING_DOWNLOADS = new ConcurrentHashMap<>();
+    private static final Map<String, Set<String>> PENDING_DOWNLOADS = new ConcurrentHashMap<>();
+    private static final Map<String, String> PENDING_CAPE_NAMES = new ConcurrentHashMap<>();
 
     public static Path getCacheDir() {
         Path cacheDir = IrcConfig.getKwrgDir().resolve("capes").resolve("cache");
@@ -69,16 +70,16 @@ public class IrcCapeManager {
             try {
                 byte[] bytes = Files.readAllBytes(capeFile);
                 String base64 = Base64.getEncoder().encodeToString(bytes);
-                IrcClient.sendCapeUpload(hash, myCape, base64);
+                IrcClient.sendCapeUploadAndSync(hash, myCape, base64);
             } catch (Exception ignored) {}
         } else {
             IrcClient.sendCapeSync(hash, myCape);
         }
     }
 
-    public static void handleRemoteCapeSync(UUID uuid, String hash, String fileName) {
+    public static void handleRemoteCapeSync(String username, String hash, String fileName) {
         if (hash == null || hash.isBlank()) {
-            PlayerCustomizationManager.setIrcPlayerCustomization(uuid, null, 1.0f);
+            PlayerCustomizationManager.setIrcPlayerCustomization(username, null, 1.0f);
             return;
         }
 
@@ -86,9 +87,10 @@ public class IrcCapeManager {
         Path cachedFile = getCacheDir().resolve(cacheFileName);
 
         if (Files.exists(cachedFile)) {
-            PlayerCustomizationManager.setIrcPlayerCustomization(uuid, "cache/" + cacheFileName, 1.0f);
+            PlayerCustomizationManager.setIrcPlayerCustomization(username, "cache/" + cacheFileName, 1.0f);
         } else {
-            PENDING_DOWNLOADS.computeIfAbsent(hash, k -> ConcurrentHashMap.newKeySet()).add(uuid);
+            if (fileName != null && !fileName.isBlank()) PENDING_CAPE_NAMES.put(username, fileName);
+            PENDING_DOWNLOADS.computeIfAbsent(hash, k -> ConcurrentHashMap.newKeySet()).add(username);
             IrcClient.sendCapeDownload(hash);
         }
     }
@@ -98,27 +100,39 @@ public class IrcCapeManager {
 
         try {
             byte[] bytes = Base64.getDecoder().decode(base64Data);
-            String cacheFileName = resolveCacheFileName(hash, fileName);
-            Path targetFile = getCacheDir().resolve(cacheFileName);
+            Set<String> waitingPlayers = PENDING_DOWNLOADS.remove(hash);
 
-            Files.write(targetFile, bytes);
-
-            Set<UUID> waitingPlayers = PENDING_DOWNLOADS.remove(hash);
+            Map<String, Set<String>> byCacheName = new LinkedHashMap<>();
             if (waitingPlayers != null) {
-                for (UUID uuid : waitingPlayers) {
-                    PlayerCustomizationManager.setIrcPlayerCustomization(uuid, "cache/" + cacheFileName, 1.0f);
+                for (String username : waitingPlayers) {
+                    String announced = PENDING_CAPE_NAMES.remove(username);
+                    String cacheFileName = resolveCacheFileName(hash, announced != null ? announced : fileName);
+                    byCacheName.computeIfAbsent(cacheFileName, k -> new LinkedHashSet<>()).add(username);
+                }
+            }
+            if (byCacheName.isEmpty()) {
+                byCacheName.put(resolveCacheFileName(hash, fileName), new LinkedHashSet<>());
+            }
+
+            for (Map.Entry<String, Set<String>> entry : byCacheName.entrySet()) {
+                Files.write(getCacheDir().resolve(entry.getKey()), bytes);
+                for (String username : entry.getValue()) {
+                    PlayerCustomizationManager.setIrcPlayerCustomization(username, "cache/" + entry.getKey(), 1.0f);
                 }
             }
         } catch (Exception ignored) {}
     }
 
     private static String resolveCacheFileName(String hash, String originalName) {
-        if (originalName != null && originalName.contains("@")) {
-            int at = originalName.lastIndexOf('@');
-            int dot = originalName.indexOf('.', at);
-            String animSuffix = dot >= 0 ? originalName.substring(at, dot) : originalName.substring(at);
-            return hash + animSuffix + ".png";
-        }
-        return hash + ".png";
+        StringBuilder suffix = new StringBuilder();
+
+        int frames = PlayerCustomizationManager.getCapeFrameCount(originalName);
+        if (frames >= 2) suffix.append('@').append(frames);
+
+        int presetFps = PlayerCustomizationManager.getCapePresetFps(originalName);
+        if (presetFps > 0) suffix.append('#').append(presetFps);
+
+        String extension = originalName != null && originalName.toLowerCase(Locale.ROOT).endsWith(".gif") ? ".gif" : ".png";
+        return hash + suffix + extension;
     }
 }

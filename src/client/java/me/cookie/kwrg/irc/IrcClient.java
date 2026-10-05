@@ -380,7 +380,7 @@ public class IrcClient {
     public static void sendFunctionSync(String functionName, boolean enabled) {
         Minecraft mc = Minecraft.getInstance();
 
-        String senderId = mc.player != null ? mc.player.getStringUUID() : mc.getUser().getProfileId().toString();
+        String senderId = currentSenderId();
         String username = mc.getUser().getName();
 
         JsonObject json = new JsonObject();
@@ -397,7 +397,7 @@ public class IrcClient {
         Minecraft mc = Minecraft.getInstance();
         if (mc.getUser() == null) return;
 
-        String senderId = mc.player != null ? mc.player.getStringUUID() : mc.getUser().getProfileId().toString();
+        String senderId = currentSenderId();
         String username = mc.getUser().getName();
 
         com.google.gson.JsonObject json = new com.google.gson.JsonObject();
@@ -472,7 +472,7 @@ public class IrcClient {
 
     public static void sendScaleSync(float scale) {
         Minecraft mc = Minecraft.getInstance();
-        String senderId = mc.player != null ? mc.player.getStringUUID() : mc.getUser().getProfileId().toString();
+        String senderId = currentSenderId();
         String username = mc.getUser().getName();
 
         JsonObject json = new JsonObject();
@@ -490,7 +490,7 @@ public class IrcClient {
         Minecraft mc = Minecraft.getInstance();
         JsonObject json = new JsonObject();
         json.addProperty("type", "cape_check");
-        json.addProperty("senderId", mc.getUser().getProfileId().toString());
+        json.addProperty("senderId", currentSenderId());
         json.addProperty("username", mc.getUser().getName());
         json.addProperty("hash", hash);
         json.addProperty("fileName", fileName);
@@ -499,27 +499,53 @@ public class IrcClient {
 
     // 向服务端上传披风的完整 Base64
     public static void sendCapeUpload(String hash, String fileName, String base64Data) {
-        Minecraft mc = Minecraft.getInstance();
-        JsonObject json = new JsonObject();
-        json.addProperty("type", "cape_upload");
-        json.addProperty("senderId", mc.getUser().getProfileId().toString());
-        json.addProperty("username", mc.getUser().getName());
-        json.addProperty("hash", hash);
-        json.addProperty("fileName", fileName);
-        json.addProperty("data", base64Data);
-        sendRaw(GSON.toJson(json));
+        sendRaw(GSON.toJson(capeUploadJson(hash, fileName, base64Data)));
     }
 
     // 广播佩戴指定哈希的披风
     public static void sendCapeSync(String hash, String fileName) {
+        sendRaw(GSON.toJson(capeSyncJson(hash, fileName)));
+    }
+
+    public static void sendCapeUploadAndSync(String hash, String fileName, String base64Data) {
+        String upload = GSON.toJson(capeUploadJson(hash, fileName, base64Data));
+        String sync = GSON.toJson(capeSyncJson(hash, fileName));
+        CompletableFuture.runAsync(() -> {
+            synchronized (SEND_LOCK) {
+                if (writer != null && isRunning) {
+                    writer.println(upload);
+                    writer.println(sync);
+                }
+            }
+        });
+    }
+
+    private static JsonObject capeUploadJson(String hash, String fileName, String base64Data) {
         Minecraft mc = Minecraft.getInstance();
         JsonObject json = new JsonObject();
-        json.addProperty("type", "cape_sync");
-        json.addProperty("senderId", mc.getUser().getProfileId().toString());
+        json.addProperty("type", "cape_upload");
+        json.addProperty("senderId", currentSenderId());
         json.addProperty("username", mc.getUser().getName());
         json.addProperty("hash", hash);
         json.addProperty("fileName", fileName);
-        sendRaw(GSON.toJson(json));
+        json.addProperty("data", base64Data);
+        return json;
+    }
+
+    private static JsonObject capeSyncJson(String hash, String fileName) {
+        Minecraft mc = Minecraft.getInstance();
+        JsonObject json = new JsonObject();
+        json.addProperty("type", "cape_sync");
+        json.addProperty("senderId", currentSenderId());
+        json.addProperty("username", mc.getUser().getName());
+        json.addProperty("hash", hash);
+        json.addProperty("fileName", fileName);
+        return json;
+    }
+
+    private static String currentSenderId() {
+        Minecraft mc = Minecraft.getInstance();
+        return mc.player != null ? mc.player.getStringUUID() : mc.getUser().getProfileId().toString();
     }
 
     // 向服务端请求下载未命中的披风
