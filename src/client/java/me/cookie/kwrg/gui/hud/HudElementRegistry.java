@@ -4,6 +4,7 @@ import me.cookie.kwrg.gui.notification.NotificationManager;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
+import me.cookie.kwrg.render.ScoreboardIslandRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 
@@ -17,6 +18,7 @@ public final class HudElementRegistry {
 
     public static final String ISLAND = "dynamicIsland";
     public static final String NOTIFICATIONS = "notifications";
+    public static final String SCOREBOARD = "scoreboard";
 
     private static final Map<String, HudElement> ELEMENTS = new LinkedHashMap<>();
     private static final Map<String, ResetAnimation> RESET_ANIMATIONS = new LinkedHashMap<>();
@@ -45,7 +47,6 @@ public final class HudElementRegistry {
                     state(ISLAND).enabled = value;
                     IrcConfig.save();
                 })
-                .visibility(DynamicIslandRenderer::isIslandVisible)
                 .bounds(DynamicIslandRenderer::getIslandBounds)
                 .preview(DynamicIslandRenderer::setEditorPreview));
 
@@ -54,9 +55,19 @@ public final class HudElementRegistry {
                     state(NOTIFICATIONS).enabled = value;
                     IrcConfig.save();
                 })
-                .visibility(NotificationManager::hasToasts)
                 .bounds(NotificationManager::getGroupBounds)
                 .preview(NotificationManager::setEditorPreview));
+
+        HudElement.State scoreboardDefault = HudElement.State.rightMiddle(3.0f);
+        scoreboardDefault.enabled = false;
+
+        register(new HudElement(SCOREBOARD, "DynamicScoreboard", scoreboardDefault)
+                .enabled(() -> state(SCOREBOARD).enabled, value -> {
+                    state(SCOREBOARD).enabled = value;
+                    IrcConfig.save();
+                })
+                .bounds(ScoreboardIslandRenderer::getIslandBounds)
+                .preview(ScoreboardIslandRenderer::setEditorPreview));
     }
 
     private HudElementRegistry() {

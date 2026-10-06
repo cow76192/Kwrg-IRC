@@ -173,10 +173,6 @@ public class NotificationManager {
         }
     }
 
-    public static boolean hasToasts() {
-        return !TOASTS.isEmpty();
-    }
-
     public static float[] getGroupBounds() {
         var window = Minecraft.getInstance().getWindow();
         int screenW = window != null ? window.getGuiScaledWidth() : 0;

@@ -2,7 +2,6 @@ package me.cookie.kwrg.gui.hud;
 
 import net.minecraft.util.Mth;
 
-import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -99,6 +98,14 @@ public class HudElement {
             return state;
         }
 
+        public static State rightMiddle(float marginX) {
+            State state = new State();
+            state.anchorX = Anchor.RIGHT;
+            state.anchorY = Anchor.MIDDLE;
+            state.marginX = marginX;
+            return state;
+        }
+
         public void sanitize() {
             anchorX = Anchor.normalizeX(anchorX);
             anchorY = Anchor.normalizeY(anchorY);
@@ -133,7 +140,6 @@ public class HudElement {
 
     private Supplier<Boolean> enabledGetter = () -> true;
     private Consumer<Boolean> enabledSetter = value -> { };
-    private BooleanSupplier visibleGetter = () -> false;
     private Supplier<float[]> boundsGetter = () -> new float[]{0.0f, 0.0f, 0.0f, 0.0f};
     private Consumer<Boolean> previewSetter = value -> { };
 
@@ -146,11 +152,6 @@ public class HudElement {
     public HudElement enabled(Supplier<Boolean> getter, Consumer<Boolean> setter) {
         this.enabledGetter = getter;
         this.enabledSetter = setter;
-        return this;
-    }
-
-    public HudElement visibility(BooleanSupplier getter) {
-        this.visibleGetter = getter;
         return this;
     }
 
@@ -182,10 +183,6 @@ public class HudElement {
 
     public void setEnabled(boolean enabled) {
         enabledSetter.accept(enabled);
-    }
-
-    public boolean isVisible() {
-        return visibleGetter.getAsBoolean();
     }
 
     public float[] bounds() {

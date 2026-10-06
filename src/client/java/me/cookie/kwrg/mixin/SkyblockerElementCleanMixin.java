@@ -26,7 +26,7 @@ public abstract class SkyblockerElementCleanMixin {
     )
     private void kwrg$onExtractWidgetRenderStateHead(GuiGraphicsExtractor context, float delta, CallbackInfo ci) {
         this.kwrg$savedOpacity = this.backgroundOpacity;
-        if (DynamicIslandRenderer.isEnabled() && DynamicIslandRenderer.getTabProgress() > 0.005f) {
+        if (DynamicIslandRenderer.isTabFeatureOn() && DynamicIslandRenderer.getTabProgress() > 0.005f) {
             this.backgroundOpacity = 0.0f;
         }
     }

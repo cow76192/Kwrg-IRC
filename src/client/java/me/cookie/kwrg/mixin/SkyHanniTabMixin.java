@@ -78,7 +78,7 @@ public abstract class SkyHanniTabMixin {
             )
     )
     private void kwrg$suppressOuterBlackRect(@Coerce Object utils, int x1, int y1, int x2, int y2, int color, Operation<Void> original) {
-        if (DynamicIslandRenderer.isEnabled() && DynamicIslandRenderer.getTabProgress() > 0.005f) {
+        if (DynamicIslandRenderer.isTabFeatureOn() && DynamicIslandRenderer.getTabProgress() > 0.005f) {
             return;
         }
         original.call(utils, x1, y1, x2, y2, color);
@@ -92,7 +92,7 @@ public abstract class SkyHanniTabMixin {
             )
     )
     private void kwrg$suppressColumnGreyRect(@Coerce Object utils, int x1, int y1, int x2, int y2, int color, Operation<Void> original) {
-        if (DynamicIslandRenderer.isEnabled() && DynamicIslandRenderer.getTabProgress() > 0.005f) {
+        if (DynamicIslandRenderer.isTabFeatureOn() && DynamicIslandRenderer.getTabProgress() > 0.005f) {
             return;
         }
         original.call(utils, x1, y1, x2, y2, color);

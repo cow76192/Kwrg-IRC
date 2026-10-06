@@ -24,7 +24,7 @@ public abstract class PlayerTabOverlayMixin {
     @Inject(method = "extractRenderState", at = @At("HEAD"))
     private void kwrg$onTabRenderHead(GuiGraphicsExtractor graphics, int screenWidth, Scoreboard scoreboard, Objective displayObjective, CallbackInfo ci) {
 
-        if (!DynamicIslandRenderer.isEnabled()) {
+        if (!DynamicIslandRenderer.isTabFeatureOn()) {
             return;
         }
         kwrg$minX = Integer.MAX_VALUE;
@@ -51,7 +51,7 @@ public abstract class PlayerTabOverlayMixin {
     )
     private void kwrg$captureAndSuppressBackground(GuiGraphicsExtractor graphics, int minX, int minY, int maxX, int maxY, int color) {
 
-        if (!DynamicIslandRenderer.isEnabled()) {
+        if (!DynamicIslandRenderer.isTabFeatureOn()) {
             graphics.fill(minX, minY, maxX, maxY, color);
             return;
         }
@@ -76,7 +76,7 @@ public abstract class PlayerTabOverlayMixin {
             DynamicIslandRenderer.popTabContentShift();
         }
 
-        if (!DynamicIslandRenderer.isEnabled()) {
+        if (!DynamicIslandRenderer.isTabFeatureOn()) {
             return;
         }
 

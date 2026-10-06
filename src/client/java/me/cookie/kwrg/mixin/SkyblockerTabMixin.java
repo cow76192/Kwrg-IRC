@@ -69,7 +69,7 @@ public abstract class SkyblockerTabMixin {
     private void kwrg$onExtractStatesHead(@Coerce Object graphicsObj, int screenWidth, int screenHeight, boolean config, CallbackInfo ci) {
         kwrg$scissored = false;
         kwrg$shifted = false;
-        if (!DynamicIslandRenderer.isEnabled() || !kwrg$isTabLayer() || config || !kwrg$isSkyblockerTabEnabled() || !kwrg$hasValidTabWidgets()) {
+        if (!DynamicIslandRenderer.isTabFeatureOn() || !kwrg$isTabLayer() || config || !kwrg$isSkyblockerTabEnabled() || !kwrg$hasValidTabWidgets()) {
             return;
         }
 
@@ -106,7 +106,7 @@ public abstract class SkyblockerTabMixin {
             DynamicIslandRenderer.popTabContentShift();
         }
 
-        if (!DynamicIslandRenderer.isEnabled() || !kwrg$isTabLayer() || config || !kwrg$isSkyblockerTabEnabled()) {
+        if (!DynamicIslandRenderer.isTabFeatureOn() || !kwrg$isTabLayer() || config || !kwrg$isSkyblockerTabEnabled()) {
             return;
         }
 

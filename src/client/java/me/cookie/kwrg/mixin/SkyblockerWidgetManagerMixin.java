@@ -24,7 +24,7 @@ public abstract class SkyblockerWidgetManagerMixin {
         boolean down = original.call(keyMapping);
         if (down) return true;
 
-        if (DynamicIslandRenderer.isEnabled() && DynamicIslandRenderer.isTabAnimating()) {
+        if (DynamicIslandRenderer.isTabFeatureOn() && DynamicIslandRenderer.isTabAnimating()) {
             Minecraft mc = Minecraft.getInstance();
             if (keyMapping == mc.options.keyPlayerList) {
                 return true;

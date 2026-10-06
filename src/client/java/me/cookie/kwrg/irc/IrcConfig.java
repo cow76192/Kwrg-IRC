@@ -54,7 +54,6 @@ public class IrcConfig {
     public List<String> savedChannels = new ArrayList<>();
 
     public List<String> playerFinderTargets = new ArrayList<>();
-    public boolean autoTrackPlayer = false;
 
     public float myScale = 1.0f;
     public String myCape = "";
@@ -71,9 +70,12 @@ public class IrcConfig {
     public boolean islandShowCpu = false;
     public boolean isShadowEnabled = true;
     public float islandOpacity  = 0.2f;
-    public boolean onlyApplyToTab = true;
-    public boolean onlyRenderTab = false;
+    public float tabOpacity = 1.0f;
+    public boolean dynamicTab = true;
     public boolean islandPosAffectsTab = true;
+    public boolean scoreboardHideScores = false;
+    public float scoreboardOpacity = 1.0f;
+    public int scoreboardPadding = 6;
     public Map<String, HudElement.State> hudElements = new LinkedHashMap<>();
 
     public boolean disableBlur = false;
@@ -204,11 +206,12 @@ public class IrcConfig {
     private static void migrateLegacyFields(JsonObject jsonObj) {
         if (jsonObj == null) return;
 
-        if (jsonObj.has("onlyTab") && !jsonObj.has("onlyApplyToTab")) {
-            jsonObj.add("onlyApplyToTab", jsonObj.get("onlyTab"));
-        }
-        //迁移旧配置扩展
         jsonObj.remove("onlyTab");
+        jsonObj.remove("onlyApplyToTab");
+        jsonObj.remove("onlyRenderTab");
+        jsonObj.remove("autoTrackPlayer");
+        jsonObj.remove("scoreboardExternalInterop");
+        jsonObj.remove("dynamicIslandShadow");
 
         migrateIslandPositionFields(jsonObj);
         migrateIslandToggle(jsonObj);

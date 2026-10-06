@@ -43,6 +43,8 @@ public class ModuleManager {
         register(new MessageStyleModule());
         register(new ChatModule());
         register(new DynamicIslandModule());
+        register(new DynamicTabModule());
+        register(new DynamicScoreboardModule());
         register(new FontModule());
         register(new GuiColorModule());
         register(new GuiScaleModule());

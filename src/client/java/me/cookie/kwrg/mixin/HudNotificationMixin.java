@@ -43,6 +43,7 @@ public abstract class HudNotificationMixin {
         me.cookie.kwrg.render.DynamicIslandRenderer.setCurrentExtractor(graphics);
         me.cookie.kwrg.render.DynamicIslandRenderer.beginTabShiftFrame();
         me.cookie.kwrg.render.DynamicIslandRenderer.updateAnimationState();
+        me.cookie.kwrg.render.ScoreboardIslandRenderer.tick();
         me.cookie.kwrg.gui.hud.HudElementRegistry.tickResetAnimations();
     }
 
@@ -75,5 +76,7 @@ public abstract class HudNotificationMixin {
         if (!(this.minecraft.screen instanceof me.cookie.kwrg.gui.IrcScreen)) {
             me.cookie.kwrg.render.DynamicIslandRenderer.render(graphics, delta);
         }
+
+        me.cookie.kwrg.render.ScoreboardIslandRenderer.renderFadeOut(graphics);
     }
 }
