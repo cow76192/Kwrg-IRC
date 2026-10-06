@@ -87,6 +87,8 @@ public class DynamicIslandRenderer {
 
     private static float tabShiftX = 0.0f;
     private static float tabShiftY = 0.0f;
+    private static float tabTargetShiftX = 0.0f;
+    private static float tabTargetShiftY = 0.0f;
     private static boolean editorPreview = false;
 
     public static float resolveIslandCenterX(float width) {
@@ -125,6 +127,11 @@ public class DynamicIslandRenderer {
     public static float getTabShiftY() { return tabShiftY; }
 
     private static int tabShiftDepth = 0;
+    private static GuiGraphicsExtractor tabShiftExtractor = null;
+
+    public static boolean isEnabled() {
+        return HudElementRegistry.state(HudElementRegistry.ISLAND).enabled;
+    }
 
     public static boolean pushTabContentShift(float scale) {
         if (currentFrameExtractor == null || tabShiftDepth >= 4) return false;
@@ -133,16 +140,33 @@ public class DynamicIslandRenderer {
         float safeScale = Math.abs(scale) < 0.0001f ? 1.0f : scale;
 
         tabShiftDepth++;
+        tabShiftExtractor = currentFrameExtractor;
         currentFrameExtractor.pose().pushMatrix();
         currentFrameExtractor.pose().translate(tabShiftX / safeScale, tabShiftY / safeScale);
         return true;
     }
 
     public static void popTabContentShift() {
-        if (currentFrameExtractor == null || tabShiftDepth <= 0) return;
+        if (tabShiftDepth <= 0 || tabShiftExtractor == null) return;
 
         tabShiftDepth--;
-        currentFrameExtractor.pose().popMatrix();
+        tabShiftExtractor.pose().popMatrix();
+        if (tabShiftDepth == 0) tabShiftExtractor = null;
+    }
+
+    public static void beginTabShiftFrame() {
+        if (tabShiftDepth == 0) {
+            tabShiftExtractor = null;
+            return;
+        }
+
+        if (tabShiftExtractor != null && tabShiftExtractor == currentFrameExtractor) {
+            for (int i = 0; i < tabShiftDepth; i++) {
+                tabShiftExtractor.pose().popMatrix();
+            }
+        }
+        tabShiftDepth = 0;
+        tabShiftExtractor = null;
     }
 
     public static void setEditorPreview(boolean enabled) {
@@ -266,7 +290,7 @@ public class DynamicIslandRenderer {
 
         smoothTabY = Mth.lerp(dt * 10.0f, smoothTabY, targetTabY);
 
-        boolean isTabKeyDown = !editorPreview && config.dynamicIsland && mc.options.keyPlayerList.isDown() && mc.player != null;
+        boolean isTabKeyDown = !editorPreview && DynamicIslandRenderer.isEnabled() && mc.options.keyPlayerList.isDown() && mc.player != null;
         float targetTab = isTabKeyDown ? 1.0f : 0.0f;
         float tabSpeed = isTabKeyDown ? (1.0f / TAB_ANIM_DURATION) : (1.0f / (TAB_ANIM_DURATION * 0.85f));
 
@@ -304,13 +328,13 @@ public class DynamicIslandRenderer {
         boolean hasAnyOption = !config.onlyRenderTab
                 && (config.islandShowFps || config.islandShowPing || config.islandShowTps
                 || config.islandShowRam || config.islandShowGpu || config.islandShowCpu);
-        return (config.dynamicIsland || editorPreview) && (hasAnyOption || tabProgress > 0.005f || editorPreview);
+        return (DynamicIslandRenderer.isEnabled() || editorPreview) && (hasAnyOption || tabProgress > 0.005f || editorPreview);
     }
 
-    private static void updateTabShift(float tabEase, float screenW, float screenH) {
+    private static void updateTabShift(float screenW, float screenH) {
         if (!IrcConfig.get().islandPosAffectsTab) {
-            tabShiftX = 0.0f;
-            tabShiftY = 0.0f;
+            tabTargetShiftX = 0.0f;
+            tabTargetShiftY = 0.0f;
             return;
         }
 
@@ -331,8 +355,8 @@ public class DynamicIslandRenderer {
             shiftY = 0.0f;
         }
 
-        tabShiftX = shiftX * tabEase;
-        tabShiftY = shiftY * tabEase;
+        tabTargetShiftX = shiftX;
+        tabTargetShiftY = shiftY;
     }
 
     private static void updateRenderRect(float tabEase, float dt, IrcConfig config) {
@@ -347,7 +371,7 @@ public class DynamicIslandRenderer {
         islandOpenProgress = Mth.clamp(islandOpenProgress + (targetOpen - islandOpenProgress) * dt * 6.0f, 0.0f, 1.0f);
         float openEase = RenderUtil.easeSmoothDecel(islandOpenProgress);
 
-        updateTabShift(tabEase, screenW, screenH);
+        updateTabShift(screenW, screenH);
 
         float warnEase = Mth.clamp((currentIslandHeight - BASE_HEIGHT) / (EXPANDED_HEIGHT - BASE_HEIGHT), 0.0f, 1.0f);
         float warnTextW = mc.font != null ? mc.font.width(WARN_COMPONENT) : 0.0f;
@@ -360,14 +384,18 @@ public class DynamicIslandRenderer {
         float pillTop = Mth.clamp(resolveIslandTopY(pillH) - SLIDE_IN_DISTANCE * (1.0f - openEase),
                 0.0f, Math.max(0.0f, screenH - pillH));
 
-        float tabCx = screenW / 2.0f + tabShiftX;
-        float tabTop = smoothTabY + tabShiftY;
+        float tabCx = screenW / 2.0f + tabTargetShiftX;
+        float tabTop = smoothTabY + tabTargetShiftY;
 
         curRenderW = Mth.lerp(tabEase, pillW, smoothTabW) * (0.85f + 0.15f * openEase);
         curRenderH = Mth.lerp(tabEase, pillH, smoothTabH);
-        curRenderX = Mth.lerp(tabEase, pillCx, tabCx) - curRenderW / 2.0f;
+        float centerX = Mth.lerp(tabEase, pillCx, tabCx);
+        curRenderX = centerX - curRenderW / 2.0f;
         curRenderY = Mth.lerp(tabEase, pillTop, tabTop);
         curCornerRadius = Mth.lerp(tabEase, CORNER_RADIUS, 14.0f);
+
+        tabShiftX = centerX - screenW / 2.0f;
+        tabShiftY = curRenderY - smoothTabY;
 
         float effectiveOpacity = config.onlyApplyToTab
                 ? Mth.lerp(tabEase, 1.0f, config.islandOpacity)
@@ -379,9 +407,27 @@ public class DynamicIslandRenderer {
         int borderG = (int) Mth.lerp(warnEase, 152f, 100f);
         int borderB = (int) Mth.lerp(warnEase, 178f, 90f);
 
+        int bgR = 17;
+        int bgG = 22;
+        int bgB = 31;
+
+        if (tabEase > 0.01f) {
+            float pulse = 0.5f + 0.5f * (float) Math.sin(System.currentTimeMillis() / 450.0);
+            float accentMix = Mth.clamp(tabEase * (0.55f + 0.45f * pulse), 0.0f, 1.0f);
+
+            borderR = (int) Mth.lerp(accentMix, borderR, 79f);
+            borderG = (int) Mth.lerp(accentMix, borderG, 195f);
+            borderB = (int) Mth.lerp(accentMix, borderB, 247f);
+
+            bgR = (int) Mth.lerp(accentMix, bgR, 20f);
+            bgG = (int) Mth.lerp(accentMix, bgG, 30f);
+            bgB = (int) Mth.lerp(accentMix, bgB, 42f);
+        }
+
         int bgAlpha = (int) (Mth.lerp(tabEase, 230f, 245f) * currentAlpha);
-        curBgColor = Color.ofArgb(ARGB.color(bgAlpha, 17, 22, 31));
-        curBorderColor = Color.ofArgb(ARGB.color((int) (210 * currentAlpha), borderR, borderG, borderB));
+        int borderAlpha = (int) ((210.0f + tabEase * 35.0f) * currentAlpha);
+        curBgColor = Color.ofArgb(ARGB.color(bgAlpha, bgR, bgG, bgB));
+        curBorderColor = Color.ofArgb(ARGB.color(borderAlpha, borderR, borderG, borderB));
     }
 
     public static void markSkyblockerTabRendered() {
@@ -393,7 +439,7 @@ public class DynamicIslandRenderer {
     }
 
     public static void renderSkyblockerTab(GuiGraphicsExtractor graphics) {
-        if (!IrcConfig.get().dynamicIsland || graphics == null) return;
+        if (!DynamicIslandRenderer.isEnabled() || graphics == null) return;
         currentFrameExtractor = graphics;
         Minecraft mc = Minecraft.getInstance();
         if (mc.getWindow() == null || mc.player == null) return;
@@ -433,7 +479,7 @@ public class DynamicIslandRenderer {
     }
 
     public static void renderSkyHanniTab(GuiGraphicsExtractor graphics) {
-        if (!IrcConfig.get().dynamicIsland) return;
+        if (!DynamicIslandRenderer.isEnabled()) return;
         if (skyHanniInstance != null && graphics != null) {
             currentFrameExtractor = graphics;
             try {
@@ -457,7 +503,7 @@ public class DynamicIslandRenderer {
     }
 
     public static void updateTargetTabBounds(float w, float h, float y) {
-        if (!IrcConfig.get().dynamicIsland) return;
+        if (!DynamicIslandRenderer.isEnabled()) return;
         float newTargetW = Math.max(140.0f, w);
         float newTargetH = Math.max(40.0f, h);
         targetTabY = Math.max(4.0f, y);
@@ -476,12 +522,12 @@ public class DynamicIslandRenderer {
     }
 
     public static float getTabProgress() {
-        if (!IrcConfig.get().dynamicIsland) return 0.0f;
+        if (!DynamicIslandRenderer.isEnabled()) return 0.0f;
         return tabProgress;
     }
 
     public static boolean isTabAnimating() {
-        if (!IrcConfig.get().dynamicIsland) return false;
+        if (!DynamicIslandRenderer.isEnabled()) return false;
         return tabProgress > 0.005f;
     }
 
@@ -491,7 +537,7 @@ public class DynamicIslandRenderer {
 
     public static void renderTabBackgroundDirect() {
         IrcConfig config = IrcConfig.get();
-        if (!config.dynamicIsland) return;
+        if (!DynamicIslandRenderer.isEnabled()) return;
         if (currentFrameExtractor != null && tabProgress > 0.005f && curRenderW > 0) {
             OwoUIGraphics graphics = OwoUIGraphics.of(currentFrameExtractor);
             if (isShadowEnabled()) {
@@ -503,13 +549,13 @@ public class DynamicIslandRenderer {
     }
 
     public static void renderTabBackground(GuiGraphicsExtractor extractor) {
-        if (!IrcConfig.get().dynamicIsland) return;
+        if (!DynamicIslandRenderer.isEnabled()) return;
         setCurrentExtractor(extractor);
         renderTabBackgroundDirect();
     }
 
     public static void beginTabScissor(GuiGraphicsExtractor extractor) {
-        if (!IrcConfig.get().dynamicIsland) return;
+        if (!DynamicIslandRenderer.isEnabled()) return;
         setCurrentExtractor(extractor);
         beginTabScissorDirect();
     }
@@ -519,7 +565,7 @@ public class DynamicIslandRenderer {
     }
 
     public static void beginTabScissorDirect() {
-        if (!IrcConfig.get().dynamicIsland) return;
+        if (!DynamicIslandRenderer.isEnabled()) return;
         if (currentFrameExtractor != null && curRenderW > 0) {
             OwoUIGraphics graphics = OwoUIGraphics.of(currentFrameExtractor);
             int sX1 = (int) Math.floor(curRenderX + 1.0f);

@@ -14,6 +14,32 @@ public class NotificationToast {
     public static final int BASE_HEIGHT = 28;
     private static final long SPAWN_DURATION = 250L;
     private static final long DISMISS_DURATION = 250L;
+    private static final float DISMISS_SLIDE_X = 80.0f;
+    private static final float DISMISS_SLIDE_Y = 48.0f;
+    public static final float DISMISS_CENTER_BAND = BASE_HEIGHT * 2.0f;
+
+    public enum DismissDirection {
+        UP(0.0f, -1.0f),
+        DOWN(0.0f, 1.0f),
+        LEFT(-1.0f, 0.0f),
+        RIGHT(1.0f, 0.0f);
+
+        private final float dirX;
+        private final float dirY;
+
+        DismissDirection(float dirX, float dirY) {
+            this.dirX = dirX;
+            this.dirY = dirY;
+        }
+
+        public float dirX() {
+            return dirX;
+        }
+
+        public float dirY() {
+            return dirY;
+        }
+    }
 
     private final NotificationType type;
     private final Component titleComp;
@@ -32,6 +58,7 @@ public class NotificationToast {
 
     private float hoverAnimation = 0.0f;
     private float smoothY = -1.0f;
+    private float targetY = -1.0f;
 
     public NotificationToast(NotificationType type, String title, String subtitle, Runnable onClickAction, long durationMs) {
         this(type, Component.literal(title != null ? title : ""), subtitle != null && !subtitle.isEmpty() ? Component.literal(subtitle) : Component.empty(), onClickAction, durationMs);
@@ -46,7 +73,7 @@ public class NotificationToast {
         this.createTime = System.currentTimeMillis();
     }
 
-    public void update(int targetY, float delta) {
+    public void update(int nextTargetY, float delta) {
         long now = System.currentTimeMillis();
 
         long currentPauseDuration = this.pausedTimeTotal + (this.isPaused ? (now - this.pauseStartTime) : 0L);
@@ -61,12 +88,16 @@ public class NotificationToast {
             if (dismissElapsed >= DISMISS_DURATION) {
                 this.isFinished = true;
             }
+        } else {
+            this.targetY = nextTargetY;
         }
+
+        float targetY = this.targetY >= 0.0f ? this.targetY : nextTargetY;
 
         if (this.smoothY < 0.0f) {
             this.smoothY = targetY;
         } else {
-            this.smoothY = Mth.lerp(delta * 0.32f, this.smoothY, (float) targetY);
+            this.smoothY = Mth.lerp(delta * 0.32f, this.smoothY, targetY);
             if (Math.abs(this.smoothY - targetY) < 0.05f) {
                 this.smoothY = targetY;
             }
@@ -100,7 +131,7 @@ public class NotificationToast {
         return Math.max(160, 32 + titleW + subtitleW + 16);
     }
 
-    public void draw(OwoUIGraphics graphics, float targetX, int mouseX, int mouseY, float delta) {
+    public void draw(OwoUIGraphics graphics, float targetX, DismissDirection dismissDirection, int mouseX, int mouseY, float delta) {
         long now = System.currentTimeMillis();
 
         long spawnElapsed = now - this.createTime;
@@ -152,9 +183,10 @@ public class NotificationToast {
         Color borderColor = Color.ofArgb(ARGB.color(borderAlpha, (accentRgb >> 16) & 0xFF, (accentRgb >> 8) & 0xFF, accentRgb & 0xFF));
 
         float curScale = spawnEase;
-        float slideOutOffsetX = dismissEase * 80.0f;
+        float slideOutOffsetX = dismissEase * DISMISS_SLIDE_X * dismissDirection.dirX();
+        float slideOutOffsetY = dismissEase * DISMISS_SLIDE_Y * dismissDirection.dirY();
         float cx = targetX + cardWidth / 2.0f + slideOutOffsetX;
-        float cy = renderY + cardHeight / 2.0f;
+        float cy = renderY + cardHeight / 2.0f + slideOutOffsetY;
 
         graphics.pose().pushMatrix();
         graphics.pose().translate(cx, cy);

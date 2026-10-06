@@ -1,6 +1,5 @@
 package me.cookie.kwrg.mixin;
 
-import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.spongepowered.asm.mixin.Mixin;
@@ -27,7 +26,7 @@ public abstract class SkyblockerElementCleanMixin {
     )
     private void kwrg$onExtractWidgetRenderStateHead(GuiGraphicsExtractor context, float delta, CallbackInfo ci) {
         this.kwrg$savedOpacity = this.backgroundOpacity;
-        if (IrcConfig.get().dynamicIsland && DynamicIslandRenderer.getTabProgress() > 0.005f) {
+        if (DynamicIslandRenderer.isEnabled() && DynamicIslandRenderer.getTabProgress() > 0.005f) {
             this.backgroundOpacity = 0.0f;
         }
     }

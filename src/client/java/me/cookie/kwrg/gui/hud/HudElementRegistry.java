@@ -37,9 +37,12 @@ public final class HudElementRegistry {
     }
 
     static {
-        register(new HudElement(ISLAND, "灵动岛", HudElement.State.topCenter())
-                .enabled(() -> IrcConfig.get().dynamicIsland, value -> {
-                    IrcConfig.get().dynamicIsland = value;
+        HudElement.State islandDefault = HudElement.State.topCenter();
+        islandDefault.enabled = false;
+
+        register(new HudElement(ISLAND, "灵动岛", islandDefault)
+                .enabled(() -> state(ISLAND).enabled, value -> {
+                    state(ISLAND).enabled = value;
                     IrcConfig.save();
                 })
                 .visibility(DynamicIslandRenderer::isIslandVisible)
@@ -173,9 +176,5 @@ public final class HudElementRegistry {
         for (HudElement element : all()) {
             element.setEditorPreview(enabled);
         }
-    }
-
-    public static boolean isEditorPreview() {
-        return editorPreview;
     }
 }

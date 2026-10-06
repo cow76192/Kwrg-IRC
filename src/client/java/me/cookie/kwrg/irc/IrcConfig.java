@@ -2,6 +2,7 @@ package me.cookie.kwrg.irc;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
@@ -62,7 +63,6 @@ public class IrcConfig {
     public int capeCanvasSize = 2048;
     public int capeAnimFps = 10;
 
-    public boolean dynamicIsland = false;
     public boolean islandShowFps = true;
     public boolean islandShowPing = true;
     public boolean islandShowTps = true;
@@ -211,6 +211,30 @@ public class IrcConfig {
         jsonObj.remove("onlyTab");
 
         migrateIslandPositionFields(jsonObj);
+        migrateIslandToggle(jsonObj);
+    }
+
+    private static void migrateIslandToggle(JsonObject jsonObj) {
+        if (!jsonObj.has("dynamicIsland")) return;
+
+        JsonElement legacy = jsonObj.get("dynamicIsland");
+        jsonObj.remove("dynamicIsland");
+        if (legacy == null || !legacy.isJsonPrimitive()) return;
+
+        JsonObject hud = jsonObj.has("hudElements") && jsonObj.get("hudElements").isJsonObject()
+                ? jsonObj.getAsJsonObject("hudElements")
+                : new JsonObject();
+
+        JsonObject island = hud.has("dynamicIsland") && hud.get("dynamicIsland").isJsonObject()
+                ? hud.getAsJsonObject("dynamicIsland")
+                : new JsonObject();
+
+        if (!island.has("enabled")) {
+            island.addProperty("enabled", legacy.getAsBoolean());
+        }
+
+        hud.add("dynamicIsland", island);
+        jsonObj.add("hudElements", hud);
     }
 
     private static void migrateIslandPositionFields(JsonObject jsonObj) {

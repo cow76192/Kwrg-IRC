@@ -4,6 +4,7 @@ import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.pane.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
+import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.module.Category;
@@ -14,16 +15,16 @@ import net.minecraft.util.Mth;
 public class DynamicIslandModule extends Module {
 
     public DynamicIslandModule() {
-        super("dynamicIsland", Category.STYLE, PanelItemComponent.ItemType.TOGGLE, () -> IrcConfig.get().dynamicIsland);
+        super("dynamicIsland", Category.STYLE, PanelItemComponent.ItemType.TOGGLE,
+                () -> HudElementRegistry.isEnabled(HudElementRegistry.ISLAND));
     }
 
     @Override
     public void onExecute() {
-        IrcConfig config = IrcConfig.get();
-        config.dynamicIsland = !config.dynamicIsland;
-        IrcConfig.save();
+        boolean enabled = !HudElementRegistry.isEnabled(HudElementRegistry.ISLAND);
+        HudElementRegistry.get(HudElementRegistry.ISLAND).setEnabled(enabled);
 
-        if (config.dynamicIsland) {
+        if (enabled) {
             ChatNotifier.send("§adynamicIsland 已: §a开启", NotificationType.SUCCESS);
         } else {
             ChatNotifier.send("§edynamicIsland 已: §c关闭", NotificationType.ERR);

@@ -1,6 +1,5 @@
 package me.cookie.kwrg.mixin;
 
-import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.PlayerTabOverlay;
@@ -25,7 +24,7 @@ public abstract class PlayerTabOverlayMixin {
     @Inject(method = "extractRenderState", at = @At("HEAD"))
     private void kwrg$onTabRenderHead(GuiGraphicsExtractor graphics, int screenWidth, Scoreboard scoreboard, Objective displayObjective, CallbackInfo ci) {
 
-        if (!IrcConfig.get().dynamicIsland) {
+        if (!DynamicIslandRenderer.isEnabled()) {
             return;
         }
         kwrg$minX = Integer.MAX_VALUE;
@@ -52,7 +51,7 @@ public abstract class PlayerTabOverlayMixin {
     )
     private void kwrg$captureAndSuppressBackground(GuiGraphicsExtractor graphics, int minX, int minY, int maxX, int maxY, int color) {
 
-        if (!IrcConfig.get().dynamicIsland) {
+        if (!DynamicIslandRenderer.isEnabled()) {
             graphics.fill(minX, minY, maxX, maxY, color);
             return;
         }
@@ -77,7 +76,7 @@ public abstract class PlayerTabOverlayMixin {
             DynamicIslandRenderer.popTabContentShift();
         }
 
-        if (!IrcConfig.get().dynamicIsland) {
+        if (!DynamicIslandRenderer.isEnabled()) {
             return;
         }
 

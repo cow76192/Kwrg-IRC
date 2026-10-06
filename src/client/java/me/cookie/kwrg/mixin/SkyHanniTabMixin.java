@@ -2,7 +2,6 @@ package me.cookie.kwrg.mixin;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import net.minecraft.client.Minecraft;
 import org.spongepowered.asm.mixin.Mixin;
@@ -79,7 +78,7 @@ public abstract class SkyHanniTabMixin {
             )
     )
     private void kwrg$suppressOuterBlackRect(@Coerce Object utils, int x1, int y1, int x2, int y2, int color, Operation<Void> original) {
-        if (IrcConfig.get().dynamicIsland && DynamicIslandRenderer.getTabProgress() > 0.005f) {
+        if (DynamicIslandRenderer.isEnabled() && DynamicIslandRenderer.getTabProgress() > 0.005f) {
             return;
         }
         original.call(utils, x1, y1, x2, y2, color);
@@ -93,7 +92,7 @@ public abstract class SkyHanniTabMixin {
             )
     )
     private void kwrg$suppressColumnGreyRect(@Coerce Object utils, int x1, int y1, int x2, int y2, int color, Operation<Void> original) {
-        if (IrcConfig.get().dynamicIsland && DynamicIslandRenderer.getTabProgress() > 0.005f) {
+        if (DynamicIslandRenderer.isEnabled() && DynamicIslandRenderer.getTabProgress() > 0.005f) {
             return;
         }
         original.call(utils, x1, y1, x2, y2, color);

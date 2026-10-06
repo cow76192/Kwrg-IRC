@@ -7,6 +7,7 @@ import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
@@ -39,6 +40,11 @@ public class HudEditorScreen extends Screen {
     public HudEditorScreen(String initialSelectionId) {
         super(Component.literal("HUD 布局编辑器"));
         this.selectedId = initialSelectionId;
+    }
+
+    public static void open(String elementId) {
+        Minecraft mc = Minecraft.getInstance();
+        mc.execute(() -> mc.setScreen(new HudEditorScreen(elementId)));
     }
 
     @Override

@@ -11,7 +11,6 @@ import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
-import net.minecraft.client.Minecraft;
 
 public class HudEditorModule extends Module {
 
@@ -25,7 +24,7 @@ public class HudEditorModule extends Module {
     }
 
     private static void openEditor(String elementId) {
-        Minecraft.getInstance().execute(() -> Minecraft.getInstance().setScreen(new HudEditorScreen(elementId)));
+        HudEditorScreen.open(elementId);
     }
 
     @Override

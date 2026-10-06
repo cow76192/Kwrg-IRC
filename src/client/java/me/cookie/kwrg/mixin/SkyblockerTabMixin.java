@@ -1,6 +1,5 @@
 package me.cookie.kwrg.mixin;
 
-import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -70,7 +69,7 @@ public abstract class SkyblockerTabMixin {
     private void kwrg$onExtractStatesHead(@Coerce Object graphicsObj, int screenWidth, int screenHeight, boolean config, CallbackInfo ci) {
         kwrg$scissored = false;
         kwrg$shifted = false;
-        if (!IrcConfig.get().dynamicIsland || !kwrg$isTabLayer() || config || !kwrg$isSkyblockerTabEnabled() || !kwrg$hasValidTabWidgets()) {
+        if (!DynamicIslandRenderer.isEnabled() || !kwrg$isTabLayer() || config || !kwrg$isSkyblockerTabEnabled() || !kwrg$hasValidTabWidgets()) {
             return;
         }
 
@@ -107,7 +106,7 @@ public abstract class SkyblockerTabMixin {
             DynamicIslandRenderer.popTabContentShift();
         }
 
-        if (!IrcConfig.get().dynamicIsland || !kwrg$isTabLayer() || config || !kwrg$isSkyblockerTabEnabled()) {
+        if (!DynamicIslandRenderer.isEnabled() || !kwrg$isTabLayer() || config || !kwrg$isSkyblockerTabEnabled()) {
             return;
         }
 

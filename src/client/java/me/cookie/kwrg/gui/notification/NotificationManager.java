@@ -221,6 +221,10 @@ public class NotificationManager {
         boolean stackDown = !HudElement.Anchor.BOTTOM.equals(HudElement.Anchor.normalizeY(state.anchorY));
         float cursor = stackDown ? groupY : groupY + groupH;
 
+        var window = Minecraft.getInstance().getWindow();
+        int screenW = window != null ? window.getGuiScaledWidth() : 0;
+        int screenH = window != null ? window.getGuiScaledHeight() : 0;
+
         List<NotificationToast> toRemove = new ArrayList<>();
 
         for (int i = TOASTS.size() - 1; i >= 0; i--) {
@@ -240,10 +244,30 @@ public class NotificationManager {
 
             if (!state.enabled) continue;
 
-            toast.draw(graphics, resolveToastX(state, groupX, groupW, toast.getCardWidth()), mouseX, mouseY, delta);
+            int cardWidth = toast.getCardWidth();
+            float toastX = resolveToastX(state, groupX, groupW, cardWidth);
+            float cardCenterX = toastX + cardWidth / 2.0f;
+            float cardCenterY = toastY + NotificationToast.BASE_HEIGHT / 2.0f;
+
+            toast.draw(graphics, toastX, resolveDismissDirection(cardCenterX, cardCenterY, screenW, screenH),
+                    mouseX, mouseY, delta);
         }
 
         TOASTS.removeAll(toRemove);
+    }
+
+    private static NotificationToast.DismissDirection resolveDismissDirection(float cardCenterX, float cardCenterY, int screenW, int screenH) {
+        boolean centered = Math.abs(cardCenterX - screenW / 2.0f) <= NotificationToast.DISMISS_CENTER_BAND;
+
+        if (centered) {
+            return cardCenterY <= screenH / 2.0f
+                    ? NotificationToast.DismissDirection.UP
+                    : NotificationToast.DismissDirection.DOWN;
+        }
+
+        return cardCenterX < screenW / 2.0f
+                ? NotificationToast.DismissDirection.LEFT
+                : NotificationToast.DismissDirection.RIGHT;
     }
 
     public static boolean onMouseDown(MouseButtonEvent click) {
