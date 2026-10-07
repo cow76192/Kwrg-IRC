@@ -57,6 +57,8 @@ public class NotificationToast {
     private boolean isFinished = false;
 
     private float hoverAnimation = 0.0f;
+    private float pressAnimation = 0.0f;
+    private long lastAnimMs = 0L;
     private float smoothY = -1.0f;
     private float targetY = -1.0f;
 
@@ -170,16 +172,30 @@ public class NotificationToast {
             this.pausedTimeTotal += (now - this.pauseStartTime);
         }
 
+        long animNow = System.currentTimeMillis();
+        float animDt = lastAnimMs == 0L ? 0.016f : Mth.clamp((animNow - lastAnimMs) / 1000.0f, 0.001f, 0.1f);
+        lastAnimMs = animNow;
+        float animEase = 1.0f - (float) Math.exp(-animDt / 0.08f);
+
         float targetHover = isHovered ? 1.0f : 0.0f;
-        this.hoverAnimation = Mth.clamp(this.hoverAnimation + (targetHover - this.hoverAnimation) * delta * 0.35f, 0.0f, 1.0f);
+        this.hoverAnimation = Mth.clamp(this.hoverAnimation + (targetHover - this.hoverAnimation) * animEase, 0.0f, 1.0f);
+
+        boolean isPressed = isHovered && Minecraft.getInstance().mouseHandler.isLeftPressed();
+        float targetPress = isPressed ? 1.0f : 0.0f;
+        this.pressAnimation = Mth.clamp(this.pressAnimation + (targetPress - this.pressAnimation) * animEase, 0.0f, 1.0f);
 
         int accentRgb = this.type.getAccentRgb();
         int bgRgb = this.type.getBgRgb();
 
-        int bgAlpha = (int) (255 * (0.88f + this.hoverAnimation * 0.12f) * alpha);
-        Color bgColor = Color.ofArgb(ARGB.color(bgAlpha, (bgRgb >> 16) & 0xFF, (bgRgb >> 8) & 0xFF, bgRgb & 0xFF));
+        int pressShade = (int) (this.pressAnimation * 28.0f);
+        int bgR = Math.max(0, ((bgRgb >> 16) & 0xFF) - pressShade);
+        int bgG = Math.max(0, ((bgRgb >> 8) & 0xFF) - pressShade);
+        int bgB = Math.max(0, (bgRgb & 0xFF) - pressShade);
 
-        int borderAlpha = (int) (255 * (0.50f + this.hoverAnimation * 0.50f) * alpha);
+        int bgAlpha = (int) (255 * Mth.clamp(0.88f + this.hoverAnimation * 0.12f, 0.0f, 1.0f) * alpha);
+        Color bgColor = Color.ofArgb(ARGB.color(bgAlpha, bgR, bgG, bgB));
+
+        int borderAlpha = (int) (255 * Mth.clamp(0.50f + this.hoverAnimation * 0.50f, 0.0f, 1.0f) * alpha);
         Color borderColor = Color.ofArgb(ARGB.color(borderAlpha, (accentRgb >> 16) & 0xFF, (accentRgb >> 8) & 0xFF, accentRgb & 0xFF));
 
         float curScale = spawnEase;

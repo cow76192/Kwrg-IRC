@@ -206,24 +206,61 @@ public class IrcConfig {
     private static void migrateLegacyFields(JsonObject jsonObj) {
         if (jsonObj == null) return;
 
+        if (jsonObj.has("onlyTab") && !jsonObj.has("onlyApplyToTab")) {
+            jsonObj.add("onlyApplyToTab", jsonObj.get("onlyTab"));
+        }
         jsonObj.remove("onlyTab");
-        jsonObj.remove("onlyApplyToTab");
-        jsonObj.remove("onlyRenderTab");
         jsonObj.remove("autoTrackPlayer");
         jsonObj.remove("scoreboardExternalInterop");
         jsonObj.remove("dynamicIslandShadow");
 
         migrateIslandPositionFields(jsonObj);
         migrateIslandToggle(jsonObj);
+        migrateTabOpacity(jsonObj);
     }
 
     private static void migrateIslandToggle(JsonObject jsonObj) {
-        if (!jsonObj.has("dynamicIsland")) return;
+        boolean hasToggle = jsonObj.has("dynamicIsland");
+        boolean hasTabOnly = jsonObj.has("onlyRenderTab");
+        if (!hasToggle && !hasTabOnly) return;
 
-        JsonElement legacy = jsonObj.get("dynamicIsland");
+        boolean islandOn = hasToggle && isLegacyTrue(jsonObj, "dynamicIsland");
+        boolean tabOnly = hasTabOnly && isLegacyTrue(jsonObj, "onlyRenderTab");
+
         jsonObj.remove("dynamicIsland");
-        if (legacy == null || !legacy.isJsonPrimitive()) return;
+        jsonObj.remove("onlyRenderTab");
 
+        writeIslandEnabled(jsonObj, islandOn && !tabOnly);
+
+        if (!jsonObj.has("dynamicTab")) {
+            jsonObj.addProperty("dynamicTab", islandOn || tabOnly);
+        }
+    }
+
+    private static void migrateTabOpacity(JsonObject jsonObj) {
+        if (!jsonObj.has("onlyApplyToTab")) return;
+
+        boolean applyToTabOnly = isLegacyTrue(jsonObj, "onlyApplyToTab");
+        jsonObj.remove("onlyApplyToTab");
+
+        if (jsonObj.has("tabOpacity")) return;
+
+        float legacyOpacity = jsonObj.has("islandOpacity") && jsonObj.get("islandOpacity").isJsonPrimitive()
+                ? jsonObj.get("islandOpacity").getAsFloat()
+                : 0.2f;
+
+        jsonObj.addProperty("tabOpacity", legacyOpacity);
+        if (applyToTabOnly) {
+            jsonObj.addProperty("islandOpacity", 1.0f);
+        }
+    }
+
+    private static boolean isLegacyTrue(JsonObject jsonObj, String key) {
+        JsonElement element = jsonObj.get(key);
+        return element != null && element.isJsonPrimitive() && element.getAsBoolean();
+    }
+
+    private static void writeIslandEnabled(JsonObject jsonObj, boolean enabled) {
         JsonObject hud = jsonObj.has("hudElements") && jsonObj.get("hudElements").isJsonObject()
                 ? jsonObj.getAsJsonObject("hudElements")
                 : new JsonObject();
@@ -233,7 +270,7 @@ public class IrcConfig {
                 : new JsonObject();
 
         if (!island.has("enabled")) {
-            island.addProperty("enabled", legacy.getAsBoolean());
+            island.addProperty("enabled", enabled);
         }
 
         hud.add("dynamicIsland", island);

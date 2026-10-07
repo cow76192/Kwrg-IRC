@@ -85,7 +85,10 @@ public class DynamicScoreboardModule extends DynamicModule {
 
         panel.child(header("注意"));
         panel.child(new TextInfoPaneComponent(
-                "SkyHanni 自定义计分板若启用自定义背景，灵动效果会失效，本功能将被自动关闭。",
+                "SkyHanni 自定义计分板启用自定义背景（材质包覆盖）时，灵动效果无法叠加，本功能会被自动关闭。",
+                () -> ""));
+        panel.child(new TextInfoPaneComponent(
+                "开启本功能后，计分板位置只能用 /irc hudeditor 调整，/sh gui 里的位置调整不会生效。",
                 () -> ""));
     }
 }

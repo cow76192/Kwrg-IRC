@@ -181,7 +181,10 @@ public class ScoreboardIslandRenderer {
     }
 
     private static void checkThirdPartyBackground() {
-        if (!isIslandEnabled()) return;
+        if (!isIslandEnabled()) {
+            warnedForThirdPartyBackground = false;
+            return;
+        }
 
         long now = System.currentTimeMillis();
         if (now - lastBackgroundCheckMs < 1000L) return;
@@ -197,8 +200,8 @@ public class ScoreboardIslandRenderer {
 
         HudElementRegistry.get(HudElementRegistry.SCOREBOARD).setEnabled(false);
         IrcConfig.save();
-        LOGGER.warn("[ScoreboardIsland] third-party scoreboard draws its own background, DynamicScoreboard disabled");
-        ChatNotifier.send("§cSkyHanni 自定义计分板启用了自定义背景，灵动效果会失效，已自动关闭 DynamicScoreboard。",
+        LOGGER.warn("[ScoreboardIsland] third-party scoreboard background is a resource pack texture, DynamicScoreboard disabled");
+        ChatNotifier.send("§cSkyHanni 自定义计分板启用了自定义背景（材质包覆盖），灵动效果无法叠加，已自动关闭 DynamicScoreboard。",
                 NotificationType.WARN);
     }
 

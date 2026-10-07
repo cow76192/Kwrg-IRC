@@ -126,8 +126,9 @@ public class DynamicIslandRenderer {
     public static float getTabShiftX() { return tabShiftX; }
     public static float getTabShiftY() { return tabShiftY; }
 
-    private static int tabShiftDepth = 0;
+    private static boolean tabShiftActive = false;
     private static GuiGraphicsExtractor tabShiftExtractor = null;
+    private static float currentTabEase = 0.0f;
 
     public static boolean isTabFeatureOn() {
         return IrcConfig.get().dynamicTab;
@@ -138,12 +139,12 @@ public class DynamicIslandRenderer {
     }
 
     public static boolean pushTabContentShift(float scale) {
-        if (currentFrameExtractor == null || tabShiftDepth >= 4) return false;
+        if (currentFrameExtractor == null || tabShiftActive) return false;
         if (Math.abs(tabShiftX) < 0.01f && Math.abs(tabShiftY) < 0.01f) return false;
 
         float safeScale = Math.abs(scale) < 0.0001f ? 1.0f : scale;
 
-        tabShiftDepth++;
+        tabShiftActive = true;
         tabShiftExtractor = currentFrameExtractor;
         currentFrameExtractor.pose().pushMatrix();
         currentFrameExtractor.pose().translate(tabShiftX / safeScale, tabShiftY / safeScale);
@@ -151,25 +152,23 @@ public class DynamicIslandRenderer {
     }
 
     public static void popTabContentShift() {
-        if (tabShiftDepth <= 0 || tabShiftExtractor == null) return;
+        if (!tabShiftActive || tabShiftExtractor == null) return;
 
-        tabShiftDepth--;
+        tabShiftActive = false;
         tabShiftExtractor.pose().popMatrix();
-        if (tabShiftDepth == 0) tabShiftExtractor = null;
+        tabShiftExtractor = null;
     }
 
     public static void beginTabShiftFrame() {
-        if (tabShiftDepth == 0) {
+        if (!tabShiftActive) {
             tabShiftExtractor = null;
             return;
         }
 
-        if (tabShiftExtractor != null && tabShiftExtractor == currentFrameExtractor) {
-            for (int i = 0; i < tabShiftDepth; i++) {
-                tabShiftExtractor.pose().popMatrix();
-            }
+        if (tabShiftExtractor == currentFrameExtractor) {
+            tabShiftExtractor.pose().popMatrix();
         }
-        tabShiftDepth = 0;
+        tabShiftActive = false;
         tabShiftExtractor = null;
     }
 
@@ -244,8 +243,8 @@ public class DynamicIslandRenderer {
         dt = Mth.clamp(dt, 0.001f, 0.04f);
 
         IrcConfig config = IrcConfig.get();
-        float tabEase = updateTabAnimation(dt, config);
-        updateRenderRect(tabEase, dt, config);
+        currentTabEase = updateTabAnimation(dt, config);
+        updateRenderRect(currentTabEase, dt, config);
     }
 
     private static float updateTabAnimation(float dt, IrcConfig config) {
@@ -661,7 +660,7 @@ public class DynamicIslandRenderer {
             smoothTabH = targetTabH;
         }
 
-        float tabEase = updateTabAnimation(dt, config);
+        float tabEase = currentTabEase;
 
         boolean shouldShow = shouldIslandShow(config);
 
