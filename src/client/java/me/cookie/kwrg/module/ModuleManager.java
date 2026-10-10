@@ -36,6 +36,7 @@ public class ModuleManager {
         register(new ModelScaleModule());
         register(new CustomCapeModule());
         register(new NickModule());
+        register(new PearlCancelModule());
 
         // --- STYLE 模块 ---
         register(new RankModule());

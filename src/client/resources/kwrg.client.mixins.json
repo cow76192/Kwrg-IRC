@@ -13,6 +13,7 @@
 		"PlayerScaleMixin",
 		"CapeLayerMixin",
 		"OptionsMixin",
+		"MultiPlayerGameModeMixin",
 		"MinecraftKeybindMixin",
 		"HudNotificationMixin",
 		"ChatComponentMixin",

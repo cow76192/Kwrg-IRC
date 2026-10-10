@@ -9,6 +9,7 @@ import me.cookie.kwrg.module.modules.debug.ClearIndexCacheModule;
 import me.cookie.kwrg.module.modules.functions.GlowColorModule;
 import me.cookie.kwrg.module.modules.functions.HideArmorModule;
 import me.cookie.kwrg.module.modules.functions.ImportantPlayerModule;
+import me.cookie.kwrg.module.modules.functions.PearlCancelModule;
 import me.cookie.kwrg.module.modules.play.PlayModule;
 import me.cookie.kwrg.module.modules.style.MessageStyleModule;
 import me.cookie.kwrg.module.modules.style.NameStyleModule;
@@ -315,7 +316,11 @@ public class IrcCommand {
                                 .then(argument("color", StringArgumentType.greedyString())
                                         .suggests(STYLE_SUGGESTIONS)
                                         .executes(context -> GlowColorModule.setGlowColor(StringArgumentType.getString(context, "color"))))
-                                .executes(context -> GlowColorModule.showGlowColor())))
+                                .executes(context -> GlowColorModule.showGlowColor()))
+                        .then(literal("pearlCancel")
+                                .then(argument("enabled", BoolArgumentType.bool())
+                                        .executes(context -> PearlCancelModule.setPearlCancel(BoolArgumentType.getBool(context, "enabled"))))
+                                .executes(context -> PearlCancelModule.showPearlCancel())))
                 .then(literal("func")
                         .then(literal("hideArmor")
                                 .then(argument("enabled", BoolArgumentType.bool())
@@ -325,7 +330,11 @@ public class IrcCommand {
                                 .then(argument("color", StringArgumentType.greedyString())
                                         .suggests(STYLE_SUGGESTIONS)
                                         .executes(context -> GlowColorModule.setGlowColor(StringArgumentType.getString(context, "color"))))
-                                .executes(context -> GlowColorModule.showGlowColor())))
+                                .executes(context -> GlowColorModule.showGlowColor()))
+                        .then(literal("pearlCancel")
+                                .then(argument("enabled", BoolArgumentType.bool())
+                                        .executes(context -> PearlCancelModule.setPearlCancel(BoolArgumentType.getBool(context, "enabled"))))
+                                .executes(context -> PearlCancelModule.showPearlCancel())))
                 .then(literal("gui").executes(ctx -> {
                     IrcScreen.showGui();
                     return 1;
