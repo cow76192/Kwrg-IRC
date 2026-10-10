@@ -105,7 +105,7 @@ public final class HudElementRegistry {
 
     public static boolean isEnabled(String id) {
         HudElement element = ELEMENTS.get(id);
-        return element == null || element.isEnabled();
+        return element != null && element.isEnabled();
     }
 
     public static void reset(String id) {

@@ -4,10 +4,7 @@ import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.gui.hud.HudElementRegistry;
-import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.gui.util.RenderUtil;
-import me.cookie.kwrg.irc.IrcConfig;
-import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.util.ARGB;
@@ -15,7 +12,6 @@ import net.minecraft.util.Mth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Method;
 
 public class ScoreboardIslandRenderer {
 
@@ -50,9 +46,7 @@ public class ScoreboardIslandRenderer {
     private static boolean externalActive = false;
     private static int externalRejects = 0;
     private static long lastExternalLogMs = 0L;
-    private static long lastBackgroundCheckMs = 0L;
     private static long lastExternalRenderMs = 0L;
-    private static boolean warnedForThirdPartyBackground = false;
     private static GuiGraphicsExtractor activeGraphics = null;
 
     public static boolean isIslandEnabled() {
@@ -190,52 +184,6 @@ public class ScoreboardIslandRenderer {
         externalActive = isIslandEnabled();
         if (externalActive) {
             lastExternalRenderMs = System.currentTimeMillis();
-        }
-        checkThirdPartyBackground();
-    }
-
-    private static void checkThirdPartyBackground() {
-        if (!isIslandEnabled()) {
-            warnedForThirdPartyBackground = false;
-            return;
-        }
-
-        long now = System.currentTimeMillis();
-        if (now - lastBackgroundCheckMs < 1000L) return;
-        lastBackgroundCheckMs = now;
-
-        if (!isThirdPartyActive() || !kwrg$hasThirdPartyBackground()) {
-            warnedForThirdPartyBackground = false;
-            return;
-        }
-
-        if (warnedForThirdPartyBackground) return;
-        warnedForThirdPartyBackground = true;
-
-        HudElementRegistry.get(HudElementRegistry.SCOREBOARD).setEnabled(false);
-        IrcConfig.save();
-        LOGGER.warn("[ScoreboardIsland] third-party scoreboard background is a resource pack texture, DynamicScoreboard disabled");
-        ChatNotifier.send("§cSkyHanni 自定义计分板启用了自定义背景（材质包覆盖），灵动效果无法叠加，已自动关闭 DynamicScoreboard。",
-                NotificationType.WARN);
-    }
-
-    private static boolean kwrg$hasThirdPartyBackground() {
-        try {
-            Class<?> scoreboardClass = Class.forName("at.hannibal2.skyhanni.features.gui.customscoreboard.CustomScoreboard");
-            Object instance = scoreboardClass.getField("INSTANCE").get(null);
-            Object config = null;
-            for (Method method : scoreboardClass.getMethods()) {
-                if (method.getParameterCount() == 0 && method.getName().startsWith("getConfig")) {
-                    config = method.invoke(instance);
-                    break;
-                }
-            }
-            if (config == null) return false;
-
-            Object background = config.getClass().getMethod("getBackground").invoke(config);
-            return background != null && (Boolean) background.getClass().getMethod("getEnabled").invoke(background);
-        } catch (Throwable ignored) {
-            return false;
         }
     }
 
