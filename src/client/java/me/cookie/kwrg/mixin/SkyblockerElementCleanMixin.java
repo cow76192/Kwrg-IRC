@@ -22,8 +22,7 @@ public abstract class SkyblockerElementCleanMixin {
 
     @Inject(
             method = "extractWidgetRenderState",
-            at = @At("HEAD")
-    )
+            at = @At("HEAD"), require = 0)
     private void kwrg$onExtractWidgetRenderStateHead(GuiGraphicsExtractor context, float delta, CallbackInfo ci) {
         this.kwrg$savedOpacity = this.backgroundOpacity;
         if (DynamicIslandRenderer.isTabFeatureOn() && DynamicIslandRenderer.getTabProgress() > 0.005f) {
@@ -33,8 +32,7 @@ public abstract class SkyblockerElementCleanMixin {
 
     @Inject(
             method = "extractWidgetRenderState",
-            at = @At("TAIL")
-    )
+            at = @At("TAIL"), require = 0)
     private void kwrg$onExtractWidgetRenderStateTail(GuiGraphicsExtractor context, float delta, CallbackInfo ci) {
         this.backgroundOpacity = this.kwrg$savedOpacity;
     }

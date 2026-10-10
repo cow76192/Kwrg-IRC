@@ -1,6 +1,8 @@
 package me.cookie.kwrg.mixin;
 
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.render.ScoreboardIslandRenderer;
+import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
@@ -19,7 +21,7 @@ import java.lang.reflect.Method;
 public abstract class SkyHanniRenderUtilsMixin {
 
     @Unique private static final Logger LOGGER = LoggerFactory.getLogger("kwrg-scoreboard");
-    @Unique private static boolean kwrg$failureLogged = false;
+    @Unique private static boolean kwrg$bridgeDisabled = false;
     @Unique private static Method kwrg$absXMethod;
     @Unique private static Method kwrg$absYMethod;
     @Unique private static Method kwrg$posScaleMethod;
@@ -32,7 +34,7 @@ public abstract class SkyHanniRenderUtilsMixin {
     @Inject(method = "renderRenderable", at = @At("HEAD"), require = 0)
     private void kwrg$beforeRenderable(@Coerce Object position, @Coerce Object renderable, String label, boolean visible,
                                        CallbackInfo ci) {
-        if (!ScoreboardIslandRenderer.isExternalSourceActive()) return;
+        if (kwrg$bridgeDisabled || !ScoreboardIslandRenderer.isExternalSourceActive()) return;
 
         try {
             kwrg$resolveMembers(position, renderable);
@@ -55,10 +57,12 @@ public abstract class SkyHanniRenderUtilsMixin {
 
     @Unique
     private static void kwrg$reportFailure(Throwable error) {
-        if (kwrg$failureLogged) return;
+        if (kwrg$bridgeDisabled) return;
 
-        kwrg$failureLogged = true;
+        kwrg$bridgeDisabled = true;
         LOGGER.warn("[DynamicScoreboard] SkyHanni scoreboard interop disabled, reflection failed: {}", error.toString());
+        ChatNotifier.send("§cSkyHanni 计分板互操作不兼容（接口变动），已停用灵动岛对 SkyHanni 计分板的接管。",
+                NotificationType.WARN);
     }
 
     @Inject(method = "renderRenderable", at = @At("RETURN"), require = 0)

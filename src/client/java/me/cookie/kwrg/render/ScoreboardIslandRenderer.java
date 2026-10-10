@@ -102,6 +102,7 @@ public class ScoreboardIslandRenderer {
         if (activeGraphics != null) {
             LOGGER.warn("[ScoreboardIsland] releasing render state leaked from the previous frame");
             endIsland();
+            externalActive = false;
         }
 
         float sizeEase = 1.0f - (float) Math.exp(-dt / SIZE_SMOOTH_TAU);

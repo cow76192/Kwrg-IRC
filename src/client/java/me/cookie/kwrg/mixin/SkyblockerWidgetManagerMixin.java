@@ -18,8 +18,7 @@ public abstract class SkyblockerWidgetManagerMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/client/KeyMapping;isDown()Z"
-            )
-    )
+            ), require = 0)
     private static boolean kwrg$keepTabRenderingOnRelease(KeyMapping keyMapping, Operation<Boolean> original) {
         boolean down = original.call(keyMapping);
         if (down) return true;

@@ -65,7 +65,7 @@ public abstract class SkyblockerTabMixin {
         }
     }
 
-    @Inject(method = "extractRenderStates", at = @At("HEAD"))
+    @Inject(method = "extractRenderStates", at = @At("HEAD"), require = 0)
     private void kwrg$onExtractStatesHead(@Coerce Object graphicsObj, int screenWidth, int screenHeight, boolean config, CallbackInfo ci) {
         kwrg$scissored = false;
         kwrg$shifted = false;
@@ -99,7 +99,7 @@ public abstract class SkyblockerTabMixin {
         }
     }
 
-    @Inject(method = "extractRenderStates", at = @At("RETURN"))
+    @Inject(method = "extractRenderStates", at = @At("RETURN"), require = 0)
     private void kwrg$onExtractStatesReturn(@Coerce Object graphicsObj, int screenWidth, int screenHeight, boolean config, CallbackInfo ci) {
         if (kwrg$shifted) {
             kwrg$shifted = false;

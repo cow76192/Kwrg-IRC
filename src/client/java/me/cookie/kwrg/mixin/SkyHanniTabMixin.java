@@ -20,7 +20,7 @@ public abstract class SkyHanniTabMixin {
 
     @Unique private boolean kwrg$translated = false;
 
-    @Inject(method = "drawTabList", at = @At("HEAD"))
+    @Inject(method = "drawTabList", at = @At("HEAD"), require = 0)
     private void kwrg$onDrawTabListHead(CallbackInfo ci) {
         DynamicIslandRenderer.setSkyHanniInstance(this);
         DynamicIslandRenderer.markSkyHanniTabRendered();
@@ -34,7 +34,7 @@ public abstract class SkyHanniTabMixin {
         }
     }
 
-    @Inject(method = "drawTabList", at = @At("RETURN"))
+    @Inject(method = "drawTabList", at = @At("RETURN"), require = 0)
     private void kwrg$onDrawTabListReturn(CallbackInfo ci) {
         if (kwrg$translated) {
             kwrg$translated = false;
@@ -48,8 +48,7 @@ public abstract class SkyHanniTabMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lat/hannibal2/skyhanni/features/misc/compacttablist/TabListRenderer;drawColumns(IILjava/util/List;)V"
-            )
-    )
+            ), require = 0)
     private void kwrg$onDrawColumns(@Coerce Object instance, int x, int headerY, List<?> columns, Operation<Void> original) {
         int screenW = Minecraft.getInstance().getWindow().getGuiScaledWidth();
         int totalWidth = Math.max(160, (screenW / 2 - x) * 2);
@@ -75,8 +74,7 @@ public abstract class SkyHanniTabMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lat/hannibal2/skyhanni/utils/GuiRenderUtils;drawRect(IIIII)V"
-            )
-    )
+            ), require = 0)
     private void kwrg$suppressOuterBlackRect(@Coerce Object utils, int x1, int y1, int x2, int y2, int color, Operation<Void> original) {
         if (DynamicIslandRenderer.isTabFeatureOn() && DynamicIslandRenderer.getTabProgress() > 0.005f) {
             return;
@@ -89,8 +87,7 @@ public abstract class SkyHanniTabMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lat/hannibal2/skyhanni/utils/GuiRenderUtils;drawRect(IIIII)V"
-            )
-    )
+            ), require = 0)
     private void kwrg$suppressColumnGreyRect(@Coerce Object utils, int x1, int y1, int x2, int y2, int color, Operation<Void> original) {
         if (DynamicIslandRenderer.isTabFeatureOn() && DynamicIslandRenderer.getTabProgress() > 0.005f) {
             return;
