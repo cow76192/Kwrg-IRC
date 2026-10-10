@@ -9,7 +9,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -128,12 +127,10 @@ public final class HudElementRegistry {
         float fromY = bounds[1] - baseY;
 
         applyDefaults(current, defaults);
-        current.offsetX = fromX;
-        current.offsetY = fromY;
         current.sanitize();
 
-        RESET_ANIMATIONS.put(id, new ResetAnimation(current.offsetX, current.offsetY, System.currentTimeMillis()));
-        IrcConfig.saveDelayed(200);
+        RESET_ANIMATIONS.put(id, new ResetAnimation(fromX, fromY, System.currentTimeMillis()));
+        IrcConfig.save();
     }
 
     private static void applyDefaults(HudElement.State current, HudElement.State defaults) {
@@ -155,31 +152,29 @@ public final class HudElementRegistry {
         RESET_ANIMATIONS.remove(id);
     }
 
-    public static void tickResetAnimations() {
-        if (RESET_ANIMATIONS.isEmpty()) return;
+    public static float resolveOffsetX(String id) {
+        ResetAnimation animation = RESET_ANIMATIONS.get(id);
+        HudElement.State state = state(id);
+        if (animation == null) return state.offsetX;
 
-        long now = System.currentTimeMillis();
-        Iterator<Map.Entry<String, ResetAnimation>> iterator = RESET_ANIMATIONS.entrySet().iterator();
+        return Mth.lerp(resetAnimEase(id, animation), animation.fromX, state.offsetX);
+    }
 
-        while (iterator.hasNext()) {
-            Map.Entry<String, ResetAnimation> entry = iterator.next();
-            ResetAnimation animation = entry.getValue();
+    public static float resolveOffsetY(String id) {
+        ResetAnimation animation = RESET_ANIMATIONS.get(id);
+        HudElement.State state = state(id);
+        if (animation == null) return state.offsetY;
 
-            float raw = Mth.clamp((now - animation.startMs) / (float) RESET_ANIM_DURATION_MS, 0.0f, 1.0f);
-            float eased = RenderUtil.easeOutCubic(raw);
+        return Mth.lerp(resetAnimEase(id, animation), animation.fromY, state.offsetY);
+    }
 
-            HudElement.State state = state(entry.getKey());
-            state.offsetX = Mth.lerp(eased, animation.fromX, 0.0f);
-            state.offsetY = Mth.lerp(eased, animation.fromY, 0.0f);
-            state.sanitize();
-
-            if (raw >= 1.0f) {
-                state.offsetX = 0.0f;
-                state.offsetY = 0.0f;
-                IrcConfig.saveDelayed(200);
-                iterator.remove();
-            }
+    private static float resetAnimEase(String id, ResetAnimation animation) {
+        float raw = Mth.clamp((System.currentTimeMillis() - animation.startMs) / (float) RESET_ANIM_DURATION_MS, 0.0f, 1.0f);
+        if (raw >= 1.0f) {
+            RESET_ANIMATIONS.remove(id);
+            return 1.0f;
         }
+        return RenderUtil.easeOutCubic(raw);
     }
 
     public static void setEditorPreview(boolean enabled) {

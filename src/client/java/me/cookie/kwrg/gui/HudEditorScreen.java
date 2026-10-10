@@ -76,7 +76,6 @@ public class HudEditorScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
 
         DynamicIslandRenderer.updateAnimationState();
-        HudElementRegistry.tickResetAnimations();
         OwoUIGraphics owo = OwoUIGraphics.of(graphics);
 
         List<HudElement> elements = HudElementRegistry.all();

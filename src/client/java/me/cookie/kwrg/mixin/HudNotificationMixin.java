@@ -44,7 +44,6 @@ public abstract class HudNotificationMixin {
         me.cookie.kwrg.render.DynamicIslandRenderer.beginTabShiftFrame();
         me.cookie.kwrg.render.DynamicIslandRenderer.updateAnimationState();
         me.cookie.kwrg.render.ScoreboardIslandRenderer.tick();
-        me.cookie.kwrg.gui.hud.HudElementRegistry.tickResetAnimations();
     }
 
     @Inject(method = "extractRenderState", at = @At("TAIL"))

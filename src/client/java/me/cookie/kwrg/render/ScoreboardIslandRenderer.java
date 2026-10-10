@@ -79,8 +79,10 @@ public class ScoreboardIslandRenderer {
         if (mc.getWindow() == null) return new float[]{0.0f, 0.0f};
 
         HudElement.State state = HudElementRegistry.state(HudElementRegistry.SCOREBOARD);
-        float x = HudElement.Anchor.resolveX(state.anchorX, state.marginX, state.offsetX, width, mc.getWindow().getGuiScaledWidth());
-        float y = HudElement.Anchor.resolveY(state.anchorY, state.marginY, state.offsetY, height, mc.getWindow().getGuiScaledHeight());
+        float x = HudElement.Anchor.resolveX(state.anchorX, state.marginX,
+                HudElementRegistry.resolveOffsetX(HudElementRegistry.SCOREBOARD), width, mc.getWindow().getGuiScaledWidth());
+        float y = HudElement.Anchor.resolveY(state.anchorY, state.marginY,
+                HudElementRegistry.resolveOffsetY(HudElementRegistry.SCOREBOARD), height, mc.getWindow().getGuiScaledHeight());
         return new float[]{x, y};
     }
 

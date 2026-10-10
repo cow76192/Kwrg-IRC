@@ -278,7 +278,7 @@ public final class RenderUtil {
 
     public static float easeOutCubic(float progress) {
         float p = Mth.clamp(progress, 0.0f, 1.0f);
-        return 1.0f - (float) Math.pow(1.0f - p, 4.0f);
+        return 1.0f - (float) Math.pow(1.0f - p, 3.0f);
     }
 
     public static float easeOutQuint(float progress) {

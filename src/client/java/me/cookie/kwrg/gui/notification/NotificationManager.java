@@ -180,8 +180,10 @@ public class NotificationManager {
 
         HudElement.State state = HudElementRegistry.state(HudElementRegistry.NOTIFICATIONS);
         float[] size = measureGroup();
-        float groupX = HudElement.Anchor.resolveX(state.anchorX, state.marginX, state.offsetX, size[0], screenW);
-        float groupY = HudElement.Anchor.resolveY(state.anchorY, state.marginY, state.offsetY, size[1], screenH);
+        float groupX = HudElement.Anchor.resolveX(state.anchorX, state.marginX,
+                HudElementRegistry.resolveOffsetX(HudElementRegistry.NOTIFICATIONS), size[0], screenW);
+        float groupY = HudElement.Anchor.resolveY(state.anchorY, state.marginY,
+                HudElementRegistry.resolveOffsetY(HudElementRegistry.NOTIFICATIONS), size[1], screenH);
         return new float[]{groupX, groupY, size[0], size[1]};
     }
 

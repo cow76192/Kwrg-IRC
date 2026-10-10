@@ -96,7 +96,8 @@ public class DynamicIslandRenderer {
         if (mc.getWindow() == null) return width / 2.0f;
 
         HudElement.State state = HudElementRegistry.state(HudElementRegistry.ISLAND);
-        return HudElement.Anchor.resolveCenterX(state.anchorX, state.marginX, state.offsetX, width,
+        return HudElement.Anchor.resolveCenterX(state.anchorX, state.marginX,
+                HudElementRegistry.resolveOffsetX(HudElementRegistry.ISLAND), width,
                 mc.getWindow().getGuiScaledWidth());
     }
 
@@ -105,7 +106,8 @@ public class DynamicIslandRenderer {
         if (mc.getWindow() == null) return 0.0f;
 
         HudElement.State state = HudElementRegistry.state(HudElementRegistry.ISLAND);
-        return HudElement.Anchor.resolveY(state.anchorY, state.marginY, state.offsetY, height,
+        return HudElement.Anchor.resolveY(state.anchorY, state.marginY,
+                HudElementRegistry.resolveOffsetY(HudElementRegistry.ISLAND), height,
                 mc.getWindow().getGuiScaledHeight());
     }
 
