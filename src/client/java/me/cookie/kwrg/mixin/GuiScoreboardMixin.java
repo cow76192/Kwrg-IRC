@@ -52,7 +52,7 @@ public abstract class GuiScoreboardMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fill(IIIII)V")
     )
     private void kwrg$captureAndSuppressBackground(GuiGraphicsExtractor graphics, int minX, int minY, int maxX, int maxY, int color) {
-        if (!kwrg$skyblockSidebar) {
+        if (!kwrg$skyblockSidebar || ScoreboardIslandRenderer.isThirdPartyActive()) {
             graphics.fill(minX, minY, maxX, maxY, color);
             return;
         }

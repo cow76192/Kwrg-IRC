@@ -2,7 +2,6 @@ package me.cookie.kwrg.irc;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
@@ -68,14 +67,10 @@ public class IrcConfig {
     public boolean islandShowRam = false;
     public boolean islandShowGpu = false;
     public boolean islandShowCpu = false;
-    public boolean isShadowEnabled = true;
-    public float islandOpacity  = 0.2f;
     public float tabOpacity = 1.0f;
     public boolean dynamicTab = true;
     public boolean islandPosAffectsTab = true;
     public boolean scoreboardHideScores = false;
-    public float scoreboardOpacity = 1.0f;
-    public int scoreboardPadding = 6;
     public Map<String, HudElement.State> hudElements = new LinkedHashMap<>();
 
     public boolean disableBlur = false;
@@ -164,7 +159,7 @@ public class IrcConfig {
                 String json = Files.readString(profilePath);
 
                 JsonObject jsonObj = GSON.fromJson(json, JsonObject.class);
-                migrateLegacyFields(jsonObj);
+                ConfigMigrator.migrate(jsonObj);
                 IrcConfig loaded = GSON.fromJson(jsonObj, IrcConfig.class);
 
                 if (loaded == null) loaded = new IrcConfig();
@@ -201,106 +196,6 @@ public class IrcConfig {
             LOGGER.error("[Kwrg] 加载配置文件 {}.json 失败", cleanName, e);
         }
         return false;
-    }
-
-    private static void migrateLegacyFields(JsonObject jsonObj) {
-        if (jsonObj == null) return;
-
-        if (jsonObj.has("onlyTab") && !jsonObj.has("onlyApplyToTab")) {
-            jsonObj.add("onlyApplyToTab", jsonObj.get("onlyTab"));
-        }
-        jsonObj.remove("onlyTab");
-        jsonObj.remove("autoTrackPlayer");
-        jsonObj.remove("scoreboardExternalInterop");
-        jsonObj.remove("dynamicIslandShadow");
-
-        migrateIslandPositionFields(jsonObj);
-        migrateIslandToggle(jsonObj);
-        migrateTabOpacity(jsonObj);
-    }
-
-    private static void migrateIslandToggle(JsonObject jsonObj) {
-        boolean hasToggle = jsonObj.has("dynamicIsland");
-        boolean hasTabOnly = jsonObj.has("onlyRenderTab");
-        if (!hasToggle && !hasTabOnly) return;
-
-        boolean islandOn = hasToggle && isLegacyTrue(jsonObj, "dynamicIsland");
-        boolean tabOnly = hasTabOnly && isLegacyTrue(jsonObj, "onlyRenderTab");
-
-        jsonObj.remove("dynamicIsland");
-        jsonObj.remove("onlyRenderTab");
-
-        writeIslandEnabled(jsonObj, islandOn && !tabOnly);
-
-        if (!jsonObj.has("dynamicTab")) {
-            jsonObj.addProperty("dynamicTab", islandOn || tabOnly);
-        }
-    }
-
-    private static void migrateTabOpacity(JsonObject jsonObj) {
-        if (!jsonObj.has("onlyApplyToTab")) return;
-
-        boolean applyToTabOnly = isLegacyTrue(jsonObj, "onlyApplyToTab");
-        jsonObj.remove("onlyApplyToTab");
-
-        if (jsonObj.has("tabOpacity")) return;
-
-        float legacyOpacity = jsonObj.has("islandOpacity") && jsonObj.get("islandOpacity").isJsonPrimitive()
-                ? jsonObj.get("islandOpacity").getAsFloat()
-                : 0.2f;
-
-        jsonObj.addProperty("tabOpacity", legacyOpacity);
-        if (applyToTabOnly) {
-            jsonObj.addProperty("islandOpacity", 1.0f);
-        }
-    }
-
-    private static boolean isLegacyTrue(JsonObject jsonObj, String key) {
-        JsonElement element = jsonObj.get(key);
-        return element != null && element.isJsonPrimitive() && element.getAsBoolean();
-    }
-
-    private static void writeIslandEnabled(JsonObject jsonObj, boolean enabled) {
-        JsonObject hud = jsonObj.has("hudElements") && jsonObj.get("hudElements").isJsonObject()
-                ? jsonObj.getAsJsonObject("hudElements")
-                : new JsonObject();
-
-        JsonObject island = hud.has("dynamicIsland") && hud.get("dynamicIsland").isJsonObject()
-                ? hud.getAsJsonObject("dynamicIsland")
-                : new JsonObject();
-
-        if (!island.has("enabled")) {
-            island.addProperty("enabled", enabled);
-        }
-
-        hud.add("dynamicIsland", island);
-        jsonObj.add("hudElements", hud);
-    }
-
-    private static void migrateIslandPositionFields(JsonObject jsonObj) {
-        String[][] legacy = {
-                {"islandAnchorX", "anchorX"}, {"islandAnchorY", "anchorY"},
-                {"islandOffsetX", "offsetX"}, {"islandOffsetY", "offsetY"}
-        };
-
-        JsonObject island = new JsonObject();
-        boolean hasLegacy = false;
-        for (String[] pair : legacy) {
-            if (jsonObj.has(pair[0])) {
-                island.add(pair[1], jsonObj.get(pair[0]));
-                hasLegacy = true;
-            }
-            jsonObj.remove(pair[0]);
-        }
-        if (!hasLegacy) return;
-
-        JsonObject hud = jsonObj.has("hudElements") && jsonObj.get("hudElements").isJsonObject()
-                ? jsonObj.getAsJsonObject("hudElements")
-                : new JsonObject();
-        if (!hud.has("dynamicIsland")) {
-            hud.add("dynamicIsland", island);
-        }
-        jsonObj.add("hudElements", hud);
     }
 
     public static void createProfile(String profileName) {

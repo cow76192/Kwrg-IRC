@@ -1,4 +1,4 @@
-package me.cookie.kwrg.module.modules.style;
+package me.cookie.kwrg.module.modules.style.dynamic;
 
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
@@ -35,12 +35,12 @@ public class DynamicScoreboardModule extends DynamicModule {
         panel.child(header("面板透明度 (0 = 完全透明)"));
         panel.child(new SlotInputPaneComponent(
                 "透明度",
-                new String[]{String.valueOf(Math.round(config().scoreboardOpacity * 100.0f))},
+                new String[]{String.valueOf(Math.round(elementState().opacity * 100.0f))},
                 new String[]{"%"},
                 values -> {
                     try {
                         int percent = Math.round(Mth.clamp(Float.parseFloat(values[0].trim()), 0.0f, 100.0f));
-                        config().scoreboardOpacity = percent / 100.0f;
+                        elementState().opacity = percent / 100.0f;
                         save();
                         ChatNotifier.send("§aDynamicScoreboard 面板透明度: §e" + percent + "%", NotificationType.SUCCESS);
                     } catch (NumberFormatException e) {
@@ -49,7 +49,7 @@ public class DynamicScoreboardModule extends DynamicModule {
                 },
                 values -> {
                     try {
-                        config().scoreboardOpacity = Mth.clamp(Float.parseFloat(values[0].trim()), 0.0f, 100.0f) / 100.0f;
+                        elementState().opacity = Mth.clamp(Float.parseFloat(values[0].trim()), 0.0f, 100.0f) / 100.0f;
                         saveDelayed();
                     } catch (NumberFormatException ignored) {
                     }
@@ -59,12 +59,12 @@ public class DynamicScoreboardModule extends DynamicModule {
         panel.child(header("边框与文字距离"));
         panel.child(new SlotInputPaneComponent(
                 "间距",
-                new String[]{String.valueOf(config().scoreboardPadding)},
+                new String[]{String.valueOf(elementState().padding)},
                 new String[]{"px"},
                 values -> {
                     try {
                         int padding = Math.round(Mth.clamp(Float.parseFloat(values[0].trim()), 0.0f, 24.0f));
-                        config().scoreboardPadding = padding;
+                        elementState().padding = padding;
                         save();
                         ChatNotifier.send("§aDynamicScoreboard 边框间距: §e" + padding + "px", NotificationType.SUCCESS);
                     } catch (NumberFormatException e) {
@@ -73,7 +73,7 @@ public class DynamicScoreboardModule extends DynamicModule {
                 },
                 values -> {
                     try {
-                        config().scoreboardPadding = Math.round(Mth.clamp(Float.parseFloat(values[0].trim()), 0.0f, 24.0f));
+                        elementState().padding = Math.round(Mth.clamp(Float.parseFloat(values[0].trim()), 0.0f, 24.0f));
                         saveDelayed();
                     } catch (NumberFormatException ignored) {
                     }

@@ -1,4 +1,4 @@
-package me.cookie.kwrg.module.modules.style;
+package me.cookie.kwrg.module.modules.style.dynamic;
 
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;

@@ -9,6 +9,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Coerce;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
 
@@ -16,6 +18,8 @@ import java.lang.reflect.Method;
 @Mixin(targets = "at.hannibal2.skyhanni.utils.RenderUtils", remap = false)
 public abstract class SkyHanniRenderUtilsMixin {
 
+    @Unique private static final Logger LOGGER = LoggerFactory.getLogger("kwrg-scoreboard");
+    @Unique private static boolean kwrg$failureLogged = false;
     @Unique private static Method kwrg$absXMethod;
     @Unique private static Method kwrg$absYMethod;
     @Unique private static Method kwrg$posScaleMethod;
@@ -44,8 +48,17 @@ public abstract class SkyHanniRenderUtilsMixin {
             if (!(graphics instanceof GuiGraphicsExtractor extractor)) return;
 
             ScoreboardIslandRenderer.renderExternalContent(extractor, x, y, width, height);
-        } catch (Throwable ignored) {
+        } catch (Throwable error) {
+            kwrg$reportFailure(error);
         }
+    }
+
+    @Unique
+    private static void kwrg$reportFailure(Throwable error) {
+        if (kwrg$failureLogged) return;
+
+        kwrg$failureLogged = true;
+        LOGGER.warn("[DynamicScoreboard] SkyHanni scoreboard interop disabled, reflection failed: {}", error.toString());
     }
 
     @Inject(method = "renderRenderable", at = @At("RETURN"), require = 0)

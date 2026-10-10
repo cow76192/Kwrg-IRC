@@ -5,6 +5,7 @@ import me.cookie.kwrg.module.modules.debug.*;
 import me.cookie.kwrg.module.modules.functions.*;
 import me.cookie.kwrg.module.modules.play.PlayModule;
 import me.cookie.kwrg.module.modules.style.*;
+import me.cookie.kwrg.module.modules.style.dynamic.*;
 
 import java.util.*;
 

@@ -40,6 +40,7 @@ public final class HudElementRegistry {
     static {
         HudElement.State islandDefault = HudElement.State.topCenter();
         islandDefault.enabled = false;
+        islandDefault.opacity = 0.2f;
 
         register(new HudElement(ISLAND, "灵动岛", islandDefault)
                 .enabled(() -> state(ISLAND).enabled, value -> {
@@ -59,6 +60,8 @@ public final class HudElementRegistry {
 
         HudElement.State scoreboardDefault = HudElement.State.rightMiddle(3.0f);
         scoreboardDefault.enabled = false;
+        scoreboardDefault.opacity = 1.0f;
+        scoreboardDefault.padding = 6;
 
         register(new HudElement(SCOREBOARD, "DynamicScoreboard", scoreboardDefault)
                 .enabled(() -> state(SCOREBOARD).enabled, value -> {

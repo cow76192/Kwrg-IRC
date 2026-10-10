@@ -51,6 +51,7 @@ public class ScoreboardIslandRenderer {
     private static int externalRejects = 0;
     private static long lastExternalLogMs = 0L;
     private static long lastBackgroundCheckMs = 0L;
+    private static long lastExternalRenderMs = 0L;
     private static boolean warnedForThirdPartyBackground = false;
     private static GuiGraphicsExtractor activeGraphics = null;
 
@@ -60,6 +61,10 @@ public class ScoreboardIslandRenderer {
 
     public static boolean hasActiveIsland() {
         return activeGraphics != null;
+    }
+
+    public static boolean isThirdPartyActive() {
+        return lastExternalRenderMs > 0L && System.currentTimeMillis() - lastExternalRenderMs < 250L;
     }
 
     public static void setEditorPreview(boolean enabled) {
@@ -117,7 +122,7 @@ public class ScoreboardIslandRenderer {
         }
 
         boolean continuous = hasEverSeen && (now - lastSeenMs) < CONTINUOUS_TIMEOUT_MS;
-        float targetAlpha = (continuous || editorPreview) ? Mth.clamp(IrcConfig.get().scoreboardOpacity, 0.0f, 1.0f) : 0.0f;
+        float targetAlpha = (continuous || editorPreview) ? Mth.clamp(HudElementRegistry.state(HudElementRegistry.SCOREBOARD).opacity, 0.0f, 1.0f) : 0.0f;
         currentAlpha = Mth.lerp(Mth.clamp(dt * ALPHA_ANIM_SPEED, 0.0f, 1.0f), currentAlpha, targetAlpha);
         if (currentAlpha < 0.005f) currentAlpha = 0.0f;
     }
@@ -135,8 +140,9 @@ public class ScoreboardIslandRenderer {
 
     public static boolean beginIsland(GuiGraphicsExtractor graphics, int minX, int minY, int maxX, int maxY) {
         if (graphics == null || !isIslandEnabled()) return false;
+        if (activeGraphics != null) return false;
 
-        float pad = Math.max(0.0f, IrcConfig.get().scoreboardPadding);
+        float pad = Math.max(0.0f, HudElementRegistry.state(HudElementRegistry.SCOREBOARD).padding);
         updateTargetBounds(Math.round(maxX - minX + pad * 2.0f), Math.round(maxY - minY + pad * 2.0f));
 
         drawnThisFrame = true;
@@ -145,7 +151,9 @@ public class ScoreboardIslandRenderer {
         float y = smoothY;
         if (x < 0.0f || y < 0.0f) return false;
 
-        drawPanel(OwoUIGraphics.of(graphics), x, y, smoothW, smoothH, currentAlpha);
+        if (currentAlpha > 0.005f) {
+            drawPanel(OwoUIGraphics.of(graphics), x, y, smoothW, smoothH, currentAlpha);
+        }
 
         graphics.pose().pushMatrix();
         graphics.pose().translate(x + pad - minX, y + pad - minY);
@@ -179,6 +187,9 @@ public class ScoreboardIslandRenderer {
     public static void beginExternalSource() {
         endIsland();
         externalActive = isIslandEnabled();
+        if (externalActive) {
+            lastExternalRenderMs = System.currentTimeMillis();
+        }
         checkThirdPartyBackground();
     }
 
@@ -192,7 +203,7 @@ public class ScoreboardIslandRenderer {
         if (now - lastBackgroundCheckMs < 1000L) return;
         lastBackgroundCheckMs = now;
 
-        if (!kwrg$hasThirdPartyBackground()) {
+        if (!isThirdPartyActive() || !kwrg$hasThirdPartyBackground()) {
             warnedForThirdPartyBackground = false;
             return;
         }
@@ -210,9 +221,6 @@ public class ScoreboardIslandRenderer {
     private static boolean kwrg$hasThirdPartyBackground() {
         try {
             Class<?> scoreboardClass = Class.forName("at.hannibal2.skyhanni.features.gui.customscoreboard.CustomScoreboard");
-            boolean active = (Boolean) scoreboardClass.getMethod("isHideVanillaScoreboardEnabled").invoke(null);
-            if (!active) return false;
-
             Object instance = scoreboardClass.getField("INSTANCE").get(null);
             Object config = null;
             for (Method method : scoreboardClass.getMethods()) {
@@ -283,7 +291,7 @@ public class ScoreboardIslandRenderer {
         Color background = Color.ofArgb(ARGB.color(bgAlpha, 17, 22, 31));
         Color border = Color.ofArgb(ARGB.color(borderAlpha, 84, 152, 178));
 
-        if (IrcConfig.get().isShadowEnabled) {
+        if (HudElementRegistry.state(HudElementRegistry.SCOREBOARD).shadow) {
             RenderUtil.drawSoftDropShadow(graphics, x, y, width, height, CORNER_RADIUS,
                     DynamicIslandRenderer.getShadowBlur(), DynamicIslandRenderer.getShadowOffsetY(),
                     DynamicIslandRenderer.getShadowBaseAlpha(), alpha);

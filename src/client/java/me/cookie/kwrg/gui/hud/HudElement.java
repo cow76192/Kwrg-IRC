@@ -81,6 +81,9 @@ public class HudElement {
         public float offsetX = 0.0f;
         public float offsetY = 0.0f;
         public boolean enabled = true;
+        public float opacity = 1.0f;
+        public boolean shadow = true;
+        public int padding = 6;
 
         public static State topCenter() {
             State state = new State();
@@ -119,6 +122,10 @@ public class HudElement {
             if (!Float.isFinite(offsetY)) offsetY = 0.0f;
             offsetX = Mth.clamp(offsetX, -4000.0f, 4000.0f);
             offsetY = Mth.clamp(offsetY, -4000.0f, 4000.0f);
+
+            if (!Float.isFinite(opacity)) opacity = 1.0f;
+            opacity = Mth.clamp(opacity, 0.0f, 1.0f);
+            padding = Mth.clamp(padding, 0, 64);
         }
 
         public State copy() {
@@ -130,6 +137,9 @@ public class HudElement {
             copy.offsetX = this.offsetX;
             copy.offsetY = this.offsetY;
             copy.enabled = this.enabled;
+            copy.opacity = this.opacity;
+            copy.shadow = this.shadow;
+            copy.padding = this.padding;
             return copy;
         }
     }

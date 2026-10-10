@@ -1,4 +1,4 @@
-package me.cookie.kwrg.module.modules.style;
+package me.cookie.kwrg.module.modules.style.dynamic;
 
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
@@ -28,12 +28,12 @@ public class DynamicIslandModule extends DynamicModule {
         panel.child(header("外观设置"));
         panel.child(new SlotInputPaneComponent(
                 "灵动岛透明度",
-                new String[]{String.valueOf(Math.round(config().islandOpacity * 100.0f))},
+                new String[]{String.valueOf(Math.round(elementState().opacity * 100.0f))},
                 new String[]{"%"},
                 values -> {
                     try {
                         int percent = Math.round(Mth.clamp(Float.parseFloat(values[0].trim()), 0.0f, 100.0f));
-                        config().islandOpacity = percent / 100.0f;
+                        elementState().opacity = percent / 100.0f;
                         save();
                         ChatNotifier.send("§a灵动岛透明度: §e" + percent + "%", NotificationType.SUCCESS);
                     } catch (NumberFormatException e) {
@@ -42,15 +42,15 @@ public class DynamicIslandModule extends DynamicModule {
                 },
                 values -> {
                     try {
-                        config().islandOpacity = Mth.clamp(Float.parseFloat(values[0].trim()), 0.0f, 100.0f) / 100.0f;
+                        elementState().opacity = Mth.clamp(Float.parseFloat(values[0].trim()), 0.0f, 100.0f) / 100.0f;
                         saveDelayed();
                     } catch (NumberFormatException ignored) {
                     }
                 }
         ).bounds(new int[][]{{0, 100}}).dragStep(5).precision(0).dragSensitivity(6.0));
 
-        panel.child(toggle("shadow", () -> config().isShadowEnabled, () -> {
-            config().isShadowEnabled = !config().isShadowEnabled;
+        panel.child(toggle("shadow", () -> elementState().shadow, () -> {
+            elementState().shadow = !elementState().shadow;
             save();
         }));
 

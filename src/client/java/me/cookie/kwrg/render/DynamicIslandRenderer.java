@@ -200,7 +200,7 @@ public class DynamicIslandRenderer {
     }
 
     public static boolean isShadowEnabled() {
-        return IrcConfig.get().isShadowEnabled;
+        return HudElementRegistry.state(HudElementRegistry.ISLAND).shadow;
     }
 
     public static float getShadowBlur() {
@@ -381,7 +381,7 @@ public class DynamicIslandRenderer {
         tabShiftY = curRenderY - smoothTabY;
 
         float effectiveOpacity = DynamicIslandRenderer.isEnabled()
-                ? Mth.lerp(tabEase, config.islandOpacity, config.tabOpacity)
+                ? Mth.lerp(tabEase, HudElementRegistry.state(HudElementRegistry.ISLAND).opacity, config.tabOpacity)
                 : config.tabOpacity;
         float expectedTargetAlpha = shouldShow ? (openEase * effectiveOpacity) : 0.0f;
         updateAlphaAnimation(expectedTargetAlpha, dt);

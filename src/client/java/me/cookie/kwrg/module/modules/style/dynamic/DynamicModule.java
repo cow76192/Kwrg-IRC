@@ -1,8 +1,9 @@
-package me.cookie.kwrg.module.modules.style;
+package me.cookie.kwrg.module.modules.style.dynamic;
 
 import me.cookie.kwrg.gui.HudEditorScreen;
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
+import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.module.Category;
@@ -50,6 +51,10 @@ public abstract class DynamicModule extends Module {
 
     protected void openEditor() {
         HudEditorScreen.open(elementId);
+    }
+
+    protected HudElement.State elementState() {
+        return HudElementRegistry.state(elementId);
     }
 
     protected static IrcConfig config() {

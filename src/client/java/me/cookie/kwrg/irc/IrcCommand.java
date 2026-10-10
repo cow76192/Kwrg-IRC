@@ -1,6 +1,7 @@
 package me.cookie.kwrg.irc;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
@@ -330,16 +331,17 @@ public class IrcCommand {
                     IrcScreen.showGui();
                     return 1;
                 }))
-                .then(literal("hudeditor").executes(ctx -> {
-                    openHudEditor();
-                    return 1;
-                }))
-                .then(literal("hud").executes(ctx -> {
-                    openHudEditor();
-                    return 1;
-                }));
+                .then(hudEditorAlias("hudeditor"))
+                .then(hudEditorAlias("hud"));
 
         dispatcher.register(ircRoot);
+    }
+
+    private static LiteralArgumentBuilder<FabricClientCommandSource> hudEditorAlias(String alias) {
+        return literal(alias).executes(ctx -> {
+            openHudEditor();
+            return 1;
+        });
     }
 
     private static void openHudEditor() {
