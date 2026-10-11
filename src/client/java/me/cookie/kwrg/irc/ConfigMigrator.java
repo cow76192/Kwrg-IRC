@@ -62,6 +62,7 @@ public final class ConfigMigrator {
     }
 
     private static void migrateElementAppearance(JsonObject jsonObj) {
+        boolean hadLegacyShadow = jsonObj.has("isShadowEnabled");
         boolean legacyShadow = isLegacyTrue(jsonObj, "isShadowEnabled");
 
         moveIntoElement(jsonObj, "islandOpacity", "dynamicIsland", "opacity");
@@ -69,8 +70,8 @@ public final class ConfigMigrator {
         moveIntoElement(jsonObj, "scoreboardOpacity", "scoreboard", "opacity");
         moveIntoElement(jsonObj, "scoreboardPadding", "scoreboard", "padding");
 
-        if (legacyShadow) {
-            writeElementPrimitive(jsonObj, "scoreboard", "shadow", true);
+        if (hadLegacyShadow) {
+            writeElementPrimitive(jsonObj, "scoreboard", "shadow", legacyShadow);
         }
     }
 
