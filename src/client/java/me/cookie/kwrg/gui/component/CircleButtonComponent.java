@@ -5,6 +5,7 @@ import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.CursorStyle;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import io.wispforest.owo.ui.core.Sizing;
+import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -77,12 +78,12 @@ public class CircleButtonComponent extends BaseUIComponent {
         double currentRadius = (BASE_RADIUS + this.hoverAnimation * 1.5) * (1.0 - this.clickFeedback * 0.12);
 
         int bgAlpha = (int) (255 * this.visualAlpha);
-        Color solidBgColor = RenderUtil.withAlpha(BG_COLOR_RGB, bgAlpha);
-        Color solidBgFade = RenderUtil.withAlpha(BG_COLOR_RGB, 0);
+        Color solidBgColor = AnimationUtil.withAlpha(BG_COLOR_RGB, bgAlpha);
+        Color solidBgFade = AnimationUtil.withAlpha(BG_COLOR_RGB, 0);
 
         int lineAlpha = (int) (255 * (0.45f + this.hoverAnimation * 0.45f) * this.visualAlpha);
-        Color borderPeakColor = RenderUtil.withAlpha(0xFFFFFF, lineAlpha);
-        Color borderFadeColor = RenderUtil.withAlpha(0xFFFFFF, 0);
+        Color borderPeakColor = AnimationUtil.withAlpha(0xFFFFFF, lineAlpha);
+        Color borderFadeColor = AnimationUtil.withAlpha(0xFFFFFF, 0);
 
         RenderUtil.drawAACircle(graphics, cx, cy, currentRadius, solidBgColor, solidBgFade);
         RenderUtil.drawAARing(graphics, cx, cy, currentRadius, borderPeakColor, borderFadeColor);
@@ -105,7 +106,7 @@ public class CircleButtonComponent extends BaseUIComponent {
             float titleScale = 0.85f;
             float textW = font.width(this.title) * titleScale;
             float textH = font.lineHeight * titleScale;
-            int textColor = RenderUtil.withAlpha(this.hovered ? 0xFFFFFF : 0x90A4AE, (int) (255 * this.visualAlpha)).argb();
+            int textColor = AnimationUtil.withAlpha(this.hovered ? 0xFFFFFF : 0x90A4AE, (int) (255 * this.visualAlpha)).argb();
 
             RenderUtil.drawSmoothText(graphics, Component.literal(this.title), -textW / 2.0f, -textH / 2.0f, titleScale, textColor);
         }

@@ -4,6 +4,7 @@ import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.gui.hud.HudElementRegistry;
+import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.HardwareMetricsTracker;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.gui.util.TpsTracker;
@@ -254,14 +255,14 @@ public class DynamicIslandRenderer {
 
         if (tabWidthTimer < 1.0f) {
             tabWidthTimer = Math.min(1.0f, tabWidthTimer + dt / 0.35f);
-            smoothTabW = Mth.lerp(RenderUtil.easeSmoothDecel(tabWidthTimer), startTabW, targetTabW);
+            smoothTabW = Mth.lerp(AnimationUtil.easeSmoothDecel(tabWidthTimer), startTabW, targetTabW);
         } else {
             smoothTabW = targetTabW;
         }
 
         if (tabHeightTimer < 1.0f) {
             tabHeightTimer = Math.min(1.0f, tabHeightTimer + dt / 0.35f);
-            smoothTabH = Mth.lerp(RenderUtil.easeSmoothDecel(tabHeightTimer), startTabH, targetTabH);
+            smoothTabH = Mth.lerp(AnimationUtil.easeSmoothDecel(tabHeightTimer), startTabH, targetTabH);
         } else {
             smoothTabH = targetTabH;
         }
@@ -283,7 +284,7 @@ public class DynamicIslandRenderer {
             wasSkyblockerInCurrentSession = false;
         }
 
-        return RenderUtil.easeSmoothDecel(tabProgress);
+        return AnimationUtil.easeSmoothDecel(tabProgress);
     }
 
     private static float computeContentWidth() {
@@ -349,7 +350,7 @@ public class DynamicIslandRenderer {
         boolean shouldShow = shouldIslandShow(config);
         float targetOpen = shouldShow ? 1.0f : 0.0f;
         islandOpenProgress = Mth.clamp(islandOpenProgress + (targetOpen - islandOpenProgress) * dt * 6.0f, 0.0f, 1.0f);
-        float openEase = RenderUtil.easeSmoothDecel(islandOpenProgress);
+        float openEase = AnimationUtil.easeSmoothDecel(islandOpenProgress);
 
         updateTabShift(screenW, screenH);
 
@@ -590,7 +591,7 @@ public class DynamicIslandRenderer {
             }
             if (animTimer < 1.0f) {
                 animTimer = Math.min(1.0f, animTimer + dt / WIDTH_ANIM_DURATION);
-                float ease = RenderUtil.easeSmoothDecel(animTimer);
+                float ease = AnimationUtil.easeSmoothDecel(animTimer);
                 currentWidth = Mth.lerp(ease, startWidth, targetWidth);
             } else {
                 currentWidth = targetWidth;
@@ -650,14 +651,14 @@ public class DynamicIslandRenderer {
 
         if (tabWidthTimer < 1.0f) {
             tabWidthTimer = Math.min(1.0f, tabWidthTimer + dt / 0.35f);
-            smoothTabW = Mth.lerp(RenderUtil.easeSmoothDecel(tabWidthTimer), startTabW, targetTabW);
+            smoothTabW = Mth.lerp(AnimationUtil.easeSmoothDecel(tabWidthTimer), startTabW, targetTabW);
         } else {
             smoothTabW = targetTabW;
         }
 
         if (tabHeightTimer < 1.0f) {
             tabHeightTimer = Math.min(1.0f, tabHeightTimer + dt / 0.35f);
-            smoothTabH = Mth.lerp(RenderUtil.easeSmoothDecel(tabHeightTimer), startTabH, targetTabH);
+            smoothTabH = Mth.lerp(AnimationUtil.easeSmoothDecel(tabHeightTimer), startTabH, targetTabH);
         } else {
             smoothTabH = targetTabH;
         }
@@ -730,7 +731,7 @@ public class DynamicIslandRenderer {
         }
         if (heightAnimTimer < 1.0f) {
             heightAnimTimer = Math.min(1.0f, heightAnimTimer + dt / HEIGHT_ANIM_DURATION);
-            currentIslandHeight = Mth.lerp(RenderUtil.easeSmoothDecel(heightAnimTimer), startIslandHeight, targetIslandHeight);
+            currentIslandHeight = Mth.lerp(AnimationUtil.easeSmoothDecel(heightAnimTimer), startIslandHeight, targetIslandHeight);
         } else {
             currentIslandHeight = targetIslandHeight;
         }

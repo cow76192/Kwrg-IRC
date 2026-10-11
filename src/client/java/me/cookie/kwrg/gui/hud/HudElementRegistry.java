@@ -1,7 +1,7 @@
 package me.cookie.kwrg.gui.hud;
 
 import me.cookie.kwrg.gui.notification.NotificationManager;
-import me.cookie.kwrg.gui.util.RenderUtil;
+import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import me.cookie.kwrg.render.ScoreboardIslandRenderer;
@@ -177,7 +177,7 @@ public final class HudElementRegistry {
             RESET_ANIMATIONS.remove(id);
             return 1.0f;
         }
-        return RenderUtil.easeOutCubic(raw);
+        return AnimationUtil.easeOutCubic(raw);
     }
 
     public static void setEditorPreview(boolean enabled) {

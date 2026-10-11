@@ -2,6 +2,7 @@ package me.cookie.kwrg.gui.notification;
 
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
+import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import net.minecraft.client.Minecraft;
@@ -117,7 +118,7 @@ public class NotificationToast {
         if (this.isDismissing) {
             long elapsed = System.currentTimeMillis() - this.dismissStartTime;
             float rawT = Mth.clamp((float) elapsed / DISMISS_DURATION, 0.0f, 1.0f);
-            float dismissEase = RenderUtil.easeOutCubic(rawT);
+            float dismissEase = AnimationUtil.easeOutCubic(rawT);
             return (int) Math.round((1.0f - dismissEase) * BASE_HEIGHT);
         }
         return BASE_HEIGHT;
@@ -138,13 +139,13 @@ public class NotificationToast {
 
         long spawnElapsed = now - this.createTime;
         float spawnRaw = Mth.clamp((float) spawnElapsed / SPAWN_DURATION, 0.0f, 1.0f);
-        float spawnEase = RenderUtil.easeOutCubic(spawnRaw);
+        float spawnEase = AnimationUtil.easeOutCubic(spawnRaw);
 
         float dismissEase = 0.0f;
         if (this.isDismissing) {
             long dismissElapsed = now - this.dismissStartTime;
             float dismissRaw = Mth.clamp((float) dismissElapsed / DISMISS_DURATION, 0.0f, 1.0f);
-            dismissEase = RenderUtil.easeOutCubic(dismissRaw);
+            dismissEase = AnimationUtil.easeOutCubic(dismissRaw);
         }
 
         float alpha = (1.0f - dismissEase) * spawnEase;
@@ -214,19 +215,19 @@ public class NotificationToast {
         RenderUtil.drawRoundedPanel(graphics, -halfW, -halfH, cardWidth, cardHeight, 8.0f, bgColor, borderColor);
 
         int iconBadgeCX = -halfW + 14;
-        Color badgeBg = RenderUtil.withAlpha(0x1D2633, (int) (255 * alpha));
+        Color badgeBg = AnimationUtil.withAlpha(0x1D2633, (int) (255 * alpha));
         graphics.drawCircle(iconBadgeCX, 0, 16, 7.5, badgeBg);
         graphics.drawRing(iconBadgeCX, 0, 16, 6.5, 7.5, borderColor, borderColor);
 
         float iconW = font.width(this.type.getIcon());
-        int iconColor = RenderUtil.withAlpha(accentRgb, (int) (255 * alpha)).argb();
+        int iconColor = AnimationUtil.withAlpha(accentRgb, (int) (255 * alpha)).argb();
         RenderUtil.drawSmoothText(graphics, Component.literal(this.type.getIcon()), iconBadgeCX - iconW / 2.0f, -4.5f, 1.0f, iconColor);
 
-        int textColor = RenderUtil.withAlpha(0xFFFFFF, (int) (255 * alpha)).argb();
+        int textColor = AnimationUtil.withAlpha(0xFFFFFF, (int) (255 * alpha)).argb();
         RenderUtil.drawSmoothText(graphics, styledTitle, -halfW + 28, -4.5f, 1.0f, textColor);
 
         if (hasSub) {
-            int subTextColor = RenderUtil.withAlpha(0x90A4AE, (int) (255 * alpha)).argb();
+            int subTextColor = AnimationUtil.withAlpha(0x90A4AE, (int) (255 * alpha)).argb();
             RenderUtil.drawSmoothText(graphics, styledSubtitle, -halfW + 28 + titleW + 8, -4.5f, 1.0f, subTextColor);
         }
 

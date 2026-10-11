@@ -4,6 +4,7 @@ import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.gui.hud.HudElementRegistry;
+import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
@@ -14,9 +15,12 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.ARGB;
+import net.minecraft.util.Mth;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class HudEditorScreen extends Screen {
 
@@ -29,6 +33,17 @@ public class HudEditorScreen extends Screen {
     private static final int LIST_HEADER_HEIGHT = 26;
     private static final float LIST_CORNER_RADIUS = 12.0f;
     private static final float ROW_CORNER_RADIUS = 6.0f;
+
+    private final Map<String, Float> selectionProgressMap = new HashMap<>();
+    private final Map<String, Float> hoverProgressMap = new HashMap<>();
+    private long lastFrameTime = -1L;
+
+    private static final Color COLOR_SELECTED = Color.ofArgb(0x3D4FC3F7); // 选中态天蓝高亮
+    private static final Color COLOR_HOVERED = Color.ofArgb(0x22FFFFFF);  // 悬停态半透明白
+    private static final Color COLOR_TRANSPARENT_BASE = Color.ofArgb(0x004FC3F7); // 透明基色（同色相防发脏）
+
+    // 过渡速率
+    private static final float ANIM_SPEED = 1.75f;
 
     private String selectedId;
     private boolean dragging = false;
@@ -46,7 +61,6 @@ public class HudEditorScreen extends Screen {
         Minecraft mc = Minecraft.getInstance();
         mc.execute(() -> mc.setScreen(new HudEditorScreen(elementId)));
     }
-
     @Override
     protected void init() {
         HudElementRegistry.setEditorPreview(true);
@@ -54,8 +68,12 @@ public class HudEditorScreen extends Screen {
             List<HudElement> elements = HudElementRegistry.all();
             if (!elements.isEmpty()) selectedId = elements.get(0).id();
         }
-    }
 
+        if (selectedId != null && !selectionProgressMap.containsKey(selectedId)) {
+            selectionProgressMap.put(selectedId, 1.0f);
+        }
+        lastFrameTime = System.currentTimeMillis();
+    }
     @Override
     public void removed() {
         HudElementRegistry.setEditorPreview(false);
@@ -109,6 +127,12 @@ public class HudEditorScreen extends Screen {
     }
 
     private void drawElementList(OwoUIGraphics owo, List<HudElement> elements, int mouseX, int mouseY) {
+
+        long now = System.currentTimeMillis();
+        float dt = lastFrameTime < 0 ? 0.016f : (float) (now - lastFrameTime) / 1000.0f;
+        lastFrameTime = now;
+        dt = Math.min(dt, 0.1f);
+
         int left = this.width - LIST_WIDTH;
         int listBottom = Math.min(this.height - HINT_BAR_HEIGHT, LIST_TOP + LIST_HEADER_HEIGHT + elements.size() * LIST_ROW_HEIGHT + 6);
 
@@ -126,30 +150,71 @@ public class HudEditorScreen extends Screen {
 
         int rowY = LIST_TOP + LIST_HEADER_HEIGHT;
         for (HudElement element : elements) {
-            boolean selected = element.id().equals(selectedId);
+            String id = element.id();
+            boolean selected = id.equals(selectedId);
             boolean hovered = isInside(mouseX, mouseY, left, rowY, LIST_WIDTH - 12, LIST_ROW_HEIGHT);
 
-            if (selected) {
-                RenderUtil.drawSubpixelRoundedPanel(owo, rowX, rowY, rowW, LIST_ROW_HEIGHT - 2, ROW_CORNER_RADIUS,
-                        Color.ofArgb(0x3D4FC3F7), null);
-            } else if (hovered) {
-                RenderUtil.drawSubpixelRoundedPanel(owo, rowX, rowY, rowW, LIST_ROW_HEIGHT - 2, ROW_CORNER_RADIUS,
-                        Color.ofArgb(0x22FFFFFF), null);
+            float targetSelect = selected ? 1.0f : 0.0f;
+            float currentSelect = selectionProgressMap.getOrDefault(id, 0.0f);
+            if (currentSelect < targetSelect) {
+                currentSelect = Math.min(targetSelect, currentSelect + dt * ANIM_SPEED);
+            } else if (currentSelect > targetSelect) {
+                currentSelect = Math.max(targetSelect, currentSelect - dt * ANIM_SPEED);
             }
+            selectionProgressMap.put(id, currentSelect);
+
+            float targetHover = hovered ? 1.0f : 0.0f;
+            float currentHover = hoverProgressMap.getOrDefault(id, 0.0f);
+            if (currentHover < targetHover) {
+                currentHover = Math.min(targetHover, currentHover + dt * (ANIM_SPEED * 1.5f));
+            } else if (currentHover > targetHover) {
+                currentHover = Math.max(targetHover, currentHover - dt * (ANIM_SPEED * 1.5f));
+            }
+            hoverProgressMap.put(id, currentHover);
+
+            float selectEased = targetSelect >= 1.0f
+                    ? AnimationUtil.easeOutCubic(currentSelect)
+                    : (1.0f - AnimationUtil.easeOutCubic(1.0f - currentSelect));
+
+            float hoverEased = targetHover >= 1.0f
+                    ? AnimationUtil.easeOutCubic(currentHover)
+                    : (1.0f - AnimationUtil.easeOutCubic(1.0f - currentHover));
+
+            Color baseColor = AnimationUtil.lerpColor(hoverEased, COLOR_TRANSPARENT_BASE, COLOR_HOVERED);
+            Color rowBgColor = AnimationUtil.lerpColor(selectEased, baseColor, COLOR_SELECTED);
+
+            if (rowBgColor.alpha() > 0.005f) {
+                RenderUtil.drawSubpixelRoundedPanel(owo, rowX, rowY, rowW, LIST_ROW_HEIGHT - 2, ROW_CORNER_RADIUS,
+                        rowBgColor, null);
+            }
+
+            int titleColor = ARGB.color(
+                    0xFF,
+                    Math.round(Mth.lerp(selectEased, 0xCF, 0xFF)),
+                    Math.round(Mth.lerp(selectEased, 0xD8, 0xFF)),
+                    Math.round(Mth.lerp(selectEased, 0xDC, 0xFF))
+            );
 
             HudElement.State state = HudElementRegistry.state(element.id());
             String line = element.displayName();
             String detail = HudElement.Anchor.labelX(state.anchorX) + "·" + HudElement.Anchor.labelY(state.anchorY);
             if (!element.isEnabled()) detail += " · 隐藏";
 
-            RenderUtil.drawFluidSubpixelText(owo, Component.literal(line), left + 10, rowY + 6,
-                    selected ? 0xFFFFFFFF : 0xFFCFD8DC);
+            RenderUtil.drawFluidSubpixelText(owo, Component.literal(line), left + 10, rowY + 6, titleColor);
             RenderUtil.drawFluidSubpixelText(owo, Component.literal(detail), left + 82, rowY + 6, 0xFF90A4AE);
 
             rowY += LIST_ROW_HEIGHT;
         }
 
         RenderUtil.drawFluidSubpixelText(owo, Component.literal("点击选中 · 拖动移动"), left + 10, listBottom + 3, 0xFF78909C);
+    }
+
+    private float applyEase(float current, float target) {
+        if (target >= 1.0f) {
+            return (float) AnimationUtil.easeOutCubic(current);
+        } else {
+            return 1.0f - (float) AnimationUtil.easeOutCubic(1.0f - current);
+        }
     }
 
     private void drawHints(OwoUIGraphics owo) {

@@ -6,6 +6,7 @@ import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import io.wispforest.owo.ui.core.Sizing;
 import me.cookie.kwrg.gui.IrcScreen;
+import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.module.Category;
 import net.minecraft.client.Minecraft;
@@ -169,7 +170,7 @@ public class RadialMenuComponent extends BaseUIComponent {
 
         long mainElapsed = now - openTime;
         float mainProgress = (float) mainElapsed / EXPAND_DURATION;
-        float mainEase = RenderUtil.easeOutCubic(mainProgress);
+        float mainEase = AnimationUtil.easeOutCubic(mainProgress);
 
         float panelProgress;
         if (this.panelAnimStartTime == 0L) {
@@ -179,7 +180,7 @@ public class RadialMenuComponent extends BaseUIComponent {
             float rawT = Mth.clamp(elapsed, 0.0f, 1.0f);
             panelProgress = this.panelOpen ? rawT : (1.0f - rawT);
         }
-        float panelEase = RenderUtil.easeOutCubic(panelProgress);
+        float panelEase = AnimationUtil.easeOutCubic(panelProgress);
 
         var client = Minecraft.getInstance();
         int screenW = client.screen != null ? client.screen.width : (this.parent() != null ? this.parent().width() : client.getWindow().getGuiScaledWidth());
@@ -205,8 +206,8 @@ public class RadialMenuComponent extends BaseUIComponent {
             double gapDeg = Math.toDegrees(Math.asin(30.0 / actualRingRadius));
 
             int ringAlpha = (int) (255 * 0.35f * menuAlpha);
-            Color ringPeak = RenderUtil.withAlpha(0xFFFFFF, ringAlpha);
-            Color ringFade = RenderUtil.withAlpha(0xFFFFFF, 0);
+            Color ringPeak = AnimationUtil.withAlpha(0xFFFFFF, ringAlpha);
+            Color ringFade = AnimationUtil.withAlpha(0xFFFFFF, 0);
 
             for (int i = 0; i < nodeCount; i++) {
                 double a1 = 90.0 + i * stepDeg + gapDeg;
