@@ -1,6 +1,6 @@
 package me.cookie.kwrg.module.modules.style;
 
-import me.cookie.kwrg.gui.HudEditorScreen;
+import me.cookie.kwrg.gui.hud.HudEditorScreen;
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;

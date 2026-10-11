@@ -2,7 +2,6 @@ package me.cookie.kwrg.module.modules.style.dynamic;
 
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
-import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -82,13 +81,5 @@ public class DynamicScoreboardModule extends DynamicModule {
 
         panel.child(header("Position"));
         panel.child(row("Link to HudEditor", this::openEditor));
-
-        panel.child(header("注意"));
-        panel.child(new TextInfoPaneComponent(
-                "SkyHanni 自定义计分板启用自定义背景（材质包覆盖）时，灵动效果无法叠加，本功能会被自动关闭。",
-                () -> ""));
-        panel.child(new TextInfoPaneComponent(
-                "开启本功能后，计分板位置只能用 /irc hudeditor 调整，/sh gui 里的位置调整不会生效。",
-                () -> ""));
     }
 }

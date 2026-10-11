@@ -1,9 +1,7 @@
-package me.cookie.kwrg.gui;
+package me.cookie.kwrg.gui.hud;
 
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
-import me.cookie.kwrg.gui.hud.HudElement;
-import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.irc.IrcConfig;

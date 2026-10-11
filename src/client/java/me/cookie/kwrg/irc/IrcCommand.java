@@ -6,6 +6,7 @@ import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import me.cookie.kwrg.gui.IrcScreen;
+import me.cookie.kwrg.gui.hud.HudEditorScreen;
 import me.cookie.kwrg.module.modules.debug.ClearIndexCacheModule;
 import me.cookie.kwrg.module.modules.functions.GlowColorModule;
 import me.cookie.kwrg.module.modules.functions.HideArmorModule;
@@ -345,7 +346,7 @@ public class IrcCommand {
     }
 
     private static void openHudEditor() {
-        me.cookie.kwrg.gui.HudEditorScreen.open(null);
+        HudEditorScreen.open(null);
     }
 
     private static void sendHelp() {
