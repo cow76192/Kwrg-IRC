@@ -5,6 +5,7 @@ import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import me.cookie.kwrg.render.PlayerFinderRadarRenderer;
+import me.cookie.kwrg.render.ScoreboardIslandRenderer;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
@@ -41,7 +42,9 @@ public abstract class HudNotificationMixin {
     @Inject(method = "extractRenderState", at = @At("HEAD"))
     private void kwrg$onExtractStateHead(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker, CallbackInfo ci) {
         me.cookie.kwrg.render.DynamicIslandRenderer.setCurrentExtractor(graphics);
+        me.cookie.kwrg.render.DynamicIslandRenderer.beginTabShiftFrame();
         me.cookie.kwrg.render.DynamicIslandRenderer.updateAnimationState();
+        ScoreboardIslandRenderer.resetFrameState();
     }
 
     @Inject(method = "extractRenderState", at = @At("TAIL"))
@@ -73,5 +76,7 @@ public abstract class HudNotificationMixin {
         if (!(this.minecraft.screen instanceof me.cookie.kwrg.gui.IrcScreen)) {
             me.cookie.kwrg.render.DynamicIslandRenderer.render(graphics, delta);
         }
+
+        ScoreboardIslandRenderer.renderPreviewIfEmpty(graphics);
     }
 }

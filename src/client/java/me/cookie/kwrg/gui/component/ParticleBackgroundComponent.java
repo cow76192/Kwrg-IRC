@@ -4,6 +4,7 @@ import io.wispforest.owo.ui.base.BaseUIComponent;
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import io.wispforest.owo.ui.core.Sizing;
+import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
@@ -79,15 +80,15 @@ public class ParticleBackgroundComponent extends BaseUIComponent {
                     int lineAlpha = (int) (PARTICLE_ALPHA * factor * factor * 0.85f);
 
                     if (lineAlpha > 3) {
-                        Color lineColor = RenderUtil.withAlpha(0xFFFFFF, lineAlpha);
+                        Color lineColor = AnimationUtil.withAlpha(0xFFFFFF, lineAlpha);
                         RenderUtil.drawAALine(graphics, exactMouseX, exactMouseY, px, py, 0.5, lineColor);
                         connected++;
                     }
                 }
             }
 
-            Color dotSolid = RenderUtil.withAlpha(0xFFFFFF, PARTICLE_ALPHA);
-            Color dotFade = RenderUtil.withAlpha(0xFFFFFF, 0);
+            Color dotSolid = AnimationUtil.withAlpha(0xFFFFFF, PARTICLE_ALPHA);
+            Color dotFade = AnimationUtil.withAlpha(0xFFFFFF, 0);
             RenderUtil.drawAACircle(graphics, px, py, p.radius, dotSolid, dotFade);
         }
     }

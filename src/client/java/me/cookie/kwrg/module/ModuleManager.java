@@ -5,6 +5,7 @@ import me.cookie.kwrg.module.modules.debug.*;
 import me.cookie.kwrg.module.modules.functions.*;
 import me.cookie.kwrg.module.modules.play.PlayModule;
 import me.cookie.kwrg.module.modules.style.*;
+import me.cookie.kwrg.module.modules.style.dynamic.*;
 
 import java.util.*;
 
@@ -43,9 +44,12 @@ public class ModuleManager {
         register(new MessageStyleModule());
         register(new ChatModule());
         register(new DynamicIslandModule());
+        register(new DynamicTabModule());
+        register(new DynamicScoreboardModule());
         register(new FontModule());
         register(new GuiColorModule());
         register(new GuiScaleModule());
+        register(new HudEditorModule());
         // --- PLAY 模块 ---
         register(new PlayModule());
     }

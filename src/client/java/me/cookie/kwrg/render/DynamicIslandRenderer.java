@@ -2,6 +2,9 @@ package me.cookie.kwrg.render;
 
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
+import me.cookie.kwrg.gui.hud.HudElement;
+import me.cookie.kwrg.gui.hud.HudElementRegistry;
+import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.HardwareMetricsTracker;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.gui.util.TpsTracker;
@@ -35,6 +38,11 @@ public class DynamicIslandRenderer {
 
     private static final float ITEM_GAP = 5.0f;
     private static final float SIDE_PAD = 12.0f;
+
+    private static final float BASE_TOP_Y = 7.0f;
+    private static final float SLIDE_IN_DISTANCE = 7.0f;
+
+    private static final Component WARN_COMPONENT = Component.literal("⚠ Server Lagging (Low TPS)").setStyle(ISLAND_STYLE);
 
     private static float currentAlpha = 0.0f;
     private static float startAlpha = 0.0f;
@@ -78,13 +86,104 @@ public class DynamicIslandRenderer {
 
     private static long lastIslandThrottleTime = 0;
 
+    private static float tabShiftX = 0.0f;
+    private static float tabShiftY = 0.0f;
+    private static float tabTargetShiftX = 0.0f;
+    private static float tabTargetShiftY = 0.0f;
+    private static boolean editorPreview = false;
+
+    public static GuiGraphicsExtractor getCurrentExtractor() { return currentFrameExtractor; }
+
+    public static float resolveIslandCenterX(float width) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getWindow() == null) return width / 2.0f;
+
+        HudElement.State state = HudElementRegistry.state(HudElementRegistry.ISLAND);
+        return HudElement.Anchor.resolveCenterX(state.anchorX, state.marginX,
+                HudElementRegistry.resolveOffsetX(HudElementRegistry.ISLAND), width,
+                mc.getWindow().getGuiScaledWidth());
+    }
+
+    public static float resolveIslandTopY(float height) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getWindow() == null) return 0.0f;
+
+        HudElement.State state = HudElementRegistry.state(HudElementRegistry.ISLAND);
+        return HudElement.Anchor.resolveY(state.anchorY, state.marginY,
+                HudElementRegistry.resolveOffsetY(HudElementRegistry.ISLAND), height,
+                mc.getWindow().getGuiScaledHeight());
+    }
+
+    public static boolean isIslandVisible() {
+        return currentAlpha > 0.005f;
+    }
+
+    public static float[] getIslandBounds() {
+        if (isIslandVisible() && curRenderW > 0.0f && curRenderH > 0.0f) {
+            return new float[]{curRenderX, curRenderY, curRenderW, curRenderH};
+        }
+
+        float width = Math.max(38.0f, computeContentWidth() + SIDE_PAD * 2.0f);
+        float height = currentIslandHeight;
+        return new float[]{resolveIslandCenterX(width) - width / 2.0f, resolveIslandTopY(height), width, height};
+    }
+
+    public static float getTabShiftX() { return tabShiftX; }
+    public static float getTabShiftY() { return tabShiftY; }
+
+    private static boolean tabShiftActive = false;
+    private static GuiGraphicsExtractor tabShiftExtractor = null;
+    private static float currentTabEase = 0.0f;
+
+    public static boolean isTabFeatureOn() {
+        return IrcConfig.get().dynamicTab;
+    }
+
+    public static boolean isEnabled() {
+        return HudElementRegistry.state(HudElementRegistry.ISLAND).enabled;
+    }
+
+    public static boolean pushTabContentShift(float scale) {
+        if (currentFrameExtractor == null || tabShiftActive) return false;
+        if (Math.abs(tabShiftX) < 0.01f && Math.abs(tabShiftY) < 0.01f) return false;
+
+        float safeScale = Math.abs(scale) < 0.0001f ? 1.0f : scale;
+
+        tabShiftActive = true;
+        tabShiftExtractor = currentFrameExtractor;
+        currentFrameExtractor.pose().pushMatrix();
+        currentFrameExtractor.pose().translate(tabShiftX / safeScale, tabShiftY / safeScale);
+        return true;
+    }
+
+    public static void popTabContentShift() {
+        if (!tabShiftActive || tabShiftExtractor == null) return;
+
+        tabShiftActive = false;
+        tabShiftExtractor.pose().popMatrix();
+        tabShiftExtractor = null;
+    }
+
+    public static void beginTabShiftFrame() {
+        if (!tabShiftActive) {
+            tabShiftExtractor = null;
+            return;
+        }
+
+        if (tabShiftExtractor == currentFrameExtractor) {
+            tabShiftExtractor.pose().popMatrix();
+        }
+        tabShiftActive = false;
+        tabShiftExtractor = null;
+    }
+
+    public static void setEditorPreview(boolean enabled) {
+        editorPreview = enabled;
+    }
+
     public static float easeOutQuint(float progress) {
         float p = Mth.clamp(progress, 0.0f, 1.0f);
         return 1.0f - (float) Math.pow(1.0f - p, 5.0f);
-    }
-
-    public static float getCurrentAlpha() {
-        return currentAlpha;
     }
 
     private static void updateAlphaAnimation(float target, float dt) {
@@ -103,39 +202,16 @@ public class DynamicIslandRenderer {
         }
     }
 
-    public static void setShadowEnabled(boolean enabled) {
-        IrcConfig.get().isShadowEnabled = enabled;
-    }
-
     public static boolean isShadowEnabled() {
-        return IrcConfig.get().isShadowEnabled;
-    }
-
-    public static void resetShadowSettings() {
-        IrcConfig.get().isShadowEnabled = true;
-        shadowBlur = 4.0f;
-        shadowOffsetY = 1.2f;
-        shadowBaseAlpha = 50;
-    }
-
-    public static void setShadowBlur(float blur) {
-        shadowBlur = Math.max(0.0f, blur);
+        return HudElementRegistry.state(HudElementRegistry.ISLAND).shadow;
     }
 
     public static float getShadowBlur() {
         return shadowBlur;
     }
 
-    public static void setShadowOffsetY(float offsetY) {
-        shadowOffsetY = offsetY;
-    }
-
     public static float getShadowOffsetY() {
         return shadowOffsetY;
-    }
-
-    public static void setShadowBaseAlpha(int baseAlpha) {
-        shadowBaseAlpha = Mth.clamp(baseAlpha, 0, 255);
     }
 
     public static int getShadowBaseAlpha() {
@@ -172,24 +248,30 @@ public class DynamicIslandRenderer {
         dt = Mth.clamp(dt, 0.001f, 0.04f);
 
         IrcConfig config = IrcConfig.get();
+        currentTabEase = updateTabAnimation(dt, config);
+        updateRenderRect(currentTabEase, dt, config);
+    }
+
+    private static float updateTabAnimation(float dt, IrcConfig config) {
+        Minecraft mc = Minecraft.getInstance();
 
         if (tabWidthTimer < 1.0f) {
             tabWidthTimer = Math.min(1.0f, tabWidthTimer + dt / 0.35f);
-            smoothTabW = Mth.lerp(RenderUtil.easeSmoothDecel(tabWidthTimer), startTabW, targetTabW);
+            smoothTabW = Mth.lerp(AnimationUtil.easeSmoothDecel(tabWidthTimer), startTabW, targetTabW);
         } else {
             smoothTabW = targetTabW;
         }
 
         if (tabHeightTimer < 1.0f) {
             tabHeightTimer = Math.min(1.0f, tabHeightTimer + dt / 0.35f);
-            smoothTabH = Mth.lerp(RenderUtil.easeSmoothDecel(tabHeightTimer), startTabH, targetTabH);
+            smoothTabH = Mth.lerp(AnimationUtil.easeSmoothDecel(tabHeightTimer), startTabH, targetTabH);
         } else {
             smoothTabH = targetTabH;
         }
 
         smoothTabY = Mth.lerp(dt * 10.0f, smoothTabY, targetTabY);
 
-        boolean isTabKeyDown = config.dynamicIsland && mc.options.keyPlayerList.isDown() && mc.player != null;
+        boolean isTabKeyDown = !editorPreview && IrcConfig.get().dynamicTab && mc.options.keyPlayerList.isDown() && mc.player != null;
         float targetTab = isTabKeyDown ? 1.0f : 0.0f;
         float tabSpeed = isTabKeyDown ? (1.0f / TAB_ANIM_DURATION) : (1.0f / (TAB_ANIM_DURATION * 0.85f));
 
@@ -198,39 +280,112 @@ public class DynamicIslandRenderer {
         } else if (tabProgress > targetTab) {
             tabProgress = Math.max(targetTab, tabProgress - dt * tabSpeed);
         }
-        float tabEase = RenderUtil.easeSmoothDecel(tabProgress);
 
         if (tabProgress <= 0.005f) {
             wasSkyHanniInCurrentSession = false;
             wasSkyblockerInCurrentSession = false;
         }
 
-        boolean hasAnyOption = config.islandShowFps || config.islandShowPing || config.islandShowTps
-                || config.islandShowRam || config.islandShowGpu || config.islandShowCpu;
-        boolean shouldShow = config.dynamicIsland && (hasAnyOption || tabProgress > 0.005f);
+        return AnimationUtil.easeSmoothDecel(tabProgress);
+    }
 
+    private static float computeContentWidth() {
+        float total = 0.0f;
+        SlotPhysics lastVisible = null;
+        for (SlotPhysics slot : ALL_SLOTS) {
+            float w = slot.getWidth();
+            if (w > 0.001f) {
+                if (lastVisible != null) {
+                    total += ITEM_GAP * Math.min(1.0f, lastVisible.getRatio()) * Math.min(1.0f, slot.getRatio());
+                }
+                total += w;
+                lastVisible = slot;
+            }
+        }
+        return total;
+    }
+
+    private static boolean shouldIslandShow(IrcConfig config) {
+        boolean hasAnyOption = (config.islandShowFps || config.islandShowPing || config.islandShowTps
+                || config.islandShowRam || config.islandShowGpu || config.islandShowCpu);
+        boolean islandWanted = (DynamicIslandRenderer.isEnabled() || editorPreview) && (hasAnyOption || editorPreview);
+        boolean tabWanted = config.dynamicTab && tabProgress > 0.005f;
+
+        return islandWanted || tabWanted;
+    }
+
+    private static void updateTabShift(float screenW, float screenH) {
+        if (!IrcConfig.get().islandPosAffectsTab || !DynamicIslandRenderer.isEnabled()) {
+            tabTargetShiftX = 0.0f;
+            tabTargetShiftY = 0.0f;
+            return;
+        }
+
+        float targetW = smoothTabW;
+        float targetH = smoothTabH;
+
+        float shiftX = resolveIslandCenterX(targetW) - screenW / 2.0f;
+        if (screenW > targetW) {
+            shiftX = Mth.clamp(shiftX, targetW / 2.0f - screenW / 2.0f, screenW / 2.0f - targetW / 2.0f);
+        } else {
+            shiftX = 0.0f;
+        }
+
+        float shiftY = resolveIslandTopY(targetH) - BASE_TOP_Y;
+        if (screenH > targetH) {
+            shiftY = Mth.clamp(shiftY, -smoothTabY, screenH - targetH - smoothTabY);
+        } else {
+            shiftY = 0.0f;
+        }
+
+        tabTargetShiftX = shiftX;
+        tabTargetShiftY = shiftY;
+    }
+
+    private static void updateRenderRect(float tabEase, float dt, IrcConfig config) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getWindow() == null) return;
+
+        int screenW = mc.getWindow().getGuiScaledWidth();
+        int screenH = mc.getWindow().getGuiScaledHeight();
+
+        boolean shouldShow = shouldIslandShow(config);
         float targetOpen = shouldShow ? 1.0f : 0.0f;
         islandOpenProgress = Mth.clamp(islandOpenProgress + (targetOpen - islandOpenProgress) * dt * 6.0f, 0.0f, 1.0f);
-        float openEase = RenderUtil.easeSmoothDecel(islandOpenProgress);
+        float openEase = AnimationUtil.easeSmoothDecel(islandOpenProgress);
+
+        updateTabShift(screenW, screenH);
 
         float warnEase = Mth.clamp((currentIslandHeight - BASE_HEIGHT) / (EXPANDED_HEIGHT - BASE_HEIGHT), 0.0f, 1.0f);
-        int screenW = mc.getWindow().getGuiScaledWidth();
-        float cx = screenW / 2.0f;
+        float warnTextW = mc.font != null ? mc.font.width(WARN_COMPONENT) : 0.0f;
 
-        float normalTargetWidth = 140.0f;
-        float baseIslandW = Math.max(38.0f, normalTargetWidth);
-        float baseIslandH = currentIslandHeight;
-        float baseIslandTopY = 7.0f * openEase;
+        float normalTargetWidth = computeContentWidth() + SIDE_PAD * 2.0f;
+        float pillW = Math.max(38.0f, Mth.lerp(warnEase, normalTargetWidth, Math.max(normalTargetWidth, warnTextW + 18.0f)));
+        float pillH = currentIslandHeight;
 
-        curRenderW = Mth.lerp(tabEase, baseIslandW, smoothTabW) * (0.85f + 0.15f * openEase);
-        curRenderH = Mth.lerp(tabEase, baseIslandH, smoothTabH);
-        curRenderY = Mth.lerp(tabEase, baseIslandTopY, smoothTabY);
-        curRenderX = cx - curRenderW / 2.0f;
+        boolean islandOn = DynamicIslandRenderer.isEnabled();
+        float pillCx = islandOn ? resolveIslandCenterX(pillW) : screenW / 2.0f;
+        float pillTop = islandOn
+                ? Mth.clamp(resolveIslandTopY(pillH) - SLIDE_IN_DISTANCE * (1.0f - openEase),
+                0.0f, Math.max(0.0f, screenH - pillH))
+                : smoothTabY;
+
+        float tabCx = screenW / 2.0f + tabTargetShiftX;
+        float tabTop = smoothTabY + tabTargetShiftY;
+
+        curRenderW = Mth.lerp(tabEase, pillW, smoothTabW) * (0.85f + 0.15f * openEase);
+        curRenderH = Mth.lerp(tabEase, pillH, smoothTabH);
+        float centerX = Mth.lerp(tabEase, pillCx, tabCx);
+        curRenderX = centerX - curRenderW / 2.0f;
+        curRenderY = Mth.lerp(tabEase, pillTop, tabTop);
         curCornerRadius = Mth.lerp(tabEase, CORNER_RADIUS, 14.0f);
 
-        float effectiveOpacity = config.onlyApplyToTab
-                ? Mth.lerp(tabEase, 1.0f, config.islandOpacity)
-                : config.islandOpacity;
+        tabShiftX = centerX - screenW / 2.0f;
+        tabShiftY = curRenderY - smoothTabY;
+
+        float effectiveOpacity = DynamicIslandRenderer.isEnabled()
+                ? Mth.lerp(tabEase, HudElementRegistry.state(HudElementRegistry.ISLAND).opacity, config.tabOpacity)
+                : config.tabOpacity;
         float expectedTargetAlpha = shouldShow ? (openEase * effectiveOpacity) : 0.0f;
         updateAlphaAnimation(expectedTargetAlpha, dt);
 
@@ -238,9 +393,27 @@ public class DynamicIslandRenderer {
         int borderG = (int) Mth.lerp(warnEase, 152f, 100f);
         int borderB = (int) Mth.lerp(warnEase, 178f, 90f);
 
+        int bgR = 17;
+        int bgG = 22;
+        int bgB = 31;
+
+        if (tabEase > 0.01f) {
+            float pulse = 0.5f + 0.5f * (float) Math.sin(System.currentTimeMillis() / 450.0);
+            float accentMix = Mth.clamp(tabEase * (0.55f + 0.45f * pulse), 0.0f, 1.0f);
+
+            borderR = (int) Mth.lerp(accentMix, borderR, 79f);
+            borderG = (int) Mth.lerp(accentMix, borderG, 195f);
+            borderB = (int) Mth.lerp(accentMix, borderB, 247f);
+
+            bgR = (int) Mth.lerp(accentMix, bgR, 20f);
+            bgG = (int) Mth.lerp(accentMix, bgG, 30f);
+            bgB = (int) Mth.lerp(accentMix, bgB, 42f);
+        }
+
         int bgAlpha = (int) (Mth.lerp(tabEase, 230f, 245f) * currentAlpha);
-        curBgColor = Color.ofArgb(ARGB.color(bgAlpha, 17, 22, 31));
-        curBorderColor = Color.ofArgb(ARGB.color((int) (210 * currentAlpha), borderR, borderG, borderB));
+        int borderAlpha = (int) ((210.0f + tabEase * 35.0f) * currentAlpha);
+        curBgColor = Color.ofArgb(ARGB.color(bgAlpha, bgR, bgG, bgB));
+        curBorderColor = Color.ofArgb(ARGB.color(borderAlpha, borderR, borderG, borderB));
     }
 
     public static void markSkyblockerTabRendered() {
@@ -252,7 +425,7 @@ public class DynamicIslandRenderer {
     }
 
     public static void renderSkyblockerTab(GuiGraphicsExtractor graphics) {
-        if (!IrcConfig.get().dynamicIsland || graphics == null) return;
+        if (!isTabFeatureOn() || graphics == null) return;
         currentFrameExtractor = graphics;
         Minecraft mc = Minecraft.getInstance();
         if (mc.getWindow() == null || mc.player == null) return;
@@ -292,7 +465,7 @@ public class DynamicIslandRenderer {
     }
 
     public static void renderSkyHanniTab(GuiGraphicsExtractor graphics) {
-        if (!IrcConfig.get().dynamicIsland) return;
+        if (!isTabFeatureOn()) return;
         if (skyHanniInstance != null && graphics != null) {
             currentFrameExtractor = graphics;
             try {
@@ -316,7 +489,7 @@ public class DynamicIslandRenderer {
     }
 
     public static void updateTargetTabBounds(float w, float h, float y) {
-        if (!IrcConfig.get().dynamicIsland) return;
+        if (!isTabFeatureOn()) return;
         float newTargetW = Math.max(140.0f, w);
         float newTargetH = Math.max(40.0f, h);
         targetTabY = Math.max(4.0f, y);
@@ -335,12 +508,12 @@ public class DynamicIslandRenderer {
     }
 
     public static float getTabProgress() {
-        if (!IrcConfig.get().dynamicIsland) return 0.0f;
+        if (!isTabFeatureOn()) return 0.0f;
         return tabProgress;
     }
 
     public static boolean isTabAnimating() {
-        if (!IrcConfig.get().dynamicIsland) return false;
+        if (!isTabFeatureOn()) return false;
         return tabProgress > 0.005f;
     }
 
@@ -350,7 +523,7 @@ public class DynamicIslandRenderer {
 
     public static void renderTabBackgroundDirect() {
         IrcConfig config = IrcConfig.get();
-        if (!config.dynamicIsland) return;
+        if (!isTabFeatureOn()) return;
         if (currentFrameExtractor != null && tabProgress > 0.005f && curRenderW > 0) {
             OwoUIGraphics graphics = OwoUIGraphics.of(currentFrameExtractor);
             if (isShadowEnabled()) {
@@ -362,13 +535,13 @@ public class DynamicIslandRenderer {
     }
 
     public static void renderTabBackground(GuiGraphicsExtractor extractor) {
-        if (!IrcConfig.get().dynamicIsland) return;
+        if (!isTabFeatureOn()) return;
         setCurrentExtractor(extractor);
         renderTabBackgroundDirect();
     }
 
     public static void beginTabScissor(GuiGraphicsExtractor extractor) {
-        if (!IrcConfig.get().dynamicIsland) return;
+        if (!isTabFeatureOn()) return;
         setCurrentExtractor(extractor);
         beginTabScissorDirect();
     }
@@ -378,7 +551,7 @@ public class DynamicIslandRenderer {
     }
 
     public static void beginTabScissorDirect() {
-        if (!IrcConfig.get().dynamicIsland) return;
+        if (!isTabFeatureOn()) return;
         if (currentFrameExtractor != null && curRenderW > 0) {
             OwoUIGraphics graphics = OwoUIGraphics.of(currentFrameExtractor);
             int sX1 = (int) Math.floor(curRenderX + 1.0f);
@@ -420,7 +593,7 @@ public class DynamicIslandRenderer {
             }
             if (animTimer < 1.0f) {
                 animTimer = Math.min(1.0f, animTimer + dt / WIDTH_ANIM_DURATION);
-                float ease = RenderUtil.easeSmoothDecel(animTimer);
+                float ease = AnimationUtil.easeSmoothDecel(animTimer);
                 currentWidth = Mth.lerp(ease, startWidth, targetWidth);
             } else {
                 currentWidth = targetWidth;
@@ -480,44 +653,21 @@ public class DynamicIslandRenderer {
 
         if (tabWidthTimer < 1.0f) {
             tabWidthTimer = Math.min(1.0f, tabWidthTimer + dt / 0.35f);
-            smoothTabW = Mth.lerp(RenderUtil.easeSmoothDecel(tabWidthTimer), startTabW, targetTabW);
+            smoothTabW = Mth.lerp(AnimationUtil.easeSmoothDecel(tabWidthTimer), startTabW, targetTabW);
         } else {
             smoothTabW = targetTabW;
         }
 
         if (tabHeightTimer < 1.0f) {
             tabHeightTimer = Math.min(1.0f, tabHeightTimer + dt / 0.35f);
-            smoothTabH = Mth.lerp(RenderUtil.easeSmoothDecel(tabHeightTimer), startTabH, targetTabH);
+            smoothTabH = Mth.lerp(AnimationUtil.easeSmoothDecel(tabHeightTimer), startTabH, targetTabH);
         } else {
             smoothTabH = targetTabH;
         }
 
-        smoothTabY = Mth.lerp(dt * 10.0f, smoothTabY, targetTabY);
+        float tabEase = currentTabEase;
 
-        boolean isTabKeyDown = config.dynamicIsland && mc.options.keyPlayerList.isDown() && mc.player != null;
-        float targetTab = isTabKeyDown ? 1.0f : 0.0f;
-        float tabSpeed = isTabKeyDown ? (1.0f / TAB_ANIM_DURATION) : (1.0f / (TAB_ANIM_DURATION * 0.85f));
-
-        if (tabProgress < targetTab) {
-            tabProgress = Math.min(targetTab, tabProgress + dt * tabSpeed);
-        } else if (tabProgress > targetTab) {
-            tabProgress = Math.max(targetTab, tabProgress - dt * tabSpeed);
-        }
-        float tabEase = RenderUtil.easeSmoothDecel(tabProgress);
-
-        if (tabProgress <= 0.005f) {
-            wasSkyHanniInCurrentSession = false;
-            wasSkyblockerInCurrentSession = false;
-        }
-
-        boolean hasAnyOption = !config.onlyRenderTab
-                && (config.islandShowFps || config.islandShowPing || config.islandShowTps
-                || config.islandShowRam || config.islandShowGpu || config.islandShowCpu);
-        boolean shouldShow = config.dynamicIsland && (hasAnyOption || tabProgress > 0.005f);
-
-        float targetOpen = shouldShow ? 1.0f : 0.0f;
-        islandOpenProgress = Mth.clamp(islandOpenProgress + (targetOpen - islandOpenProgress) * dt * 6.0f, 0.0f, 1.0f);
-        float openEase = RenderUtil.easeSmoothDecel(islandOpenProgress);
+        boolean shouldShow = shouldIslandShow(config);
 
         if (currentAlpha <= 0.005f) {
             return;
@@ -549,7 +699,6 @@ public class DynamicIslandRenderer {
         String tpsStr = String.format(Locale.ROOT, "%.1f TPS", tps);
         String gpuStr = "GPU " + gpuLoad + "%";
         String cpuStr = "CPU " + cpuLoad + "%";
-        String warnStr = "⚠ Server Lagging (Low TPS)";
 
         Component fpsComp = Component.literal(fpsStr).setStyle(ISLAND_STYLE);
         Component pingComp = Component.literal(pingStr).setStyle(ISLAND_STYLE);
@@ -557,7 +706,7 @@ public class DynamicIslandRenderer {
         Component ramComp = Component.literal(ramText).setStyle(ISLAND_STYLE);
         Component gpuComp = Component.literal(gpuStr).setStyle(ISLAND_STYLE);
         Component cpuComp = Component.literal(cpuStr).setStyle(ISLAND_STYLE);
-        Component warnComp = Component.literal(warnStr).setStyle(ISLAND_STYLE);
+        Component warnComp = WARN_COMPONENT;
 
         Component[] comps = { fpsComp, pingComp, tpsComp, ramComp, gpuComp, cpuComp };
 
@@ -570,23 +719,11 @@ public class DynamicIslandRenderer {
 
         int[] colors = { fpsColor, pingColor, tpsColor, ramColor, gpuColor, cpuColor };
 
-        float dynamicContentW = 0.0f;
-        SlotPhysics lastVisible = null;
-        for (SlotPhysics slot : ALL_SLOTS) {
-            float w = slot.getWidth();
-            if (w > 0.001f) {
-                if (lastVisible != null) {
-                    float dynamicGap = ITEM_GAP * Math.min(1.0f, lastVisible.getRatio()) * Math.min(1.0f, slot.getRatio());
-                    dynamicContentW += dynamicGap;
-                }
-                dynamicContentW += w;
-                lastVisible = slot;
-            }
-        }
+        float dynamicContentW = computeContentWidth();
 
         if (tps < 15.5f) isLaggingState = true;
         else if (tps > 16.5f) isLaggingState = false;
-        boolean isLowTps = !config.onlyRenderTab && config.islandShowTps && isLaggingState && mc.level != null && tabProgress <= 0.01f;
+        boolean isLowTps = config.islandShowTps && isLaggingState && mc.level != null && tabProgress <= 0.01f;
 
         float targetH = isLowTps ? EXPANDED_HEIGHT : BASE_HEIGHT;
         if (Math.abs(targetH - targetIslandHeight) > 0.1f) {
@@ -596,37 +733,20 @@ public class DynamicIslandRenderer {
         }
         if (heightAnimTimer < 1.0f) {
             heightAnimTimer = Math.min(1.0f, heightAnimTimer + dt / HEIGHT_ANIM_DURATION);
-            currentIslandHeight = Mth.lerp(RenderUtil.easeSmoothDecel(heightAnimTimer), startIslandHeight, targetIslandHeight);
+            currentIslandHeight = Mth.lerp(AnimationUtil.easeSmoothDecel(heightAnimTimer), startIslandHeight, targetIslandHeight);
         } else {
             currentIslandHeight = targetIslandHeight;
         }
 
         float warnEase = Mth.clamp((currentIslandHeight - BASE_HEIGHT) / (EXPANDED_HEIGHT - BASE_HEIGHT), 0.0f, 1.0f);
 
-        int screenW = mc.getWindow().getGuiScaledWidth();
-        float cx = screenW / 2.0f;
+        updateRenderRect(tabEase, dt, config);
 
-        float warnTextW = font.width(warnComp);
-        float normalTargetWidth = dynamicContentW + SIDE_PAD * 2;
-        float baseIslandW = Math.max(38.0f, Mth.lerp(warnEase, normalTargetWidth, Math.max(normalTargetWidth, warnTextW + 18.0f)));
-        float baseIslandH = currentIslandHeight;
-        float baseIslandTopY = 7.0f * openEase;
+        float cx = curRenderX + curRenderW / 2.0f;
 
-        curRenderW = Mth.lerp(tabEase, baseIslandW, smoothTabW) * (0.85f + 0.15f * openEase);
-        curRenderH = Mth.lerp(tabEase, baseIslandH, smoothTabH);
-        curRenderY = Mth.lerp(tabEase, baseIslandTopY, smoothTabY);
-        curRenderX = cx - curRenderW / 2.0f;
-        curCornerRadius = Mth.lerp(tabEase, CORNER_RADIUS, 14.0f);
+        boolean islandPillVisible = tabProgress <= 0.005f && (DynamicIslandRenderer.isEnabled() || editorPreview);
 
-        int borderR = (int) Mth.lerp(warnEase, 84f, 255f);
-        int borderG = (int) Mth.lerp(warnEase, 152f, 100f);
-        int borderB = (int) Mth.lerp(warnEase, 178f, 90f);
-
-        int bgAlpha = (int) (Mth.lerp(tabEase, 230f, 245f) * currentAlpha);
-        curBgColor = Color.ofArgb(ARGB.color(bgAlpha, 17, 22, 31));
-        curBorderColor = Color.ofArgb(ARGB.color((int) (210 * currentAlpha), borderR, borderG, borderB));
-
-        if (tabProgress <= 0.005f && !config.onlyRenderTab) {
+        if (islandPillVisible) {
             if (isShadowEnabled()) {
                 RenderUtil.drawSoftDropShadow(graphics, curRenderX, curRenderY, curRenderW, curRenderH, curCornerRadius,
                         shadowBlur, shadowOffsetY, shadowBaseAlpha, currentAlpha);
@@ -645,12 +765,20 @@ public class DynamicIslandRenderer {
 
         graphics.enableScissor(scissorX1, scissorY1, scissorX2, scissorY2);
 
-        float islandContentAlpha = config.onlyRenderTab ? 0.0f : currentAlpha * (1.0f - tabEase);
-        if (islandContentAlpha > 0.02f) {
+        float islandContentAlpha = currentAlpha * (1.0f - tabEase);
+        if (islandPillVisible && islandContentAlpha > 0.02f) {
             float row1Y = curRenderY + (BASE_HEIGHT - fontH) / 2.0f;
             float curX = cx - dynamicContentW / 2.0f;
 
-            lastVisible = null;
+            if (editorPreview && dynamicContentW <= 0.001f) {
+                Component placeholder = Component.literal("KWRG").setStyle(ISLAND_STYLE);
+                float placeholderW = font.width(placeholder);
+                int placeholderAlpha = (int) (255 * islandContentAlpha);
+                RenderUtil.drawFluidSubpixelText(graphics, placeholder, cx - placeholderW / 2.0f, row1Y,
+                        (0xFFE0E0E0 & 0x00FFFFFF) | (placeholderAlpha << 24));
+            }
+
+            SlotPhysics lastVisible = null;
             for (int i = 0; i < ALL_SLOTS.length; i++) {
                 SlotPhysics slot = ALL_SLOTS[i];
                 float w = slot.getWidth();

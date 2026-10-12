@@ -1,6 +1,5 @@
-package me.cookie.kwrg.mixin;
+package me.cookie.kwrg.mixin.skyblocker;
 
-import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -25,6 +24,7 @@ public abstract class SkyblockerTabMixin {
     public abstract Collection<?> getRendered();
 
     @Unique private static boolean kwrg$scissored = false;
+    @Unique private static boolean kwrg$shifted = false;
     @Unique private static Field kwrg$widgetField;
     @Unique private static Field kwrg$visibleField;
     @Unique private static Field kwrg$fromTabField;
@@ -65,10 +65,11 @@ public abstract class SkyblockerTabMixin {
         }
     }
 
-    @Inject(method = "extractRenderStates", at = @At("HEAD"))
+    @Inject(method = "extractRenderStates", at = @At("HEAD"), require = 0)
     private void kwrg$onExtractStatesHead(@Coerce Object graphicsObj, int screenWidth, int screenHeight, boolean config, CallbackInfo ci) {
         kwrg$scissored = false;
-        if (!IrcConfig.get().dynamicIsland || !kwrg$isTabLayer() || config || !kwrg$isSkyblockerTabEnabled() || !kwrg$hasValidTabWidgets()) {
+        kwrg$shifted = false;
+        if (!DynamicIslandRenderer.isTabFeatureOn() || !kwrg$isTabLayer() || config || !kwrg$isSkyblockerTabEnabled() || !kwrg$hasValidTabWidgets()) {
             return;
         }
 
@@ -92,13 +93,20 @@ public abstract class SkyblockerTabMixin {
 
             graphics.pose().popMatrix();
 
+            kwrg$shifted = DynamicIslandRenderer.pushTabContentShift(scale);
+
             kwrg$scissored = true;
         }
     }
 
-    @Inject(method = "extractRenderStates", at = @At("TAIL"))
-    private void kwrg$onExtractStatesTail(@Coerce Object graphicsObj, int screenWidth, int screenHeight, boolean config, CallbackInfo ci) {
-        if (!IrcConfig.get().dynamicIsland || !kwrg$isTabLayer() || config || !kwrg$isSkyblockerTabEnabled()) {
+    @Inject(method = "extractRenderStates", at = @At("RETURN"), require = 0)
+    private void kwrg$onExtractStatesReturn(@Coerce Object graphicsObj, int screenWidth, int screenHeight, boolean config, CallbackInfo ci) {
+        if (kwrg$shifted) {
+            kwrg$shifted = false;
+            DynamicIslandRenderer.popTabContentShift();
+        }
+
+        if (!DynamicIslandRenderer.isTabFeatureOn() || !kwrg$isTabLayer() || config || !kwrg$isSkyblockerTabEnabled()) {
             return;
         }
 

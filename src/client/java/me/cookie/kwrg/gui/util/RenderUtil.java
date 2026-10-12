@@ -7,7 +7,6 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
-import net.minecraft.util.Mth;
 
 public final class RenderUtil {
 
@@ -167,30 +166,24 @@ public final class RenderUtil {
                     fillSubpixel(graphics, width - stroke + aa, r, width, height - r, borderRgb);
                 }
 
-                float rInner       = Math.max(0.0f, r - stroke);
-                float rInnerMid    = Math.max(0.0f, r - stroke + aa);
-                float rOuter       = r;
-                float rOuterFringe = r + aa;
+                float rInner    = Math.max(0.0f, r - stroke);
+                float rInnerMid = Math.max(0.0f, r - stroke + aa);
 
                 // 左上圆角
                 drawSubpixelRingGradient(graphics, r, r, 0.0, 90.0, segments, rInner, rInnerMid, fadeBorder, borderColor); // 内羽化
-                drawSubpixelRingGradient(graphics, r, r, 0.0, 90.0, segments, rInnerMid, rOuter, borderColor, borderColor); // 实心核
-                drawSubpixelRingGradient(graphics, r, r, 0.0, 90.0, segments, rOuter, rOuterFringe, borderColor, fadeBorder); // 外羽化
+                drawSubpixelRingGradient(graphics, r, r, 0.0, 90.0, segments, rInnerMid, r, borderColor, borderColor); // 实心核
 
                 // 右上圆角
                 drawSubpixelRingGradient(graphics, width - r, r, 90.0, 180.0, segments, rInner, rInnerMid, fadeBorder, borderColor);
-                drawSubpixelRingGradient(graphics, width - r, r, 90.0, 180.0, segments, rInnerMid, rOuter, borderColor, borderColor);
-                drawSubpixelRingGradient(graphics, width - r, r, 90.0, 180.0, segments, rOuter, rOuterFringe, borderColor, fadeBorder);
+                drawSubpixelRingGradient(graphics, width - r, r, 90.0, 180.0, segments, rInnerMid, r, borderColor, borderColor);
 
                 // 右下圆角
                 drawSubpixelRingGradient(graphics, width - r, height - r, 180.0, 270.0, segments, rInner, rInnerMid, fadeBorder, borderColor);
-                drawSubpixelRingGradient(graphics, width - r, height - r, 180.0, 270.0, segments, rInnerMid, rOuter, borderColor, borderColor);
-                drawSubpixelRingGradient(graphics, width - r, height - r, 180.0, 270.0, segments, rOuter, rOuterFringe, borderColor, fadeBorder);
+                drawSubpixelRingGradient(graphics, width - r, height - r, 180.0, 270.0, segments, rInnerMid, r, borderColor, borderColor);
 
                 // 左下圆角
                 drawSubpixelRingGradient(graphics, r, height - r, 270.0, 360.0, segments, rInner, rInnerMid, fadeBorder, borderColor);
-                drawSubpixelRingGradient(graphics, r, height - r, 270.0, 360.0, segments, rInnerMid, rOuter, borderColor, borderColor);
-                drawSubpixelRingGradient(graphics, r, height - r, 270.0, 360.0, segments, rOuter, rOuterFringe, borderColor, fadeBorder);
+                drawSubpixelRingGradient(graphics, r, height - r, 270.0, 360.0, segments, rInnerMid, r, borderColor, borderColor);
 
             } else {
                 fillSubpixel(graphics, 0.0f, 0.0f, width, stroke, borderRgb);
@@ -275,46 +268,6 @@ public final class RenderUtil {
         float textWidth = font.width(text) * scale;
         float textHeight = 9.0f * scale;
         drawSmoothText(graphics, text, centerX - textWidth / 2.0f, centerY - textHeight / 2.0f, scale, textColor);
-    }
-
-    public static float easeSmoothDecel(float progress) {
-        float p = Mth.clamp(progress, 0.0f, 1.0f);
-        return 1.0f - (float) Math.pow(1.0f - p, 4.0f);
-    }
-
-    public static float easeOutCubic(float progress) {
-        float p = Mth.clamp(progress, 0.0f, 1.0f);
-        return 1.0f - (float) Math.pow(1.0f - p, 4.0f);
-    }
-
-    public static float easeOutQuint(float progress) {
-        float p = Mth.clamp(progress, 0.0f, 1.0f);
-        return 1.0f - (float) Math.pow(1.0f - p, 5.0f);
-    }
-
-    public static float easeOutExpo(float progress) {
-        float p = Mth.clamp(progress, 0.0f, 1.0f);
-        return p >= 1.0f ? 1.0f : 1.0f - (float) Math.pow(2.0, -10.0 * p);
-    }
-
-    public static float lerp(float delta, float start, float end) {
-        return start + delta * (end - start);
-    }
-
-    public static Color withAlpha(int rgb, int alpha) {
-        int r = (rgb >> 16) & 0xFF;
-        int g = (rgb >> 8) & 0xFF;
-        int b = rgb & 0xFF;
-        return Color.ofArgb(ARGB.color(alpha, r, g, b));
-    }
-
-    public static Color lerpColor(float delta, Color start, Color end) {
-        float d = Mth.clamp(delta, 0.0f, 1.0f);
-        int r = (int) (start.red() * 255 + (end.red() * 255 - start.red() * 255) * d);
-        int g = (int) (start.green() * 255 + (end.green() * 255 - start.green() * 255) * d);
-        int b = (int) (start.blue() * 255 + (end.blue() * 255 - start.blue() * 255) * d);
-        int a = (int) (start.alpha() * 255 + (end.alpha() * 255 - start.alpha() * 255) * d);
-        return Color.ofArgb(ARGB.color(a, r, g, b));
     }
 
     public static float getExactMouseX() {

@@ -1,10 +1,12 @@
 package me.cookie.kwrg.irc;
 
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import me.cookie.kwrg.gui.IrcScreen;
+import me.cookie.kwrg.gui.hud.HudEditorScreen;
 import me.cookie.kwrg.module.modules.debug.ClearIndexCacheModule;
 import me.cookie.kwrg.module.modules.functions.GlowColorModule;
 import me.cookie.kwrg.module.modules.functions.HideArmorModule;
@@ -329,9 +331,22 @@ public class IrcCommand {
                 .then(literal("gui").executes(ctx -> {
                     IrcScreen.showGui();
                     return 1;
-                }));
+                }))
+                .then(hudEditorAlias("hudeditor"))
+                .then(hudEditorAlias("hud"));
 
         dispatcher.register(ircRoot);
+    }
+
+    private static LiteralArgumentBuilder<FabricClientCommandSource> hudEditorAlias(String alias) {
+        return literal(alias).executes(ctx -> {
+            openHudEditor();
+            return 1;
+        });
+    }
+
+    private static void openHudEditor() {
+        HudEditorScreen.open(null);
     }
 
     private static void sendHelp() {
@@ -346,6 +361,7 @@ public class IrcCommand {
         IrcMessageHandler.printMessage("§e/irc config/cfg save §7- 保存当前配置至文件(只有新建的配置文件才需要保存)");
         IrcMessageHandler.printMessage("§e/irc play/p <玩家名> <物品ID> §7- 向指定玩家发送 Totem 动画效果");
         IrcMessageHandler.printMessage("§e/irc online §7- 查看当前 IRC 在线玩家列表");
+        IrcMessageHandler.printMessage("§e/irc hudeditor §7或 §e/irc hud §7- 打开 HUD 布局编辑器");
         IrcMessageHandler.printMessage("§e/irc functions §7- 查看功能列表");
         IrcMessageHandler.printMessage("§e/irc debug  §7- 查看调试选项");
     }

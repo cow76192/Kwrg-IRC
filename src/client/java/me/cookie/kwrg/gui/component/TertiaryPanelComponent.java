@@ -4,6 +4,7 @@ import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.core.*;
 import me.cookie.kwrg.gui.manager.GuiColorManager;
 import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.module.Module;
@@ -93,7 +94,7 @@ public class TertiaryPanelComponent extends FlowLayout {
     public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
         if (this.animationProgress <= 0.03f) return;
 
-        float ease = RenderUtil.easeOutCubic(this.animationProgress);
+        float ease = AnimationUtil.easeOutCubic(this.animationProgress);
 
         int rootW = this.parent() != null ? this.parent().width() : Minecraft.getInstance().getWindow().getGuiScaledWidth();
         int rootH = this.parent() != null ? this.parent().height() : Minecraft.getInstance().getWindow().getGuiScaledHeight();
@@ -118,8 +119,8 @@ public class TertiaryPanelComponent extends FlowLayout {
         int bgAlpha = (int) (255 * panelAlpha);
         int outlineAlpha = (int) (85 * panelAlpha);
 
-        Color panelBg = RenderUtil.withAlpha(GuiColorManager.getBgColorRgb(), bgAlpha);
-        Color outlineColor = RenderUtil.withAlpha(GuiColorManager.getOutlineColorRgb(), outlineAlpha);
+        Color panelBg = AnimationUtil.withAlpha(GuiColorManager.getBgColorRgb(), bgAlpha);
+        Color outlineColor = AnimationUtil.withAlpha(GuiColorManager.getOutlineColorRgb(), outlineAlpha);
 
         RenderUtil.drawRoundedPanel(graphics, px, py, width, height, 14.0f, panelBg, outlineColor);
 
@@ -131,18 +132,18 @@ public class TertiaryPanelComponent extends FlowLayout {
         if (ease > 0.15f) {
             float contentAlpha = (ease - 0.15f) / 0.85f;
 
-            Color badgeBg = RenderUtil.withAlpha(0x1D2633, (int) (255 * contentAlpha));
-            Color badgeOutline = RenderUtil.withAlpha(0xFFFFFF, (int) (85 * contentAlpha));
+            Color badgeBg = AnimationUtil.withAlpha(0x1D2633, (int) (255 * contentAlpha));
+            Color badgeOutline = AnimationUtil.withAlpha(0xFFFFFF, (int) (85 * contentAlpha));
             graphics.drawCircle(iconBadgeX, iconBadgeY, 32, iconBadgeRadius, badgeBg);
             graphics.drawRing(iconBadgeX, iconBadgeY, 32, iconBadgeRadius - 0.8, iconBadgeRadius, badgeOutline, badgeOutline);
 
             String initialChar = this.itemTitle.isEmpty() ? "•" : this.itemTitle.substring(0, 1).toUpperCase();
             var font = Minecraft.getInstance().font;
             float initialW = font.width(initialChar);
-            int badgeTextColor = RenderUtil.withAlpha(0xFFFFFF, (int) (255 * contentAlpha)).argb();
+            int badgeTextColor = AnimationUtil.withAlpha(0xFFFFFF, (int) (255 * contentAlpha)).argb();
             RenderUtil.drawSmoothText(graphics, Component.literal(initialChar), iconBadgeX - initialW / 2.0f, iconBadgeY - 4.5f, 1.0f, badgeTextColor);
 
-            int headerTextColor = RenderUtil.withAlpha(0xFFFFFF, (int) (255 * contentAlpha)).argb();
+            int headerTextColor = AnimationUtil.withAlpha(0xFFFFFF, (int) (255 * contentAlpha)).argb();
             RenderUtil.drawSmoothText(graphics, Component.literal(this.itemTitle), iconBadgeX + 18, iconBadgeY - 4.5f, 1.0f, headerTextColor);
 
             graphics.fill(px + 12, py + headerHeight, px + width - 12, py + headerHeight + 1, ARGB.color((int) (45 * contentAlpha), 255, 255, 255));

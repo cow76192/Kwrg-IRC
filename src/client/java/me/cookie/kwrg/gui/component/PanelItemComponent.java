@@ -2,6 +2,7 @@ package me.cookie.kwrg.gui.component;
 
 import io.wispforest.owo.ui.base.BaseUIComponent;
 import io.wispforest.owo.ui.core.*;
+import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import net.minecraft.client.Minecraft;
@@ -127,11 +128,11 @@ public class PanelItemComponent extends BaseUIComponent {
 
     public int getLayoutFootprint() {
         if (this.isDismissing) {
-            float dismissEase = RenderUtil.easeOutCubic(this.dismissProgress);
+            float dismissEase = AnimationUtil.easeOutCubic(this.dismissProgress);
             return Math.round((1.0f - dismissEase) * FULL_FOOTPRINT);
         }
         if (this.playSpawnAnimation && this.spawnProgress < 1.0f) {
-            float spawnEase = RenderUtil.easeOutCubic(this.spawnProgress);
+            float spawnEase = AnimationUtil.easeOutCubic(this.spawnProgress);
             return Math.round(spawnEase * FULL_FOOTPRINT);
         }
         return FULL_FOOTPRINT;
@@ -158,7 +159,7 @@ public class PanelItemComponent extends BaseUIComponent {
         if (this.playSpawnAnimation && this.spawnProgress < 1.0f) {
             this.spawnProgress = Math.min(1.0f, this.spawnProgress + delta * 0.30f);
         }
-        float spawnEase = this.playSpawnAnimation ? RenderUtil.easeOutCubic(this.spawnProgress) : 1.0f;
+        float spawnEase = this.playSpawnAnimation ? AnimationUtil.easeOutCubic(this.spawnProgress) : 1.0f;
 
         if (this.isDismissing) {
             this.dismissProgress = Math.min(1.0f, this.dismissProgress + delta * 0.32f);
@@ -169,7 +170,7 @@ public class PanelItemComponent extends BaseUIComponent {
                 return;
             }
         }
-        float dismissEase = this.isDismissing ? RenderUtil.easeOutCubic(this.dismissProgress) : 0.0f;
+        float dismissEase = this.isDismissing ? AnimationUtil.easeOutCubic(this.dismissProgress) : 0.0f;
 
         float totalAlpha = (1.0f - dismissEase) * spawnEase;
         int footprint = this.getLayoutFootprint();
@@ -256,7 +257,7 @@ public class PanelItemComponent extends BaseUIComponent {
             int dotG = (int) Mth.lerp(this.activeAnimation, 90f, 190f);
             int dotB = (int) Mth.lerp(this.activeAnimation, 100f, 197f);
             Color dotColor = Color.ofArgb(ARGB.color((int) (255 * totalAlpha), dotR, dotG, dotB));
-            Color dotFade = RenderUtil.withAlpha(ARGB.color(255, dotR, dotG, dotB), 0);
+            Color dotFade = AnimationUtil.withAlpha(ARGB.color(255, dotR, dotG, dotB), 0);
             RenderUtil.drawAACircle(graphics, dotX, dotY, 2.5, dotColor, dotFade);
         } else if (this.hoverAnimation > 0.05f) {
             Color dotColor = Color.ofArgb(ARGB.color((int) (160 * this.hoverAnimation * totalAlpha), 176, 190, 197));
