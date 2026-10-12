@@ -23,10 +23,22 @@ jobs:
 
             // 计算目标标签
             let targetLabel = '1+';
-            if (totalChanges >= 2000) {
+            if (totalChanges >= 5000) {
+              targetLabel = '5000+';
+            } else if (totalChanges >= 4000) {
+              targetLabel = '4000+';
+            } else if (totalChanges >= 2000) {
               targetLabel = '2000+';
-            } else if (totalChanges >= 500) {
-              targetLabel = '500+';
+            } else if (totalChanges >= 1500) {
+              targetLabel = '1500+';
+            } else if (totalChanges >= 1000) {
+              targetLabel = '1000+';
+            } else if (totalChanges >= 800) {
+              targetLabel = '800+';
+            } else if (totalChanges >= 400) {
+              targetLabel = '400+';
+            } else if (totalChanges >= 200) {
+              targetLabel = '200+';
             } else if (totalChanges >= 100) {
               targetLabel = '100+';
             } else if (totalChanges >= 40) {
