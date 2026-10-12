@@ -2,7 +2,7 @@ package me.cookie.kwrg.gui.manager;
 
 import io.wispforest.owo.ui.core.Color;
 import me.cookie.kwrg.gui.notification.NotificationType;
-import me.cookie.kwrg.gui.util.RenderUtil;
+import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
@@ -32,8 +32,8 @@ public class GuiColorManager {
 
     public static int getBgColorRgb() { return cachedBgRgb; }
     public static int getOutlineColorRgb() { return cachedOutlineRgb; }
-    public static Color getPanelBg(float panelAlpha) { return RenderUtil.withAlpha(cachedBgRgb, (int) (255 * panelAlpha)); }
-    public static Color getPanelOutline(float panelAlpha) { return RenderUtil.withAlpha(cachedOutlineRgb, (int) (85 * panelAlpha)); }
+    public static Color getPanelBg(float panelAlpha) { return AnimationUtil.withAlpha(cachedBgRgb, (int) (255 * panelAlpha)); }
+    public static Color getPanelOutline(float panelAlpha) { return AnimationUtil.withAlpha(cachedOutlineRgb, (int) (85 * panelAlpha)); }
 
     public static String getGuiColorStr() {
         IrcConfig config = IrcConfig.get();

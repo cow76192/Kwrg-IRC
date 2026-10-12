@@ -47,6 +47,6 @@ public abstract class Module {
     }
 
     public PanelItemComponent createPanelItem(Consumer<PanelItemComponent> openTertiaryCallback) {
-        return new PanelItemComponent(this.name, this.type, this::onExecute, openTertiaryCallback, this.activeSupplier);
+        return new PanelItemComponent(this.name, this.type, this::onExecute, openTertiaryCallback, this::isActive);
     }
 }

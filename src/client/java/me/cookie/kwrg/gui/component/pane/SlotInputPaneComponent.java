@@ -4,6 +4,7 @@ import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.CursorStyle;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import me.cookie.kwrg.gui.component.BasePaneComponent;
+import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import net.minecraft.client.Minecraft;
@@ -336,7 +337,7 @@ public class SlotInputPaneComponent extends BasePaneComponent {
 
             float targetProgress = isCurFocused ? 1.0f : 0.0f;
             this.slotFocusProgress[i] = Mth.clamp(this.slotFocusProgress[i] + (targetProgress - this.slotFocusProgress[i]) * delta * 0.45f, 0.0f, 1.0f);
-            float ease = RenderUtil.easeOutCubic(this.slotFocusProgress[i]);
+            float ease = AnimationUtil.easeOutCubic(this.slotFocusProgress[i]);
 
             float lineX1 = curX;
             float lineY = textStartY + font.lineHeight * textScale + 1.5f;

@@ -3,6 +3,7 @@ package me.cookie.kwrg.irc;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
+import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
@@ -12,7 +13,10 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -49,7 +53,6 @@ public class IrcConfig {
     public List<String> savedChannels = new ArrayList<>();
 
     public List<String> playerFinderTargets = new ArrayList<>();
-    public boolean autoTrackPlayer = false;
 
     public float myScale = 1.0f;
     public String myCape = "";
@@ -58,17 +61,17 @@ public class IrcConfig {
     public int capeCanvasSize = 2048;
     public int capeAnimFps = 10;
 
-    public boolean dynamicIsland = false;
     public boolean islandShowFps = true;
     public boolean islandShowPing = true;
     public boolean islandShowTps = true;
     public boolean islandShowRam = false;
     public boolean islandShowGpu = false;
     public boolean islandShowCpu = false;
-    public boolean isShadowEnabled = true;
-    public float islandOpacity  = 0.2f;
-    public boolean onlyApplyToTab = true;
-    public boolean onlyRenderTab = false;
+    public float tabOpacity = 1.0f;
+    public boolean dynamicTab = true;
+    public boolean islandPosAffectsTab = true;
+    public boolean scoreboardHideScores = false;
+    public Map<String, HudElement.State> hudElements = new LinkedHashMap<>();
 
     public boolean disableBlur = false;
     public float blurQuality = 8.0f;
@@ -156,7 +159,7 @@ public class IrcConfig {
                 String json = Files.readString(profilePath);
 
                 JsonObject jsonObj = GSON.fromJson(json, JsonObject.class);
-                migrateLegacyFields(jsonObj);
+                ConfigMigrator.migrate(jsonObj);
                 IrcConfig loaded = GSON.fromJson(jsonObj, IrcConfig.class);
 
                 if (loaded == null) loaded = new IrcConfig();
@@ -167,6 +170,13 @@ public class IrcConfig {
                 if (loaded.myScale <= 0.0f || Float.isNaN(loaded.myScale)) loaded.myScale = 1.0f;
                 if (loaded.capeCanvasSize < 64) loaded.capeCanvasSize = 4096;
                 if (loaded.capeAnimFps <= 0) loaded.capeAnimFps = 10;
+
+                if (loaded.hudElements == null) {
+                    loaded.hudElements = new LinkedHashMap<>();
+                } else {
+                    loaded.hudElements.values().removeIf(Objects::isNull);
+                    loaded.hudElements.values().forEach(HudElement.State::sanitize);
+                }
 
                 instance = loaded;
                 currentProfileName = cleanName;
@@ -186,16 +196,6 @@ public class IrcConfig {
             LOGGER.error("[Kwrg] 加载配置文件 {}.json 失败", cleanName, e);
         }
         return false;
-    }
-
-    private static void migrateLegacyFields(JsonObject jsonObj) {
-        if (jsonObj == null) return;
-
-        if (jsonObj.has("onlyTab") && !jsonObj.has("onlyApplyToTab")) {
-            jsonObj.add("onlyApplyToTab", jsonObj.get("onlyTab"));
-        }
-        //迁移旧配置扩展
-        jsonObj.remove("onlyTab");
     }
 
     public static void createProfile(String profileName) {

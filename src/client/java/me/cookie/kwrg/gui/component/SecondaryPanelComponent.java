@@ -4,6 +4,7 @@ import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.container.StackLayout;
 import io.wispforest.owo.ui.core.*;
 import me.cookie.kwrg.gui.manager.GuiColorManager;
+import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -154,7 +155,7 @@ public class SecondaryPanelComponent extends FlowLayout {
         long elapsed = System.currentTimeMillis() - this.tertiaryAnimStartTime;
         float rawT = Mth.clamp((float) elapsed / TERTIARY_ANIM_DURATION, 0.0f, 1.0f);
         float progress = this.tertiaryOpen ? rawT : (1.0f - rawT);
-        return RenderUtil.easeOutCubic(progress);
+        return AnimationUtil.easeOutCubic(progress);
     }
 
     @Override
@@ -174,7 +175,7 @@ public class SecondaryPanelComponent extends FlowLayout {
 
         if (this.animationProgress <= 0.005f) return;
 
-        float ease = RenderUtil.easeOutCubic(this.animationProgress);
+        float ease = AnimationUtil.easeOutCubic(this.animationProgress);
         float tertiaryEase = getTertiaryEase();
 
         int rootW = this.parent() != null ? this.parent().width() : Minecraft.getInstance().getWindow().getGuiScaledWidth();
@@ -201,8 +202,8 @@ public class SecondaryPanelComponent extends FlowLayout {
         int bgAlpha = (int) (255 * panelAlpha);
         int outlineAlpha = (int) (85 * panelAlpha);
 
-        Color panelBg = RenderUtil.withAlpha(GuiColorManager.getBgColorRgb(), bgAlpha);
-        Color outlineColor = RenderUtil.withAlpha(GuiColorManager.getOutlineColorRgb(), outlineAlpha);
+        Color panelBg = AnimationUtil.withAlpha(GuiColorManager.getBgColorRgb(), bgAlpha);
+        Color outlineColor = AnimationUtil.withAlpha(GuiColorManager.getOutlineColorRgb(), outlineAlpha);
 
         RenderUtil.drawRoundedPanel(graphics, px, py, width, height, 14.0f, panelBg, outlineColor);
 
@@ -211,8 +212,8 @@ public class SecondaryPanelComponent extends FlowLayout {
         int iconBadgeX = px + 22;
         int iconBadgeY = py + 22;
 
-        Color badgeBg = RenderUtil.withAlpha(0x1D2633, (int) (255 * panelAlpha));
-        Color badgeOutline = RenderUtil.withAlpha(0xFFFFFF, (int) (85 * panelAlpha));
+        Color badgeBg = AnimationUtil.withAlpha(0x1D2633, (int) (255 * panelAlpha));
+        Color badgeOutline = AnimationUtil.withAlpha(0xFFFFFF, (int) (85 * panelAlpha));
         graphics.drawCircle(iconBadgeX, iconBadgeY, 32, iconBadgeRadius, badgeBg);
         graphics.drawRing(iconBadgeX, iconBadgeY, 32, iconBadgeRadius - 0.8, iconBadgeRadius, badgeOutline, badgeOutline);
 
@@ -223,7 +224,7 @@ public class SecondaryPanelComponent extends FlowLayout {
         }
 
         String titleStr = Character.toUpperCase(this.categoryTitle.charAt(0)) + this.categoryTitle.substring(1);
-        int headerTextColor = RenderUtil.withAlpha(0xFFFFFF, (int) (255 * panelAlpha)).argb();
+        int headerTextColor = AnimationUtil.withAlpha(0xFFFFFF, (int) (255 * panelAlpha)).argb();
         RenderUtil.drawSmoothText(graphics, Component.literal(titleStr), iconBadgeX + 18, iconBadgeY - 4.5f, 1.0f, headerTextColor);
 
         graphics.fill(px + 12, py + headerHeight, px + width - 12, py + headerHeight + 1, ARGB.color((int) (45 * panelAlpha), 255, 255, 255));

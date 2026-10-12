@@ -1,8 +1,7 @@
-package me.cookie.kwrg.mixin;
+package me.cookie.kwrg.mixin.skyblocker;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -19,13 +18,12 @@ public abstract class SkyblockerWidgetManagerMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/client/KeyMapping;isDown()Z"
-            )
-    )
+            ), require = 0)
     private static boolean kwrg$keepTabRenderingOnRelease(KeyMapping keyMapping, Operation<Boolean> original) {
         boolean down = original.call(keyMapping);
         if (down) return true;
 
-        if (IrcConfig.get().dynamicIsland && DynamicIslandRenderer.isTabAnimating()) {
+        if (DynamicIslandRenderer.isTabFeatureOn() && DynamicIslandRenderer.isTabAnimating()) {
             Minecraft mc = Minecraft.getInstance();
             if (keyMapping == mc.options.keyPlayerList) {
                 return true;

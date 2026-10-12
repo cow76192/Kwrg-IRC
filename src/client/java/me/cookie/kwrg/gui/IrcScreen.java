@@ -10,7 +10,7 @@ import me.cookie.kwrg.gui.component.ParticleBackgroundComponent;
 import me.cookie.kwrg.gui.component.RadialMenuComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.notification.NotificationManager;
-import me.cookie.kwrg.gui.util.RenderUtil;
+import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import net.minecraft.client.Minecraft;
@@ -195,8 +195,8 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
             this.scaleAnimStartTime = 0L;
         } else {
             float progress = (float) elapsed / SCALE_ANIM_DURATION;
-            float ease = RenderUtil.easeOutCubic(progress);
-            this.currentScale = RenderUtil.lerp(ease, this.fromScale, this.targetScale);
+            float ease = AnimationUtil.easeOutCubic(progress);
+            this.currentScale = AnimationUtil.lerp(ease, this.fromScale, this.targetScale);
         }
 
         return this.currentScale;

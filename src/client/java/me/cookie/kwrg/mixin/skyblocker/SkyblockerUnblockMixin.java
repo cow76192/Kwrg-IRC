@@ -1,4 +1,4 @@
-package me.cookie.kwrg.mixin;
+package me.cookie.kwrg.mixin.skyblocker;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(targets = "de.hysky.skyblocker.skyblock.tabhud.screenbuilder.WidgetManager", remap = false)
 public abstract class SkyblockerUnblockMixin {
 
-    @Inject(method = "hasFancyTab", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "hasFancyTab", at = @At("HEAD"), cancellable = true, require = 0)
     private static void kwrg$fixSkyblockerBlockingVanilla(CallbackInfoReturnable<Boolean> cir) {
         try {
             Class<?> cfgClass = Class.forName("de.hysky.skyblocker.config.SkyblockerConfigManager");
