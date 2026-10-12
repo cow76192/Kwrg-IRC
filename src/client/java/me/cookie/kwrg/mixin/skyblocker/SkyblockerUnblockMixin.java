@@ -1,4 +1,4 @@
-package me.cookie.kwrg.mixin;
+package me.cookie.kwrg.mixin.skyblocker;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;

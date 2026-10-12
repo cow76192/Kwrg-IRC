@@ -92,6 +92,8 @@ public class DynamicIslandRenderer {
     private static float tabTargetShiftY = 0.0f;
     private static boolean editorPreview = false;
 
+    public static GuiGraphicsExtractor getCurrentExtractor() { return currentFrameExtractor; }
+
     public static float resolveIslandCenterX(float width) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.getWindow() == null) return width / 2.0f;

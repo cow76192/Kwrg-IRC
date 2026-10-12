@@ -4,248 +4,262 @@ import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.gui.hud.HudElementRegistry;
+import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.FontDescription;
+import net.minecraft.network.chat.Style;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 
 public class ScoreboardIslandRenderer {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("kwrg-scoreboard");
-    private static final float MIN_EXTERNAL_WIDTH = 40.0f;
-    private static final float MIN_EXTERNAL_HEIGHT = 12.0f;
+    private static final FontDescription SCOREBOARD_FONT = new FontDescription.Resource(Identifier.fromNamespaceAndPath("kwrg", "island"));
+    private static final Style SCOREBOARD_STYLE = Style.EMPTY.withFont(SCOREBOARD_FONT);
 
-    private static final float SIZE_SMOOTH_TAU = 0.12f;
-    private static final float SIZE_SNAP = 0.05f;
-    private static final float ALPHA_ANIM_SPEED = 8.0f;
-    private static final float POSITION_ANIM_SPEED = 12.0f;
-    private static final long CONTINUOUS_TIMEOUT_MS = 150L;
-    private static final float CORNER_RADIUS = 12.0f;
-    private static final float PLACEHOLDER_W = 140.0f;
-    private static final float PLACEHOLDER_H = 90.0f;
+    private static final float CORNER_RADIUS = 8.0f;
+    private static final float SHADOW_BLUR = 4.0f;
+    private static final float SHADOW_OFFSET_Y = 1.5f;
+    private static final int SHADOW_BASE_ALPHA = 45;
 
-    private static float targetW = PLACEHOLDER_W;
-    private static float targetH = PLACEHOLDER_H;
-    private static float smoothW = PLACEHOLDER_W;
-    private static float smoothH = PLACEHOLDER_H;
+    // 动画时长常量（秒）
+    private static final float SIZE_ANIM_DURATION = 0.28f;
 
-    private static float smoothX = -1.0f;
-    private static float smoothY = -1.0f;
-    private static float currentAlpha = 0.0f;
+    // 目标尺寸
+    private static float targetW = 100.0f;
+    private static float targetH = 120.0f;
 
-    private static long lastSeenMs = 0L;
-    private static long lastTickMs = 0L;
-    private static boolean drawnThisFrame = false;
-    private static boolean hasEverSeen = false;
-    private static boolean posePushed = false;
+    // 平滑插值后的当前渲染尺寸
+    private static float smoothW = 100.0f;
+    private static float startW = 100.0f;
+    private static float widthAnimTimer = 1.0f;
+
+    private static float smoothH = 120.0f;
+    private static float startH = 120.0f;
+    private static float heightAnimTimer = 1.0f;
+
+    private static float smoothX = 0.0f;
+    private static float smoothY = 0.0f;
+
+    // 状态与时间戳
+    private static long lastUpdateTime = -1L;
+    private static long lastRenderActiveTime = 0L;
     private static boolean editorPreview = false;
-    private static boolean externalActive = false;
-    private static int externalRejects = 0;
-    private static long lastExternalLogMs = 0L;
-    private static long lastExternalRenderMs = 0L;
-    private static GuiGraphicsExtractor activeGraphics = null;
+    private static boolean skyHanniActiveThisFrame = false;
+    private static boolean isScissorActive = false;
 
-    public static boolean isIslandEnabled() {
-        return HudElementRegistry.state(HudElementRegistry.SCOREBOARD).enabled;
-    }
-
-    public static boolean hasActiveIsland() {
-        return activeGraphics != null;
-    }
-
-    public static boolean isThirdPartyActive() {
-        return lastExternalRenderMs > 0L && System.currentTimeMillis() - lastExternalRenderMs < 250L;
+    public static boolean isEnabled() {
+        return HudElementRegistry.isEnabled(HudElementRegistry.SCOREBOARD);
     }
 
     public static void setEditorPreview(boolean enabled) {
         editorPreview = enabled;
     }
 
-    public static float[] getIslandBounds() {
-        if (hasEverSeen) {
-            return new float[]{smoothX, smoothY, smoothW, smoothH};
-        }
-        float[] anchored = resolveAnchoredRect(PLACEHOLDER_W, PLACEHOLDER_H);
-        return new float[]{anchored[0], anchored[1], PLACEHOLDER_W, PLACEHOLDER_H};
+    public static boolean isEditorPreview() {
+        return editorPreview;
     }
 
-    private static float[] resolveAnchoredRect(float width, float height) {
+    public static void markSkyHanniActive() {
+        skyHanniActiveThisFrame = true;
+        lastRenderActiveTime = System.currentTimeMillis();
+    }
+
+    public static boolean isSkyHanniActive() {
+        return skyHanniActiveThisFrame;
+    }
+
+    public static void resetFrameState() {
+        skyHanniActiveThisFrame = false;
+    }
+
+    public static float getSmoothX() { return smoothX; }
+    public static float getSmoothY() { return smoothY; }
+    public static float getSmoothW() { return smoothW; }
+    public static float getSmoothH() { return smoothH; }
+
+    public static float[] getIslandBounds() {
+        return new float[]{smoothX, smoothY, smoothW, smoothH};
+    }
+
+    public static float resolveScoreboardX(float width) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.getWindow() == null) return new float[]{0.0f, 0.0f};
+        if (mc.getWindow() == null) return 0.0f;
 
         HudElement.State state = HudElementRegistry.state(HudElementRegistry.SCOREBOARD);
-        float x = HudElement.Anchor.resolveX(state.anchorX, state.marginX,
-                HudElementRegistry.resolveOffsetX(HudElementRegistry.SCOREBOARD), width, mc.getWindow().getGuiScaledWidth());
-        float y = HudElement.Anchor.resolveY(state.anchorY, state.marginY,
-                HudElementRegistry.resolveOffsetY(HudElementRegistry.SCOREBOARD), height, mc.getWindow().getGuiScaledHeight());
-        return new float[]{x, y};
+        return HudElement.Anchor.resolveX(state.anchorX, state.marginX,
+                HudElementRegistry.resolveOffsetX(HudElementRegistry.SCOREBOARD),
+                width, mc.getWindow().getGuiScaledWidth());
     }
 
-    public static void tick() {
-        long now = System.currentTimeMillis();
-        float dt = lastTickMs == 0L ? 0.016f : (now - lastTickMs) / 1000.0f;
-        lastTickMs = now;
-        dt = Mth.clamp(dt, 0.001f, 0.1f);
+    public static float resolveScoreboardY(float height) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getWindow() == null) return 0.0f;
 
-        drawnThisFrame = false;
+        HudElement.State state = HudElementRegistry.state(HudElementRegistry.SCOREBOARD);
+        return HudElement.Anchor.resolveY(state.anchorY, state.marginY,
+                HudElementRegistry.resolveOffsetY(HudElementRegistry.SCOREBOARD),
+                height, mc.getWindow().getGuiScaledHeight());
+    }
 
-        if (activeGraphics != null) {
-            LOGGER.warn("[ScoreboardIsland] releasing render state leaked from the previous frame");
-            endIsland();
-            externalActive = false;
+    public static void updateTargetBounds(float rawContentW, float rawContentH) {
+        lastRenderActiveTime = System.currentTimeMillis();
+
+        HudElement.State state = HudElementRegistry.state(HudElementRegistry.SCOREBOARD);
+        int pad = state.padding;
+
+        float newTargetW = Math.max(50.0f, rawContentW + pad * 2.0f);
+        float newTargetH = Math.max(30.0f, rawContentH + pad * 2.0f);
+
+        if (Math.abs(newTargetW - targetW) > 1.0f) {
+            startW = smoothW;
+            targetW = newTargetW;
+            widthAnimTimer = 0.0f;
         }
 
-        float sizeEase = 1.0f - (float) Math.exp(-dt / SIZE_SMOOTH_TAU);
+        if (Math.abs(newTargetH - targetH) > 1.0f) {
+            startH = smoothH;
+            targetH = newTargetH;
+            heightAnimTimer = 0.0f;
+        }
+    }
 
-        smoothW = Mth.lerp(sizeEase, smoothW, targetW);
-        smoothH = Mth.lerp(sizeEase, smoothH, targetH);
+    public static void updateAnimation() {
+        long now = System.currentTimeMillis();
+        if (lastUpdateTime < 0L) {
+            lastUpdateTime = now;
+            smoothX = resolveScoreboardX(smoothW);
+            smoothY = resolveScoreboardY(smoothH);
+            return;
+        }
 
-        if (Math.abs(targetW - smoothW) < SIZE_SNAP) smoothW = targetW;
-        if (Math.abs(targetH - smoothH) < SIZE_SNAP) smoothH = targetH;
+        float dt = (now - lastUpdateTime) / 1000.0f;
+        lastUpdateTime = now;
+        dt = Mth.clamp(dt, 0.001f, 0.05f);
 
-        float[] anchored = resolveAnchoredRect(smoothW, smoothH);
-        if (smoothX < 0.0f) {
-            smoothX = anchored[0];
-            smoothY = anchored[1];
+        // 平滑过度
+        if (widthAnimTimer < 1.0f) {
+            widthAnimTimer = Math.min(1.0f, widthAnimTimer + dt / SIZE_ANIM_DURATION);
+            smoothW = Mth.lerp(AnimationUtil.easeSmoothDecel(widthAnimTimer), startW, targetW);
         } else {
-            smoothX = Mth.lerp(dt * POSITION_ANIM_SPEED, smoothX, anchored[0]);
-            smoothY = Mth.lerp(dt * POSITION_ANIM_SPEED, smoothY, anchored[1]);
+            smoothW = targetW;
         }
 
-        boolean continuous = hasEverSeen && (now - lastSeenMs) < CONTINUOUS_TIMEOUT_MS;
-        float targetAlpha = (continuous || editorPreview) ? Mth.clamp(HudElementRegistry.state(HudElementRegistry.SCOREBOARD).opacity, 0.0f, 1.0f) : 0.0f;
-        currentAlpha = Mth.lerp(Mth.clamp(dt * ALPHA_ANIM_SPEED, 0.0f, 1.0f), currentAlpha, targetAlpha);
-        if (currentAlpha < 0.005f) currentAlpha = 0.0f;
-    }
-
-    public static void updateTargetBounds(int width, int height) {
-        lastSeenMs = System.currentTimeMillis();
-        hasEverSeen = true;
-
-        float w = Math.max(24.0f, width);
-        float h = Math.max(20.0f, height);
-
-        targetW = w;
-        targetH = h;
-    }
-
-    public static boolean beginIsland(GuiGraphicsExtractor graphics, int minX, int minY, int maxX, int maxY) {
-        if (graphics == null || !isIslandEnabled()) return false;
-        if (activeGraphics != null) return false;
-
-        float pad = Math.max(0.0f, HudElementRegistry.state(HudElementRegistry.SCOREBOARD).padding);
-        updateTargetBounds(Math.round(maxX - minX + pad * 2.0f), Math.round(maxY - minY + pad * 2.0f));
-
-        drawnThisFrame = true;
-
-        float x = smoothX;
-        float y = smoothY;
-        if (x < 0.0f || y < 0.0f) return false;
-
-        if (currentAlpha > 0.005f) {
-            drawPanel(OwoUIGraphics.of(graphics), x, y, smoothW, smoothH, currentAlpha);
+        if (heightAnimTimer < 1.0f) {
+            heightAnimTimer = Math.min(1.0f, heightAnimTimer + dt / SIZE_ANIM_DURATION);
+            smoothH = Mth.lerp(AnimationUtil.easeSmoothDecel(heightAnimTimer), startH, targetH);
+        } else {
+            smoothH = targetH;
         }
 
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(x + pad - minX, y + pad - minY);
-        posePushed = true;
-        activeGraphics = graphics;
-        return true;
+        smoothX = resolveScoreboardX(smoothW);
+        smoothY = resolveScoreboardY(smoothH);
     }
 
-    public static void endIsland() {
-        GuiGraphicsExtractor graphics = activeGraphics;
-        activeGraphics = null;
+    public static void renderScoreboardBackground(OwoUIGraphics graphics) {
+        if (!isEnabled()) return;
 
-        if (graphics == null) {
-            posePushed = false;
-            return;
+        HudElement.State state = HudElementRegistry.state(HudElementRegistry.SCOREBOARD);
+        float opacity = Mth.clamp(state.opacity, 0.0f, 1.0f);
+        if (opacity <= 0.005f) return;
+
+        if (state.shadow) {
+            RenderUtil.drawSoftDropShadow(graphics, smoothX, smoothY, smoothW, smoothH, CORNER_RADIUS,
+                    SHADOW_BLUR, SHADOW_OFFSET_Y, SHADOW_BASE_ALPHA, opacity);
         }
 
-        if (posePushed) {
-            posePushed = false;
-            graphics.pose().popMatrix();
+        int bgAlpha = (int) (0xE6 * opacity);
+        int borderAlpha = (int) (0x80 * opacity);
+
+        Color bgColor = Color.ofArgb(ARGB.color(bgAlpha, 17, 22, 31));
+        Color borderColor = Color.ofArgb(ARGB.color(borderAlpha, 79, 195, 247));
+
+        RenderUtil.drawSubpixelRoundedPanel(graphics, smoothX, smoothY, smoothW, smoothH, CORNER_RADIUS, 1.0f, bgColor, borderColor);
+    }
+
+    public static boolean beginScissor(GuiGraphicsExtractor extractor) {
+        if (extractor == null || isScissorActive) return false;
+
+        HudElement.State state = HudElementRegistry.state(HudElementRegistry.SCOREBOARD);
+        int pad = Math.max(1, state.padding - 1);
+
+        int sX1 = (int) Math.floor(smoothX + pad);
+        int sY1 = (int) Math.floor(smoothY + pad);
+        int sX2 = (int) Math.ceil(smoothX + smoothW - pad);
+        int sY2 = (int) Math.ceil(smoothY + smoothH - pad);
+
+        if (sX2 > sX1 && sY2 > sY1) {
+            OwoUIGraphics owo = OwoUIGraphics.of(extractor);
+            owo.enableScissor(sX1, sY1, sX2, sY2);
+            isScissorActive = true;
+            return true;
         }
+        return false;
     }
 
-    public static void renderFadeOut(GuiGraphicsExtractor graphics) {
-        if (graphics == null || drawnThisFrame) return;
-        if (currentAlpha <= 0.005f || !hasEverSeen || smoothX < 0.0f) return;
+    public static void endScissor(GuiGraphicsExtractor extractor) {
+        if (extractor == null || !isScissorActive) return;
 
-        drawPanel(OwoUIGraphics.of(graphics), smoothX, smoothY, smoothW, smoothH, currentAlpha);
+        OwoUIGraphics owo = OwoUIGraphics.of(extractor);
+        owo.disableScissor();
+        isScissorActive = false;
     }
 
-    public static void beginExternalSource() {
-        endIsland();
-        externalActive = isIslandEnabled();
-        if (externalActive) {
-            lastExternalRenderMs = System.currentTimeMillis();
-        }
-    }
+    public static void renderPreviewIfEmpty(GuiGraphicsExtractor extractor) {
+        if (!editorPreview || !isEnabled()) return;
 
-    public static void endExternalSource() {
-        endIsland();
-        externalActive = false;
-    }
-
-    public static boolean isExternalSourceActive() {
-        return externalActive;
-    }
-
-    public static void renderExternalContent(GuiGraphicsExtractor graphics, float contentX, float contentY, float contentWidth, float contentHeight) {
-        if (!externalActive || graphics == null) return;
-
-        if (!isPlausibleExternalRect(graphics, contentX, contentY, contentWidth, contentHeight)) {
-            noteImplausibleExternal(contentX, contentY, contentWidth, contentHeight);
-            return;
-        }
-
-        int minX = Math.round(contentX);
-        int minY = Math.round(contentY);
-        beginIsland(graphics, minX, minY, Math.round(contentX + contentWidth), Math.round(contentY + contentHeight));
-    }
-
-    private static boolean isPlausibleExternalRect(GuiGraphicsExtractor graphics, float x, float y, float width, float height) {
-        if (width < MIN_EXTERNAL_WIDTH || height < MIN_EXTERNAL_HEIGHT) return false;
-        if (!Float.isFinite(x) || !Float.isFinite(y)) return false;
-        if (width > graphics.guiWidth() * 2.0f || height > graphics.guiHeight() * 2.0f) return false;
-
-        return x + width > 0.0f && y + height > 0.0f && x < graphics.guiWidth() && y < graphics.guiHeight();
-    }
-
-    private static void noteImplausibleExternal(float x, float y, float width, float height) {
-        externalRejects++;
         long now = System.currentTimeMillis();
-        if (now - lastExternalLogMs > 1000L) {
-            lastExternalLogMs = now;
-            LOGGER.info("[ScoreboardIsland] skipped {} implausible third-party rects, last was x={} y={} w={} h={}",
-                    externalRejects, x, y, width, height);
-        }
-    }
-
-    public static void endExternalContent() {
-        endIsland();
-    }
-
-    private static void drawPanel(OwoUIGraphics graphics, float x, float y, float width, float height, float alpha) {
-        if (alpha <= 0.005f || width <= 0.0f || height <= 0.0f) return;
-
-        int bgAlpha = (int) (245.0f * alpha);
-        int borderAlpha = (int) (210.0f * alpha);
-
-        Color background = Color.ofArgb(ARGB.color(bgAlpha, 17, 22, 31));
-        Color border = Color.ofArgb(ARGB.color(borderAlpha, 84, 152, 178));
-
-        if (HudElementRegistry.state(HudElementRegistry.SCOREBOARD).shadow) {
-            RenderUtil.drawSoftDropShadow(graphics, x, y, width, height, CORNER_RADIUS,
-                    DynamicIslandRenderer.getShadowBlur(), DynamicIslandRenderer.getShadowOffsetY(),
-                    DynamicIslandRenderer.getShadowBaseAlpha(), alpha);
+        if ((now - lastRenderActiveTime) < 200L) {
+            return;
         }
 
-        RenderUtil.drawSubpixelRoundedPanel(graphics, x, y, width, height, CORNER_RADIUS, 1.2f, background, border);
+        Minecraft mc = Minecraft.getInstance();
+        Font font = mc.font;
+        if (font == null) return;
+
+        Component title = Component.literal("§6§lDynamicScoreboard").setStyle(SCOREBOARD_STYLE);
+        Component[] sampleLines = new Component[]{
+                Component.literal("§701/10/26 §8m12A").setStyle(SCOREBOARD_STYLE),
+                Component.literal(" "),
+                Component.literal("§fCoins: §612,450,890").setStyle(SCOREBOARD_STYLE),
+                Component.literal("§fGems: §a1,200").setStyle(SCOREBOARD_STYLE),
+                Component.literal("§fServer: §emini12D").setStyle(SCOREBOARD_STYLE),
+                Component.literal(" "),
+                Component.literal("§e§owww.hypixel.net").setStyle(SCOREBOARD_STYLE)
+        };
+
+        float maxW = font.width(title);
+        for (Component c : sampleLines) maxW = Math.max(maxW, font.width(c));
+        float totalH = (sampleLines.length + 1) * 9.0f;
+
+        updateTargetBounds(maxW, totalH);
+        updateAnimation();
+
+        OwoUIGraphics graphics = OwoUIGraphics.of(extractor);
+        renderScoreboardBackground(graphics);
+
+        boolean scissored = beginScissor(extractor);
+        try {
+            HudElement.State state = HudElementRegistry.state(HudElementRegistry.SCOREBOARD);
+            float textX = smoothX + state.padding;
+            float textY = smoothY + state.padding;
+
+            float titleX = smoothX + (smoothW - font.width(title)) / 2.0f;
+            RenderUtil.drawFluidSubpixelText(graphics, title, titleX, textY, 0xFFFFFFFF);
+            textY += 10.0f;
+
+            for (Component line : sampleLines) {
+                RenderUtil.drawFluidSubpixelText(graphics, line, textX, textY, 0xFFFFFFFF);
+                textY += 9.0f;
+            }
+        } finally {
+            if (scissored) {
+                endScissor(extractor);
+            }
+        }
     }
 }
