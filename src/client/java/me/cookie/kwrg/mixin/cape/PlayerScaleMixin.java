@@ -1,4 +1,4 @@
-package me.cookie.kwrg.mixin;
+package me.cookie.kwrg.mixin.cape;
 
 import me.cookie.kwrg.duck.KwrgAvatarState;
 import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
@@ -25,6 +25,8 @@ public abstract class PlayerScaleMixin {
                 if (state instanceof KwrgAvatarState avatarState) {
                     RenderType capeType = PlayerCustomizationManager.getPlayerCapeRenderType(player);
                     avatarState.kwrg$setCustomCape(capeType);
+                    // 【修正】：方法名对齐为 kwrg$setCustomElytra
+                    avatarState.kwrg$setCustomElytra(PlayerCustomizationManager.getPlayerElytraTexture(player));
                 }
                 PlayerCustomizationManager.markLocalRenderState(state);
                 return;
@@ -40,10 +42,12 @@ public abstract class PlayerScaleMixin {
                 }
             }
 
-            // 披风注入
+            // 披风与鞘翅注入
             if (state instanceof KwrgAvatarState avatarState) {
                 RenderType capeType = PlayerCustomizationManager.getPlayerCapeRenderType(player);
                 avatarState.kwrg$setCustomCape(capeType);
+                // 【修正】：方法名对齐为 kwrg$setCustomElytra
+                avatarState.kwrg$setCustomElytra(PlayerCustomizationManager.getPlayerElytraTexture(player));
             }
 
             if (player == mc.player) {

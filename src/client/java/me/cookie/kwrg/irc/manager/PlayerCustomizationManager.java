@@ -57,6 +57,9 @@ public class PlayerCustomizationManager {
     private static final Map<String, Float> IRC_PLAYER_SCALES = new ConcurrentHashMap<>();
     private static final Map<String, Set<String>> CAPE_ACTIVE_USERS = new ConcurrentHashMap<>();
     private static final Map<String, Float> REMOTE_PLAYER_SCALES = new ConcurrentHashMap<>();
+    // 记录对应披风是否具备合法鞘翅贴图
+    private static final Map<String, Boolean> CAPE_HAS_ELYTRA = new ConcurrentHashMap<>();
+    private static final Map<String, RenderType> ELYTRA_TYPE_CACHE = new ConcurrentHashMap<>();
     public static volatile boolean inInventoryRendering = false;
 
     private static volatile Object localRenderState = null;
@@ -92,6 +95,48 @@ public class PlayerCustomizationManager {
         return p == null ? null : p.id();
     }
 
+    //检查贴图右侧的鞘翅有效区域
+    private static boolean checkHasElytra(BufferedImage img) {
+        if (!isStandardCape(img.getWidth(), img.getHeight())) {
+            return false;
+        }
+        int w = img.getWidth();
+        int h = img.getHeight();
+        int u = w / 64;
+
+        int startX = 22 * u;
+        for (int y = 0; y < h; y++) {
+            for (int x = startX; x < w; x++) {
+                int pixel = img.getRGB(x, y);
+                int alpha = (pixel >> 24) & 0xFF;
+                if (alpha > 10) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public static Identifier getPlayerElytraTexture(Player player) {
+        Minecraft mc = Minecraft.getInstance();
+        String capeName = (player == mc.player) ? getMyCape() : IRC_PLAYER_CAPES.get(capeKey(player.getGameProfile().name()));
+        if (capeName == null || capeName.isBlank()) return null;
+
+        if (!Boolean.TRUE.equals(CAPE_HAS_ELYTRA.get(capeName))) {
+            return null;
+        }
+
+        Identifier id = CAPE_IDS_CACHE.get(capeName);
+        if (id != null) {
+            updateFrameIfNeeded(capeName);
+            return id;
+        }
+
+        triggerAsyncLoad(capeName);
+        return null;
+    }
+
+
     public static void requestCapePreview(String fileName) {
         if (fileName == null || fileName.isBlank()) return;
 
@@ -121,7 +166,26 @@ public class PlayerCustomizationManager {
                     src = src.getSubimage(0, 0, src.getWidth() / frames, src.getHeight());
                 }
 
-                img = toNativeImage(downscaleSmooth(src, CAPE_PREVIEW_W, CAPE_PREVIEW_H));
+                BufferedImage previewSrc;
+                if (isStandardCape(src.getWidth(), src.getHeight())) {
+                    int u = src.getWidth() / 64;
+                    previewSrc = src.getSubimage(12 * u, 1 * u, 10 * u, 16 * u);
+                } else {
+                    previewSrc = src;
+                }
+
+                BufferedImage scaledPreview = new BufferedImage(CAPE_PREVIEW_W, CAPE_PREVIEW_H, BufferedImage.TYPE_INT_ARGB);
+                Graphics2D g = scaledPreview.createGraphics();
+                if (previewSrc.getWidth() < CAPE_PREVIEW_W) {
+                    g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+                } else {
+                    g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                    g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                }
+                g.drawImage(previewSrc, 0, 0, CAPE_PREVIEW_W, CAPE_PREVIEW_H, null);
+                g.dispose();
+
+                img = toNativeImage(scaledPreview);
                 final NativeImage finalImg = img;
 
                 Minecraft mc = Minecraft.getInstance();
@@ -378,6 +442,7 @@ public class PlayerCustomizationManager {
         CAPE_CURRENT_FRAME_INDEX.clear();
         CAPE_FRAME_DELAYS.clear();
         CAPE_NATIVE_FPS.clear();
+        CAPE_HAS_ELYTRA.clear();
         activeCapeName = null;
         loadingCapeName = null;
     }
@@ -406,6 +471,7 @@ public class PlayerCustomizationManager {
         CAPE_CURRENT_FRAME_INDEX.remove(capeName);
         CAPE_FRAME_DELAYS.remove(capeName);
         CAPE_NATIVE_FPS.remove(capeName);
+        CAPE_HAS_ELYTRA.remove(capeName);
     }
 
     private static void cleanupLoading(long token) {
@@ -454,17 +520,27 @@ public class PlayerCustomizationManager {
                     return;
                 }
 
+                boolean hasElytra = false;
+                if (!gifSource) {
+                    int requestedFrames = parseRequestedFrameCount(value);
+                    BufferedImage firstRawFrame = (requestedFrames >= 2 && src.getWidth() >= requestedFrames)
+                            ? src.getSubimage(0, 0, src.getWidth() / requestedFrames, src.getHeight())
+                            : src;
+                    hasElytra = checkHasElytra(firstRawFrame);
+                }
+
+
                 List<BufferedImage> blocks;
                 if (gifSource) {
                     blocks = layoutGifFrames(file, value);
                     if (blocks == null || blocks.isEmpty()) {
-                        System.err.println("[KWRG Cape] " + value + " gif decode failed, fallback to first frame");
                         BufferedImage first = ImageIO.read(file.toFile());
                         blocks = first == null ? null : layoutFrames(first, plainCapeName(value));
                     }
                 } else {
                     blocks = layoutFrames(src, value);
                 }
+
                 if (blocks == null || blocks.isEmpty() || token != CURRENT_LOAD_TOKEN.get()) {
                     cleanupLoading(token);
                     return;
@@ -494,6 +570,7 @@ public class PlayerCustomizationManager {
                     return;
                 }
 
+                final boolean finalHasElytra = hasElytra;
                 final NativeImage finalActive = activeImage;
                 Minecraft.getInstance().execute(() -> {
                     try {
@@ -522,7 +599,19 @@ public class PlayerCustomizationManager {
                                 .affectsCrumbling()
                                 .setOutline(RenderSetup.OutlineProperty.AFFECTS_OUTLINE)
                                 .createRenderSetup());
-
+                        if (finalHasElytra) {
+                            RenderType elytraType = RenderType.create("kwrg_elytra", RenderSetup.builder(RenderPipelines.ARMOR_CUTOUT_NO_CULL)
+                                    .withTexture("Sampler0", id, () -> sampler)
+                                    .useLightmap()
+                                    .useOverlay()
+                                    .affectsCrumbling()
+                                    .setOutline(RenderSetup.OutlineProperty.AFFECTS_OUTLINE)
+                                    .createRenderSetup());
+                            ELYTRA_TYPE_CACHE.put(value, elytraType);
+                        } else {
+                            ELYTRA_TYPE_CACHE.remove(value);
+                        }
+                        CAPE_HAS_ELYTRA.put(value, finalHasElytra);
                         List<NativeImage> prevFrames = CAPE_FRAMES_CACHE.remove(value);
                         NativeImage prevActive = CAPE_ACTIVE_IMAGE.remove(value);
                         if (prevActive != null && (prevFrames == null || !prevFrames.contains(prevActive))) {
@@ -666,12 +755,12 @@ public class PlayerCustomizationManager {
             int frameWidth = srcW / requestedFrames;
             for (int k = 0; k < requestedFrames; k++) {
                 BufferedImage frame = src.getSubimage(k * frameWidth, 0, frameWidth, srcH);
-                blocks.add(paintBlock(downscaleSmooth(frame, faceW, faceH), block, faceW, faceH));
+                blocks.add(processCapeFrame(frame, block, faceW, faceH));
             }
             return blocks;
         }
 
-        blocks.add(paintBlock(downscaleSmooth(src, faceW, faceH), block, faceW, faceH));
+        blocks.add(processCapeFrame(src, block, faceW, faceH));
         return blocks;
     }
 
@@ -776,7 +865,7 @@ public class PlayerCustomizationManager {
                 if (emitted < emittedCount && ((i + 1) % emitEvery == 0 || i == count - 1)) {
                     delays[emitted++] = (int) Math.min(Integer.MAX_VALUE, accumulatedDelay);
                     accumulatedDelay = 0;
-                    blocks.add(paintBlock(downscaleSmooth(copyOf(canvas), faceW, faceH), block, faceW, faceH));
+                    blocks.add(processCapeFrame(copyOf(canvas), block, faceW, faceH));
                 }
 
                 if (disposal == 2) {
@@ -1016,7 +1105,38 @@ public class PlayerCustomizationManager {
                 nativeImage.setPixel(x, y, argb);
             }
         }
-
         return nativeImage;
+    }
+
+    private static boolean isStandardCape(int width, int height) {
+        return width == height * 2;
+    }
+
+    private static BufferedImage scaleStandardCape(BufferedImage src, int targetW, int targetH) {
+        if (src.getWidth() == targetW && src.getHeight() == targetH) {
+            return src;
+        }
+        BufferedImage out = new BufferedImage(targetW, targetH, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = out.createGraphics();
+
+        if (src.getWidth() < targetW) {
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+        } else {
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        }
+
+        g.drawImage(src, 0, 0, targetW, targetH, null);
+        g.dispose();
+        return out;
+    }
+
+    private static BufferedImage processCapeFrame(BufferedImage frame, int block, int faceW, int faceH) {
+        if (isStandardCape(frame.getWidth(), frame.getHeight())) {
+            return scaleStandardCape(frame, block, block / 2);
+        } else {
+            return paintBlock(downscaleSmooth(frame, faceW, faceH), block, faceW, faceH);
+        }
     }
 }
