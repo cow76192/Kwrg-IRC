@@ -94,6 +94,12 @@ public class IrcConfig {
     public String nickRank = "MVP+";
     public String nickPlusColor = "RED";
 
+    public boolean chatSuffixEnabled = false;
+    public String chatSuffixPrefix = "";
+    public String chatSuffix = "喵~";
+    public boolean chatSuffixFollowMessageStyle = false;
+    public boolean chatSuffixPublicChat = false;
+
     private static IrcConfig instance = new IrcConfig();
     private static String currentProfileName = "default";
 
