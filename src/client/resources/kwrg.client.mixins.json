@@ -27,6 +27,7 @@
 		"FontMixin",
 		"FontManagerMixin",
 		"InventoryScreenMixin",
+		"ChatScreenMixin",
 		"AvatarRenderStateMixin",
 		"accessor.FontManagerAccessor",
 		"accessor.FontSetAccessor",

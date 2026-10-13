@@ -389,7 +389,7 @@ public class ColorUtil {
         return true;
     }
 
-    private static boolean isKnownToken(String token) {
+    public static boolean isKnownToken(String token) {
         return token.equals("rainbow") || token.equals("animate") || token.equals("flow") || token.equals("wave") || token.equals("scroll")
                 || token.equals("sunset") || token.equals("ocean") || token.equals("fire") || token.equals("sakura")
                 || token.equals("neon") || token.equals("gold") || token.equals("purple")
