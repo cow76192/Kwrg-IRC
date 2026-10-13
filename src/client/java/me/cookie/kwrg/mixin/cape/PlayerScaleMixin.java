@@ -1,4 +1,4 @@
-package me.cookie.kwrg.mixin;
+package me.cookie.kwrg.mixin.cape;
 
 import me.cookie.kwrg.duck.KwrgAvatarState;
 import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
@@ -6,7 +6,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;

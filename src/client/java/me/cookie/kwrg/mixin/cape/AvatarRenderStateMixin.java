@@ -1,4 +1,4 @@
-package me.cookie.kwrg.mixin;
+package me.cookie.kwrg.mixin.cape;
 
 import me.cookie.kwrg.duck.KwrgAvatarState;
 import net.minecraft.client.renderer.entity.state.AvatarRenderState;
