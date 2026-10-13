@@ -69,13 +69,13 @@ public class CookieMain implements ClientModInitializer {
 
         ClientEntityEvents.ENTITY_LOAD.register((entity, world) -> {
             if (entity instanceof Player player && player != Minecraft.getInstance().player) {
-                PlayerCustomizationManager.preloadIrcPlayer(player.getUUID());
+                PlayerCustomizationManager.preloadIrcPlayer(player.getGameProfile().name());
             }
         });
 
         ClientEntityEvents.ENTITY_UNLOAD.register((entity, world) -> {
             if (entity instanceof Player player && player != Minecraft.getInstance().player) {
-                PlayerCustomizationManager.unbindPlayer(player.getUUID());
+                PlayerCustomizationManager.unbindPlayer(player.getGameProfile().name());
             }
         });
 

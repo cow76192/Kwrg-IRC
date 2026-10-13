@@ -11,7 +11,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.*;
 
 import java.util.Objects;
-import java.util.UUID;
 
 public class IrcMessageHandler {
 
@@ -95,6 +94,21 @@ public class IrcMessageHandler {
                 return;
             }
 
+//           if ("function_sync".equalsIgnoreCase(type)) {
+//               String function = obj.has("function") ? obj.get("function").getAsString() : "";
+//               String user = obj.has("username") ? obj.get("username").getAsString() : "";
+//               String senderUuidStr = obj.has("senderId") ? obj.get("senderId").getAsString() : "";
+//
+//               if ("hideArmor".equalsIgnoreCase(function)) {
+//                   boolean enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
+//                   HideArmorManager.setPlayerHideArmor(user, enabled);
+//               } else if ("modelScale".equalsIgnoreCase(function)) {
+//                   float scale = obj.has("scale") ? obj.get("scale").getAsFloat() : 1.0f;
+//                   me.cookie.kwrg.irc.manager.PlayerCustomizationManager.setIrcPlayerCustomization(user, null, scale);
+//               }
+//               return;
+//           }
+
             if ("player_join".equalsIgnoreCase(type)) {
                 String user = obj.has("username") ? obj.get("username").getAsString() : "Unknown";
                 String rank = obj.has("rank") ? obj.get("rank").getAsString() : "";
@@ -134,23 +148,6 @@ public class IrcMessageHandler {
                 return;
             }
 
-            if ("function_sync".equalsIgnoreCase(type)) {
-                String function = obj.has("function") ? obj.get("function").getAsString() : "";
-                String user = obj.has("username") ? obj.get("username").getAsString() : "";
-                String senderUuidStr = obj.has("senderId") ? obj.get("senderId").getAsString() : "";
-
-                if ("hideArmor".equalsIgnoreCase(function)) {
-                    boolean enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-                    HideArmorManager.setPlayerHideArmor(user, enabled);
-                } else if ("modelScale".equalsIgnoreCase(function)) {
-                    float scale = obj.has("scale") ? obj.get("scale").getAsFloat() : 1.0f;
-                    try {
-                        UUID senderUuid = UUID.fromString(senderUuidStr);
-                        me.cookie.kwrg.irc.manager.PlayerCustomizationManager.setIrcPlayerCustomization(senderUuid, null, scale);
-                    } catch (Exception ignored) {}
-                }
-                return;
-            }
 
             if ("cape_check_result".equalsIgnoreCase(type)) {
                 String hash = obj.has("hash") ? obj.get("hash").getAsString() : "";
@@ -160,18 +157,15 @@ public class IrcMessageHandler {
             }
 
             if ("cape_sync".equalsIgnoreCase(type)) {
-                String senderUuidStr = obj.has("senderId") ? obj.get("senderId").getAsString() : "";
+                String username = obj.has("username") ? obj.get("username").getAsString() : "";
                 String hash = obj.has("hash") ? obj.get("hash").getAsString() : "";
                 String fileName = obj.has("fileName") ? obj.get("fileName").getAsString() : "";
 
-                if (mc.player != null && senderUuidStr.equals(mc.player.getStringUUID())) {
+                if (username.isBlank() || username.equalsIgnoreCase(mc.getUser().getName())) {
                     return;
                 }
 
-                try {
-                    UUID uuid = UUID.fromString(senderUuidStr);
-                    me.cookie.kwrg.irc.manager.IrcCapeManager.handleRemoteCapeSync(uuid, hash, fileName);
-                } catch (Exception ignored) {}
+                me.cookie.kwrg.irc.manager.IrcCapeManager.handleRemoteCapeSync(username, hash, fileName);
                 return;
             }
 

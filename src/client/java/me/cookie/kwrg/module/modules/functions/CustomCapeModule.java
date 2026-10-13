@@ -100,15 +100,15 @@ public class CustomCapeModule extends Module {
         ).presets(64, 128, 256, 512, 1024, 2048, 4096));
 
         panel.child(new SlotInputPaneComponent(
-                "动画帧率",
+                "披风未指定帧率时动画帧率",
                 new String[]{String.valueOf(IrcConfig.get().capeAnimFps)},
                 new String[]{"FPS"},
                 values -> {
                     try {
-                        int v = Integer.parseInt(values[0].trim());
-                        v = Math.max(1, Math.min(60, v));
+                        int v = PlayerCustomizationManager.clampFps(Integer.parseInt(values[0].trim()));
                         IrcConfig.get().capeAnimFps = v;
                         IrcConfig.save();
+                        PlayerCustomizationManager.refreshFrameTiming();
                         ChatNotifier.send("§e[Cape] 动画帧率已设为: §f" + v + " FPS", NotificationType.INFO);
                         renderCapeUI(panel);
                     } catch (NumberFormatException e) {
@@ -116,9 +116,30 @@ public class CustomCapeModule extends Module {
                     } catch (Exception ignored) {}
                 },
                 null
-        ).bounds(new int[][]{{1, 60}}));
+        ).bounds(new int[][]{{1, IrcConfig.get().capeRenderMaxFps}}));
 
-        panel.child(TextInfoPaneComponent.header("披风文件 (建议 PNG/JPG, 比例 5:8)\nShift+左键打开目录", (pane, click) -> {
+        panel.child(new SlotInputPaneComponent(
+                "全局披风渲染最大帧率",
+                new String[]{String.valueOf(IrcConfig.get().capeRenderMaxFps)},
+                new String[]{"FPS"},
+                values -> {
+                    try {
+                        int v = Integer.parseInt(values[0].trim());
+                        v = Math.max(1, Math.min(PlayerCustomizationManager.CAPE_MAX_FPS_LIMIT, v));
+                        IrcConfig.get().capeRenderMaxFps = v;
+                        if (IrcConfig.get().capeAnimFps > v) IrcConfig.get().capeAnimFps = v;
+                        IrcConfig.save();
+                        PlayerCustomizationManager.refreshFrameTiming();
+                        ChatNotifier.send("§e[Cape] 全局披风渲染最大帧率已设为: §f" + v + " FPS", NotificationType.INFO);
+                        renderCapeUI(panel);
+                    } catch (NumberFormatException e) {
+                        ChatNotifier.send("§c[Cape] 请输入有效的数字", NotificationType.ERR);
+                    } catch (Exception ignored) {}
+                },
+                null
+        ).bounds(new int[][]{{1, PlayerCustomizationManager.CAPE_MAX_FPS_LIMIT}}));
+
+        panel.child(TextInfoPaneComponent.header("披风文件 (建议 PNG/JPG, 比例 5:8)\n@数字 = 图片总帧数\n#数字 = 预设帧率\nShift+左键打开目录", (pane, click) -> {
             boolean isShiftDown = (click.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0 || click.hasShiftDown();
             if (isShiftDown) openCapeDir();
         }));
