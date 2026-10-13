@@ -24,6 +24,7 @@
 		"skyblocker.SkyblockerWidgetManagerMixin",
 		"skyblocker.SkyblockerUnblockMixin",
 		"skyblocker.SkyblockerElementCleanMixin",
+		"cape.WingsLayerMixin",
 		"FontMixin",
 		"FontManagerMixin",
 		"InventoryScreenMixin",
