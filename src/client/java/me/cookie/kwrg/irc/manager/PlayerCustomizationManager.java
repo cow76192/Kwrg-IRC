@@ -121,7 +121,26 @@ public class PlayerCustomizationManager {
                     src = src.getSubimage(0, 0, src.getWidth() / frames, src.getHeight());
                 }
 
-                img = toNativeImage(downscaleSmooth(src, CAPE_PREVIEW_W, CAPE_PREVIEW_H));
+                BufferedImage previewSrc;
+                if (isStandardCape(src.getWidth(), src.getHeight())) {
+                    int u = src.getWidth() / 64;
+                    previewSrc = src.getSubimage(12 * u, 1 * u, 10 * u, 16 * u);
+                } else {
+                    previewSrc = src;
+                }
+
+                BufferedImage scaledPreview = new BufferedImage(CAPE_PREVIEW_W, CAPE_PREVIEW_H, BufferedImage.TYPE_INT_ARGB);
+                Graphics2D g = scaledPreview.createGraphics();
+                if (previewSrc.getWidth() < CAPE_PREVIEW_W) {
+                    g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+                } else {
+                    g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+                    g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+                }
+                g.drawImage(previewSrc, 0, 0, CAPE_PREVIEW_W, CAPE_PREVIEW_H, null);
+                g.dispose();
+
+                img = toNativeImage(scaledPreview);
                 final NativeImage finalImg = img;
 
                 Minecraft mc = Minecraft.getInstance();
@@ -666,12 +685,12 @@ public class PlayerCustomizationManager {
             int frameWidth = srcW / requestedFrames;
             for (int k = 0; k < requestedFrames; k++) {
                 BufferedImage frame = src.getSubimage(k * frameWidth, 0, frameWidth, srcH);
-                blocks.add(paintBlock(downscaleSmooth(frame, faceW, faceH), block, faceW, faceH));
+                blocks.add(processCapeFrame(frame, block, faceW, faceH));
             }
             return blocks;
         }
 
-        blocks.add(paintBlock(downscaleSmooth(src, faceW, faceH), block, faceW, faceH));
+        blocks.add(processCapeFrame(src, block, faceW, faceH));
         return blocks;
     }
 
@@ -776,7 +795,7 @@ public class PlayerCustomizationManager {
                 if (emitted < emittedCount && ((i + 1) % emitEvery == 0 || i == count - 1)) {
                     delays[emitted++] = (int) Math.min(Integer.MAX_VALUE, accumulatedDelay);
                     accumulatedDelay = 0;
-                    blocks.add(paintBlock(downscaleSmooth(copyOf(canvas), faceW, faceH), block, faceW, faceH));
+                    blocks.add(processCapeFrame(copyOf(canvas), block, faceW, faceH));
                 }
 
                 if (disposal == 2) {
@@ -1016,7 +1035,38 @@ public class PlayerCustomizationManager {
                 nativeImage.setPixel(x, y, argb);
             }
         }
-
         return nativeImage;
+    }
+
+    private static boolean isStandardCape(int width, int height) {
+        return width == height * 2;
+    }
+
+    private static BufferedImage scaleStandardCape(BufferedImage src, int targetW, int targetH) {
+        if (src.getWidth() == targetW && src.getHeight() == targetH) {
+            return src;
+        }
+        BufferedImage out = new BufferedImage(targetW, targetH, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = out.createGraphics();
+
+        if (src.getWidth() < targetW) {
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+        } else {
+            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+            g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        }
+
+        g.drawImage(src, 0, 0, targetW, targetH, null);
+        g.dispose();
+        return out;
+    }
+
+    private static BufferedImage processCapeFrame(BufferedImage frame, int block, int faceW, int faceH) {
+        if (isStandardCape(frame.getWidth(), frame.getHeight())) {
+            return scaleStandardCape(frame, block, block / 2);
+        } else {
+            return paintBlock(downscaleSmooth(frame, faceW, faceH), block, faceW, faceH);
+        }
     }
 }
