@@ -16,21 +16,20 @@ import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Player;
 import org.lwjgl.system.MemoryUtil;
+import org.w3c.dom.Node;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.metadata.IIOMetadata;
 import javax.imageio.stream.ImageInputStream;
-import org.w3c.dom.Node;
-import java.awt.AlphaComposite;
-import java.awt.Graphics2D;
-import java.awt.RenderingHints;
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -41,7 +40,9 @@ public class PlayerCustomizationManager {
 
     public static final float[] SCALE_STEPS = {0.25f, 0.5f, 0.75f, 1.0f, 1.5f, 2.0f};
 
-    public static final int CAPE_MAX_FPS_LIMIT = 1000;
+    public static final int CAPE_MAX_FPS_LIMIT = 60;
+
+    private static final int MAX_GIF_FRAMES = 96;
 
     private static final Map<String, RenderType> CAPE_TYPE_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, Identifier> CAPE_IDS_CACHE = new ConcurrentHashMap<>();
@@ -50,6 +51,8 @@ public class PlayerCustomizationManager {
     private static final Map<String, Long> CAPE_LAST_FRAME_TIME = new ConcurrentHashMap<>();
     private static final Map<String, Integer> CAPE_CURRENT_FRAME_INDEX = new ConcurrentHashMap<>();
     private static final Map<String, int[]> CAPE_FRAME_DELAYS = new ConcurrentHashMap<>();
+    // GIF 原生帧率
+    private static final Map<String, Integer> CAPE_NATIVE_FPS = new ConcurrentHashMap<>();
     private static final Map<String, String> IRC_PLAYER_CAPES = new ConcurrentHashMap<>();
     private static final Map<String, Float> IRC_PLAYER_SCALES = new ConcurrentHashMap<>();
     private static final Map<String, Set<String>> CAPE_ACTIVE_USERS = new ConcurrentHashMap<>();
@@ -81,8 +84,6 @@ public class PlayerCustomizationManager {
     private static final AtomicLong CURRENT_LOAD_TOKEN = new AtomicLong(0);
     private static volatile String activeCapeName = null;
     private static volatile String loadingCapeName = null;
-    private static volatile String syncedPresetCape = null;
-    private static volatile String syncedGifCape = null;
 
     public static float getMyScale() { return IrcConfig.get().myScale; }
 
@@ -338,45 +339,13 @@ public class PlayerCustomizationManager {
             loadingCapeName = null;
             clearCapeCache();
             activeCapeName = null;
-            syncedPresetCape = null;
-            syncedGifCape = null;
         } else {
             if (!target.equals(loadingCapeName)) {
                 loadingCapeName = null;
             }
             triggerAsyncLoad(target);
             IrcCapeManager.syncMyCape();
-            applyCapePresetFps(target);
         }
-    }
-
-    private static void applyCapePresetFps(String capeName) {
-        if (capeName.equals(syncedPresetCape)) return;
-        syncedPresetCape = capeName;
-
-        if (parseRequestedFrameCount(capeName) < 2) return;
-
-        int preset = getCapePresetFps(capeName);
-        if (preset <= 0) return;
-
-        IrcConfig.get().capeAnimFps = preset;
-        IrcConfig.save();
-        refreshFrameTiming();
-    }
-
-    private static void applyGifPresetFps(String capeName, int[] delays) {
-        if (!capeName.equals(getMyCape())) return;
-        if (capeName.equals(syncedGifCape)) return;
-        syncedGifCape = capeName;
-        if (getCapePresetFps(capeName) > 0) return;
-
-        long sum = 0;
-        for (int delay : delays) sum += delay;
-        if (sum <= 0) return;
-
-        IrcConfig.get().capeAnimFps = clampFps((int) Math.max(1L, 1000L * delays.length / sum));
-        IrcConfig.save();
-        refreshFrameTiming();
     }
 
     public static void clearCapeCache() {
@@ -408,6 +377,7 @@ public class PlayerCustomizationManager {
         CAPE_LAST_FRAME_TIME.clear();
         CAPE_CURRENT_FRAME_INDEX.clear();
         CAPE_FRAME_DELAYS.clear();
+        CAPE_NATIVE_FPS.clear();
         activeCapeName = null;
         loadingCapeName = null;
     }
@@ -435,6 +405,7 @@ public class PlayerCustomizationManager {
         CAPE_LAST_FRAME_TIME.remove(capeName);
         CAPE_CURRENT_FRAME_INDEX.remove(capeName);
         CAPE_FRAME_DELAYS.remove(capeName);
+        CAPE_NATIVE_FPS.remove(capeName);
     }
 
     private static void cleanupLoading(long token) {
@@ -569,9 +540,6 @@ public class PlayerCustomizationManager {
                         CAPE_LAST_FRAME_TIME.put(value, System.currentTimeMillis());
 
                         activeCapeName = value;
-
-                        int[] gifDelays = CAPE_FRAME_DELAYS.get(value);
-                        if (gifDelays != null) applyGifPresetFps(value, gifDelays);
                     } catch (Exception e) {
                         if (finalActive != frames.get(0)) finalActive.close();
                         frames.forEach(NativeImage::close);
@@ -778,7 +746,12 @@ public class PlayerCustomizationManager {
             int count = reader.getNumImages(true);
             if (count <= 0) return null;
 
-            int[] delays = new int[count];
+            int emitEvery = Math.max(1, (count + MAX_GIF_FRAMES - 1) / MAX_GIF_FRAMES);
+            int emittedCount = (count + emitEvery - 1) / emitEvery;
+            int[] delays = new int[emittedCount];
+            long accumulatedDelay = 0;
+            int emitted = 0;
+
             BufferedImage canvas = new BufferedImage(reader.getWidth(0), reader.getHeight(0), BufferedImage.TYPE_INT_ARGB);
             BufferedImage previous = null;
 
@@ -788,7 +761,7 @@ public class PlayerCustomizationManager {
                 int left = info[0];
                 int top = info[1];
                 int disposal = info[2];
-                delays[i] = Math.max(10, info[3]);
+                accumulatedDelay += Math.max(10, info[3]);
 
                 if (disposal == 3) previous = copyOf(canvas);
 
@@ -800,7 +773,11 @@ public class PlayerCustomizationManager {
                 g.drawImage(frame, x, y, null);
                 g.dispose();
 
-                blocks.add(paintBlock(downscaleSmooth(copyOf(canvas), faceW, faceH), block, faceW, faceH));
+                if (emitted < emittedCount && ((i + 1) % emitEvery == 0 || i == count - 1)) {
+                    delays[emitted++] = (int) Math.min(Integer.MAX_VALUE, accumulatedDelay);
+                    accumulatedDelay = 0;
+                    blocks.add(paintBlock(downscaleSmooth(copyOf(canvas), faceW, faceH), block, faceW, faceH));
+                }
 
                 if (disposal == 2) {
                     Graphics2D clear = canvas.createGraphics();
@@ -813,6 +790,12 @@ public class PlayerCustomizationManager {
             }
 
             CAPE_FRAME_DELAYS.put(fileName, delays);
+
+            long delaySum = 0;
+            for (int delay : delays) delaySum += delay;
+            if (delays.length > 0 && delaySum > 0) {
+                CAPE_NATIVE_FPS.put(fileName, clampFps((int) Math.max(1L, 1000L * delays.length / delaySum)));
+            }
         } finally {
             if (reader != null) reader.dispose();
         }
@@ -936,9 +919,12 @@ public class PlayerCustomizationManager {
     }
 
     private static int resolvePlaybackFps(String capeName) {
-        if (capeName == null || !capeName.equals(getMyCape())) {
-            int preset = getCapePresetFps(capeName);
-            if (preset > 0) return preset;
+        int preset = getCapePresetFps(capeName);
+        if (preset > 0) return preset;
+
+        if (capeName != null) {
+            Integer nativeFps = CAPE_NATIVE_FPS.get(capeName);
+            if (nativeFps != null) return nativeFps;
         }
         return clampFps(IrcConfig.get().capeAnimFps);
     }
@@ -950,6 +936,10 @@ public class PlayerCustomizationManager {
 
         BufferedImage canvas = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = canvas.createGraphics();
+
+        g.setColor(Color.WHITE);
+        g.fillRect(0, 0, width, height);
+
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
 
@@ -966,14 +956,13 @@ public class PlayerCustomizationManager {
     }
 
     private static BufferedImage downscaleSmooth(BufferedImage src, int tw, int th) {
-        // 快速短路
+
         if (src.getWidth() == tw && src.getHeight() == th) {
             return src;
         }
 
         BufferedImage cur = src;
 
-        // 如果目标是极小的像素 (如 10x16)，绝不要反复减半 8 次，最多减半到 4 倍尺寸即可，防止对比度被磨平！
         int minStepW = Math.max(tw * 2, 64);
         int minStepH = Math.max(th * 2, 64);
 

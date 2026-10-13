@@ -100,7 +100,7 @@ public class CustomCapeModule extends Module {
         ).presets(64, 128, 256, 512, 1024, 2048, 4096));
 
         panel.child(new SlotInputPaneComponent(
-                "动画帧率",
+                "披风未指定帧率时动画帧率",
                 new String[]{String.valueOf(IrcConfig.get().capeAnimFps)},
                 new String[]{"FPS"},
                 values -> {
