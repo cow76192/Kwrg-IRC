@@ -683,7 +683,7 @@ public class DynamicIslandRenderer {
         boolean pingSlotEnabled = shouldShow && (showIrcPing || showServerPing);
 
         long ircLatency = IrcClient.getLastLatency();
-        long serverLatency = ServerLatencyTracker.getLatency();
+        long serverLatency = (shouldShow && showServerPing) ? ServerLatencyTracker.getLatency() : -1L;
 
         String pingStr;
         int pingColor;
