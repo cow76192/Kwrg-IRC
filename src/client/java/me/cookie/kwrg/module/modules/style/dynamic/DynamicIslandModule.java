@@ -63,6 +63,10 @@ public class DynamicIslandModule extends DynamicModule {
             config().islandShowPing = !config().islandShowPing;
             save();
         }));
+        panel.child(toggle("Ping (Server)", () -> config().islandShowServerPing, () -> {
+            config().islandShowServerPing = !config().islandShowServerPing;
+            save();
+        }));
         panel.child(toggle("TPS", () -> config().islandShowTps, () -> {
             config().islandShowTps = !config().islandShowTps;
             save();
