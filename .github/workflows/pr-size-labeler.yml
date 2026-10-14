@@ -19,35 +19,12 @@ jobs:
             const pr = context.payload.pull_request;
             const totalChanges = pr.additions + pr.deletions;
 
-            const sizeLabels = ['1+', '10+', '40+', '100+', '500+', '2000+'];
+            const thresholds = [5000, 4000, 2000, 1500, 1000, 800, 400, 200, 100, 40, 10, 1];
 
-            // 计算目标标签
-            let targetLabel = '1+';
-            if (totalChanges >= 5000) {
-              targetLabel = '5000+';
-            } else if (totalChanges >= 4000) {
-              targetLabel = '4000+';
-            } else if (totalChanges >= 2000) {
-              targetLabel = '2000+';
-            } else if (totalChanges >= 1500) {
-              targetLabel = '1500+';
-            } else if (totalChanges >= 1000) {
-              targetLabel = '1000+';
-            } else if (totalChanges >= 800) {
-              targetLabel = '800+';
-            } else if (totalChanges >= 400) {
-              targetLabel = '400+';
-            } else if (totalChanges >= 200) {
-              targetLabel = '200+';
-            } else if (totalChanges >= 100) {
-              targetLabel = '100+';
-            } else if (totalChanges >= 40) {
-              targetLabel = '40+';
-            } else if (totalChanges >= 10) {
-              targetLabel = '10+';
-            } else {
-              targetLabel = '1+';
-            }
+            const sizeLabels = thresholds.map(t => `${t}+`);
+
+            const matchedThreshold = thresholds.find(t => totalChanges >= t) ?? thresholds[thresholds.length - 1];
+            const targetLabel = `${matchedThreshold}+`;
 
             const currentLabels = (pr.labels || []).map(l => l.name);
 
