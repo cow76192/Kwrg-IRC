@@ -1,11 +1,11 @@
 package me.cookie.kwrg.mixin;
 
 import me.cookie.kwrg.gui.util.ServerLatencyTracker;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
-import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
+import net.minecraft.network.protocol.game.ClientboundCommandSuggestionsPacket;
+import net.minecraft.network.protocol.ping.ClientboundPongResponsePacket;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -26,18 +26,13 @@ public class ConnectionMixin {
             return;
         }
 
-        if (packet instanceof ClientboundPlayerInfoUpdatePacket updatePacket) {
-            Minecraft mc = Minecraft.getInstance();
-            if (mc.player == null) return;
+        if (packet instanceof ClientboundPongResponsePacket pongPacket) {
+            ServerLatencyTracker.onPassivePongReceived(pongPacket);
+            return;
+        }
 
-            if (updatePacket.actions().contains(ClientboundPlayerInfoUpdatePacket.Action.UPDATE_LATENCY)) {
-                for (ClientboundPlayerInfoUpdatePacket.Entry entry : updatePacket.entries()) {
-                    if (mc.player.getUUID().equals(entry.profileId())) {
-                        ServerLatencyTracker.onLatencySample(entry.latency());
-                        break;
-                    }
-                }
-            }
+        if (packet instanceof ClientboundCommandSuggestionsPacket suggestionPacket) {
+            ServerLatencyTracker.onActiveCommandSuggestionReceived(suggestionPacket);
         }
     }
 
