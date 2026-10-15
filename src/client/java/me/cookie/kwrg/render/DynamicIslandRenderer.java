@@ -7,6 +7,7 @@ import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.HardwareMetricsTracker;
 import me.cookie.kwrg.gui.util.RenderUtil;
+import me.cookie.kwrg.gui.util.ServerLatencyTracker;
 import me.cookie.kwrg.gui.util.TpsTracker;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcConfig;
@@ -306,8 +307,8 @@ public class DynamicIslandRenderer {
     }
 
     private static boolean shouldIslandShow(IrcConfig config) {
-        boolean hasAnyOption = (config.islandShowFps || config.islandShowPing || config.islandShowTps
-                || config.islandShowRam || config.islandShowGpu || config.islandShowCpu);
+        boolean hasAnyOption = (config.islandShowFps || config.islandShowPing || config.islandShowServerPing
+                || config.islandShowTps || config.islandShowRam || config.islandShowGpu || config.islandShowCpu);
         boolean islandWanted = (DynamicIslandRenderer.isEnabled() || editorPreview) && (hasAnyOption || editorPreview);
         boolean tabWanted = config.dynamicTab && tabProgress > 0.005f;
 
@@ -522,7 +523,6 @@ public class DynamicIslandRenderer {
     }
 
     public static void renderTabBackgroundDirect() {
-        IrcConfig config = IrcConfig.get();
         if (!isTabFeatureOn()) return;
         if (currentFrameExtractor != null && tabProgress > 0.005f && curRenderW > 0) {
             OwoUIGraphics graphics = OwoUIGraphics.of(currentFrameExtractor);
@@ -574,7 +574,7 @@ public class DynamicIslandRenderer {
     }
 
     private static class SlotPhysics {
-        final float maxSlotWidth;
+        float maxSlotWidth;
         float currentWidth = 0.0f;
         float startWidth = 0.0f;
         float targetWidth = 0.0f;
@@ -585,7 +585,11 @@ public class DynamicIslandRenderer {
         }
 
         void update(boolean enabled, float dt) {
-            float target = enabled ? maxSlotWidth : 0.0f;
+            update(enabled, this.maxSlotWidth, dt);
+        }
+
+        void update(boolean enabled, float dynamicMaxWidth, float dt) {
+            float target = enabled ? dynamicMaxWidth : 0.0f;
             if (Math.abs(target - targetWidth) > 0.01f) {
                 startWidth = currentWidth;
                 targetWidth = target;
@@ -601,7 +605,7 @@ public class DynamicIslandRenderer {
         }
 
         float getWidth() { return currentWidth; }
-        float getRatio() { return maxSlotWidth > 0 ? Mth.clamp(currentWidth / maxSlotWidth, 0.0f, 1.0f) : 0.0f; }
+        float getRatio() { return targetWidth > 0 ? Mth.clamp(currentWidth / targetWidth, 0.0f, 1.0f) : (maxSlotWidth > 0 ? Mth.clamp(currentWidth / maxSlotWidth, 0.0f, 1.0f) : 0.0f); }
     }
 
     private static final SlotPhysics SLOT_FPS  = new SlotPhysics(42.0f);
@@ -627,9 +631,6 @@ public class DynamicIslandRenderer {
     public static void render(GuiGraphicsExtractor extractor, float ignoredDelta) {
         currentFrameExtractor = extractor;
 
-//        if (tabProgress > 0.005f || Minecraft.getInstance().screen != null) {
-//            me.cookie.kwrg.gui.util.GuiFpsLimiter.apply();
-//        }
         IrcConfig config = IrcConfig.get();
         Minecraft mc = Minecraft.getInstance();
         if (mc.getWindow() == null || mc.font == null) return;
@@ -666,7 +667,6 @@ public class DynamicIslandRenderer {
         }
 
         float tabEase = currentTabEase;
-
         boolean shouldShow = shouldIslandShow(config);
 
         if (currentAlpha <= 0.005f) {
@@ -675,15 +675,61 @@ public class DynamicIslandRenderer {
 
         HardwareMetricsTracker.onRenderFrame(mc);
 
+        var font = mc.font;
+        float fontH = font.lineHeight;
+
+        boolean showIrcPing = config.islandShowPing;
+        boolean showServerPing = config.islandShowServerPing;
+        boolean pingSlotEnabled = shouldShow && (showIrcPing || showServerPing);
+
+        long ircLatency = IrcClient.getLastLatency();
+        long serverLatency = (shouldShow && showServerPing) ? ServerLatencyTracker.getLatency() : -1L;
+
+        String pingStr;
+        int pingColor;
+
+        if (showIrcPing && showServerPing) {
+            String ircPart = !IrcClient.isIrcConnect ? "--(irc)" : (ircLatency < 0 ? "..(irc)" : ircLatency + "ms(irc)");
+            String serverPart = serverLatency < 0 ? "--(server)" : serverLatency + "ms(server)";
+            pingStr = ircPart + " " + serverPart;
+
+            long refLatency = serverLatency >= 0 ? serverLatency : ircLatency;
+            if (refLatency < 0) {
+                pingColor = 0xFFB0BEC5;
+            } else if (refLatency < 80) {
+                pingColor = 0xFF81C784;
+            } else if (refLatency < 160) {
+                pingColor = 0xFFFFD54F;
+            } else {
+                pingColor = 0xFFE57373;
+            }
+        } else if (showServerPing) {
+            pingStr = serverLatency < 0 ? "-- ms" : serverLatency + "ms";
+            if (serverLatency < 0) {
+                pingColor = 0xFFB0BEC5;
+            } else if (serverLatency < 80) {
+                pingColor = 0xFF81C784;
+            } else if (serverLatency < 160) {
+                pingColor = 0xFFFFD54F;
+            } else {
+                pingColor = 0xFFE57373;
+            }
+        } else {
+            pingStr = !IrcClient.isIrcConnect ? "IRC --" : (ircLatency < 0 ? "IRC .." : ircLatency + "ms");
+            pingColor = !IrcClient.isIrcConnect ? 0xFFB0BEC5 : (ircLatency >= 0 && ircLatency < 80 ? 0xFF81C784 : (ircLatency < 160 ? 0xFFFFD54F : 0xFFE57373));
+        }
+
+        Component pingComp = Component.literal(pingStr).setStyle(ISLAND_STYLE);
+        float pingTargetW = font.width(pingComp) + 6.0f; // 动态根据文字宽度自动伸缩槽位大小
+
         SLOT_FPS.update(shouldShow && config.islandShowFps, dt);
-        SLOT_PING.update(shouldShow && config.islandShowPing, dt);
+        SLOT_PING.update(pingSlotEnabled, pingTargetW, dt);
         SLOT_TPS.update(shouldShow && config.islandShowTps, dt);
         SLOT_RAM.update(shouldShow && config.islandShowRam, dt);
         SLOT_GPU.update(shouldShow && config.islandShowGpu, dt);
         SLOT_CPU.update(shouldShow && config.islandShowCpu, dt);
 
         int fps = mc.getFps();
-        long latency = IrcClient.getLastLatency();
         float tps = TpsTracker.getTps();
 
         String ramText = HardwareMetricsTracker.getRamText();
@@ -691,17 +737,12 @@ public class DynamicIslandRenderer {
         int gpuLoad = HardwareMetricsTracker.getGpuLoad();
         int cpuLoad = HardwareMetricsTracker.getCpuLoad();
 
-        var font = mc.font;
-        float fontH = font.lineHeight;
-
         String fpsStr = "FPS " + fps;
-        String pingStr = !IrcClient.isIrcConnect ? "IRC --" : (latency < 0 ? "IRC .." : latency + "ms");
         String tpsStr = String.format(Locale.ROOT, "%.1f TPS", tps);
         String gpuStr = "GPU " + gpuLoad + "%";
         String cpuStr = "CPU " + cpuLoad + "%";
 
         Component fpsComp = Component.literal(fpsStr).setStyle(ISLAND_STYLE);
-        Component pingComp = Component.literal(pingStr).setStyle(ISLAND_STYLE);
         Component tpsComp = Component.literal(tpsStr).setStyle(ISLAND_STYLE);
         Component ramComp = Component.literal(ramText).setStyle(ISLAND_STYLE);
         Component gpuComp = Component.literal(gpuStr).setStyle(ISLAND_STYLE);
@@ -711,7 +752,6 @@ public class DynamicIslandRenderer {
         Component[] comps = { fpsComp, pingComp, tpsComp, ramComp, gpuComp, cpuComp };
 
         int fpsColor = fps > 160 ? 0xFFBA68C8 : (fps >= 90 ? 0xFF4DD0E1 : (fps >= 60 ? 0xFF81C784 : (fps >= 30 ? 0xFFFFD54F : 0xFFE57373)));
-        int pingColor = !IrcClient.isIrcConnect ? 0xFFB0BEC5 : (latency >= 0 && latency < 80 ? 0xFF81C784 : (latency < 160 ? 0xFFFFD54F : 0xFFE57373));
         int tpsColor = tps >= 18.5f ? 0xFF81C784 : (tps >= 15.0f ? 0xFFFFD54F : 0xFFE57373);
         int ramColor = ramRatio > 0.85f ? 0xFFE57373 : (ramRatio > 0.70f ? 0xFFFFD54F : 0xFFB2DFDB);
         int gpuColor = gpuLoad > 85 ? 0xFFE57373 : (gpuLoad > 65 ? 0xFFFFD54F : 0xFF80CBC4);
@@ -743,7 +783,6 @@ public class DynamicIslandRenderer {
         updateRenderRect(tabEase, dt, config);
 
         float cx = curRenderX + curRenderW / 2.0f;
-
         boolean islandPillVisible = tabProgress <= 0.005f && (DynamicIslandRenderer.isEnabled() || editorPreview);
 
         if (islandPillVisible) {
