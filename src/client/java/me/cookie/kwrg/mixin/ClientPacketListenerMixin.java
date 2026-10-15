@@ -3,11 +3,13 @@ package me.cookie.kwrg.mixin;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
+import me.cookie.kwrg.module.modules.functions.ChatSuffixModule;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ClientPacketListener.class)
@@ -16,9 +18,20 @@ public abstract class ClientPacketListenerMixin {
     @Inject(method = "sendChat", at = @At("HEAD"), cancellable = true)
     private void onSendChat(String message, CallbackInfo ci) {
         if (IrcClient.isIrcChatActive) {
-            IrcClient.sendMessage(message);
+            IrcClient.sendMessage(ChatSuffixModule.applySuffixSafely(message));
             ci.cancel();
         }
+    }
+
+    @ModifyVariable(method = "sendChat", at = @At("HEAD"), ordinal = 0, argsOnly = true)
+    private String kwrg$appendPublicChatSuffix(String message) {
+        if (IrcClient.isIrcChatActive) return message;
+        return ChatSuffixModule.applyPublicSuffixSafely(message);
+    }
+
+    @ModifyVariable(method = "sendCommand", at = @At("HEAD"), ordinal = 0, argsOnly = true)
+    private String kwrg$appendPublicCommandSuffix(String command) {
+        return ChatSuffixModule.applyPublicCommandSuffixSafely(command);
     }
 
     @Inject(method = "sendCommand", at = @At("HEAD"), cancellable = true)

@@ -23,27 +23,33 @@ import java.util.function.Consumer;
 
 public class ChatSuffixModule extends Module {
 
+    public static final String MARK = "§k§r";
+
     private static final Logger LOGGER = LoggerFactory.getLogger("kwrg-irc-chatsuffix");
 
     private static boolean failureReported = false;
 
-    private static final String SAMPLE_MESSAGE = "2v88!";
+    private static final String SAMPLE_MESSAGE = "88";
 
-    private static final String ENGLISH_SUFFIX = "&o&dmeow~";
+    private static final String ENGLISH_SUFFIX = "&o&d meow~";
 
     private static final String STYLE_RESET = "§r";
+
+    private static final String USAGE_HINT = "Enter保存|Shift点击清空|右键复制";
+
+    private static final int MAX_MESSAGE_LENGTH = 256;
 
     private static final String[] PRESETS = new String[]{
             "&o&d喵~",
             ENGLISH_SUFFIX,
-            "&o rainbow Ciallo～(∠・ω< )⌒★",
+            "&dCiallo～(∠・ω< )⌒★",
             "&o&l&b喵呜~",
             "&6nya~",
             "&d✧˖°",
             "&a(´・ω・`)",
             "&c♥",
-            "sakura ✿",
-            "#FF55AA♡"
+            "&b❀",
+            "&5♡"
     };
 
     public ChatSuffixModule() {
@@ -72,20 +78,19 @@ public class ChatSuffixModule extends Module {
         String[] editingSuffix = { getConfiguredSuffix() };
 
         panel.child(new PanelItemComponent(
-                "开启 / 关闭",
+                "公屏前后缀同步",
                 PanelItemComponent.ItemType.TOGGLE,
                 (btn, click) -> {
-                    onExecute();
-                    btn.setToggled(IrcConfig.get().chatSuffixEnabled);
+                    IrcConfig config = IrcConfig.get();
+                    config.chatSuffixPublicChat = !config.chatSuffixPublicChat;
+                    IrcConfig.save();
+                    btn.setToggled(config.chatSuffixPublicChat);
+                    ChatNotifier.send(config.chatSuffixPublicChat
+                            ? "§a[IRC] 公屏前后缀同步 §7(公屏无颜色)"
+                            : "§e[IRC] 公屏前后缀同步", NotificationType.INFO);
                 },
                 null,
-                () -> IrcConfig.get().chatSuffixEnabled
-        ));
-
-        panel.child(new TextInfoPaneComponent(
-                "",
-                () -> buildPreview(editingPrefix[0], editingSuffix[0]),
-                false
+                () -> IrcConfig.get().chatSuffixPublicChat
         ));
 
         panel.child(createValuePane("前缀值", "前缀", getConfiguredPrefix(),
@@ -95,6 +100,12 @@ public class ChatSuffixModule extends Module {
                 },
                 value -> editingPrefix[0] = value));
 
+        panel.child(new TextInfoPaneComponent(
+                "前缀效果 (点击复制)",
+                () -> buildPreview(editingPrefix[0], ""),
+                () -> copyValue("前缀", editingPrefix[0])
+        ));
+
         TextInputPaneComponent suffixPane = createValuePane("后缀值", "后缀", getConfiguredSuffix(),
                 value -> {
                     IrcConfig.get().chatSuffix = value;
@@ -102,6 +113,12 @@ public class ChatSuffixModule extends Module {
                 },
                 value -> editingSuffix[0] = value);
         panel.child(suffixPane);
+
+        panel.child(new TextInfoPaneComponent(
+                "后缀效果 (点击复制)",
+                () -> buildPreview("", editingSuffix[0]),
+                () -> copyValue("后缀", editingSuffix[0])
+        ));
 
         panel.child(new PanelItemComponent(
                 "跟随 messageStyle",
@@ -122,30 +139,32 @@ public class ChatSuffixModule extends Module {
         panel.child(TextInfoPaneComponent.header("预设后缀"));
 
         for (String preset : PRESETS) {
-            panel.child(new PanelItemComponent(
+            PanelItemComponent item = new PanelItemComponent(
                     preset,
                     PanelItemComponent.ItemType.TRIGGER,
-                    (item, click) -> {
+                    (clicked, click) -> {
                         suffixPane.setText(preset);
                         editingSuffix[0] = preset;
                         IrcConfig.get().chatSuffix = preset;
                         IrcConfig.save();
                         ChatNotifier.send("§a[IRC] 已应用后缀预设: §f" + preset, NotificationType.SUCCESS);
                     },
-                    item -> {
+                    clicked -> {
                         Minecraft.getInstance().keyboardHandler.setClipboard(preset);
                         ChatNotifier.send("§a[IRC] 已复制预设: §f" + preset, NotificationType.SUCCESS);
                     }
-            ));
+            );
+            item.withStyledTitle(() -> Component.literal(convertCodes(preset, true)));
+            panel.child(item);
         }
     }
 
-    private static TextInputPaneComponent createValuePane(String placeholder, String label, String initialValue,
+    private static TextInputPaneComponent createValuePane(String rightHint, String label, String initialValue,
                                                           Consumer<String> saver, Consumer<String> editingConsumer) {
-        TextInputPaneComponent pane = new TextInputPaneComponent(placeholder, submitted -> {
+        TextInputPaneComponent pane = new TextInputPaneComponent(USAGE_HINT, submitted -> {
             saver.accept(submitted);
             ChatNotifier.send("§a[IRC] 已保存 " + label + ": §f" + submitted, NotificationType.SUCCESS);
-        }, "Enter保存|Shift点击清空|右键复制") {
+        }, rightHint) {
             @Override
             public boolean onMouseDown(MouseButtonEvent click, boolean doubled) {
                 boolean shift = (click.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0 || click.hasShiftDown();
@@ -163,11 +182,7 @@ public class ChatSuffixModule extends Module {
             pane.setText(initialValue);
         }
         pane.onTextChanged(editingConsumer);
-        pane.onRightClick(() -> {
-            String copied = pane.getText();
-            Minecraft.getInstance().keyboardHandler.setClipboard(copied);
-            ChatNotifier.send("§a[IRC] 已复制 " + label + ": §f" + copied, NotificationType.SUCCESS);
-        });
+        pane.onRightClick(() -> copyValue(label, pane.getText()));
         return pane;
     }
 
@@ -183,29 +198,123 @@ public class ChatSuffixModule extends Module {
 
     private static Component buildPreview(String prefixValue, String suffixValue) {
         IrcConfig config = IrcConfig.get();
-        String[] prefixParts = splitStyleAndText(prefixValue == null ? "" : prefixValue);
-        String[] suffixParts = splitStyleAndText(suffixValue == null ? "" : suffixValue);
-
+        String prefix = prefixValue == null ? "" : prefixValue;
+        String suffix = suffixValue == null ? "" : suffixValue;
         String messageStyle = config.chatstyle != null ? config.chatstyle : "";
-        String prefixStyle = config.chatSuffixFollowMessageStyle ? messageStyle : prefixParts[0];
-        String suffixStyle = config.chatSuffixFollowMessageStyle ? messageStyle : suffixParts[0];
+        String suffixText = convertCodes(suffix, false);
+        String gap = needsSpace(SAMPLE_MESSAGE, suffixText) ? " " : "";
+
+        if (config.chatSuffixFollowMessageStyle) {
+            String line = convertCodes(prefix, false) + SAMPLE_MESSAGE + gap + suffixText;
+            return ColorUtil.applyStyle(line, messageStyle);
+        }
 
         return Component.empty()
-                .append(ColorUtil.applyStyle(prefixParts[1], prefixStyle))
-                .append(ColorUtil.applyStyle(SAMPLE_MESSAGE, ""))
-                .append(ColorUtil.applyStyle(suffixParts[1], suffixStyle));
+                .append(legacyComponent(prefix))
+                .append(ColorUtil.applyStyle(SAMPLE_MESSAGE, messageStyle))
+                .append(legacyComponent(gap + suffix));
+    }
+
+    private static Component legacyComponent(String value) {
+        if (value == null || value.isEmpty()) return Component.empty();
+        return Component.literal(styledText(value));
+    }
+
+    private static String styledText(String value) {
+        String sent = convertCodes(value, true);
+        return sent.indexOf('§') < 0 ? sent : sent + STYLE_RESET;
+    }
+
+    private static void copyValue(String label, String value) {
+        String text = value != null ? value : "";
+        Minecraft.getInstance().keyboardHandler.setClipboard(text);
+        ChatNotifier.send("§a[IRC] 已复制 " + label + ": §f" + text, NotificationType.SUCCESS);
     }
 
     public static String applySuffixSafely(String message) {
+        return safe(() -> applySuffix(message), message);
+    }
+
+    public static String applyPublicSuffixSafely(String message) {
+        return safe(() -> applyPublicSuffix(message), message);
+    }
+
+    public static String applyPublicCommandSuffixSafely(String command) {
+        return safe(() -> applyPublicCommandSuffix(command), command);
+    }
+
+    private static String safe(java.util.function.Supplier<String> action, String fallback) {
         try {
-            return applySuffix(message);
+            return action.get();
         } catch (Throwable t) {
             if (!failureReported) {
                 failureReported = true;
                 LOGGER.warn("[Kwrg] 语气词处理失败，已跳过装饰并保持原消息", t);
             }
-            return message;
+            return fallback;
         }
+    }
+
+    public static String applyPublicSuffix(String message) {
+        if (message == null || message.isBlank()) return message;
+        if (message.startsWith("/")) return message;
+
+        IrcConfig config = IrcConfig.get();
+        if (!config.chatSuffixEnabled || !config.chatSuffixPublicChat) return message;
+
+        return decoratePlain(config, message);
+    }
+
+    public static String applyPublicCommandSuffix(String command) {
+        if (command == null || command.isEmpty()) return command;
+
+        IrcConfig config = IrcConfig.get();
+        if (!config.chatSuffixEnabled || !config.chatSuffixPublicChat) return command;
+
+        String lower = command.toLowerCase(Locale.ROOT);
+        if (!lower.equals("ac") && !lower.startsWith("ac ")) return command;
+
+        int space = command.indexOf(' ');
+        if (space < 0 || space + 1 >= command.length()) return command;
+
+        String text = command.substring(space + 1);
+        String decorated = decoratePlain(config, text);
+        return decorated.equals(text) ? command : command.substring(0, space + 1) + decorated;
+    }
+
+    private static String resolveSuffixValue(IrcConfig config, String message) {
+        if (isPureEnglish(message) && isMeowSuffix(config.chatSuffix)) return ENGLISH_SUFFIX;
+        return config.chatSuffix;
+    }
+
+    private static boolean isMeowSuffix(String value) {
+        if (value == null) return false;
+        return convertCodes(value, false).trim().equals("喵~");
+    }
+
+    private static String decoratePlain(IrcConfig config, String message) {
+        String suffixValue = resolveSuffixValue(config, message);
+        String prefix = convertCodes(config.chatSuffixPrefix, false);
+        String suffix = convertCodes(suffixValue, false);
+        if (prefix.isEmpty() && suffix.isEmpty()) return message;
+
+        String gap = needsSpace(message, suffix) ? " " : "";
+        if (exceedsLimit(prefix, message, gap, suffix)) return message;
+
+        return (prefix + message + gap + suffix).replace("§", "");
+    }
+
+    private static boolean exceedsLimit(String prefix, String message, String gap, String suffix) {
+        return prefix.length() + message.length() + gap.length() + suffix.length() > MAX_MESSAGE_LENGTH;
+    }
+
+    private static boolean needsSpace(String message, String suffixText) {
+        if (message == null || message.isEmpty() || suffixText == null || suffixText.isEmpty()) return false;
+        if (Character.isWhitespace(message.charAt(message.length() - 1))) return false;
+        if (Character.isWhitespace(suffixText.charAt(0))) return false;
+
+        char c = suffixText.charAt(0);
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
     }
 
     public static String applySuffix(String message) {
@@ -216,19 +325,28 @@ public class ChatSuffixModule extends Module {
         if (!config.chatSuffixEnabled) return message;
         if (!IrcClient.isIrcChatActive) return message;
 
-        boolean allowStyleCodes = !config.chatSuffixFollowMessageStyle && !chatStyleSplitsPerChar(config);
-        String suffixValue = isPureEnglish(message) ? ENGLISH_SUFFIX : config.chatSuffix;
-        String prefix = buildSentValue(config.chatSuffixPrefix, allowStyleCodes);
-        String suffix = buildSentValue(suffixValue, allowStyleCodes);
-        if (prefix.isEmpty() && suffix.isEmpty()) return message;
+        String suffixValue = resolveSuffixValue(config, message);
+        boolean follow = config.chatSuffixFollowMessageStyle;
 
-        return prefix + message + suffix;
+        String suffixText = convertCodes(suffixValue, false);
+        String gap = needsSpace(message, suffixText) ? " " : "";
+        String prefix = follow ? convertCodes(config.chatSuffixPrefix, false) : buildSentValue(config.chatSuffixPrefix);
+        String suffix = follow ? suffixText : buildSentValue(suffixValue);
+
+        if (prefix.isEmpty() && suffix.isEmpty()) return message;
+        if (exceedsLimit(prefix, message, gap, suffix)) return message;
+
+        if (follow) return prefix + message + gap + suffix;
+        return MARK + prefix + MARK + message + MARK + gap + suffix;
     }
 
-    private static boolean chatStyleSplitsPerChar(IrcConfig config) {
-        String style = config.chatstyle;
-        if (style == null || style.isBlank()) return false;
-        return ColorUtil.applyStyle("abc", style).getSiblings().size() > 1;
+    private static String buildSentValue(String value) {
+        if (value == null || value.isBlank()) return "";
+        return styledText(stripMark(value));
+    }
+
+    private static String stripMark(String value) {
+        return value.replace(MARK, "");
     }
 
     private static boolean isPureEnglish(String message) {
@@ -244,103 +362,25 @@ public class ChatSuffixModule extends Module {
         return hasLetter;
     }
 
-    private static String buildSentValue(String value, boolean allowStyleCodes) {
-        if (value == null || value.isBlank()) return "";
+    private static String convertCodes(String value, boolean keepCodes) {
+        if (value == null || value.isEmpty()) return "";
 
-        String[] parts = splitStyleAndText(value);
-        String codes = allowStyleCodes ? toLegacyCodes(parts[0]) : "";
-        if (codes.isEmpty()) return parts[1];
-        return codes + parts[1] + STYLE_RESET;
-    }
-
-    private static String[] splitStyleAndText(String value) {
-        if (value == null || value.isEmpty()) return new String[]{"", ""};
-
-        int index = 0;
-        StringBuilder style = new StringBuilder();
-
-        while (index < value.length()) {
-            char c = value.charAt(index);
-
-            if ((c == '&' || c == '§') && index + 1 < value.length() && isLegacyCode(value.charAt(index + 1))) {
-                StringBuilder codes = new StringBuilder();
-                while (index + 1 < value.length()
-                        && (value.charAt(index) == '&' || value.charAt(index) == '§')
-                        && isLegacyCode(value.charAt(index + 1))) {
-                    codes.append(value.charAt(index)).append(value.charAt(index + 1));
-                    index += 2;
+        StringBuilder sb = new StringBuilder(value.length());
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if ((c == '&' || c == '§') && i + 1 < value.length() && isLegacyCode(value.charAt(i + 1))) {
+                if (keepCodes) {
+                    sb.append('§').append(value.charAt(i + 1));
                 }
-                appendToken(style, codes.toString());
+                i++;
                 continue;
             }
-
-            String token = matchStyleToken(value, index);
-            if (token != null) {
-                appendToken(style, token);
-                index += token.length();
-                continue;
-            }
-
-            if (style.length() > 0 && c == ' ') {
-                index++;
-                continue;
-            }
-            break;
+            sb.append(c);
         }
-
-        return new String[]{style.toString(), value.substring(index)};
-    }
-
-    private static String matchStyleToken(String value, int index) {
-        int end = index;
-        while (end < value.length() && isStyleChar(value.charAt(end))) {
-            end++;
-        }
-        if (end == index) return null;
-
-        String candidate = value.substring(index, end);
-        if (ColorUtil.isKnownToken(candidate.toLowerCase(Locale.ROOT)) || isColorLiteral(candidate)) {
-            return candidate;
-        }
-        return null;
-    }
-
-    private static void appendToken(StringBuilder style, String token) {
-        if (style.length() > 0) {
-            style.append(' ');
-        }
-        style.append(token);
-    }
-
-    private static boolean isStyleChar(char c) {
-        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
-                || c == '#' || c == '(' || c == ')' || c == ',' || c == '.' || c == '%' || c == '-';
-    }
-
-    private static boolean isColorLiteral(String candidate) {
-        String lower = candidate.toLowerCase(Locale.ROOT);
-        return lower.matches("#([0-9a-f]{6}|[0-9a-f]{3})")
-                || lower.matches("a?rgb\\([^()]*\\)")
-                || lower.matches("a?hsl\\([^()]*\\)")
-                || (lower.startsWith("gradient(") && lower.endsWith(")"))
-                || (lower.startsWith("linear-gradient(") && lower.endsWith(")"));
+        return sb.toString();
     }
 
     private static boolean isLegacyCode(char c) {
-        return "0123456789abcdefklmnorABCDEFKLMNOR".indexOf(c) >= 0;
-    }
-
-    private static String toLegacyCodes(String style) {
-        if (style == null || style.isEmpty()) return "";
-
-        StringBuilder codes = new StringBuilder();
-        for (int i = 0; i + 1 < style.length(); i++) {
-            char c = style.charAt(i);
-            if ((c == '&' || c == '§') && isLegacyCode(style.charAt(i + 1))) {
-                codes.append('§').append(Character.toLowerCase(style.charAt(i + 1)));
-                i++;
-            }
-        }
-        return codes.toString();
+        return "0123456789abcdefklmnor".indexOf(c) >= 0;
     }
 }

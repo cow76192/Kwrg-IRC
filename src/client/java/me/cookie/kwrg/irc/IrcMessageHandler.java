@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import me.cookie.kwrg.irc.manager.HideArmorManager;
 import me.cookie.kwrg.irc.manager.IrcGlowManager;
+import me.cookie.kwrg.module.modules.functions.ChatSuffixModule;
 import me.cookie.kwrg.module.modules.style.ChatModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
@@ -294,14 +295,31 @@ public class IrcMessageHandler {
 
         segments.add(new ChatNotifier.AnimatedSegment(username, nameStyle, false));
         segments.add(new ChatNotifier.AnimatedSegment(" §7: §r", "", true));
-        segments.add(new ChatNotifier.AnimatedSegment(content, chatStyle, false));
+
+        String prefix = "";
+        String body = content != null ? content : "";
+        String suffix = "";
+        String[] parts = body.split(ChatSuffixModule.MARK, -1);
+        if (parts.length == 4 && parts[0].isEmpty()) {
+            prefix = parts[1];
+            body = parts[2];
+            suffix = parts[3];
+        }
+
+        if (!prefix.isEmpty()) {
+            segments.add(new ChatNotifier.AnimatedSegment(prefix, "", true));
+        }
+        segments.add(new ChatNotifier.AnimatedSegment(body, chatStyle, false));
+        if (!suffix.isEmpty()) {
+            segments.add(new ChatNotifier.AnimatedSegment(suffix, "", true));
+        }
 
         ChatNotifier.sendAnimatedInChatScreen(segments);
         ChatModule.playConfiguredSound();
 
         for (String target : IrcConfig.get().importantPlayers) {
             if (target.equalsIgnoreCase(username)) {
-                showImportantTitle(rank, nameStyle, username, chatStyle, content);
+                showImportantTitle(rank, nameStyle, username, chatStyle, body);
                 break;
             }
         }

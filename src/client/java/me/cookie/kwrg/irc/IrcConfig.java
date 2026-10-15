@@ -98,6 +98,7 @@ public class IrcConfig {
     public String chatSuffixPrefix = "";
     public String chatSuffix = "喵~";
     public boolean chatSuffixFollowMessageStyle = false;
+    public boolean chatSuffixPublicChat = false;
 
     private static IrcConfig instance = new IrcConfig();
     private static String currentProfileName = "default";

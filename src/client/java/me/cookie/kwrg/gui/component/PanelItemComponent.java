@@ -48,6 +48,8 @@ public class PanelItemComponent extends BaseUIComponent {
 
     private Identifier previewTexture = null;
 
+    private java.util.function.Supplier<Component> styledTitleSupplier = null;
+
     private java.util.function.Supplier<Identifier> previewSupplier = null;
     private int previewTexW = PREVIEW_TEX_SIZE;
     private int previewTexH = PREVIEW_TEX_SIZE;
@@ -116,6 +118,11 @@ public class PanelItemComponent extends BaseUIComponent {
         this.previewSupplier = supplier;
         this.previewTexW = texW;
         this.previewTexH = texH;
+        return this;
+    }
+
+    public PanelItemComponent withStyledTitle(java.util.function.Supplier<Component> supplier) {
+        this.styledTitleSupplier = supplier;
         return this;
     }
 
@@ -246,7 +253,9 @@ public class PanelItemComponent extends BaseUIComponent {
             }
             textOffsetX = 4 + pw + 6;
         }
-        Component displayTitle = Component.literal(this.title).setStyle(FontManagerHelper.getGuiStyle());
+        Component displayTitle = this.styledTitleSupplier != null
+                ? this.styledTitleSupplier.get()
+                : Component.literal(this.title).setStyle(FontManagerHelper.getGuiStyle());
         graphics.drawText(displayTitle, -halfW + textOffsetX, -textH / 2.0f, textScale, textColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
 
         int dotX = halfW - 12;
