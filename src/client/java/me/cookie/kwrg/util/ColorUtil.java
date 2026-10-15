@@ -367,7 +367,7 @@ public class ColorUtil {
             Color[] colors = parseColorList(gradMatcher.group(1));
             if (colors == null || colors.length < 2) return false;
             raw = gradMatcher.replaceAll("").trim();
-            lower = raw.toLowerCase(Locale.ROOT);
+//            lower = raw.toLowerCase(Locale.ROOT);
         }
 
         raw = RGB_PATTERN.matcher(raw).replaceAll("").trim();
@@ -389,7 +389,7 @@ public class ColorUtil {
         return true;
     }
 
-    public static boolean isKnownToken(String token) {
+    private static boolean isKnownToken(String token) {
         return token.equals("rainbow") || token.equals("animate") || token.equals("flow") || token.equals("wave") || token.equals("scroll")
                 || token.equals("sunset") || token.equals("ocean") || token.equals("fire") || token.equals("sakura")
                 || token.equals("neon") || token.equals("gold") || token.equals("purple")

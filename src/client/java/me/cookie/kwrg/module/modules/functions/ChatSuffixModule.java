@@ -5,7 +5,6 @@ import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.pane.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
-import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -23,19 +22,20 @@ import java.util.function.Consumer;
 
 public class ChatSuffixModule extends Module {
 
-    public static final String MARK = "§k§r";
+    public record IrcDecoration(String content, String prefix, String suffix) {
+        public static IrcDecoration plain(String content) {
+            return new IrcDecoration(content, "", "");
+        }
+    }
 
     private static final Logger LOGGER = LoggerFactory.getLogger("kwrg-irc-chatsuffix");
 
     private static boolean failureReported = false;
 
-    private static final String SAMPLE_MESSAGE = "88";
-
+    private static final Minecraft mc = Minecraft.getInstance();
+    private static final String SAMPLE_MESSAGE = mc.player != null ? mc.player.getName().getString() : "Player";
     private static final String ENGLISH_SUFFIX = "&o&d meow~";
-
     private static final String STYLE_RESET = "§r";
-
-    private static final String USAGE_HINT = "Enter保存|Shift点击清空|右键复制";
 
     private static final int MAX_MESSAGE_LENGTH = 256;
 
@@ -63,10 +63,10 @@ public class ChatSuffixModule extends Module {
         IrcConfig.save();
 
         if (config.chatSuffixEnabled) {
-            ChatNotifier.send("§a[IRC] 自动语气词已: §a开启 §7(前缀: §f" + getConfiguredPrefix()
+            ChatNotifier.send("§a自动语气词已: §a开启 §7(前缀: §f" + getConfiguredPrefix()
                     + "§7 后缀: §f" + getConfiguredSuffix() + "§7)", NotificationType.SUCCESS);
         } else {
-            ChatNotifier.send("§e[IRC] 自动语气词已: §c关闭 §7", NotificationType.ERR);
+            ChatNotifier.send("§e自动语气词已: §c关闭 §7", NotificationType.ERR);
         }
     }
 
@@ -86,8 +86,8 @@ public class ChatSuffixModule extends Module {
                     IrcConfig.save();
                     btn.setToggled(config.chatSuffixPublicChat);
                     ChatNotifier.send(config.chatSuffixPublicChat
-                            ? "§a[IRC] 公屏前后缀同步 §7(公屏无颜色)"
-                            : "§e[IRC] 公屏前后缀同步", NotificationType.INFO);
+                            ? "§a 公屏前后缀同步 §7(公屏无颜色)"
+                            : "§e 公屏前后缀同步", NotificationType.INFO);
                 },
                 null,
                 () -> IrcConfig.get().chatSuffixPublicChat
@@ -129,8 +129,8 @@ public class ChatSuffixModule extends Module {
                     IrcConfig.save();
                     btn.setToggled(config.chatSuffixFollowMessageStyle);
                     ChatNotifier.send(config.chatSuffixFollowMessageStyle
-                            ? "§a[IRC] 语气词已跟随 messageStyle"
-                            : "§e[IRC] 语气词已使用自身颜色", NotificationType.INFO);
+                            ? "§a 语气词已跟随 messageStyle"
+                            : "§e 语气词已使用自身颜色", NotificationType.INFO);
                 },
                 null,
                 () -> IrcConfig.get().chatSuffixFollowMessageStyle
@@ -147,11 +147,11 @@ public class ChatSuffixModule extends Module {
                         editingSuffix[0] = preset;
                         IrcConfig.get().chatSuffix = preset;
                         IrcConfig.save();
-                        ChatNotifier.send("§a[IRC] 已应用后缀预设: §f" + preset, NotificationType.SUCCESS);
+                        ChatNotifier.send("§a 已应用后缀预设: §f" + preset, NotificationType.SUCCESS);
                     },
                     clicked -> {
                         Minecraft.getInstance().keyboardHandler.setClipboard(preset);
-                        ChatNotifier.send("§a[IRC] 已复制预设: §f" + preset, NotificationType.SUCCESS);
+                        ChatNotifier.send("§a 已复制预设: §f" + preset, NotificationType.SUCCESS);
                     }
             );
             item.withStyledTitle(() -> Component.literal(convertCodes(preset, true)));
@@ -161,9 +161,9 @@ public class ChatSuffixModule extends Module {
 
     private static TextInputPaneComponent createValuePane(String rightHint, String label, String initialValue,
                                                           Consumer<String> saver, Consumer<String> editingConsumer) {
-        TextInputPaneComponent pane = new TextInputPaneComponent(USAGE_HINT, submitted -> {
+        TextInputPaneComponent pane = new TextInputPaneComponent( "Enter保存|Shift点击清空|右键复制", submitted -> {
             saver.accept(submitted);
-            ChatNotifier.send("§a[IRC] 已保存 " + label + ": §f" + submitted, NotificationType.SUCCESS);
+            ChatNotifier.send("§a 已保存 " + label + ": §f" + submitted, NotificationType.SUCCESS);
         }, rightHint) {
             @Override
             public boolean onMouseDown(MouseButtonEvent click, boolean doubled) {
@@ -171,7 +171,7 @@ public class ChatSuffixModule extends Module {
                 if (click.button() == 0 && shift) {
                     setText("");
                     saver.accept("");
-                    ChatNotifier.send("§e[IRC] 已清空 " + label + " §7", NotificationType.INFO);
+                    ChatNotifier.send("§e 已清空 " + label + " §7", NotificationType.INFO);
                     return true;
                 }
                 return super.onMouseDown(click, doubled);
@@ -228,11 +228,11 @@ public class ChatSuffixModule extends Module {
     private static void copyValue(String label, String value) {
         String text = value != null ? value : "";
         Minecraft.getInstance().keyboardHandler.setClipboard(text);
-        ChatNotifier.send("§a[IRC] 已复制 " + label + ": §f" + text, NotificationType.SUCCESS);
+        ChatNotifier.send("§a 已复制 " + label + ": §f" + text, NotificationType.SUCCESS);
     }
 
-    public static String applySuffixSafely(String message) {
-        return safe(() -> applySuffix(message), message);
+    public static IrcDecoration decorateIrcSafely(String message) {
+        return safe(() -> decorateIrc(message), IrcDecoration.plain(message));
     }
 
     public static String applyPublicSuffixSafely(String message) {
@@ -243,7 +243,7 @@ public class ChatSuffixModule extends Module {
         return safe(() -> applyPublicCommandSuffix(command), command);
     }
 
-    private static String safe(java.util.function.Supplier<String> action, String fallback) {
+    private static <T> T safe(java.util.function.Supplier<T> action, T fallback) {
         try {
             return action.get();
         } catch (Throwable t) {
@@ -317,13 +317,12 @@ public class ChatSuffixModule extends Module {
         return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
     }
 
-    public static String applySuffix(String message) {
-        if (message == null || message.isBlank()) return message;
-        if (message.startsWith("/")) return message;
+    public static IrcDecoration decorateIrc(String message) {
+        if (message == null || message.isBlank()) return IrcDecoration.plain(message);
+        if (message.startsWith("/")) return IrcDecoration.plain(message);
 
         IrcConfig config = IrcConfig.get();
-        if (!config.chatSuffixEnabled) return message;
-        if (!IrcClient.isIrcChatActive) return message;
+        if (!config.chatSuffixEnabled) return IrcDecoration.plain(message);
 
         String suffixValue = resolveSuffixValue(config, message);
         boolean follow = config.chatSuffixFollowMessageStyle;
@@ -333,20 +332,16 @@ public class ChatSuffixModule extends Module {
         String prefix = follow ? convertCodes(config.chatSuffixPrefix, false) : buildSentValue(config.chatSuffixPrefix);
         String suffix = follow ? suffixText : buildSentValue(suffixValue);
 
-        if (prefix.isEmpty() && suffix.isEmpty()) return message;
-        if (exceedsLimit(prefix, message, gap, suffix)) return message;
+        if (prefix.isEmpty() && suffix.isEmpty()) return IrcDecoration.plain(message);
+        if (exceedsLimit(prefix, message, gap, suffix)) return IrcDecoration.plain(message);
 
-        if (follow) return prefix + message + gap + suffix;
-        return MARK + prefix + MARK + message + MARK + gap + suffix;
+        if (follow) return IrcDecoration.plain(prefix + message + gap + suffix);
+        return new IrcDecoration(message, prefix, buildSentValue(gap + suffixValue));
     }
 
     private static String buildSentValue(String value) {
         if (value == null || value.isBlank()) return "";
-        return styledText(stripMark(value));
-    }
-
-    private static String stripMark(String value) {
-        return value.replace(MARK, "");
+        return styledText(value);
     }
 
     private static boolean isPureEnglish(String message) {
@@ -381,6 +376,10 @@ public class ChatSuffixModule extends Module {
     }
 
     private static boolean isLegacyCode(char c) {
-        return "0123456789abcdefklmnor".indexOf(c) >= 0;
+        char lower = (c >= 'A' && c <= 'Z') ? (char) (c + 32) : c;
+        return (lower >= '0' && lower <= '9')
+                || (lower >= 'a' && lower <= 'f')
+                || (lower >= 'k' && lower <= 'o')
+                || lower == 'r';
     }
 }
