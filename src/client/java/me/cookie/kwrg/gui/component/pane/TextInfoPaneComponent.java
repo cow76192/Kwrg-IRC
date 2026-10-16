@@ -10,6 +10,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.FormattedCharSequence;
 
@@ -96,9 +97,14 @@ public class TextInfoPaneComponent extends BasePaneComponent {
         Component valComp = this.componentSupplier != null ? this.componentSupplier.get() : null;
         String valStr = valComp != null ? valComp.getString() : (this.valueSupplier != null ? this.valueSupplier.get() : "");
 
-        String fullDisplayText = this.isHeader ? this.label : (this.label + (valStr.isEmpty() ? "" : ": " + valStr));
+        MutableComponent wrapSource = Component.empty();
+        wrapSource.append(FontManagerHelper.apply(this.label));
+        if (!this.isHeader && !valStr.isEmpty()) {
+            wrapSource.append(FontManagerHelper.apply(": "));
+            wrapSource.append(FontManagerHelper.apply(valComp != null ? valComp : Component.literal(valStr)));
+        }
 
-        List<FormattedCharSequence> wrappedLines = font.split(FontManagerHelper.apply(fullDisplayText), stableWidth);
+        List<FormattedCharSequence> wrappedLines = font.split(wrapSource, stableWidth);
         int lineCount = Math.max(1, wrappedLines.size());
         this.targetHeight = BASE_HEIGHT + (lineCount - 1) * font.lineHeight;
 
@@ -149,8 +155,7 @@ public class TextInfoPaneComponent extends BasePaneComponent {
                 }
             } else {
                 for (int i = 0; i < wrappedLines.size(); i++) {
-                    String lineStr = sequenceToString(wrappedLines.get(i));
-                    Component styledLine = FontManagerHelper.apply(lineStr);
+                    Component styledLine = FontManagerHelper.toComponent(wrappedLines.get(i));
                     int curLineY = (int) (headerStartY + i * font.lineHeight);
 
                     graphics.pose().pushMatrix();
