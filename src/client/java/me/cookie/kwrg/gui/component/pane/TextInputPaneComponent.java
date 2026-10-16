@@ -36,7 +36,6 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
     private final Consumer<String> onEnterSubmit;
     private Consumer<String> onTextChanged = null;
     private String text = "";
-    private Component styledTextOverride = null;
 
     // 光标与选区管理
     private int cursorPos = 0;
@@ -92,12 +91,6 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
 
     public String getText() {
         return this.text;
-    }
-
-    public TextInputPaneComponent setStyledText(Component styledText) {
-        this.styledTextOverride = styledText;
-        markDirty();
-        return this;
     }
 
     public int getCursorPos() {
@@ -294,9 +287,7 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
             return;
         }
 
-        Component styledText = this.styledTextOverride != null
-                ? FontManagerHelper.apply(this.styledTextOverride)
-                : FontManagerHelper.apply(this.text);
+        Component styledText = FontManagerHelper.apply(this.text);
         List<FormattedCharSequence> wrappedLines = font.split(styledText, stableWidth);
         if (wrappedLines.isEmpty()) {
             this.cachedLines.add(new LineInfo(0, 0, "", Component.literal("")));
@@ -321,7 +312,7 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
                 lineStr = this.text.substring(start, end);
             }
 
-            Component styledLine = FontManagerHelper.toComponent(seq);
+            Component styledLine = FontManagerHelper.apply(lineStr);
             this.cachedLines.add(new LineInfo(start, end, lineStr, styledLine));
             searchIdx = end;
         }
