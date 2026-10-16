@@ -65,17 +65,19 @@ public class CookieMain implements ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             GreetingManager.onSessionDisconnect();
             IrcClient.disconnect();
+            me.cookie.kwrg.irc.manager.IrcCapeManager.clearAll();
         });
 
         ClientEntityEvents.ENTITY_LOAD.register((entity, world) -> {
             if (entity instanceof Player player && player != Minecraft.getInstance().player) {
                 PlayerCustomizationManager.preloadIrcPlayer(player.getGameProfile().name());
+                me.cookie.kwrg.irc.manager.IrcCapeManager.onEntityLoad(player);
             }
         });
 
         ClientEntityEvents.ENTITY_UNLOAD.register((entity, world) -> {
             if (entity instanceof Player player && player != Minecraft.getInstance().player) {
-                PlayerCustomizationManager.unbindPlayer(player.getGameProfile().name());
+                me.cookie.kwrg.irc.manager.IrcCapeManager.onEntityUnload(player);
             }
         });
 

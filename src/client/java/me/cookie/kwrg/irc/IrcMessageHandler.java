@@ -106,9 +106,13 @@ public class IrcMessageHandler {
 
             if ("player_leave".equalsIgnoreCase(type)) {
                 String user = obj.has("username") ? obj.get("username").getAsString() : "Unknown";
+                String senderUuid = obj.has("senderId") ? obj.get("senderId").getAsString() : "";
+
                 HideArmorManager.setRemotePlayerHideArmor(user, false);
                 me.cookie.kwrg.irc.manager.PlayerCustomizationManager.setRemotePlayerScale(user, 1.0f);
                 me.cookie.kwrg.irc.manager.IrcGlowManager.removePlayer(user);
+                me.cookie.kwrg.irc.manager.IrcCapeManager.handlePlayerLeave(senderUuid, user);
+
                 IrcMessageHandler.printMessage("§7[IRC] 玩家 §f" + user + " §7退出了 IRC");
                 return;
             }
@@ -142,6 +146,7 @@ public class IrcMessageHandler {
             }
 
             if ("cape_sync".equalsIgnoreCase(type)) {
+                String senderUuid = obj.has("senderId") ? obj.get("senderId").getAsString() : "";
                 String username = obj.has("username") ? obj.get("username").getAsString() : "";
                 String hash = obj.has("hash") ? obj.get("hash").getAsString() : "";
                 String fileName = obj.has("fileName") ? obj.get("fileName").getAsString() : "";
@@ -150,10 +155,9 @@ public class IrcMessageHandler {
                     return;
                 }
 
-                me.cookie.kwrg.irc.manager.IrcCapeManager.handleRemoteCapeSync(username, hash, fileName);
+                me.cookie.kwrg.irc.manager.IrcCapeManager.handleRemoteCapeSync(senderUuid, username, hash, fileName);
                 return;
             }
-
             if ("cape_data".equalsIgnoreCase(type)) {
                 String hash = obj.has("hash") ? obj.get("hash").getAsString() : "";
                 String fileName = obj.has("fileName") ? obj.get("fileName").getAsString() : "";
