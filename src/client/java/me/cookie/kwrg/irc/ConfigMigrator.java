@@ -31,7 +31,8 @@ public final class ConfigMigrator {
     public static void migrate(JsonObject jsonObj) {
         if (jsonObj == null) return;
 
-       if (jsonObj.has("onlyTab")) {
+        // 1. onlyTab -> onlyApplyToTab
+        if (jsonObj.has("onlyTab")) {
             JsonElement onlyTabVal = jsonObj.get("onlyTab");
             if (!jsonObj.has("onlyApplyToTab")) {
                 jsonObj.add("onlyApplyToTab", onlyTabVal);
@@ -40,7 +41,8 @@ public final class ConfigMigrator {
             jsonObj.remove("onlyTab");
         }
 
-       if (jsonObj.has("chatSuffixText")) {
+        // 2. 远程新增：chatSuffixText -> chatSuffix
+        if (jsonObj.has("chatSuffixText")) {
             JsonElement chatSuffixVal = jsonObj.get("chatSuffixText");
             if (!jsonObj.has("chatSuffix")) {
                 jsonObj.add("chatSuffix", chatSuffixVal);
@@ -49,15 +51,18 @@ public final class ConfigMigrator {
             jsonObj.remove("chatSuffixText");
         }
 
+        // 3. 移除已废弃字段
         removeDeprecatedField(jsonObj, "autoTrackPlayer");
         removeDeprecatedField(jsonObj, "scoreboardExternalInterop");
         removeDeprecatedField(jsonObj, "dynamicIslandShadow");
 
+        // 4. 各模块配置迁移
         migrateIslandPositionFields(jsonObj);
         migrateIslandToggle(jsonObj);
         migrateTabOpacity(jsonObj);
         migrateElementAppearance(jsonObj);
 
+        // 5. 校验未知字段
         checkUnknownFields(jsonObj);
     }
 
@@ -207,6 +212,8 @@ public final class ConfigMigrator {
                 ? hud.getAsJsonObject(elementId)
                 : new JsonObject();
     }
+
+    // ==================== 提示通知封装 ====================
 
     private static void notifyMigration(String oldKey, String newTarget, Object newValue) {
         Component message = Component.literal("[INFO] ")
