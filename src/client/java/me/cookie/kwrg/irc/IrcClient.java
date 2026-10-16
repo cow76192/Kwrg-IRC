@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.manager.HideArmorManager;
 import me.cookie.kwrg.irc.manager.IrcGlowManager;
+import me.cookie.kwrg.module.modules.functions.ChatSuffixModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
@@ -285,17 +286,22 @@ public class IrcClient {
 
         IrcConfig config = IrcConfig.get();
 
+        // 语气词装饰统一在此处理，覆盖聊天框输入与 /ic、/icall 等所有 IRC 发送路径
+        ChatSuffixModule.IrcDecoration decoration = ChatSuffixModule.decorateIrcSafely(content);
+
         JsonObject json = new JsonObject();
         json.addProperty("senderId", senderId);
         json.addProperty("username", username);
         json.addProperty("rank", config.rank);
         json.addProperty("namestyle", config.namestyle);
         json.addProperty("chatstyle", config.chatstyle);
-        json.addProperty("content", content);
-        if (config.channelEnabled && config.currentChannel != null && !config.currentChannel.isBlank()) {
-            json.addProperty("channel", config.currentChannel);
+        json.addProperty("content", decoration.content());
+        if (!decoration.prefix().isEmpty()) {
+            json.addProperty("prefix", decoration.prefix());
         }
-
+        if (!decoration.suffix().isEmpty()) {
+            json.addProperty("suffix", decoration.suffix());
+        }
 
         String channel = "";
         if (config.channelEnabled && config.currentChannel != null && !config.currentChannel.isBlank()) {
@@ -303,7 +309,8 @@ public class IrcClient {
             json.addProperty("channel", channel);
         }
 
-        IrcMessageHandler.displayFormattedMessage(channel, config.rank, config.namestyle, username, config.chatstyle, content);
+        IrcMessageHandler.displayFormattedMessage(channel, config.rank, config.namestyle, username, config.chatstyle,
+                decoration.content(), decoration.prefix(), decoration.suffix());
 
         if (isRunning) {
             sendRaw(GSON.toJson(json));
@@ -343,16 +350,25 @@ public class IrcClient {
 
         IrcConfig config = IrcConfig.get();
 
+        ChatSuffixModule.IrcDecoration decoration = ChatSuffixModule.decorateIrcSafely(content);
+
         JsonObject json = new JsonObject();
         json.addProperty("senderId", senderId);
         json.addProperty("username", username);
         json.addProperty("rank", config.rank);
         json.addProperty("namestyle", config.namestyle);
         json.addProperty("chatstyle", config.chatstyle);
-        json.addProperty("content", content);
+        json.addProperty("content", decoration.content());
+        if (!decoration.prefix().isEmpty()) {
+            json.addProperty("prefix", decoration.prefix());
+        }
+        if (!decoration.suffix().isEmpty()) {
+            json.addProperty("suffix", decoration.suffix());
+        }
         json.addProperty("channel", "");
 
-        IrcMessageHandler.displayFormattedMessage("", config.rank, config.namestyle, username, config.chatstyle, content);
+        IrcMessageHandler.displayFormattedMessage("", config.rank, config.namestyle, username, config.chatstyle,
+                decoration.content(), decoration.prefix(), decoration.suffix());
 
         if (isRunning) {
             sendRaw(GSON.toJson(json));

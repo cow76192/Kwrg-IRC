@@ -94,21 +94,6 @@ public class IrcMessageHandler {
                 return;
             }
 
-//           if ("function_sync".equalsIgnoreCase(type)) {
-//               String function = obj.has("function") ? obj.get("function").getAsString() : "";
-//               String user = obj.has("username") ? obj.get("username").getAsString() : "";
-//               String senderUuidStr = obj.has("senderId") ? obj.get("senderId").getAsString() : "";
-//
-//               if ("hideArmor".equalsIgnoreCase(function)) {
-//                   boolean enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-//                   HideArmorManager.setPlayerHideArmor(user, enabled);
-//               } else if ("modelScale".equalsIgnoreCase(function)) {
-//                   float scale = obj.has("scale") ? obj.get("scale").getAsFloat() : 1.0f;
-//                   me.cookie.kwrg.irc.manager.PlayerCustomizationManager.setIrcPlayerCustomization(user, null, scale);
-//               }
-//               return;
-//           }
-
             if ("player_join".equalsIgnoreCase(type)) {
                 String user = obj.has("username") ? obj.get("username").getAsString() : "Unknown";
                 String rank = obj.has("rank") ? obj.get("rank").getAsString() : "";
@@ -266,14 +251,16 @@ public class IrcMessageHandler {
             String chatStyle = obj.has("chatstyle") ? obj.get("chatstyle").getAsString() : "";
             String content = obj.has("content") ? obj.get("content").getAsString() : "";
             String channel = obj.has("channel") ? obj.get("channel").getAsString() : "";
+            String prefix = obj.has("prefix") ? obj.get("prefix").getAsString() : "";
+            String suffix = obj.has("suffix") ? obj.get("suffix").getAsString() : "";
 
-            displayFormattedMessage(channel, rank, nameStyle, username, chatStyle, content);
+            displayFormattedMessage(channel, rank, nameStyle, username, chatStyle, content, prefix, suffix);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public static void displayFormattedMessage(String channel, String rank, String nameStyle, String username, String chatStyle, String content) {
+    public static void displayFormattedMessage(String channel, String rank, String nameStyle, String username, String chatStyle, String content, String prefix, String suffix) {
         java.util.List<ChatNotifier.AnimatedSegment> segments = new java.util.ArrayList<>();
 
         boolean hasChannel = channel != null && !channel.isBlank();
@@ -294,17 +281,30 @@ public class IrcMessageHandler {
 
         segments.add(new ChatNotifier.AnimatedSegment(username, nameStyle, false));
         segments.add(new ChatNotifier.AnimatedSegment(" §7: §r", "", true));
-        segments.add(new ChatNotifier.AnimatedSegment(content, chatStyle, false));
+
+        String body = content != null ? content : "";
+
+        if (prefix != null && !prefix.isEmpty()) {
+            segments.add(new ChatNotifier.AnimatedSegment(prefix, "", true));
+        }
+        segments.add(new ChatNotifier.AnimatedSegment(body, chatStyle, false));
+        if (suffix != null && !suffix.isEmpty()) {
+            segments.add(new ChatNotifier.AnimatedSegment(suffix, "", true));
+        }
 
         ChatNotifier.sendAnimatedInChatScreen(segments);
         ChatModule.playConfiguredSound();
 
         for (String target : IrcConfig.get().importantPlayers) {
             if (target.equalsIgnoreCase(username)) {
-                showImportantTitle(rank, nameStyle, username, chatStyle, content);
+                showImportantTitle(rank, nameStyle, username, chatStyle, body);
                 break;
             }
         }
+    }
+
+    public static void displayFormattedMessage(String channel, String rank, String nameStyle, String username, String chatStyle, String content) {
+        displayFormattedMessage(channel, rank, nameStyle, username, chatStyle, content, "", "");
     }
 
     public static void displayFormattedMessage(String rank, String nameStyle, String username, String chatStyle, String content) {

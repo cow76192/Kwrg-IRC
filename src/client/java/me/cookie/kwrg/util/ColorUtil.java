@@ -367,7 +367,7 @@ public class ColorUtil {
             Color[] colors = parseColorList(gradMatcher.group(1));
             if (colors == null || colors.length < 2) return false;
             raw = gradMatcher.replaceAll("").trim();
-            lower = raw.toLowerCase(Locale.ROOT);
+//            lower = raw.toLowerCase(Locale.ROOT);
         }
 
         raw = RGB_PATTERN.matcher(raw).replaceAll("").trim();

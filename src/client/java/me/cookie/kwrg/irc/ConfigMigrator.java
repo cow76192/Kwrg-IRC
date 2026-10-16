@@ -15,6 +15,10 @@ public final class ConfigMigrator {
             jsonObj.add("onlyApplyToTab", jsonObj.get("onlyTab"));
         }
         jsonObj.remove("onlyTab");
+        if (jsonObj.has("chatSuffixText") && !jsonObj.has("chatSuffix")) {
+            jsonObj.add("chatSuffix", jsonObj.get("chatSuffixText"));
+        }
+        jsonObj.remove("chatSuffixText");
         jsonObj.remove("autoTrackPlayer");
         jsonObj.remove("scoreboardExternalInterop");
         jsonObj.remove("dynamicIslandShadow");
