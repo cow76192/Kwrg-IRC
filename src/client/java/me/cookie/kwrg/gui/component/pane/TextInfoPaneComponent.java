@@ -94,11 +94,35 @@ public class TextInfoPaneComponent extends BasePaneComponent {
         int stableWidth = Math.max(154, this.width() - 16);
 
         Component valComp = this.componentSupplier != null ? this.componentSupplier.get() : null;
-        String valStr = valComp != null ? valComp.getString() : (this.valueSupplier != null ? this.valueSupplier.get() : "");
+        String valStr = this.valueSupplier != null ? this.valueSupplier.get() : "";
 
-        String fullDisplayText = this.isHeader ? this.label : (this.label + (valStr.isEmpty() ? "" : ": " + valStr));
+        Component fullComp;
+        if (this.isHeader) {
+            fullComp = FontManagerHelper.apply(this.label);
+        } else {
+            Component styledLabel = FontManagerHelper.apply(this.label);
+            if (styledLabel.getStyle().getColor() == null) {
+                styledLabel = styledLabel.copy().withStyle(s -> s.withColor(0x78909C));
+            }
 
-        List<FormattedCharSequence> wrappedLines = font.split(FontManagerHelper.apply(fullDisplayText), stableWidth);
+            Component styledVal = null;
+            if (valComp != null) {
+                styledVal = FontManagerHelper.apply(valComp);
+            } else if (!valStr.isEmpty()) {
+                styledVal = FontManagerHelper.apply(valStr);
+            }
+
+            if (styledVal != null && !styledVal.getString().isEmpty()) {
+                fullComp = Component.empty()
+                        .append(styledLabel)
+                        .append(Component.literal(": ").withStyle(s -> s.withColor(0x78909C)))
+                        .append(styledVal);
+            } else {
+                fullComp = styledLabel;
+            }
+        }
+
+        List<FormattedCharSequence> wrappedLines = font.split(fullComp, stableWidth);
         int lineCount = Math.max(1, wrappedLines.size());
         this.targetHeight = BASE_HEIGHT + (lineCount - 1) * font.lineHeight;
 
@@ -106,15 +130,14 @@ public class TextInfoPaneComponent extends BasePaneComponent {
 
         if (this.isHeader) {
             for (int i = 0; i < wrappedLines.size(); i++) {
-                String lineStr = sequenceToString(wrappedLines.get(i));
-                Component styledHeaderLine = FontManagerHelper.apply(lineStr);
-                float titleW = font.width(styledHeaderLine) * textScale;
+                FormattedCharSequence line = wrappedLines.get(i);
+                float titleW = font.width(line) * textScale;
                 int curLineY = (int) (headerStartY + i * font.lineHeight);
 
                 graphics.pose().pushMatrix();
                 graphics.pose().translate(-titleW / 2.0f, curLineY);
                 graphics.pose().scale(textScale, textScale);
-                graphics.drawText(styledHeaderLine, 0, 0, 1.0f, 0xFFB0BEC5, OwoUIGraphics.TextAnchor.TOP_LEFT);
+                graphics.text(font, line, 0, 0, 0xFFB0BEC5, false);
                 graphics.pose().popMatrix();
             }
         } else {
@@ -149,27 +172,17 @@ public class TextInfoPaneComponent extends BasePaneComponent {
                 }
             } else {
                 for (int i = 0; i < wrappedLines.size(); i++) {
-                    String lineStr = sequenceToString(wrappedLines.get(i));
-                    Component styledLine = FontManagerHelper.apply(lineStr);
+                    FormattedCharSequence line = wrappedLines.get(i);
                     int curLineY = (int) (headerStartY + i * font.lineHeight);
 
                     graphics.pose().pushMatrix();
                     graphics.pose().translate(-halfW + 8.0f, curLineY);
                     graphics.pose().scale(textScale, textScale);
-                    graphics.drawText(styledLine, 0, 0, 1.0f, 0xFFECEFF1, OwoUIGraphics.TextAnchor.TOP_LEFT);
+                    graphics.text(font, line, 0, 0, 0xFFECEFF1, false);
                     graphics.pose().popMatrix();
                 }
             }
         }
-    }
-
-    private static String sequenceToString(FormattedCharSequence sequence) {
-        StringBuilder sb = new StringBuilder();
-        sequence.accept((index, style, codePoint) -> {
-            sb.appendCodePoint(codePoint);
-            return true;
-        });
-        return sb.toString();
     }
 
     @Override
