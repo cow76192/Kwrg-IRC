@@ -75,6 +75,11 @@ public class PlayerFinderManager {
             Pattern.CASE_INSENSITIVE
     );
 
+    private static final Pattern PARTY_FINDER_JOIN_PATTERN = Pattern.compile(
+            "^Party Finder >\\s+(?:\\[[^\\]]+\\]\\s*)?([a-zA-Z0-9_]{2,16})\\s+joined\\s+the\\s+dungeon\\s+group!?.*",
+            Pattern.CASE_INSENSITIVE
+    );
+
     public static void setOnTargetsChangedListener(Runnable listener) {
         onTargetsChangedListener = listener;
     }
@@ -357,6 +362,13 @@ public class PlayerFinderManager {
         Matcher joinMatcher = PARTY_JOIN_PATTERN.matcher(line);
         if (joinMatcher.matches()) {
             String joinedPlayer = joinMatcher.group(1);
+            onPlayerJoinedParty(joinedPlayer);
+            return true;
+        }
+
+        Matcher finderJoinMatcher = PARTY_FINDER_JOIN_PATTERN.matcher(line);
+        if (finderJoinMatcher.matches()) {
+            String joinedPlayer = finderJoinMatcher.group(1);
             onPlayerJoinedParty(joinedPlayer);
             return true;
         }
