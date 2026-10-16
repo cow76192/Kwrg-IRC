@@ -13,10 +13,12 @@ import net.minecraft.client.gui.font.providers.GlyphProviderDefinition;
 import net.minecraft.client.gui.font.providers.TrueTypeGlyphProviderDefinition;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FontDescription;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.util.FormattedCharSequence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,6 +84,15 @@ public class FontManagerHelper {
         Style guiStyle = getGuiStyle();
         if (guiStyle.isEmpty()) return component;
         return component.copy().setStyle(component.getStyle().applyTo(guiStyle));
+    }
+
+    public static Component toComponent(FormattedCharSequence sequence) {
+        MutableComponent result = Component.empty();
+        sequence.accept((index, style, codePoint) -> {
+            result.append(Component.literal(new String(Character.toChars(codePoint))).setStyle(style));
+            return true;
+        });
+        return result;
     }
 
     public static String getCurrentLoadedFontName() {
