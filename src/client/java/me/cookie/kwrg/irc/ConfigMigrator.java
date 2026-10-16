@@ -2,8 +2,28 @@ package me.cookie.kwrg.irc;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
+import me.cookie.kwrg.util.ChatNotifier;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.HashSet;
+import java.util.Set;
 
 public final class ConfigMigrator {
+
+    private static final Set<String> KNOWN_CONFIG_KEYS = new HashSet<>();
+
+    static {
+        for (Field field : IrcConfig.class.getDeclaredFields()) {
+            int mods = field.getModifiers();
+            if (!Modifier.isStatic(mods) && !Modifier.isTransient(mods)) {
+                KNOWN_CONFIG_KEYS.add(field.getName());
+            }
+        }
+    }
 
     private ConfigMigrator() {
     }
@@ -11,22 +31,54 @@ public final class ConfigMigrator {
     public static void migrate(JsonObject jsonObj) {
         if (jsonObj == null) return;
 
-        if (jsonObj.has("onlyTab") && !jsonObj.has("onlyApplyToTab")) {
-            jsonObj.add("onlyApplyToTab", jsonObj.get("onlyTab"));
+        // 1. onlyTab -> onlyApplyToTab
+        if (jsonObj.has("onlyTab")) {
+            JsonElement onlyTabVal = jsonObj.get("onlyTab");
+            if (!jsonObj.has("onlyApplyToTab")) {
+                jsonObj.add("onlyApplyToTab", onlyTabVal);
+                notifyMigration("onlyTab", "onlyApplyToTab", onlyTabVal);
+            }
+            jsonObj.remove("onlyTab");
         }
-        jsonObj.remove("onlyTab");
-        if (jsonObj.has("chatSuffixText") && !jsonObj.has("chatSuffix")) {
-            jsonObj.add("chatSuffix", jsonObj.get("chatSuffixText"));
-        }
-        jsonObj.remove("chatSuffixText");
-        jsonObj.remove("autoTrackPlayer");
-        jsonObj.remove("scoreboardExternalInterop");
-        jsonObj.remove("dynamicIslandShadow");
 
+        // 2. 远程新增：chatSuffixText -> chatSuffix
+        if (jsonObj.has("chatSuffixText")) {
+            JsonElement chatSuffixVal = jsonObj.get("chatSuffixText");
+            if (!jsonObj.has("chatSuffix")) {
+                jsonObj.add("chatSuffix", chatSuffixVal);
+                notifyMigration("chatSuffixText", "chatSuffix", chatSuffixVal);
+            }
+            jsonObj.remove("chatSuffixText");
+        }
+
+        // 3. 移除已废弃字段
+        removeDeprecatedField(jsonObj, "autoTrackPlayer");
+        removeDeprecatedField(jsonObj, "scoreboardExternalInterop");
+        removeDeprecatedField(jsonObj, "dynamicIslandShadow");
+
+        // 4. 各模块配置迁移
         migrateIslandPositionFields(jsonObj);
         migrateIslandToggle(jsonObj);
         migrateTabOpacity(jsonObj);
         migrateElementAppearance(jsonObj);
+
+        // 5. 校验未知字段
+        checkUnknownFields(jsonObj);
+    }
+
+    private static void removeDeprecatedField(JsonObject jsonObj, String key) {
+        if (jsonObj.has(key)) {
+            jsonObj.remove(key);
+            notifyRemoved(key);
+        }
+    }
+
+    private static void checkUnknownFields(JsonObject jsonObj) {
+        for (String key : new HashSet<>(jsonObj.keySet())) {
+            if (!KNOWN_CONFIG_KEYS.contains(key)) {
+                notifyUnknownField(key);
+            }
+        }
     }
 
     private static void migrateIslandToggle(JsonObject jsonObj) {
@@ -37,13 +89,17 @@ public final class ConfigMigrator {
         boolean islandOn = hasToggle && isLegacyTrue(jsonObj, "dynamicIsland");
         boolean tabOnly = hasTabOnly && isLegacyTrue(jsonObj, "onlyRenderTab");
 
-        jsonObj.remove("dynamicIsland");
-        jsonObj.remove("onlyRenderTab");
+        if (hasToggle) jsonObj.remove("dynamicIsland");
+        if (hasTabOnly) jsonObj.remove("onlyRenderTab");
 
-        writeElementPrimitive(jsonObj, "dynamicIsland", "enabled", islandOn && !tabOnly);
+        boolean newIslandEnabled = islandOn && !tabOnly;
+        writeElementPrimitive(jsonObj, "dynamicIsland", "enabled", newIslandEnabled);
+        notifyMigration(hasToggle ? "dynamicIsland" : "onlyRenderTab", "hudElements.dynamicIsland.enabled", newIslandEnabled);
 
         if (!jsonObj.has("dynamicTab")) {
-            jsonObj.addProperty("dynamicTab", islandOn || tabOnly);
+            boolean newDynamicTab = islandOn || tabOnly;
+            jsonObj.addProperty("dynamicTab", newDynamicTab);
+            notifyMigration(hasToggle ? "dynamicIsland" : "onlyRenderTab", "dynamicTab", newDynamicTab);
         }
     }
 
@@ -53,15 +109,18 @@ public final class ConfigMigrator {
         boolean applyToTabOnly = isLegacyTrue(jsonObj, "onlyApplyToTab");
         jsonObj.remove("onlyApplyToTab");
 
-        if (jsonObj.has("tabOpacity")) return;
+        if (!jsonObj.has("tabOpacity")) {
+            float legacyOpacity = jsonObj.has("islandOpacity") && jsonObj.get("islandOpacity").isJsonPrimitive()
+                    ? jsonObj.get("islandOpacity").getAsFloat()
+                    : 0.2f;
 
-        float legacyOpacity = jsonObj.has("islandOpacity") && jsonObj.get("islandOpacity").isJsonPrimitive()
-                ? jsonObj.get("islandOpacity").getAsFloat()
-                : 0.2f;
+            jsonObj.addProperty("tabOpacity", legacyOpacity);
+            notifyMigration("onlyApplyToTab", "tabOpacity", legacyOpacity);
+        }
 
-        jsonObj.addProperty("tabOpacity", legacyOpacity);
         if (applyToTabOnly) {
             writeElementPrimitive(jsonObj, "dynamicIsland", "opacity", 1.0f);
+            notifyMigration("onlyApplyToTab", "hudElements.dynamicIsland.opacity", 1.0f);
         }
     }
 
@@ -76,6 +135,7 @@ public final class ConfigMigrator {
 
         if (hadLegacyShadow) {
             writeElementPrimitive(jsonObj, "scoreboard", "shadow", legacyShadow);
+            notifyMigration("isShadowEnabled", "hudElements.scoreboard.shadow", legacyShadow);
         }
     }
 
@@ -87,6 +147,7 @@ public final class ConfigMigrator {
 
         if (legacy == null || !legacy.isJsonPrimitive()) return;
         writeElementPrimitive(jsonObj, elementId, stateKey, legacy);
+        notifyMigration(legacyKey, "hudElements." + elementId + "." + stateKey, legacy);
     }
 
     private static void writeElementPrimitive(JsonObject jsonObj, String elementId, String stateKey, JsonElement value) {
@@ -102,11 +163,11 @@ public final class ConfigMigrator {
     }
 
     private static void writeElementPrimitive(JsonObject jsonObj, String elementId, String stateKey, boolean value) {
-        writeElementPrimitive(jsonObj, elementId, stateKey, new com.google.gson.JsonPrimitive(value));
+        writeElementPrimitive(jsonObj, elementId, stateKey, new JsonPrimitive(value));
     }
 
     private static void writeElementPrimitive(JsonObject jsonObj, String elementId, String stateKey, Number value) {
-        writeElementPrimitive(jsonObj, elementId, stateKey, new com.google.gson.JsonPrimitive(value));
+        writeElementPrimitive(jsonObj, elementId, stateKey, new JsonPrimitive(value));
     }
 
     private static boolean isLegacyTrue(JsonObject jsonObj, String key) {
@@ -124,10 +185,12 @@ public final class ConfigMigrator {
         boolean hasLegacy = false;
         for (String[] pair : legacy) {
             if (jsonObj.has(pair[0])) {
-                island.add(pair[1], jsonObj.get(pair[0]));
+                JsonElement val = jsonObj.get(pair[0]);
+                island.add(pair[1], val);
                 hasLegacy = true;
+                notifyMigration(pair[0], "hudElements.dynamicIsland." + pair[1], val);
+                jsonObj.remove(pair[0]);
             }
-            jsonObj.remove(pair[0]);
         }
         if (!hasLegacy) return;
 
@@ -148,5 +211,33 @@ public final class ConfigMigrator {
         return hud.has(elementId) && hud.get(elementId).isJsonObject()
                 ? hud.getAsJsonObject(elementId)
                 : new JsonObject();
+    }
+
+    // ==================== 提示通知封装 ====================
+
+    private static void notifyMigration(String oldKey, String newTarget, Object newValue) {
+        Component message = Component.literal("[INFO] ")
+                .withStyle(ChatFormatting.AQUA)
+                .append(Component.literal("配置迁移: ").withStyle(ChatFormatting.GRAY))
+                .append(Component.literal(oldKey).withStyle(ChatFormatting.YELLOW))
+                .append(Component.literal(" -> ").withStyle(ChatFormatting.DARK_GRAY))
+                .append(Component.literal(newTarget + " = " + newValue).withStyle(ChatFormatting.GREEN));
+        ChatNotifier.sendInChatScreen(message);
+    }
+
+    private static void notifyRemoved(String oldKey) {
+        Component message = Component.literal("[INFO] ")
+                .withStyle(ChatFormatting.AQUA)
+                .append(Component.literal("已移除废弃配置字段: ").withStyle(ChatFormatting.GRAY))
+                .append(Component.literal(oldKey).withStyle(ChatFormatting.YELLOW));
+        ChatNotifier.sendInChatScreen(message);
+    }
+
+    private static void notifyUnknownField(String unknownKey) {
+        Component message = Component.literal("[ERROR] ")
+                .withStyle(ChatFormatting.RED)
+                .append(Component.literal("未知配置字段: ").withStyle(ChatFormatting.GRAY))
+                .append(Component.literal(unknownKey).withStyle(ChatFormatting.RED));
+        ChatNotifier.sendInChatScreen(message);
     }
 }
