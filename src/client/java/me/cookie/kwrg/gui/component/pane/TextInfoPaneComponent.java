@@ -10,10 +10,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.FormattedCharSequence;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
@@ -94,11 +97,35 @@ public class TextInfoPaneComponent extends BasePaneComponent {
         int stableWidth = Math.max(154, this.width() - 16);
 
         Component valComp = this.componentSupplier != null ? this.componentSupplier.get() : null;
-        String valStr = valComp != null ? valComp.getString() : (this.valueSupplier != null ? this.valueSupplier.get() : "");
+        String valStr = this.valueSupplier != null ? this.valueSupplier.get() : (valComp != null ? valComp.getString() : "");
 
-        String fullDisplayText = this.isHeader ? this.label : (this.label + (valStr.isEmpty() ? "" : ": " + valStr));
+        Component fullDisplayComp;
+        if (this.isHeader) {
+            fullDisplayComp = FontManagerHelper.apply(this.label);
+        } else {
+            Component styledLabel = FontManagerHelper.apply(this.label);
+            if (styledLabel.getStyle().getColor() == null) {
+                styledLabel = styledLabel.copy().withStyle(s -> s.withColor(0x78909C));
+            }
 
-        List<FormattedCharSequence> wrappedLines = font.split(FontManagerHelper.apply(fullDisplayText), stableWidth);
+            Component styledVal = null;
+            if (valComp != null) {
+                styledVal = FontManagerHelper.apply(valComp);
+            } else if (!valStr.isEmpty()) {
+                styledVal = FontManagerHelper.apply(valStr);
+            }
+
+            if (styledVal != null && !styledVal.getString().isEmpty()) {
+                fullDisplayComp = Component.empty()
+                        .append(styledLabel)
+                        .append(Component.literal(": ").withStyle(s -> s.withColor(0x78909C)))
+                        .append(styledVal);
+            } else {
+                fullDisplayComp = styledLabel;
+            }
+        }
+
+        List<FormattedCharSequence> wrappedLines = font.split(fullDisplayComp, stableWidth);
         int lineCount = Math.max(1, wrappedLines.size());
         this.targetHeight = BASE_HEIGHT + (lineCount - 1) * font.lineHeight;
 
@@ -106,8 +133,7 @@ public class TextInfoPaneComponent extends BasePaneComponent {
 
         if (this.isHeader) {
             for (int i = 0; i < wrappedLines.size(); i++) {
-                String lineStr = sequenceToString(wrappedLines.get(i));
-                Component styledHeaderLine = FontManagerHelper.apply(lineStr);
+                Component styledHeaderLine = sequenceToComponent(wrappedLines.get(i));
                 float titleW = font.width(styledHeaderLine) * textScale;
                 int curLineY = (int) (headerStartY + i * font.lineHeight);
 
@@ -149,8 +175,7 @@ public class TextInfoPaneComponent extends BasePaneComponent {
                 }
             } else {
                 for (int i = 0; i < wrappedLines.size(); i++) {
-                    String lineStr = sequenceToString(wrappedLines.get(i));
-                    Component styledLine = FontManagerHelper.apply(lineStr);
+                    Component styledLine = sequenceToComponent(wrappedLines.get(i));
                     int curLineY = (int) (headerStartY + i * font.lineHeight);
 
                     graphics.pose().pushMatrix();
@@ -163,13 +188,30 @@ public class TextInfoPaneComponent extends BasePaneComponent {
         }
     }
 
-    private static String sequenceToString(FormattedCharSequence sequence) {
-        StringBuilder sb = new StringBuilder();
+    private static Component sequenceToComponent(FormattedCharSequence sequence) {
+        MutableComponent result = Component.empty();
+        StringBuilder currentText = new StringBuilder();
+        Style[] currentStyle = new Style[]{ null };
+
         sequence.accept((index, style, codePoint) -> {
-            sb.appendCodePoint(codePoint);
+            if (currentStyle[0] == null) {
+                currentStyle[0] = style;
+                currentText.appendCodePoint(codePoint);
+            } else if (Objects.equals(currentStyle[0], style)) {
+                currentText.appendCodePoint(codePoint);
+            } else {
+                result.append(Component.literal(currentText.toString()).setStyle(currentStyle[0]));
+                currentText.setLength(0);
+                currentStyle[0] = style;
+                currentText.appendCodePoint(codePoint);
+            }
             return true;
         });
-        return sb.toString();
+
+        if (currentText.length() > 0 && currentStyle[0] != null) {
+            result.append(Component.literal(currentText.toString()).setStyle(currentStyle[0]));
+        }
+        return result;
     }
 
     @Override
