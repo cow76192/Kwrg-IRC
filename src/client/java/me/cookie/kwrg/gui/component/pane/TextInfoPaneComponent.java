@@ -10,13 +10,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.MutableComponent;
-import net.minecraft.network.chat.Style;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.FormattedCharSequence;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
@@ -97,11 +94,11 @@ public class TextInfoPaneComponent extends BasePaneComponent {
         int stableWidth = Math.max(154, this.width() - 16);
 
         Component valComp = this.componentSupplier != null ? this.componentSupplier.get() : null;
-        String valStr = this.valueSupplier != null ? this.valueSupplier.get() : (valComp != null ? valComp.getString() : "");
+        String valStr = this.valueSupplier != null ? this.valueSupplier.get() : "";
 
-        Component fullDisplayComp;
+        Component fullComp;
         if (this.isHeader) {
-            fullDisplayComp = FontManagerHelper.apply(this.label);
+            fullComp = FontManagerHelper.apply(this.label);
         } else {
             Component styledLabel = FontManagerHelper.apply(this.label);
             if (styledLabel.getStyle().getColor() == null) {
@@ -116,16 +113,16 @@ public class TextInfoPaneComponent extends BasePaneComponent {
             }
 
             if (styledVal != null && !styledVal.getString().isEmpty()) {
-                fullDisplayComp = Component.empty()
+                fullComp = Component.empty()
                         .append(styledLabel)
                         .append(Component.literal(": ").withStyle(s -> s.withColor(0x78909C)))
                         .append(styledVal);
             } else {
-                fullDisplayComp = styledLabel;
+                fullComp = styledLabel;
             }
         }
 
-        List<FormattedCharSequence> wrappedLines = font.split(fullDisplayComp, stableWidth);
+        List<FormattedCharSequence> wrappedLines = font.split(fullComp, stableWidth);
         int lineCount = Math.max(1, wrappedLines.size());
         this.targetHeight = BASE_HEIGHT + (lineCount - 1) * font.lineHeight;
 
@@ -133,14 +130,14 @@ public class TextInfoPaneComponent extends BasePaneComponent {
 
         if (this.isHeader) {
             for (int i = 0; i < wrappedLines.size(); i++) {
-                Component styledHeaderLine = sequenceToComponent(wrappedLines.get(i));
-                float titleW = font.width(styledHeaderLine) * textScale;
+                FormattedCharSequence line = wrappedLines.get(i);
+                float titleW = font.width(line) * textScale;
                 int curLineY = (int) (headerStartY + i * font.lineHeight);
 
                 graphics.pose().pushMatrix();
                 graphics.pose().translate(-titleW / 2.0f, curLineY);
                 graphics.pose().scale(textScale, textScale);
-                graphics.drawText(styledHeaderLine, 0, 0, 1.0f, 0xFFB0BEC5, OwoUIGraphics.TextAnchor.TOP_LEFT);
+                graphics.text(font, line, 0, 0, 0xFFB0BEC5, false);
                 graphics.pose().popMatrix();
             }
         } else {
@@ -175,43 +172,17 @@ public class TextInfoPaneComponent extends BasePaneComponent {
                 }
             } else {
                 for (int i = 0; i < wrappedLines.size(); i++) {
-                    Component styledLine = sequenceToComponent(wrappedLines.get(i));
+                    FormattedCharSequence line = wrappedLines.get(i);
                     int curLineY = (int) (headerStartY + i * font.lineHeight);
 
                     graphics.pose().pushMatrix();
                     graphics.pose().translate(-halfW + 8.0f, curLineY);
                     graphics.pose().scale(textScale, textScale);
-                    graphics.drawText(styledLine, 0, 0, 1.0f, 0xFFECEFF1, OwoUIGraphics.TextAnchor.TOP_LEFT);
+                    graphics.text(font, line, 0, 0, 0xFFECEFF1, false);
                     graphics.pose().popMatrix();
                 }
             }
         }
-    }
-
-    private static Component sequenceToComponent(FormattedCharSequence sequence) {
-        MutableComponent result = Component.empty();
-        StringBuilder currentText = new StringBuilder();
-        Style[] currentStyle = new Style[]{ null };
-
-        sequence.accept((index, style, codePoint) -> {
-            if (currentStyle[0] == null) {
-                currentStyle[0] = style;
-                currentText.appendCodePoint(codePoint);
-            } else if (Objects.equals(currentStyle[0], style)) {
-                currentText.appendCodePoint(codePoint);
-            } else {
-                result.append(Component.literal(currentText.toString()).setStyle(currentStyle[0]));
-                currentText.setLength(0);
-                currentStyle[0] = style;
-                currentText.appendCodePoint(codePoint);
-            }
-            return true;
-        });
-
-        if (currentText.length() > 0 && currentStyle[0] != null) {
-            result.append(Component.literal(currentText.toString()).setStyle(currentStyle[0]));
-        }
-        return result;
     }
 
     @Override
