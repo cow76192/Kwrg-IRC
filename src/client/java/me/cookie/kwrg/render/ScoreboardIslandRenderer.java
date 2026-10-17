@@ -29,11 +29,9 @@ public class ScoreboardIslandRenderer {
     // 动画时长常量（秒）
     private static final float SIZE_ANIM_DURATION = 0.28f;
 
-    // 目标尺寸
     private static float targetW = 100.0f;
     private static float targetH = 120.0f;
 
-    // 平滑插值后的当前渲染尺寸
     private static float smoothW = 100.0f;
     private static float startW = 100.0f;
     private static float widthAnimTimer = 1.0f;
@@ -45,7 +43,6 @@ public class ScoreboardIslandRenderer {
     private static float smoothX = 0.0f;
     private static float smoothY = 0.0f;
 
-    // 状态与时间戳
     private static long lastUpdateTime = -1L;
     private static long lastRenderActiveTime = 0L;
     private static boolean editorPreview = false;
@@ -141,7 +138,6 @@ public class ScoreboardIslandRenderer {
         lastUpdateTime = now;
         dt = Mth.clamp(dt, 0.001f, 0.05f);
 
-        // 平滑过度
         if (widthAnimTimer < 1.0f) {
             widthAnimTimer = Math.min(1.0f, widthAnimTimer + dt / SIZE_ANIM_DURATION);
             smoothW = Mth.lerp(AnimationUtil.easeSmoothDecel(widthAnimTimer), startW, targetW);
@@ -184,17 +180,13 @@ public class ScoreboardIslandRenderer {
     public static boolean beginScissor(GuiGraphicsExtractor extractor) {
         if (extractor == null || isScissorActive) return false;
 
-        HudElement.State state = HudElementRegistry.state(HudElementRegistry.SCOREBOARD);
-        int pad = Math.max(1, state.padding - 1);
-
-        int sX1 = (int) Math.floor(smoothX + pad);
-        int sY1 = (int) Math.floor(smoothY + pad);
-        int sX2 = (int) Math.ceil(smoothX + smoothW - pad);
-        int sY2 = (int) Math.ceil(smoothY + smoothH - pad);
+        int sX1 = (int) Math.floor(smoothX);
+        int sY1 = (int) Math.floor(smoothY);
+        int sX2 = (int) Math.ceil(smoothX + smoothW);
+        int sY2 = (int) Math.ceil(smoothY + smoothH);
 
         if (sX2 > sX1 && sY2 > sY1) {
-            OwoUIGraphics owo = OwoUIGraphics.of(extractor);
-            owo.enableScissor(sX1, sY1, sX2, sY2);
+            extractor.enableScissor(sX1, sY1, sX2, sY2);
             isScissorActive = true;
             return true;
         }
@@ -204,8 +196,7 @@ public class ScoreboardIslandRenderer {
     public static void endScissor(GuiGraphicsExtractor extractor) {
         if (extractor == null || !isScissorActive) return;
 
-        OwoUIGraphics owo = OwoUIGraphics.of(extractor);
-        owo.disableScissor();
+        extractor.disableScissor();
         isScissorActive = false;
     }
 

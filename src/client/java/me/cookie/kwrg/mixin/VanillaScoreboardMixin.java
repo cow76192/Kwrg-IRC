@@ -3,10 +3,12 @@ package me.cookie.kwrg.mixin;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
+import me.cookie.kwrg.gui.hud.HudEditorScreen;
 import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.render.ScoreboardIslandRenderer;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -17,17 +19,13 @@ import net.minecraft.world.scores.Scoreboard;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.lang.reflect.Method;
 import java.util.Collection;
 
 @Mixin(Gui.class)
 public abstract class VanillaScoreboardMixin {
-
-    @Unique private static boolean kwrg$translating = false;
-    @Unique private static boolean kwrg$scissored = false;
 
     @Unique private static float kwrg$currentMinX = Float.MAX_VALUE;
     @Unique private static float kwrg$currentMinY = Float.MAX_VALUE;
@@ -37,18 +35,43 @@ public abstract class VanillaScoreboardMixin {
     @Unique private static float kwrg$lastRawMinX = -1.0f;
     @Unique private static float kwrg$lastRawMinY = -1.0f;
 
-    @Inject(method = "displayScoreboardSidebar", at = @At("HEAD"))
-    private void kwrg$onSidebarHead(GuiGraphicsExtractor graphics, Objective objective, CallbackInfo ci) {
-        kwrg$translating = false;
-        kwrg$scissored = false;
+    @Unique private static Method kwrg$shHideScoreboardMethod = null;
 
-        if (ScoreboardIslandRenderer.isSkyHanniActive() || !ScoreboardIslandRenderer.isEnabled()) {
+    @Unique
+    private static boolean kwrg$isSkyHanniHandlingScoreboard() {
+        if (ScoreboardIslandRenderer.isSkyHanniActive()) return true;
+        try {
+            if (kwrg$shHideScoreboardMethod == null) {
+                Class<?> cs = Class.forName("at.hannibal2.skyhanni.features.gui.customscoreboard.CustomScoreboard");
+                kwrg$shHideScoreboardMethod = cs.getMethod("isHideVanillaScoreboardEnabled");
+            }
+            return (boolean) kwrg$shHideScoreboardMethod.invoke(null);
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    @WrapOperation(
+            method = "extractScoreboardSidebar",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/Gui;displayScoreboardSidebar(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/world/scores/Objective;)V"
+            )
+    )
+    private void kwrg$safelyWrapScoreboard(Gui instance, GuiGraphicsExtractor graphics, Objective objective, Operation<Void> original) {
+        Minecraft mc = Minecraft.getInstance();
+
+        if (mc.screen instanceof HudEditorScreen || kwrg$isSkyHanniHandlingScoreboard() || !ScoreboardIslandRenderer.isEnabled()) {
+            original.call(instance, graphics, objective);
             return;
         }
 
         Scoreboard scoreboard = objective.getScoreboard();
         Collection<PlayerScoreEntry> scores = scoreboard.listPlayerScores(objective);
-        if (scores.isEmpty()) return;
+        if (scores.isEmpty()) {
+            original.call(instance, graphics, objective);
+            return;
+        }
 
         kwrg$currentMinX = Float.MAX_VALUE;
         kwrg$currentMinY = Float.MAX_VALUE;
@@ -75,11 +98,28 @@ public abstract class VanillaScoreboardMixin {
             shiftY = targetTextY - (graphics.guiHeight() / 2 - 40);
         }
 
-        kwrg$scissored = ScoreboardIslandRenderer.beginScissor(graphics);
-
+        boolean scissored = ScoreboardIslandRenderer.beginScissor(graphics);
         graphics.pose().pushMatrix();
         graphics.pose().translate(shiftX, shiftY);
-        kwrg$translating = true;
+
+        try {
+            original.call(instance, graphics, objective);
+
+            if (kwrg$currentMaxX > kwrg$currentMinX && kwrg$currentMaxY > kwrg$currentMinY) {
+                float actualTextW = kwrg$currentMaxX - kwrg$currentMinX;
+                float actualTextH = kwrg$currentMaxY - kwrg$currentMinY;
+
+                ScoreboardIslandRenderer.updateTargetBounds(actualTextW, actualTextH);
+
+                kwrg$lastRawMinX = kwrg$currentMinX;
+                kwrg$lastRawMinY = kwrg$currentMinY;
+            }
+        } finally {
+            graphics.pose().popMatrix();
+            if (scissored) {
+                ScoreboardIslandRenderer.endScissor(graphics);
+            }
+        }
     }
 
     @Redirect(
@@ -117,30 +157,5 @@ public abstract class VanillaScoreboardMixin {
         }
 
         original.call(graphics, font, text, x, y, color, shadow);
-    }
-
-    @Inject(method = "displayScoreboardSidebar", at = @At("TAIL"))
-    private void kwrg$onSidebarTail(GuiGraphicsExtractor graphics, Objective objective, CallbackInfo ci) {
-        try {
-            if (kwrg$translating) {
-                graphics.pose().popMatrix();
-                kwrg$translating = false;
-            }
-
-            if (kwrg$currentMaxX > kwrg$currentMinX && kwrg$currentMaxY > kwrg$currentMinY) {
-                float actualTextW = kwrg$currentMaxX - kwrg$currentMinX;
-                float actualTextH = kwrg$currentMaxY - kwrg$currentMinY;
-
-                ScoreboardIslandRenderer.updateTargetBounds(actualTextW, actualTextH);
-
-                kwrg$lastRawMinX = kwrg$currentMinX;
-                kwrg$lastRawMinY = kwrg$currentMinY;
-            }
-        } finally {
-            if (kwrg$scissored) {
-                ScoreboardIslandRenderer.endScissor(graphics);
-                kwrg$scissored = false;
-            }
-        }
     }
 }
