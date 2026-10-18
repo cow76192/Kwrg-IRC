@@ -1,0 +1,48 @@
+name: Clean artifacts older than 3 days
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/cleanup-artifacts.yml'
+      - '.github/scripts/cleanup-artifacts.ps1'
+  schedule:
+    - cron: '0 19 * * *' # Daily at 03:00 Asia/Shanghai
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Preview only (no deletion)'
+        type: boolean
+        default: true
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: cleanup-old-artifacts
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Fetch cleanup script from this workflow commit
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          $encoded = gh api --hostname github.com "repos/$env:REPOSITORY/contents/.github/scripts/cleanup-artifacts.ps1?ref=$env:COMMIT_SHA" --jq .content
+          if ($LASTEXITCODE -ne 0) { throw 'Could not fetch cleanup script' }
+          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP/cleanup-artifacts.ps1", [Convert]::FromBase64String(($encoded -join '')))
+      - name: Clean old Artifacts
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          EXECUTE: ${{ github.event_name == 'schedule' || github.event_name == 'push' || inputs.dry_run == false }}
+        run: |
+          & "$env:RUNNER_TEMP/cleanup-artifacts.ps1" -Repository $env:REPOSITORY -Days 3 -ArtifactName Artifacts -Execute:($env:EXECUTE -eq 'true')
