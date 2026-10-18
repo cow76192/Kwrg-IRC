@@ -15,12 +15,8 @@ public abstract class LivingEntityMixin {
 
     @Inject(method = "getItemBySlot", at = @At("HEAD"), cancellable = true)
     private void onGetItemBySlot(EquipmentSlot slot, CallbackInfoReturnable<ItemStack> cir) {
-        if ((Object) this instanceof Player player) {
-            if (slot == EquipmentSlot.HEAD || slot == EquipmentSlot.CHEST || slot == EquipmentSlot.LEGS || slot == EquipmentSlot.FEET) {
-                if (HideArmorManager.shouldHideArmor(player)) {
-                    cir.setReturnValue(ItemStack.EMPTY);
-                }
-            }
+        if ((Object) this instanceof Player player && HideArmorManager.shouldHideArmor(player, slot)) {
+            cir.setReturnValue(ItemStack.EMPTY);
         }
     }
 }

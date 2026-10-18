@@ -8,6 +8,7 @@ import me.cookie.kwrg.irc.manager.IrcGlowManager;
 import me.cookie.kwrg.module.modules.functions.ChatSuffixModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.EquipmentSlot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -136,7 +137,7 @@ public class IrcClient {
                 joinJson.addProperty("rank", IrcConfig.get().rank);
                 sendRaw(GSON.toJson(joinJson));
 
-                sendFunctionSync("hideArmor", IrcConfig.get().hideArmor);
+                sendHideArmorSync();
                 sendScaleSync(IrcConfig.get().myScale);
                 me.cookie.kwrg.irc.manager.IrcCapeManager.syncMyCape();
                 sendChannelSync(IrcConfig.get().currentChannel, IrcConfig.get().channelEnabled, IrcConfig.get().savedChannels);
@@ -407,6 +408,16 @@ public class IrcClient {
         json.addProperty("enabled", enabled);
 
         sendRaw(GSON.toJson(json));
+    }
+
+    public static void sendHideArmorSync() {
+        IrcConfig config = IrcConfig.get();
+
+        sendFunctionSync("hideArmor", config.hideArmor && HideArmorManager.hasAnyPartHidden());
+        sendFunctionSync("hideArmorHead", config.hideArmor && HideArmorManager.isPartHidden(EquipmentSlot.HEAD));
+        sendFunctionSync("hideArmorChest", config.hideArmor && HideArmorManager.isPartHidden(EquipmentSlot.CHEST));
+        sendFunctionSync("hideArmorLegs", config.hideArmor && HideArmorManager.isPartHidden(EquipmentSlot.LEGS));
+        sendFunctionSync("hideArmorFeet", config.hideArmor && HideArmorManager.isPartHidden(EquipmentSlot.FEET));
     }
 
     public static void sendChannelSync(String channel, boolean enabled, java.util.List<String> channels) {

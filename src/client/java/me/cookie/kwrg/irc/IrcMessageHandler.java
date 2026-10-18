@@ -9,6 +9,7 @@ import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.*;
+import net.minecraft.world.entity.EquipmentSlot;
 
 import java.util.Objects;
 
@@ -86,7 +87,15 @@ public class IrcMessageHandler {
                 boolean enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
 
                 if ("hideArmor".equalsIgnoreCase(function)) {
-                    HideArmorManager.setPlayerHideArmor(user, enabled);
+                    HideArmorManager.setRemotePlayerHideArmor(user, enabled);
+                } else if ("hideArmorHead".equalsIgnoreCase(function)) {
+                    HideArmorManager.setRemotePlayerHideArmor(user, EquipmentSlot.HEAD, enabled);
+                } else if ("hideArmorChest".equalsIgnoreCase(function)) {
+                    HideArmorManager.setRemotePlayerHideArmor(user, EquipmentSlot.CHEST, enabled);
+                } else if ("hideArmorLegs".equalsIgnoreCase(function)) {
+                    HideArmorManager.setRemotePlayerHideArmor(user, EquipmentSlot.LEGS, enabled);
+                } else if ("hideArmorFeet".equalsIgnoreCase(function)) {
+                    HideArmorManager.setRemotePlayerHideArmor(user, EquipmentSlot.FEET, enabled);
                 } else if ("modelScale".equalsIgnoreCase(function)) {
                     float scale = obj.has("scale") ? obj.get("scale").getAsFloat() : 1.0f;
                     me.cookie.kwrg.irc.manager.PlayerCustomizationManager.setRemotePlayerScale(user, scale);
@@ -98,7 +107,7 @@ public class IrcMessageHandler {
                 String user = obj.has("username") ? obj.get("username").getAsString() : "Unknown";
                 String rank = obj.has("rank") ? obj.get("rank").getAsString() : "";
                 String formattedRank = formatRankWithBrackets(rank);
-                IrcClient.sendFunctionSync("hideArmor", IrcConfig.get().hideArmor);
+                IrcClient.sendHideArmorSync();
                 me.cookie.kwrg.irc.manager.IrcGlowManager.addPlayer(user);
                 IrcMessageHandler.printMessage("§e[IRC] " + (formattedRank.isEmpty() ? "" : formattedRank + " ") + "§f" + user + " §a加入了 IRC!");
                 return;
