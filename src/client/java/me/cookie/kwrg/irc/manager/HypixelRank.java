@@ -28,7 +28,25 @@ public enum HypixelRank {
     }
 
     public int getNameColorRgb() {
-        return nameColorRgb;
+        return getNameColorRgb(TagColor.GOLD);
+    }
+
+    public int getNameColorRgb(TagColor tagColor) {
+        return this == MVP_PLUS_PLUS ? effectiveTagColor(tagColor).rgb : nameColorRgb;
+    }
+
+    public String getNameColorCode(TagColor tagColor) {
+        return switch (this) {
+            case NONE -> "§7";
+            case VIP, VIP_PLUS -> "§a";
+            case MVP, MVP_PLUS -> "§b";
+            case MVP_PLUS_PLUS -> effectiveTagColor(tagColor).code;
+            case ADMIN, OWNER, YOUTUBE -> "§c";
+        };
+    }
+
+    private static TagColor effectiveTagColor(TagColor tagColor) {
+        return tagColor != null ? tagColor : TagColor.GOLD;
     }
 
     public boolean supportsPlusColor() {
@@ -36,6 +54,10 @@ public enum HypixelRank {
     }
 
     public String getFormattedPrefix(PlusColor plusColor) {
+        return getFormattedPrefix(plusColor, TagColor.GOLD);
+    }
+
+    public String getFormattedPrefix(PlusColor plusColor, TagColor tagColor) {
         if (this == NONE) return "";
         if (!supportsPlusColor) return staticPrefix;
 
@@ -43,9 +65,25 @@ public enum HypixelRank {
         if (this == MVP_PLUS) {
             return "§b[MVP" + plus + "+§b] ";
         } else if (this == MVP_PLUS_PLUS) {
-            return "§6[MVP" + plus + "++§6] ";
+            String tag = effectiveTagColor(tagColor).code;
+            return tag + "[MVP" + plus + "++" + tag + "] ";
         }
         return staticPrefix;
+    }
+
+    public enum TagColor {
+        GOLD("Gold Tag", "§6", 0xFFAA00),
+        AQUA("Aqua Tag", "§b", 0x55FFFF);
+
+        public final String name;
+        public final String code;
+        public final int rgb;
+
+        TagColor(String name, String code, int rgb) {
+            this.name = name;
+            this.code = code;
+            this.rgb = rgb;
+        }
     }
 
     public enum PlusColor {
@@ -58,9 +96,10 @@ public enum HypixelRank {
         BLUE("蓝色", "§9", 0x5555FF),
         DARK_GREEN("深绿", "§2", 0x00AA00),
         DARK_RED("深红", "§4", 0xAA0000),
-        DARK_BLUE("深蓝", "§3", 0x00AAAA),
+        DARK_AQUA("深青", "§3", 0x00AAAA),
+        DARK_BLUE("深蓝", "§1", 0x0000AA),
         DARK_PURPLE("暗紫", "§5", 0xAA00AA),
-        GRAY("灰色", "§7", 0xAAAAAA),
+        DARK_GRAY("深灰", "§8", 0x555555),
         BLACK("黑色", "§0", 0x000000);
 
         public final String name;

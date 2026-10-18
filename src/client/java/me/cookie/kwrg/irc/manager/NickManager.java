@@ -64,6 +64,7 @@ public class NickManager {
 
     public static HypixelRank.PlusColor getPlusColor() {
         try {
+            if ("GRAY".equals(IrcConfig.get().nickPlusColor)) return HypixelRank.PlusColor.DARK_GRAY;
             return HypixelRank.PlusColor.valueOf(IrcConfig.get().nickPlusColor);
         } catch (Exception e) {
             return HypixelRank.PlusColor.RED;
@@ -75,16 +76,30 @@ public class NickManager {
         IrcConfig.saveDelayed(300);
     }
 
+    public static HypixelRank.TagColor getTagColor() {
+        try {
+            return HypixelRank.TagColor.valueOf(IrcConfig.get().nickTagColor);
+        } catch (Exception e) {
+            return HypixelRank.TagColor.GOLD;
+        }
+    }
+
+    public static void setTagColor(HypixelRank.TagColor color) {
+        IrcConfig.get().nickTagColor = color.name();
+        IrcConfig.saveDelayed(300);
+    }
+
+    public static int getRankNameColorRgb() {
+        return getRank().getNameColorRgb(getTagColor());
+    }
+
     public static String getRealPlayerName() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null) {
             GameProfile profile = mc.player.getGameProfile();
             return profile.name();
         }
-        if (mc.getUser() != null) {
-            return mc.getUser().getName();
-        }
-        return "";
+        return mc.getUser().getName();
     }
 
     public static String protectText(String text) {
@@ -117,7 +132,7 @@ public class NickManager {
     }
 
     public static String getFormattedPrefix() {
-        return getRank().getFormattedPrefix(getPlusColor());
+        return getRank().getFormattedPrefix(getPlusColor(), getTagColor());
     }
 
     public static boolean isHypixelRankContent(String content) {
@@ -165,15 +180,8 @@ public class NickManager {
         return sb.toString();
     }
 
-    private static String getRankNameColorCode() {
-        HypixelRank rank = getRank();
-        return switch (rank) {
-            case NONE -> "§7";
-            case VIP, VIP_PLUS -> "§a";
-            case MVP, MVP_PLUS -> "§b";
-            case MVP_PLUS_PLUS -> "§6";
-            case ADMIN, OWNER, YOUTUBE -> "§c";
-        };
+    public static String getRankNameColorCode() {
+        return getRank().getNameColorCode(getTagColor());
     }
 
     private record StyledChar(int codePoint, Style style) {}
@@ -246,13 +254,13 @@ public class NickManager {
 
                         buildRankPrefixChars(result);
 
-                        int nameColor = getRank().getNameColorRgb();
+                        int nameColor = getRankNameColorRgb();
                         Style nameStyle = Style.EMPTY.withColor(TextColor.fromRgb(nameColor));
                         for (int cp : getEffectiveNick().codePoints().toArray()) {
                             result.add(new StyledChar(cp, nameStyle));
                         }
                     } else {
-                        int nameColor = getRank().getNameColorRgb();
+                        int nameColor = getRankNameColorRgb();
                         Style originalStyle = chars.get(i).style;
                         Style coloredStyle = originalStyle.withColor(TextColor.fromRgb(nameColor));
 
@@ -299,9 +307,10 @@ public class NickManager {
                 appendChars(list, "] ", 0x55FFFF);
             }
             case MVP_PLUS_PLUS -> {
-                appendChars(list, "[MVP", 0xFFAA00);
+                int tagColor = rank.getNameColorRgb(getTagColor());
+                appendChars(list, "[MVP", tagColor);
                 appendChars(list, "++", plus.rgb); // 自定义加号颜色
-                appendChars(list, "] ", 0xFFAA00);
+                appendChars(list, "] ", tagColor);
             }
             case ADMIN -> appendChars(list, "[ADMIN] ", 0xFF5555);
             case OWNER -> appendChars(list, "[OWNER] ", 0xFF5555);

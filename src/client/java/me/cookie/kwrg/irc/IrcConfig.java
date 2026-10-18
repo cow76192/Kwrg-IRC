@@ -94,6 +94,7 @@ public class IrcConfig {
     public String customNick = "";
     public String nickRank = "MVP+";
     public String nickPlusColor = "RED";
+    public String nickTagColor = "GOLD";
 
     public boolean chatSuffixEnabled = false;
     public String chatSuffixPrefix = "";
