@@ -127,6 +127,19 @@ public class HideArmorManager {
         setRemotePlayerHideArmor(username, EquipmentSlot.FEET, hidden);
     }
 
+    public static void setRemotePlayerHideArmor(String username, Set<EquipmentSlot> hiddenParts) {
+        if (username == null || username.isBlank() || hiddenParts == null) return;
+
+        String key = username.toLowerCase(Locale.ROOT);
+        if (hiddenParts.isEmpty()) {
+            HIDDEN_ARMOR_PLAYERS.remove(key);
+        } else {
+            Set<EquipmentSlot> slots = ConcurrentHashMap.newKeySet();
+            slots.addAll(hiddenParts);
+            HIDDEN_ARMOR_PLAYERS.put(key, slots);
+        }
+    }
+
     public static void clear() {
         HIDDEN_ARMOR_PLAYERS.clear();
     }

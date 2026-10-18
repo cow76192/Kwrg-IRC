@@ -1,6 +1,7 @@
 package me.cookie.kwrg.irc;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.manager.HideArmorManager;
@@ -411,13 +412,26 @@ public class IrcClient {
     }
 
     public static void sendHideArmorSync() {
-        IrcConfig config = IrcConfig.get();
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getUser() == null) return;
 
-        sendFunctionSync("hideArmor", config.hideArmor && HideArmorManager.hasAnyPartHidden());
-        sendFunctionSync("hideArmorHead", config.hideArmor && HideArmorManager.isPartHidden(EquipmentSlot.HEAD));
-        sendFunctionSync("hideArmorChest", config.hideArmor && HideArmorManager.isPartHidden(EquipmentSlot.CHEST));
-        sendFunctionSync("hideArmorLegs", config.hideArmor && HideArmorManager.isPartHidden(EquipmentSlot.LEGS));
-        sendFunctionSync("hideArmorFeet", config.hideArmor && HideArmorManager.isPartHidden(EquipmentSlot.FEET));
+        IrcConfig config = IrcConfig.get();
+        JsonArray parts = new JsonArray();
+        if (config.hideArmor) {
+            for (EquipmentSlot slot : List.of(EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET)) {
+                if (HideArmorManager.isPartHidden(slot)) {
+                    parts.add(slot.getName());
+                }
+            }
+        }
+
+        JsonObject json = new JsonObject();
+        json.addProperty("type", "function_sync");
+        json.addProperty("function", "hideArmor");
+        json.addProperty("senderId", currentSenderId());
+        json.addProperty("username", mc.getUser().getName());
+        json.add("parts", parts);
+        sendRaw(GSON.toJson(json));
     }
 
     public static void sendChannelSync(String channel, boolean enabled, java.util.List<String> channels) {

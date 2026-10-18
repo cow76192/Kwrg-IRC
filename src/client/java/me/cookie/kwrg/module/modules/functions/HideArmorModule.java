@@ -13,6 +13,7 @@ import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.EquipmentSlot;
 
+import java.util.List;
 import java.util.Map;
 
 public class HideArmorModule extends Module {
@@ -83,13 +84,14 @@ public class HideArmorModule extends Module {
         panel.clearChildren();
         panel.child(TextInfoPaneComponent.header("隐藏部位"));
 
-        PARTS.values().forEach(slot -> panel.child(new PanelItemComponent(
-                slotName(slot),
-                PanelItemComponent.ItemType.TOGGLE,
-                () -> setHideArmorPart(slot, !HideArmorManager.isPartHidden(slot)),
-                null,
-                () -> HideArmorManager.isPartHidden(slot)
-        )));
+        List.of(EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET)
+                .forEach(slot -> panel.child(new PanelItemComponent(
+                        slotName(slot),
+                        PanelItemComponent.ItemType.TOGGLE,
+                        () -> setHideArmorPart(slot, !HideArmorManager.isPartHidden(slot)),
+                        null,
+                        () -> HideArmorManager.isPartHidden(slot)
+                )));
     }
 
     private static String slotName(EquipmentSlot slot) {
