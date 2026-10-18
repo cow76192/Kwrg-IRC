@@ -66,7 +66,7 @@ public class NickModule extends Module {
                 () -> {
                     String effective = NickManager.getEffectiveNick();
                     String tag = NickManager.getCustomNick().isEmpty() ? " §8(原名)" : "";
-                    return Component.literal(NickManager.getFormattedPrefix() + getRankColorCode(NickManager.getRank()) + effective + tag);
+                    return Component.literal(NickManager.getFormattedPrefix() + NickManager.getRankNameColorCode() + effective + tag);
                 },
                 false
         ));
@@ -107,6 +107,22 @@ public class NickModule extends Module {
             ));
         }
 
+        if (NickManager.getRank() == HypixelRank.MVP_PLUS_PLUS) {
+            panel.child(TextInfoPaneComponent.header("§eMVP++ Tag 颜色 (" + NickManager.getTagColor().name + ")"));
+            for (HypixelRank.TagColor color : HypixelRank.TagColor.values()) {
+                panel.child(new PanelItemComponent(
+                        color.code + color.name,
+                        PanelItemComponent.ItemType.TRIGGER,
+                        (item, click) -> {
+                            NickManager.setTagColor(color);
+                            ChatNotifier.send("§a[Nick] Tag 颜色已更新为: " + color.code + color.name, NotificationType.SUCCESS);
+                            buildTertiaryUI(panel);
+                        },
+                        item -> {}
+                ));
+            }
+        }
+
         if (NickManager.getRank().supportsPlusColor()) {
             panel.child(TextInfoPaneComponent.header("§d+ 号颜色 (" + NickManager.getPlusColor().name + ")"));
 
@@ -131,6 +147,7 @@ public class NickModule extends Module {
                     NickManager.setCustomNick("");
                     NickManager.setRank(HypixelRank.MVP_PLUS);
                     NickManager.setPlusColor(HypixelRank.PlusColor.RED);
+                    NickManager.setTagColor(HypixelRank.TagColor.GOLD);
                     NickManager.setEnabled(false);
                     inputPane.setText("");
                     ChatNotifier.send("§e[Nick] 已重置所有配置", NotificationType.INFO);
@@ -139,13 +156,4 @@ public class NickModule extends Module {
         ));
     }
 
-    private static String getRankColorCode(HypixelRank rank) {
-        return switch (rank) {
-            case NONE -> "§7";
-            case VIP, VIP_PLUS -> "§a";
-            case MVP, MVP_PLUS -> "§b";
-            case MVP_PLUS_PLUS -> "§6";
-            case ADMIN, OWNER, YOUTUBE -> "§c";
-        };
-    }
 }
