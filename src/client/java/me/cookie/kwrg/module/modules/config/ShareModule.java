@@ -11,6 +11,7 @@ import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcConfig;
+import me.cookie.kwrg.irc.ConfigMigrator;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.module.ModuleManager;
@@ -413,6 +414,7 @@ public class ShareModule extends Module {
                     String fontHash = obj.has("__fontHash") ? obj.get("__fontHash").getAsString() : null;
                     obj.remove("__fontHash");
 
+                    ConfigMigrator.migrate(obj);
                     IrcConfig imported = GSON.fromJson(obj, IrcConfig.class);
 
                     boolean fontMatched = true;
