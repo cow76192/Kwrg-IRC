@@ -430,6 +430,7 @@ public class IrcClient {
         json.addProperty("function", "hideArmor");
         json.addProperty("senderId", currentSenderId());
         json.addProperty("username", mc.getUser().getName());
+        json.addProperty("enabled", config.hideArmor && !parts.isEmpty());
         json.add("parts", parts);
         sendRaw(GSON.toJson(json));
     }
