@@ -2,9 +2,11 @@ package me.cookie.kwrg.gui.hud;
 
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
+import me.cookie.kwrg.gui.IrcScreen;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.irc.IrcConfig;
+import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -267,8 +269,27 @@ public class HudEditorScreen extends Screen {
         return null;
     }
 
+    private static String configModuleFor(String elementId) {
+        return switch (elementId) {
+            case HudElementRegistry.ISLAND -> "dynamicIsland";
+            case HudElementRegistry.SCOREBOARD -> "dynamicScoreboard";
+            default -> null;
+        };
+    }
+
     @Override
     public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
+        if (click.button() == 1) {
+            HudElement hit = hitTest(click.x(), click.y());
+            if (hit != null) {
+                String module = configModuleFor(hit.id());
+                if (module != null) {
+                    IrcScreen.openDirectToModule(Category.STYLE.getName(), module);
+                    return true;
+                }
+            }
+        }
+
         if (click.button() == 0) {
             HudElement listHit = hitTestList(click.x(), click.y());
             if (listHit != null) {
