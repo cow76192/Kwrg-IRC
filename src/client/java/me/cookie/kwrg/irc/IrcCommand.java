@@ -3,10 +3,12 @@ package me.cookie.kwrg.irc;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.arguments.BoolArgumentType;
+import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import me.cookie.kwrg.gui.IrcScreen;
 import me.cookie.kwrg.gui.hud.HudEditorScreen;
+import me.cookie.kwrg.irc.manager.WaypointManager;
 import me.cookie.kwrg.module.modules.debug.ClearIndexCacheModule;
 import me.cookie.kwrg.module.modules.functions.GlowColorModule;
 import me.cookie.kwrg.module.modules.functions.HideArmorModule;
@@ -279,6 +281,16 @@ public class IrcCommand {
                             IrcClient.queryOnline();
                             return 1;
                         }))
+                .then(literal("waypoint")
+                        .then(literal("chat")
+                                .then(argument("x", DoubleArgumentType.doubleArg())
+                                        .then(argument("y", DoubleArgumentType.doubleArg())
+                                                .then(argument("z", DoubleArgumentType.doubleArg())
+                                                        .executes(context -> WaypointManager.showChatWaypoint(
+                                                                DoubleArgumentType.getDouble(context, "x"),
+                                                                DoubleArgumentType.getDouble(context, "y"),
+                                                                DoubleArgumentType.getDouble(context, "z")
+                                                        )))))))
                 .then(literal("debug")
                         .then(literal("clearImgCache")
                                 .executes(context -> ClearIndexCacheModule.handleClearImgCache()))

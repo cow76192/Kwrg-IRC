@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
+import me.cookie.kwrg.irc.manager.WaypointManager;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +42,7 @@ public class IrcConfig {
     public boolean glowEnabled = true;
     public String glowColor = "#00FF88";
     public List<String> importantPlayers = new ArrayList<>();
+    public List<WaypointEntry> waypoints = new ArrayList<>();
 
     public boolean chat = true;
     public String chatSound = "CAT_AMBIENT_BABY";
@@ -173,6 +175,21 @@ public class IrcConfig {
                 if (loaded == null) loaded = new IrcConfig();
                 if (loaded.importantPlayers == null) loaded.importantPlayers = new ArrayList<>();
                 if (loaded.playerFinderTargets == null) loaded.playerFinderTargets = new ArrayList<>();
+                if (loaded.waypoints == null) {
+                    loaded.waypoints = new ArrayList<>();
+                } else {
+                    loaded.waypoints.removeIf(w -> w == null || w.name == null || w.name.isBlank()
+                            || !WaypointManager.isValidCoord(w.x, w.y, w.z));
+                    for (WaypointEntry entry : loaded.waypoints) {
+                        entry.name = entry.name.replaceAll("[\\r\\n\\t]", " ").trim();
+                        if (entry.name.length() > WaypointManager.MAX_NAME_LENGTH) {
+                            entry.name = entry.name.substring(0, WaypointManager.MAX_NAME_LENGTH);
+                        }
+                    }
+                    if (loaded.waypoints.size() > WaypointManager.MAX_WAYPOINTS) {
+                        loaded.waypoints = new ArrayList<>(loaded.waypoints.subList(0, WaypointManager.MAX_WAYPOINTS));
+                    }
+                }
                 if (loaded.myCape == null) loaded.myCape = "";
 
                 if (loaded.myScale <= 0.0f || Float.isNaN(loaded.myScale)) loaded.myScale = 1.0f;
@@ -280,6 +297,24 @@ public class IrcConfig {
             }
         }
         return list;
+    }
+
+    public static class WaypointEntry {
+        public String name = "";
+        public double x;
+        public double y;
+        public double z;
+        public boolean enabled = true;
+
+        public WaypointEntry() {
+        }
+
+        public WaypointEntry(String name, double x, double y, double z) {
+            this.name = name;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+        }
     }
 
     public static Path getFontDir() {

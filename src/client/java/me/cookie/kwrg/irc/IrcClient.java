@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.manager.HideArmorManager;
 import me.cookie.kwrg.irc.manager.IrcGlowManager;
+import me.cookie.kwrg.irc.manager.WaypointManager;
 import me.cookie.kwrg.module.modules.functions.ChatSuffixModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.client.Minecraft;
@@ -275,6 +276,14 @@ public class IrcClient {
         });
     }
 
+    private static String expandCoordsShortcut(String content) {
+        if (content == null || !content.trim().equalsIgnoreCase("!coords")) return content;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return content;
+        var pos = mc.player.blockPosition();
+        return WaypointManager.formatCoordMessage(pos.getX(), pos.getY(), pos.getZ());
+    }
+
     public static void sendMessage(String content) {
         if (content == null || content.isBlank()) return;
 
@@ -287,6 +296,7 @@ public class IrcClient {
         IrcConfig config = IrcConfig.get();
 
         // 语气词装饰统一在此处理，覆盖聊天框输入与 /ic、/icall 等所有 IRC 发送路径
+        content = expandCoordsShortcut(content);
         ChatSuffixModule.IrcDecoration decoration = ChatSuffixModule.decorateIrcSafely(content);
 
         JsonObject json = new JsonObject();
@@ -350,6 +360,7 @@ public class IrcClient {
 
         IrcConfig config = IrcConfig.get();
 
+        content = expandCoordsShortcut(content);
         ChatSuffixModule.IrcDecoration decoration = ChatSuffixModule.decorateIrcSafely(content);
 
         JsonObject json = new JsonObject();

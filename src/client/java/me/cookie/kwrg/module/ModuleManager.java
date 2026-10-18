@@ -33,6 +33,7 @@ public class ModuleManager {
         register(new OnlineModule());
         register(new ImportantPlayerModule());
         register(new PlayerFinderModule());
+        register(new WaypointModule());
         register(new ChannelModule());
         register(new ModelScaleModule());
         register(new CustomCapeModule());

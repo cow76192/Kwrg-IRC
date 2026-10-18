@@ -29,6 +29,14 @@ public class SlotInputPaneComponent extends BasePaneComponent {
     private final String leftLabel;
     private final Component styledLeftLabel;
 
+    private boolean leftEditable = false;
+    private String leftValue = "";
+    private String leftPlaceholder = "";
+    private int leftCursor = 0;
+    private boolean leftFocused = false;
+    private boolean leftSelectAll = false;
+    private Consumer<String> onLeftChanged = null;
+
     private final int slotCount;
     private final String[] slotValues;
     private final String[] slotSuffixes;
@@ -92,6 +100,33 @@ public class SlotInputPaneComponent extends BasePaneComponent {
 
     public SlotInputPaneComponent(String leftLabel, String[] suffixes, Consumer<String[]> onValuesSubmit) {
         this(leftLabel, null, suffixes, onValuesSubmit, null);
+    }
+
+    public SlotInputPaneComponent leftEditable(String placeholder, String initialValue) {
+        this.leftEditable = true;
+        this.leftPlaceholder = placeholder != null ? placeholder : "";
+        this.leftValue = initialValue != null ? initialValue : "";
+        this.leftCursor = this.leftValue.length();
+        return this;
+    }
+
+    public String getLeftValue() {
+        return this.leftValue;
+    }
+
+    public SlotInputPaneComponent onLeftChanged(Consumer<String> onLeftChanged) {
+        this.onLeftChanged = onLeftChanged;
+        return this;
+    }
+
+    private void clampLeftCursor() {
+        this.leftCursor = Mth.clamp(this.leftCursor, 0, this.leftValue.length());
+    }
+
+    private void notifyLeftChanged() {
+        if (this.onLeftChanged != null) {
+            this.onLeftChanged.accept(this.leftValue);
+        }
     }
 
     public SlotInputPaneComponent bounds(double[][] bounds) {
@@ -254,6 +289,14 @@ public class SlotInputPaneComponent extends BasePaneComponent {
     public void onFocusGained(FocusSource source) {
         super.onFocusGained(source);
         this.focused = true;
+        if (this.leftEditable && this.activeSlot == -1) {
+            this.leftFocused = true;
+            this.leftCursor = this.leftValue.length();
+            this.leftSelectAll = !this.leftValue.isEmpty();
+            clampLeftCursor();
+            resetCursorBlink();
+            return;
+        }
         if (this.activeSlot == -1) {
             this.activeSlot = 0;
             this.cursorPos = this.slotValues[0].length();
@@ -268,6 +311,8 @@ public class SlotInputPaneComponent extends BasePaneComponent {
         super.onFocusLost();
         this.focused = false;
         this.selectAll = false;
+        this.leftFocused = false;
+        this.leftSelectAll = false;
 
         boolean actualChanged = false;
         if (this.slotBounds != null) {
@@ -304,7 +349,7 @@ public class SlotInputPaneComponent extends BasePaneComponent {
     @Override
     protected void renderPaneContent(OwoUIGraphics graphics, Font font, float halfW, float halfH,
                                      float textStartY, float textScale, float delta) {
-        if (!this.leftLabel.isEmpty()) {
+        if (!this.leftEditable && !this.leftLabel.isEmpty()) {
             graphics.pose().pushMatrix();
             graphics.pose().translate(-halfW + 8.0f, textStartY);
             graphics.pose().scale(textScale, textScale);
@@ -330,6 +375,37 @@ public class SlotInputPaneComponent extends BasePaneComponent {
 
         float startX = rightEdge - totalSlotsW;
         boolean blink = (System.currentTimeMillis() - this.lastActionTime < 300) || (System.currentTimeMillis() % 1000 < 500);
+
+        if (this.leftEditable) {
+            String text = this.leftValue.isEmpty() ? this.leftPlaceholder : this.leftValue;
+            int leftStartX = (int) (-halfW + 8.0f);
+            int maxTextWidth = Math.max(10, (int) (startX - leftStartX - 4.0f));
+            int maxFontWidth = Math.max(1, (int) (maxTextWidth / textScale));
+            Component styled = FontManagerHelper.apply(text);
+            if (font.width(styled) > maxFontWidth) {
+                String clipped = font.plainSubstrByWidth(text, Math.max(1, maxFontWidth - 6));
+                styled = FontManagerHelper.apply(clipped + "…");
+            }
+            int textColor = this.leftValue.isEmpty() ? 0xFF607D8B : (this.leftFocused ? 0xFFFFFFFF : 0xFFECEFF1);
+
+            graphics.pose().pushMatrix();
+            graphics.pose().translate(leftStartX, textStartY);
+            graphics.pose().scale(textScale, textScale);
+
+            if (this.focused && this.leftFocused && this.leftSelectAll && !this.leftValue.isEmpty()) {
+                graphics.fill(0, -1, Math.min(font.width(styled), maxFontWidth), font.lineHeight, ARGB.color(120, 79, 195, 247));
+            }
+            graphics.drawText(styled, 0, 0, 1.0f, textColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
+
+            if (this.focused && this.leftFocused && blink && !this.leftSelectAll) {
+                String prefix = this.leftValue.substring(0, Math.min(this.leftCursor, this.leftValue.length()));
+                int prefixW = prefix.isEmpty() ? 0 : font.width(FontManagerHelper.apply(prefix));
+                if (prefixW <= maxFontWidth) {
+                    graphics.fill(prefixW, -1, prefixW + 1, font.lineHeight, 0xFFFFFFFF);
+                }
+            }
+            graphics.pose().popMatrix();
+        }
 
         float curX = startX;
         for (int i = 0; i < this.slotCount; i++) {
@@ -526,6 +602,18 @@ public class SlotInputPaneComponent extends BasePaneComponent {
             }
             float startX = rightEdge - totalSlotsW;
 
+            if (this.leftEditable && localX < startX - 4.0f) {
+                this.leftFocused = true;
+                this.activeSlot = -1;
+                this.leftCursor = this.leftValue.length();
+                this.leftSelectAll = !this.leftValue.isEmpty();
+                this.selectAll = false;
+                this.isDraggingSlot = false;
+                resetCursorBlink();
+                return true;
+            }
+            this.leftFocused = false;
+
             float curX = startX;
             int clickedSlot = -1;
             for (int i = 0; i < this.slotCount; i++) {
@@ -556,6 +644,27 @@ public class SlotInputPaneComponent extends BasePaneComponent {
 
     @Override
     public boolean onCharTyped(CharacterEvent input) {
+        if (this.leftEditable && this.focused && this.leftFocused) {
+            int codepoint = input.codepoint();
+            if (codepoint >= 32 && codepoint != 127) {
+                if (this.leftSelectAll) {
+                    this.leftValue = "";
+                    this.leftCursor = 0;
+                    this.leftSelectAll = false;
+                }
+                clampLeftCursor();
+                if (this.leftValue.length() < 64) {
+                    String inserted = new String(Character.toChars(codepoint));
+                    this.leftValue = this.leftValue.substring(0, this.leftCursor) + inserted + this.leftValue.substring(this.leftCursor);
+                    this.leftCursor += inserted.length();
+                    notifyLeftChanged();
+                }
+                resetCursorBlink();
+                return true;
+            }
+            return super.onCharTyped(input);
+        }
+
         if (!this.focused || this.activeSlot < 0 || this.activeSlot >= this.slotCount) return false;
         char c = (char) input.codepoint();
         if (c >= 32 && c != 127) {
@@ -605,9 +714,125 @@ public class SlotInputPaneComponent extends BasePaneComponent {
         return super.onCharTyped(input);
     }
 
+    private boolean handleLeftKey(KeyEvent input) {
+        clampLeftCursor();
+
+        if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) {
+            if (this.onValuesSubmit != null) {
+                this.onValuesSubmit.accept(this.slotValues);
+            }
+            this.leftSelectAll = false;
+            return true;
+        }
+
+        if (input.key() == GLFW.GLFW_KEY_TAB) {
+            this.leftFocused = false;
+            this.activeSlot = input.hasShiftDown() ? this.slotCount - 1 : 0;
+            this.cursorPos = this.slotValues[this.activeSlot].length();
+            this.selectAll = !this.slotValues[this.activeSlot].isEmpty();
+            resetCursorBlink();
+            return true;
+        }
+
+        if (input.hasControlDown() && input.key() == GLFW.GLFW_KEY_A) {
+            this.leftSelectAll = !this.leftValue.isEmpty();
+            return true;
+        }
+
+        if (input.key() == GLFW.GLFW_KEY_LEFT) {
+            this.leftSelectAll = false;
+            if (this.leftCursor > 0) this.leftCursor--;
+            resetCursorBlink();
+            return true;
+        }
+
+        if (input.key() == GLFW.GLFW_KEY_RIGHT) {
+            this.leftSelectAll = false;
+            if (this.leftCursor < this.leftValue.length()) this.leftCursor++;
+            resetCursorBlink();
+            return true;
+        }
+
+        if (input.key() == GLFW.GLFW_KEY_HOME) {
+            this.leftSelectAll = false;
+            this.leftCursor = 0;
+            resetCursorBlink();
+            return true;
+        }
+
+        if (input.key() == GLFW.GLFW_KEY_END) {
+            this.leftSelectAll = false;
+            this.leftCursor = this.leftValue.length();
+            resetCursorBlink();
+            return true;
+        }
+
+        if (input.key() == GLFW.GLFW_KEY_BACKSPACE) {
+            if (this.leftSelectAll) {
+                this.leftValue = "";
+                this.leftCursor = 0;
+                this.leftSelectAll = false;
+            } else if (this.leftCursor > 0) {
+                this.leftValue = this.leftValue.substring(0, this.leftCursor - 1) + this.leftValue.substring(this.leftCursor);
+                this.leftCursor--;
+            }
+            notifyLeftChanged();
+            resetCursorBlink();
+            return true;
+        }
+
+        if (input.key() == GLFW.GLFW_KEY_DELETE) {
+            if (this.leftSelectAll) {
+                this.leftValue = "";
+                this.leftCursor = 0;
+                this.leftSelectAll = false;
+            } else if (this.leftCursor < this.leftValue.length()) {
+                this.leftValue = this.leftValue.substring(0, this.leftCursor) + this.leftValue.substring(this.leftCursor + 1);
+            }
+            notifyLeftChanged();
+            resetCursorBlink();
+            return true;
+        }
+
+        if (input.hasControlDown() && input.key() == GLFW.GLFW_KEY_V) {
+            String clip = Minecraft.getInstance().keyboardHandler.getClipboard();
+            if (clip != null && !clip.isEmpty()) {
+                if (this.leftSelectAll) {
+                    this.leftValue = "";
+                    this.leftCursor = 0;
+                    this.leftSelectAll = false;
+                }
+                String clean = clip.replaceAll("[\r\n]", "");
+                this.leftValue = this.leftValue.substring(0, this.leftCursor) + clean + this.leftValue.substring(this.leftCursor);
+                this.leftCursor += clean.length();
+                notifyLeftChanged();
+            }
+            resetCursorBlink();
+            return true;
+        }
+
+        if (input.hasControlDown() && input.key() == GLFW.GLFW_KEY_C) {
+            Minecraft.getInstance().keyboardHandler.setClipboard(this.leftValue);
+            return true;
+        }
+
+        if (input.hasControlDown() && input.key() == GLFW.GLFW_KEY_X) {
+            Minecraft.getInstance().keyboardHandler.setClipboard(this.leftValue);
+            this.leftValue = "";
+            this.leftCursor = 0;
+            this.leftSelectAll = false;
+            notifyLeftChanged();
+            resetCursorBlink();
+            return true;
+        }
+
+        return super.onKeyPress(input);
+    }
+
     @Override
     public boolean onKeyPress(KeyEvent input) {
         if (!this.focused) return false;
+        if (this.leftEditable && this.leftFocused) return handleLeftKey(input);
 
         // 回车提交
         if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) {

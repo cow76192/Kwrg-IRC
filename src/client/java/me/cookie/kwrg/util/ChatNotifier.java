@@ -203,7 +203,18 @@ public class ChatNotifier {
         return new String[]{title, subtitle};
     }
 
-    public record AnimatedSegment(String text, String styleConfig, boolean isRaw) {}
+    public record AnimatedSegment(String text, String styleConfig, boolean isRaw, Style overrideStyle) {
+        public AnimatedSegment(String text, String styleConfig, boolean isRaw) {
+            this(text, styleConfig, isRaw, null);
+        }
+    }
+
+    private static Component buildSegment(AnimatedSegment segment) {
+        String safeText = me.cookie.kwrg.irc.manager.NickManager.protectText(segment.text());
+        if (!segment.isRaw()) return ColorUtil.applyStyle(safeText, segment.styleConfig());
+        MutableComponent part = Component.literal(safeText);
+        return segment.overrideStyle() != null ? part.setStyle(segment.overrideStyle()) : part;
+    }
 
     private static final Queue<List<AnimatedSegment>> PENDING_ANIMATIONS = new ConcurrentLinkedQueue<>();
     private static final java.util.Map<net.minecraft.client.multiplayer.chat.GuiMessage, List<AnimatedSegment>> ACTIVE_ANIMATIONS = new java.util.concurrent.ConcurrentHashMap<>();
@@ -215,14 +226,9 @@ public class ChatNotifier {
         boolean hasAnimation = false;
 
         for (AnimatedSegment seg : segments) {
-            String safeText = me.cookie.kwrg.irc.manager.NickManager.protectText(seg.text());
-            if (seg.isRaw()) {
-                root.append(Component.literal(safeText));
-            } else {
-                root.append(ColorUtil.applyStyle(safeText, seg.styleConfig()));
-                if (ColorUtil.isAnimatedStyle(seg.styleConfig())) {
-                    hasAnimation = true;
-                }
+            root.append(buildSegment(seg));
+            if (!seg.isRaw() && ColorUtil.isAnimatedStyle(seg.styleConfig())) {
+                hasAnimation = true;
             }
         }
 
@@ -256,12 +262,7 @@ public class ChatNotifier {
 
         MutableComponent root = Component.empty();
         for (AnimatedSegment seg : segs) {
-            String safeText = me.cookie.kwrg.irc.manager.NickManager.protectText(seg.text());
-            if (seg.isRaw()) {
-                root.append(Component.literal(safeText));
-            } else {
-                root.append(ColorUtil.applyStyle(safeText, seg.styleConfig()));
-            }
+            root.append(buildSegment(seg));
         }
         return parseUrls(root);
     }
