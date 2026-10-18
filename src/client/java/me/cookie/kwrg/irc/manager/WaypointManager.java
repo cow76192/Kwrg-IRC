@@ -52,6 +52,37 @@ public final class WaypointManager {
     private WaypointManager() {
     }
 
+    public static void reloadFromConfig() {
+        IrcConfig config = IrcConfig.get();
+        config.waypoints = normalize(config.waypoints);
+    }
+
+    private static List<IrcConfig.WaypointEntry> normalize(List<IrcConfig.WaypointEntry> input) {
+        List<IrcConfig.WaypointEntry> result = new ArrayList<>();
+        if (input == null) return result;
+
+        for (IrcConfig.WaypointEntry entry : input) {
+            if (entry == null || !isValidCoord(entry.x, entry.y, entry.z)) continue;
+            entry.name = sanitizeName(entry.name);
+            entry.source = sanitizeSource(entry.source);
+            result.add(entry);
+            if (result.size() >= MAX_WAYPOINTS) break;
+        }
+        return result;
+    }
+
+    private static String sanitizeName(String value) {
+        if (value == null) return EMPTY_NAME;
+        String clean = value.replaceAll("[\\r\\n\\t]", " ").trim();
+        if (clean.isEmpty()) return EMPTY_NAME;
+        return clean.length() > MAX_NAME_LENGTH ? clean.substring(0, MAX_NAME_LENGTH) : clean;
+    }
+
+    private static String sanitizeSource(String value) {
+        if (value == null) return "";
+        return value.replaceAll("[\\r\\n\\t]", " ").trim();
+    }
+
     public static void init() {
         LevelRenderEvents.BEFORE_GIZMOS.register(context -> renderWaypoints());
         LevelRenderEvents.END_EXTRACTION.register(WaypointManager::extractBeam);

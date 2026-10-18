@@ -178,26 +178,6 @@ public class IrcConfig {
                 if (loaded == null) loaded = new IrcConfig();
                 if (loaded.importantPlayers == null) loaded.importantPlayers = new ArrayList<>();
                 if (loaded.playerFinderTargets == null) loaded.playerFinderTargets = new ArrayList<>();
-                if (loaded.waypoints == null) {
-                    loaded.waypoints = new ArrayList<>();
-                } else {
-                    loaded.waypoints.removeIf(w -> w == null || w.name == null || w.name.isBlank()
-                            || !WaypointManager.isValidCoord(w.x, w.y, w.z));
-                    for (WaypointEntry entry : loaded.waypoints) {
-                        entry.name = entry.name.replaceAll("[\\r\\n\\t]", " ").trim();
-                        if (entry.name.length() > WaypointManager.MAX_NAME_LENGTH) {
-                            entry.name = entry.name.substring(0, WaypointManager.MAX_NAME_LENGTH);
-                        }
-                        if (entry.source == null) {
-                            entry.source = "";
-                        } else {
-                            entry.source = entry.source.replaceAll("[\\r\\n\\t]", " ").trim();
-                        }
-                    }
-                    if (loaded.waypoints.size() > WaypointManager.MAX_WAYPOINTS) {
-                        loaded.waypoints = new ArrayList<>(loaded.waypoints.subList(0, WaypointManager.MAX_WAYPOINTS));
-                    }
-                }
                 if (loaded.myCape == null) loaded.myCape = "";
 
                 if (loaded.myScale <= 0.0f || Float.isNaN(loaded.myScale)) loaded.myScale = 1.0f;
@@ -221,12 +201,14 @@ public class IrcConfig {
                 saveSelectorMeta(cleanName);
 
                 PlayerFinderManager.reloadFromConfig();
+                WaypointManager.reloadFromConfig();
 
                 LOGGER.info("[Kwrg] 已加载配置文件: {}.json", cleanName);
                 return true;
             } else if (createIfMissing) {
                 instance = new IrcConfig();
                 currentProfileName = cleanName;
+                WaypointManager.reloadFromConfig();
                 save();
                 return true;
             }
@@ -240,6 +222,7 @@ public class IrcConfig {
         String cleanName = sanitizeProfileName(profileName);
         instance = new IrcConfig();
         currentProfileName = cleanName;
+        WaypointManager.reloadFromConfig();
         LOGGER.info("[Kwrg] 已在内存中新建配置 [{}]（尚未保存到磁盘）", cleanName);
     }
 

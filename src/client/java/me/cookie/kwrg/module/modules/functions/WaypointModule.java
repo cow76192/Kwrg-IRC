@@ -75,7 +75,7 @@ public class WaypointModule extends Module {
                 return;
             }
             IrcConfig.WaypointEntry editing = current.get(this.editingIndex);
-            if (editing == null || editing.name == null || !editing.name.equals(name)) {
+            if (editing == null) {
                 this.editingIndex = -1;
             }
         });

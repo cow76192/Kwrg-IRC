@@ -16,6 +16,8 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gizmos.GizmoStyle;
 import net.minecraft.gizmos.Gizmos;
 import net.minecraft.world.phys.Vec3;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,18 +29,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Stream;
 
 public final class RouteManager {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(RouteManager.class);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final int ROUTE_SEED_VERSION = 230;
     private static final String DEFAULT_ROUTE = "kuudra_pearl_waypoints.json";
+    private static final long MAX_ROUTE_FILE_BYTES = 2L * 1024L * 1024L;
     private static final GizmoStyle FILL_STYLE = GizmoStyle.fill(0x8000E5FF);
     private static final int TEXT_COLOR = 0xFF00E5FF;
     private static final int LINE_COLOR = 0xFF00E5FF;
 
-    private static final List<Entry> ENTRIES = new ArrayList<>();
+    private static final List<Entry> ENTRIES = new CopyOnWriteArrayList<>();
     private static Path currentFile = null;
 
     private RouteManager() {
@@ -66,7 +71,8 @@ public final class RouteManager {
             }
             config.routeSeedVersion = ROUTE_SEED_VERSION;
             IrcConfig.save();
-        } catch (IOException ignored) {
+        } catch (IOException e) {
+            LOGGER.warn("[Route] 默认路线释放失败", e);
         }
     }
 
@@ -93,7 +99,8 @@ public final class RouteManager {
             try (Stream<Path> stream = Files.list(legacy)) {
                 if (stream.findAny().isEmpty()) Files.deleteIfExists(legacy);
             }
-        } catch (IOException ignored) {
+        } catch (IOException e) {
+            LOGGER.warn("[Route] 旧路线目录迁移失败", e);
         }
     }
 
@@ -442,25 +449,28 @@ public final class RouteManager {
     }
 
     private static void render() {
-        if (ENTRIES.isEmpty() || !IrcConfig.get().routeVisible) return;
+        IrcConfig config = IrcConfig.get();
+        if (!config.routeVisible || ENTRIES.isEmpty()) return;
 
-        boolean showLine = IrcConfig.get().routeShowLine;
+        boolean showLine = config.routeShowLine;
         BlockPos previous = null;
-        for (int i = 0; i < ENTRIES.size(); i++) {
-            Entry entry = ENTRIES.get(i);
+        int index = 0;
+        for (Entry entry : ENTRIES) {
             BlockPos pos = blockPos(entry);
             if (pos == null) {
                 previous = null;
+                index++;
                 continue;
             }
 
             Gizmos.cuboid(pos, FILL_STYLE).setAlwaysOnTop();
-            Gizmos.billboardTextOverBlock(displayName(entry, i), pos, 0, TEXT_COLOR, 1.0f);
+            Gizmos.billboardTextOverBlock(displayName(entry, index), pos, 0, TEXT_COLOR, 1.0f);
 
             if (showLine && previous != null) {
                 Gizmos.line(linePoint(previous), linePoint(pos), LINE_COLOR).setAlwaysOnTop();
             }
             previous = pos;
+            index++;
         }
     }
 
@@ -485,6 +495,7 @@ public final class RouteManager {
 
     private static String readFile(Path path) {
         try {
+            if (Files.size(path) > MAX_ROUTE_FILE_BYTES) return null;
             return Files.readString(path);
         } catch (IOException e) {
             return null;
