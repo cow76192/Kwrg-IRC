@@ -43,6 +43,9 @@ public class IrcConfig {
     public String glowColor = "#00FF88";
     public List<String> importantPlayers = new ArrayList<>();
     public List<WaypointEntry> waypoints = new ArrayList<>();
+    public boolean routeShowLine = false;
+    public boolean routeVisible = true;
+    public int routeSeedVersion = 0;
 
     public boolean chat = true;
     public String chatSound = "CAT_AMBIENT_BABY";
@@ -185,6 +188,11 @@ public class IrcConfig {
                         if (entry.name.length() > WaypointManager.MAX_NAME_LENGTH) {
                             entry.name = entry.name.substring(0, WaypointManager.MAX_NAME_LENGTH);
                         }
+                        if (entry.source == null) {
+                            entry.source = "";
+                        } else {
+                            entry.source = entry.source.replaceAll("[\\r\\n\\t]", " ").trim();
+                        }
                     }
                     if (loaded.waypoints.size() > WaypointManager.MAX_WAYPOINTS) {
                         loaded.waypoints = new ArrayList<>(loaded.waypoints.subList(0, WaypointManager.MAX_WAYPOINTS));
@@ -305,6 +313,7 @@ public class IrcConfig {
         public double y;
         public double z;
         public boolean enabled = true;
+        public String source = "";
 
         public WaypointEntry() {
         }

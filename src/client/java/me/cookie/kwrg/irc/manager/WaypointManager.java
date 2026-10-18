@@ -29,6 +29,7 @@ public final class WaypointManager {
 
     public static final int MAX_WAYPOINTS = 64;
     public static final int MAX_NAME_LENGTH = 32;
+    public static final String EMPTY_NAME = "\u200B";
     private static final int MAX_MESSAGE_LENGTH = 1024;
     private static final double MAX_COORD = 30_000_000.0;
 
@@ -65,9 +66,10 @@ public final class WaypointManager {
         });
     }
 
-    public static boolean saveEntry(String name, String[] values) {
+    public static boolean saveEntry(int editIndex, String name, String[] values) {
         String cleanName = name != null ? name.trim() : "";
-        if (cleanName.isEmpty() || cleanName.length() > MAX_NAME_LENGTH
+        if (cleanName.isEmpty()) cleanName = EMPTY_NAME;
+        if (cleanName.length() > MAX_NAME_LENGTH
                 || values == null || values.length < 3
                 || values[0] == null || values[1] == null || values[2] == null) return false;
 
@@ -90,38 +92,97 @@ public final class WaypointManager {
             config.waypoints = list;
         }
 
-        IrcConfig.WaypointEntry entry = find(list, cleanName);
-        if (entry == null) {
-            if (list.size() >= MAX_WAYPOINTS) return false;
-            list.add(new IrcConfig.WaypointEntry(cleanName, x, y, z));
-        } else {
+        if (editIndex >= 0 && editIndex < list.size()) {
+            IrcConfig.WaypointEntry entry = list.get(editIndex);
+            entry.name = cleanName;
             entry.x = x;
             entry.y = y;
             entry.z = z;
+        } else {
+            if (list.size() >= MAX_WAYPOINTS) return false;
+            list.add(new IrcConfig.WaypointEntry(cleanName, x, y, z));
         }
 
         IrcConfig.save();
         return true;
     }
 
-    public static boolean remove(String name) {
+    public static boolean removeAt(int index) {
         List<IrcConfig.WaypointEntry> list = IrcConfig.get().waypoints;
-        IrcConfig.WaypointEntry entry = find(list, name);
-        if (entry == null) return false;
-        list.remove(entry);
+        if (list == null || index < 0 || index >= list.size()) return false;
+        list.remove(index);
         IrcConfig.save();
         return true;
     }
 
-    public static boolean toggle(String name) {
-        IrcConfig.WaypointEntry entry = find(IrcConfig.get().waypoints, name);
+    public static boolean toggleAt(int index) {
+        List<IrcConfig.WaypointEntry> list = IrcConfig.get().waypoints;
+        if (list == null || index < 0 || index >= list.size()) return false;
+        IrcConfig.WaypointEntry entry = list.get(index);
         if (entry == null) return false;
         entry.enabled = !entry.enabled;
         IrcConfig.save();
         return true;
     }
 
+    public static int removeBySource(String source) {
+        if (source == null || source.isBlank()) return 0;
+        List<IrcConfig.WaypointEntry> list = IrcConfig.get().waypoints;
+        if (list == null || list.isEmpty()) return 0;
+        int before = list.size();
+        list.removeIf(entry -> entry != null && source.equals(entry.source));
+        int removed = before - list.size();
+        if (removed > 0) IrcConfig.save();
+        return removed;
+    }
+
+    public static int importFromRoute(String source, List<RouteManager.Entry> routeEntries) {
+        if (source == null || source.isBlank() || routeEntries == null) return 0;
+
+        IrcConfig config = IrcConfig.get();
+        List<IrcConfig.WaypointEntry> list = config.waypoints;
+        if (list == null) {
+            list = new ArrayList<>();
+            config.waypoints = list;
+        }
+
+        boolean anyValid = false;
+        for (RouteManager.Entry coord : routeEntries) {
+            if (RouteManager.valid(coord)) {
+                anyValid = true;
+                break;
+            }
+        }
+        if (!anyValid) return 0;
+
+        list.removeIf(entry -> entry != null && source.equals(entry.source));
+        int added = 0;
+        for (int i = 0; i < routeEntries.size(); i++) {
+            RouteManager.Entry coord = routeEntries.get(i);
+            if (!RouteManager.valid(coord)) continue;
+            if (list.size() >= MAX_WAYPOINTS) break;
+
+            String name = coord.name == null || coord.name.isBlank() ? EMPTY_NAME : coord.name.trim();
+            if (name.length() > MAX_NAME_LENGTH) name = name.substring(0, MAX_NAME_LENGTH);
+            double x = Double.parseDouble(coord.x.trim());
+            double y = Double.parseDouble(coord.y.trim());
+            double z = Double.parseDouble(coord.z.trim());
+
+            IrcConfig.WaypointEntry entry = new IrcConfig.WaypointEntry(name, x, y, z);
+            entry.source = source;
+            list.add(entry);
+            added++;
+        }
+
+        IrcConfig.save();
+        return added;
+    }
+
     public static int showChatWaypoint(double x, double y, double z) {
+        return showChatWaypoint(x, y, z, "");
+    }
+
+    public static int showChatWaypoint(double x, double y, double z, String sender) {
         if (!isValidCoord(x, y, z)) {
             ChatNotifier.send("§c[Waypoint] 坐标无效 | 超出范围", NotificationType.ERR);
             return 0;
@@ -133,7 +194,12 @@ public final class WaypointManager {
             return 0;
         }
 
-        chatWaypoint = new ChatWaypoint(BlockPos.containing(x, y, z), mc.level.dimension());
+        String cleanSender = sender == null ? "" : sender.replaceAll("[\\r\\n\\t]", " ").trim();
+        if (cleanSender.length() > MAX_NAME_LENGTH) {
+            cleanSender = cleanSender.substring(0, MAX_NAME_LENGTH);
+        }
+
+        chatWaypoint = new ChatWaypoint(BlockPos.containing(x, y, z), mc.level.dimension(), cleanSender);
         nearSince = 0L;
         ChatNotifier.send("§a[Waypoint] 已标记 | " + formatCoordMessage(x, y, z), NotificationType.SUCCESS);
         return 1;
@@ -182,17 +248,6 @@ public final class WaypointManager {
         }
     }
 
-    private static IrcConfig.WaypointEntry find(List<IrcConfig.WaypointEntry> list, String name) {
-        if (list == null || name == null) return null;
-        String clean = name.trim();
-        for (IrcConfig.WaypointEntry entry : list) {
-            if (entry != null && entry.name != null && entry.name.equalsIgnoreCase(clean)) {
-                return entry;
-            }
-        }
-        return null;
-    }
-
     private static void renderWaypoints() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) return;
@@ -206,7 +261,7 @@ public final class WaypointManager {
 
                 BlockPos pos = BlockPos.containing(entry.x, entry.y, entry.z);
                 Gizmos.cuboid(pos, FILL_STYLE).setAlwaysOnTop();
-                if (entry.name != null && !entry.name.isBlank()) {
+                if (entry.name != null && !entry.name.isBlank() && !EMPTY_NAME.equals(entry.name)) {
                     Gizmos.billboardTextOverBlock(entry.name, pos, 0, TEXT_COLOR, 1.0f);
                 }
             }
@@ -215,6 +270,9 @@ public final class WaypointManager {
         ChatWaypoint waypoint = chatWaypoint;
         if (waypoint != null && waypoint.dimension().equals(mc.level.dimension())) {
             Gizmos.cuboid(waypoint.pos(), FILL_STYLE).setAlwaysOnTop();
+            if (!waypoint.sender().isBlank()) {
+                Gizmos.billboardTextOverBlock(waypoint.sender(), waypoint.pos(), 0, TEXT_COLOR, 1.0f);
+            }
         }
     }
 
@@ -263,6 +321,6 @@ public final class WaypointManager {
     public record Coord(double x, double y, double z) {
     }
 
-    private record ChatWaypoint(BlockPos pos, ResourceKey<Level> dimension) {
+    private record ChatWaypoint(BlockPos pos, ResourceKey<Level> dimension, String sender) {
     }
 }

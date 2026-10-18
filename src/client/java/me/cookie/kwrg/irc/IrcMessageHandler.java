@@ -298,7 +298,7 @@ public class IrcMessageHandler {
             segments.add(new ChatNotifier.AnimatedSegment(suffix, "", true));
         }
         if (chatCoord != null) {
-            segments.add(new ChatNotifier.AnimatedSegment(" 【show waypoint】", "", true, waypointButtonStyle(chatCoord)));
+            segments.add(new ChatNotifier.AnimatedSegment(" 【show waypoint】", "", true, waypointButtonStyle(chatCoord, username)));
         }
 
         ChatNotifier.sendAnimatedInChatScreen(segments);
@@ -312,11 +312,18 @@ public class IrcMessageHandler {
         }
     }
 
-    private static Style waypointButtonStyle(WaypointManager.Coord coord) {
+    private static Style waypointButtonStyle(WaypointManager.Coord coord, String sender) {
         String command = "/irc waypoint chat "
                 + WaypointManager.formatCoord(coord.x()) + " "
                 + WaypointManager.formatCoord(coord.y()) + " "
                 + WaypointManager.formatCoord(coord.z());
+        String cleanSender = sender == null ? "" : sender.replaceAll("[\\r\\n\\t]", " ").trim();
+        if (cleanSender.length() > WaypointManager.MAX_NAME_LENGTH) {
+            cleanSender = cleanSender.substring(0, WaypointManager.MAX_NAME_LENGTH);
+        }
+        if (!cleanSender.isEmpty()) {
+            command += " " + cleanSender;
+        }
         return Style.EMPTY
                 .withColor(0xFF55FF55)
                 .withBold(true)

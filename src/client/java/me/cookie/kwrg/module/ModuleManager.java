@@ -34,6 +34,7 @@ public class ModuleManager {
         register(new ImportantPlayerModule());
         register(new PlayerFinderModule());
         register(new WaypointModule());
+        register(new RouteModule());
         register(new ChannelModule());
         register(new ModelScaleModule());
         register(new CustomCapeModule());

@@ -4,10 +4,13 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import me.cookie.kwrg.gui.IrcScreen;
 import me.cookie.kwrg.gui.hud.HudEditorScreen;
+import me.cookie.kwrg.irc.manager.RouteManager;
 import me.cookie.kwrg.irc.manager.WaypointManager;
 import me.cookie.kwrg.module.modules.debug.ClearIndexCacheModule;
 import me.cookie.kwrg.module.modules.functions.GlowColorModule;
@@ -290,7 +293,33 @@ public class IrcCommand {
                                                                 DoubleArgumentType.getDouble(context, "x"),
                                                                 DoubleArgumentType.getDouble(context, "y"),
                                                                 DoubleArgumentType.getDouble(context, "z")
-                                                        )))))))
+                                                        ))
+                                                        .then(argument("sender", StringArgumentType.greedyString())
+                                                                .executes(context -> WaypointManager.showChatWaypoint(
+                                                                        DoubleArgumentType.getDouble(context, "x"),
+                                                                        DoubleArgumentType.getDouble(context, "y"),
+                                                                        DoubleArgumentType.getDouble(context, "z"),
+                                                                        StringArgumentType.getString(context, "sender")
+                                                                ))))))))
+                .then(literal("route")
+                        .then(literal("show")
+                                .executes(context -> {
+                                    RouteManager.showInChat();
+                                    return 1;
+                                }))
+                        .then(literal("add")
+                                .then(argument("name", StringArgumentType.string())
+                                        .then(argument("x", DoubleArgumentType.doubleArg())
+                                                .then(argument("y", DoubleArgumentType.doubleArg())
+                                                        .then(argument("z", DoubleArgumentType.doubleArg())
+                                                                .executes(context -> addRoute(context, -1))
+                                                                .then(literal("to")
+                                                                        .then(argument("pos", IntegerArgumentType.integer(1))
+                                                                                .executes(context -> addRoute(context,
+                                                                                        IntegerArgumentType.getInteger(context, "pos"))))))))))
+                        .then(literal("delete")
+                                .then(argument("target", StringArgumentType.greedyString())
+                                        .executes(context -> deleteRoute(StringArgumentType.getString(context, "target"))))))
                 .then(literal("debug")
                         .then(literal("clearImgCache")
                                 .executes(context -> ClearIndexCacheModule.handleClearImgCache()))
@@ -359,6 +388,41 @@ public class IrcCommand {
 
     private static void openHudEditor() {
         HudEditorScreen.open(null);
+    }
+
+    private static int addRoute(CommandContext<FabricClientCommandSource> context, int position) {
+        String name = StringArgumentType.getString(context, "name");
+        double x = DoubleArgumentType.getDouble(context, "x");
+        double y = DoubleArgumentType.getDouble(context, "y");
+        double z = DoubleArgumentType.getDouble(context, "z");
+        int target = position < 1 ? RouteManager.entries().size() + 1 : position;
+
+        int index = RouteManager.add(name, WaypointManager.formatCoord(x), WaypointManager.formatCoord(y), WaypointManager.formatCoord(z), target);
+        if (index < 0) return 0;
+
+        IrcMessageHandler.printMessage("§a[Route] 已添加 | " + RouteManager.displayName(RouteManager.entries().get(index), index));
+        return 1;
+    }
+
+    private static int deleteRoute(String target) {
+        String clean = target.trim();
+        try {
+            int position = Integer.parseInt(clean);
+            if (position >= 1 && position <= RouteManager.entries().size()) {
+                RouteManager.deleteAt(position - 1);
+                IrcMessageHandler.printMessage("§e[Route] 已删除位置 | " + position);
+                return 1;
+            }
+        } catch (NumberFormatException ignored) {
+        }
+
+        if (RouteManager.deleteByName(clean)) {
+            IrcMessageHandler.printMessage("§e[Route] 已删除 | " + clean);
+            return 1;
+        }
+
+        IrcMessageHandler.printMessage("§c[Route] 未找到 | " + clean);
+        return 0;
     }
 
     private static void sendHelp() {
