@@ -6,6 +6,9 @@ import me.cookie.kwrg.mixin.accessor.FontManagerAccessor;
 import me.cookie.kwrg.mixin.accessor.FontSetAccessor;
 import me.cookie.kwrg.mixin.accessor.MinecraftAccessor;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GlyphSource;
+import net.minecraft.client.gui.font.glyphs.EffectGlyph;
 import net.minecraft.client.gui.font.FontManager;
 import net.minecraft.client.gui.font.FontOption;
 import net.minecraft.client.gui.font.FontSet;
@@ -38,6 +41,25 @@ public class FontManagerHelper {
     private static final FontDescription GUI_FONT_DESC = new FontDescription.Resource(GUI_FONT_ID);
     private static GlyphProvider currentActiveProvider = null;
     private static String currentLoadedFontName = null;
+    private static Font guiInputFont;
+
+    /** Native inputs measure plain strings, so their font must also use the GUI glyphs by default. */
+    public static Font getGuiInputFont() {
+        if (guiInputFont == null) {
+            guiInputFont = new Font(new Font.Provider() {
+                private FontSet fontSet() {
+                    FontManager manager = ((MinecraftAccessor) Minecraft.getInstance()).kwrg$getFontManager();
+                    var sets = ((FontManagerAccessor) manager).kwrg$getFontSets();
+                    return getGuiStyle().isEmpty() ? sets.get(Minecraft.DEFAULT_FONT)
+                            : sets.getOrDefault(GUI_FONT_ID, sets.get(Minecraft.DEFAULT_FONT));
+                }
+
+                @Override public GlyphSource glyphs(FontDescription description) { return fontSet().source(false); }
+                @Override public EffectGlyph effect() { return fontSet().whiteGlyph(); }
+            });
+        }
+        return guiInputFont;
+    }
 
     public static Path ensureFontDir() {
         Path fontDir = IrcConfig.getFontDir();

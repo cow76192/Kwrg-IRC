@@ -149,9 +149,6 @@ public class PanelItemComponent extends BaseUIComponent {
         return this.isItemActive();
     }
 
-    public float getActiveAnimation() {
-        return this.activeAnimation;
-    }
 
     public void setToggled(boolean toggled) {
         this.localToggled = toggled;

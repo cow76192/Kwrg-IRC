@@ -2,15 +2,102 @@ package me.cookie.kwrg.gui.util;
 
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
+import io.wispforest.owo.mixin.ui.access.GuiGraphicsExtractorAccessor;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
+import net.minecraft.util.FormattedCharSequence;
 
 public final class RenderUtil {
 
     private RenderUtil() {}
+
+    /** Caller must pop the shared pose after drawing the row and any native text inputs. */
+    public static OwoUIGraphics beginRowAppearance(OwoUIGraphics graphics, float x, float y, float width, float height, float progress) {
+        float scale = AnimationUtil.lerp(progress, 0.90f, 1.0f);
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(x + width / 2, y + height / 2 + (1 - progress) * 8);
+        graphics.pose().scale(scale, scale);
+        graphics.pose().translate(-x - width / 2, -y - height / 2);
+        return withOpacity(graphics, progress);
+    }
+
+    public static void drawScrollThumb(OwoUIGraphics graphics, int x, int y, int height, int contentHeight, int scroll, Color color) {
+        if (contentHeight <= height || height <= 0) return;
+        float thumbHeight = Math.max(14, (float) height * height / contentHeight);
+        float top = y + (height - thumbHeight) * scroll / Math.max(1, contentHeight - height);
+        drawSubpixelRoundedPanel(graphics, x, top, 2, thumbHeight, 1, color, Color.ofArgb(0));
+    }
+
+    /** Shares the caller's pose and clipping, while fading every pane primitive and its children. */
+    public static OwoUIGraphics withOpacity(OwoUIGraphics graphics, float opacity) {
+        return opacity >= 0.999f ? graphics : new OpacityGraphics(graphics, opacity);
+    }
+
+    private static final class OpacityGraphics extends OwoUIGraphics {
+        private final OwoUIGraphics delegate;
+        private final float opacity;
+
+        private OpacityGraphics(OwoUIGraphics delegate, float opacity) {
+            super(Minecraft.getInstance(), delegate.guiRenderState, 0, 0, Runnable::run);
+            this.delegate = delegate;
+            this.opacity = Math.max(0, Math.min(1, opacity));
+            var target = (GuiGraphicsExtractorAccessor) (Object) this;
+            var source = (GuiGraphicsExtractorAccessor) delegate;
+            target.owo$setPose(source.owo$getPose());
+            target.owo$setScissorStack(source.owo$getScissorStack());
+        }
+
+        private int fade(int color) {
+            return (color & 0x00FFFFFF) | (Math.round((color >>> 24) * this.opacity) << 24);
+        }
+
+        private Color fade(Color color) { return Color.ofArgb(fade(color.argb())); }
+
+        @Override
+        public void fill(RenderPipeline pipeline, int x1, int y1, int x2, int y2, int color) {
+            delegate.fill(pipeline, x1, y1, x2, y2, fade(color));
+        }
+
+        @Override
+        public void drawText(Component text, float x, float y, float scale, int color, TextAnchor anchor) {
+            if (opacity > 0.005f) delegate.drawText(text, x, y, scale, fade(color), anchor);
+        }
+
+        @Override
+        public void text(Font font, FormattedCharSequence text, int x, int y, int color, boolean shadow) {
+            if (opacity > 0.005f) delegate.text(font, text, x, y, fade(color), shadow);
+        }
+
+        @Override
+        public void drawGradientRect(RenderPipeline pipeline, int x, int y, int w, int h, int tl, int tr, int br, int bl) {
+            delegate.drawGradientRect(pipeline, x, y, w, h, fade(tl), fade(tr), fade(br), fade(bl));
+        }
+
+        @Override
+        public void drawLine(RenderPipeline pipeline, int x1, int y1, int x2, int y2, double width, Color color) {
+            delegate.drawLine(pipeline, x1, y1, x2, y2, width, fade(color));
+        }
+
+        @Override
+        public void drawCircle(RenderPipeline pipeline, int x, int y, double from, double to, int segments, double radius, Color color) {
+            delegate.drawCircle(pipeline, x, y, from, to, segments, radius, fade(color));
+        }
+
+        @Override
+        public void drawRing(RenderPipeline pipeline, int x, int y, double from, double to, int segments, double inner, double outer, Color a, Color b) {
+            delegate.drawRing(pipeline, x, y, from, to, segments, inner, outer, fade(a), fade(b));
+        }
+
+        @Override
+        public void blit(RenderPipeline pipeline, Identifier texture, int x, int y, float u, float v, int w, int h, int tw, int th) {
+            delegate.blit(pipeline, texture, x, y, u, v, w, h, tw, th, fade(0xFFFFFFFF));
+        }
+    }
 
     public static void fillSubpixel(OwoUIGraphics graphics, float minX, float minY, float maxX, float maxY, int color) {
         if (maxX <= minX || maxY <= minY) return;
@@ -263,9 +350,20 @@ public final class RenderUtil {
         graphics.drawText(styledText, x, y, scale, textColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
     }
 
+    public static void drawSmoothText(OwoUIGraphics graphics, String text, float x, float y, int color) {
+        drawSmoothText(graphics, Component.literal(text), x, y, 0.85f, color);
+    }
+
+    public static String fitText(String text, int width, float scale) {
+        var font = Minecraft.getInstance().font;
+        Component styledText = FontManagerHelper.apply(text);
+        return font.width(styledText) * scale <= width ? text
+                : font.substrByWidth(styledText, Math.max(1, (int) (width / scale) - font.width(FontManagerHelper.apply("…")))).getString() + "…";
+    }
+
     public static void drawCenteredSmoothText(OwoUIGraphics graphics, Component text, float centerX, float centerY, float scale, int textColor) {
         var font = Minecraft.getInstance().font;
-        float textWidth = font.width(text) * scale;
+        float textWidth = font.width(FontManagerHelper.apply(text)) * scale;
         float textHeight = 9.0f * scale;
         drawSmoothText(graphics, text, centerX - textWidth / 2.0f, centerY - textHeight / 2.0f, scale, textColor);
     }

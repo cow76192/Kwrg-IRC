@@ -4,7 +4,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import me.cookie.kwrg.irc.manager.HideArmorManager;
 import me.cookie.kwrg.irc.manager.IrcGlowManager;
-import me.cookie.kwrg.irc.manager.WaypointManager;
 import me.cookie.kwrg.module.modules.style.ChatModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
@@ -288,7 +287,6 @@ public class IrcMessageHandler {
         segments.add(new ChatNotifier.AnimatedSegment(" §7: §r", "", true));
 
         String body = content != null ? content : "";
-        WaypointManager.Coord chatCoord = WaypointManager.parseChat(body);
 
         if (prefix != null && !prefix.isEmpty()) {
             segments.add(new ChatNotifier.AnimatedSegment(prefix, "", true));
@@ -296,9 +294,6 @@ public class IrcMessageHandler {
         segments.add(new ChatNotifier.AnimatedSegment(body, chatStyle, false));
         if (suffix != null && !suffix.isEmpty()) {
             segments.add(new ChatNotifier.AnimatedSegment(suffix, "", true));
-        }
-        if (chatCoord != null) {
-            segments.add(new ChatNotifier.AnimatedSegment(" 【show waypoint】", "", true, waypointButtonStyle(chatCoord, username)));
         }
 
         ChatNotifier.sendAnimatedInChatScreen(segments);
@@ -310,25 +305,6 @@ public class IrcMessageHandler {
                 break;
             }
         }
-    }
-
-    private static Style waypointButtonStyle(WaypointManager.Coord coord, String sender) {
-        String command = "/irc waypoint chat "
-                + WaypointManager.formatCoord(coord.x()) + " "
-                + WaypointManager.formatCoord(coord.y()) + " "
-                + WaypointManager.formatCoord(coord.z());
-        String cleanSender = sender == null ? "" : sender.replaceAll("[\\r\\n\\t]", " ").trim();
-        if (cleanSender.length() > WaypointManager.MAX_NAME_LENGTH) {
-            cleanSender = cleanSender.substring(0, WaypointManager.MAX_NAME_LENGTH);
-        }
-        if (!cleanSender.isEmpty()) {
-            command += " " + cleanSender;
-        }
-        return Style.EMPTY
-                .withColor(0xFF55FF55)
-                .withBold(true)
-                .withClickEvent(new ClickEvent.RunCommand(command))
-                .withHoverEvent(new HoverEvent.ShowText(Component.literal("§a点击显示坐标并生成信标光柱")));
     }
 
     public static void displayFormattedMessage(String channel, String rank, String nameStyle, String username, String chatStyle, String content) {

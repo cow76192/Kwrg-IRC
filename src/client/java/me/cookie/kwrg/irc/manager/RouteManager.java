@@ -15,6 +15,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gizmos.GizmoStyle;
 import net.minecraft.gizmos.Gizmos;
+import net.minecraft.world.entity.Avatar;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -36,15 +38,16 @@ public final class RouteManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RouteManager.class);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final int ROUTE_SEED_VERSION = 230;
     private static final String DEFAULT_ROUTE = "kuudra_pearl_waypoints.json";
     private static final long MAX_ROUTE_FILE_BYTES = 2L * 1024L * 1024L;
-    private static final GizmoStyle FILL_STYLE = GizmoStyle.fill(0x8000E5FF);
+    private static final GizmoStyle BLOCK_STYLE = GizmoStyle.strokeAndFill(0xFF00E5FF, 1.0f, 0x8000E5FF);
     private static final int TEXT_COLOR = 0xFF00E5FF;
     private static final int LINE_COLOR = 0xFF00E5FF;
 
     private static final List<Entry> ENTRIES = new CopyOnWriteArrayList<>();
     private static Path currentFile = null;
+    private static boolean visible = true;
+    private static boolean showLine = false;
 
     private RouteManager() {
     }
@@ -52,14 +55,32 @@ public final class RouteManager {
     public static void init() {
         migrateLegacyDir();
         seedDefaultRoute();
+        reloadFromConfig();
         LevelRenderEvents.BEFORE_GIZMOS.register(context -> render());
     }
 
-    private static void seedDefaultRoute() {
-        IrcConfig config = IrcConfig.get();
-        if (config.routeSeedVersion >= ROUTE_SEED_VERSION) return;
+    public static void reloadFromConfig() {
+        String savedName = IrcConfig.get().currentRouteFileName;
+        if (savedName != null && !savedName.isBlank()) {
+            Path savedFile = getDir().resolve(savedName).normalize();
+            if (savedFile.getParent().equals(getDir().normalize()) && Files.isRegularFile(savedFile)) {
+                importFile(savedFile);
+                return;
+            }
+        }
+        ENTRIES.clear();
+        currentFile = null;
+        visible = true;
+        showLine = false;
+        if (savedName != null && !savedName.isBlank()) {
+            IrcConfig.get().currentRouteFileName = "";
+            IrcConfig.save();
+        }
+    }
 
+    private static void seedDefaultRoute() {
         Path dir = getDir();
+        if (Files.exists(dir)) return;
         Path target = dir.resolve(DEFAULT_ROUTE);
         try {
             Files.createDirectories(dir);
@@ -69,8 +90,6 @@ public final class RouteManager {
                     Files.copy(input, target);
                 }
             }
-            config.routeSeedVersion = ROUTE_SEED_VERSION;
-            IrcConfig.save();
         } catch (IOException e) {
             LOGGER.warn("[Route] 默认路线释放失败", e);
         }
@@ -130,6 +149,84 @@ public final class RouteManager {
         return currentFile == null ? "" : baseName(currentFile);
     }
 
+    private static String validateRouteName(String name) {
+        String clean = name == null ? "" : name.strip();
+        if (clean.toLowerCase(Locale.ROOT).endsWith(".json")) clean = clean.substring(0, clean.length() - 5).strip();
+        if (clean.isEmpty() || clean.length() > 64) throw new IllegalArgumentException("名称须为 1–64 个字符");
+        if (clean.equals(".") || clean.equals("..") || clean.endsWith(".")
+                || clean.chars().anyMatch(c -> c < 32 || "<>:\"/\\|?*".indexOf(c) >= 0)) {
+            throw new IllegalArgumentException("名称不能包含路径或文件名特殊字符");
+        }
+        String stem = clean.split("\\.", 2)[0].toUpperCase(Locale.ROOT);
+        if (stem.matches("CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9]")) throw new IllegalArgumentException("请使用其他路线名称");
+        return clean;
+    }
+
+    private static void ensureRouteNameAvailable(Path directory, String name, Path original) throws IOException {
+        try (Stream<Path> stream = Files.list(directory)) {
+            for (Path file : stream.filter(RouteManager::isRouteFile).toList()) {
+                if ((original == null || !file.equals(original)) && baseName(file).equalsIgnoreCase(name)) {
+                    throw new IllegalArgumentException("已存在同名路线，请换一个名称");
+                }
+            }
+        }
+    }
+
+    public static Path createRoute(String name) throws IOException {
+        return createRoute(getDir(), name);
+    }
+
+    private static Path createRoute(Path directory, String name) throws IOException {
+        String clean = validateRouteName(name);
+        Files.createDirectories(directory);
+        ensureRouteNameAvailable(directory, clean, null);
+        Path target = directory.resolve(clean + ".json");
+        JsonObject root = new JsonObject();
+        root.addProperty("name", clean);
+        root.addProperty("visible", true);
+        root.addProperty("showLine", false);
+        root.add("waypoints", new JsonArray());
+        Files.writeString(target, GSON.toJson(root), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+        return target;
+    }
+
+    public static Path renameRoute(Path file, String name) throws IOException {
+        String clean = validateRouteName(name);
+        Path directory = file.getParent();
+        ensureRouteNameAvailable(directory, clean, file);
+        Path target = directory.resolve(clean + (isJson(file) ? ".json" : ".txt"));
+        String content = readFile(file);
+        if (content == null) throw new IOException("无法读取路线文件");
+        if (isJson(file)) {
+            JsonElement parsed = JsonParser.parseString(content);
+            JsonObject root;
+            if (parsed.isJsonObject()) root = parsed.getAsJsonObject();
+            else if (parsed.isJsonArray()) {
+                root = new JsonObject();
+                root.add("waypoints", parsed);
+            } else throw new IllegalArgumentException("路线 JSON 格式无效");
+            root.addProperty("name", clean);
+            content = GSON.toJson(root);
+        }
+        if (file.equals(target)) {
+            Files.writeString(file, content);
+        } else {
+            Files.writeString(target, content, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+            try {
+                Files.delete(file);
+            } catch (IOException e) {
+                Files.deleteIfExists(target);
+                throw e;
+            }
+        }
+        if (file.equals(currentFile)) {
+            currentFile = target;
+            IrcConfig.get().currentRouteFileName = currentFileName();
+            IrcConfig.save();
+        }
+        return target;
+    }
+
     public static List<Entry> entries() {
         return ENTRIES;
     }
@@ -142,6 +239,99 @@ public final class RouteManager {
         return currentFile == null ? "" : currentFile.getFileName().toString();
     }
 
+    public static boolean isVisible() { return visible; }
+    public static boolean isShowLine() { return showLine; }
+
+    public record FileOptions(boolean visible, boolean showLine) {}
+
+    public static FileOptions fileOptions(Path path) {
+        if (path.equals(currentFile)) return new FileOptions(visible, showLine);
+        String text = readFile(path);
+        if (text != null && isJson(path)) {
+            try {
+                JsonElement parsed = JsonParser.parseString(text);
+                if (parsed.isJsonObject()) {
+                    JsonObject root = parsed.getAsJsonObject();
+                    return new FileOptions(!root.has("visible") || root.get("visible").getAsBoolean(),
+                            root.has("showLine") && root.get("showLine").getAsBoolean());
+                }
+            } catch (RuntimeException e) {
+                LOGGER.warn("[Route] 无法读取路线设置: {}", path, e);
+            }
+        }
+        return new FileOptions(true, false);
+    }
+
+    /** Changes a file's options without switching the route being edited or rendered. */
+    public static boolean setFileOptions(Path path, boolean fileVisible, boolean fileShowLine) {
+        if (path.equals(currentFile)) {
+            visible = fileVisible;
+            showLine = fileShowLine;
+            return saveCurrent();
+        }
+        String text = readFile(path);
+        if (text == null) return false;
+        try {
+            JsonObject root;
+            Path target = path;
+            if (isJson(path)) {
+                JsonElement parsed = JsonParser.parseString(text);
+                if (parsed.isJsonObject()) root = parsed.getAsJsonObject();
+                else if (parsed.isJsonArray()) {
+                    root = new JsonObject();
+                    root.add("waypoints", parsed);
+                } else return false;
+            } else {
+                root = new JsonObject();
+                root.addProperty("name", baseName(path));
+                root.add("waypoints", entriesJson(parseTxt(text)));
+                target = getDir().resolve(baseName(path) + ".json");
+            }
+            root.addProperty("visible", fileVisible);
+            root.addProperty("showLine", fileShowLine);
+            Files.writeString(target, GSON.toJson(root));
+            return true;
+        } catch (IOException | RuntimeException e) {
+            ChatNotifier.send("§c[Route] 设置保存失败 | " + fileName(path), NotificationType.ERR);
+            LOGGER.warn("[Route] 设置保存失败: {}", path, e);
+            return false;
+        }
+    }
+
+    public static void updateCoordinate(int index, int axis, String value) {
+        if (index < 0 || index >= ENTRIES.size()) return;
+        Entry entry = ENTRIES.get(index);
+        switch (axis) {
+            case 0 -> entry.x = value;
+            case 1 -> entry.y = value;
+            case 2 -> entry.z = value;
+            default -> throw new IllegalArgumentException("axis");
+        }
+    }
+
+    public static void updateName(int index, String value) {
+        if (index < 0 || index >= ENTRIES.size()) return;
+        ENTRIES.get(index).name = value;
+    }
+
+    public static void setEntryVisible(int index, boolean value) {
+        if (index < 0 || index >= ENTRIES.size()) return;
+        ENTRIES.get(index).visible = value;
+        saveCurrent();
+    }
+
+    public static void setVisible(boolean value) {
+        if (currentFile == null) return;
+        visible = value;
+        saveCurrent();
+    }
+
+    public static void setShowLine(boolean value) {
+        if (currentFile == null) return;
+        showLine = value;
+        saveCurrent();
+    }
+
     public static boolean importFile(Path path) {
         String text = readFile(path);
         if (text == null) {
@@ -149,11 +339,15 @@ public final class RouteManager {
             return false;
         }
 
+        boolean json = isJson(path);
         ENTRIES.clear();
-        ENTRIES.addAll(isJson(path) ? parseJson(text) : parseTxt(text));
-        currentFile = path;
-        IrcConfig config = IrcConfig.get();
-        config.routeVisible = true;
+        ENTRIES.addAll(json ? parseJson(text) : parseTxt(text));
+        visible = true;
+        showLine = false;
+        if (json) readSettings(text);
+        currentFile = json ? path : getDir().resolve(baseName(path) + ".json");
+        if (!json && !saveCurrent()) return false;
+        IrcConfig.get().currentRouteFileName = currentFileName();
         IrcConfig.save();
         ChatNotifier.send("§a[Route] 已导入 | " + fileName(path) + " (" + ENTRIES.size() + " 条)", NotificationType.SUCCESS);
         return true;
@@ -162,6 +356,8 @@ public final class RouteManager {
     public static void clear() {
         ENTRIES.clear();
         currentFile = null;
+        IrcConfig.get().currentRouteFileName = "";
+        IrcConfig.save();
     }
 
     public static boolean copyFile(Path path) {
@@ -176,8 +372,7 @@ public final class RouteManager {
         try {
             Files.deleteIfExists(path);
             if (path.equals(currentFile)) {
-                ENTRIES.clear();
-                currentFile = null;
+                clear();
             }
             ChatNotifier.send("§e[Route] 已删除文件 | " + fileName(path), NotificationType.INFO);
             return true;
@@ -191,7 +386,7 @@ public final class RouteManager {
         if (currentFile == null) return false;
         try {
             Files.createDirectories(getDir());
-            Files.writeString(currentFile, isJson(currentFile) ? formatJson() : formatTxt());
+            Files.writeString(currentFile, formatJson());
             return true;
         } catch (IOException e) {
             ChatNotifier.send("§c[Route] 保存失败 | " + currentFileName(), NotificationType.ERR);
@@ -366,6 +561,19 @@ public final class RouteManager {
         return result;
     }
 
+    private static void readSettings(String text) {
+        try {
+            JsonElement parsed = JsonParser.parseString(text);
+            if (!parsed.isJsonObject()) return;
+            JsonObject root = parsed.getAsJsonObject();
+            if (root.has("visible")) visible = root.get("visible").getAsBoolean();
+            if (root.has("showLine")) showLine = root.get("showLine").getAsBoolean();
+        } catch (Exception ignored) {
+            visible = true;
+            showLine = false;
+        }
+    }
+
     private static void readWaypoints(JsonArray array, List<Entry> result, String areaName) {
         for (JsonElement element : array) {
             if (!element.isJsonObject()) continue;
@@ -388,24 +596,33 @@ public final class RouteManager {
                 z = string(waypoint, "z");
             }
 
-            result.add(new Entry(name, x, y, z));
+            Entry entry = new Entry(name, x, y, z);
+            entry.visible = !waypoint.has("visible") || waypoint.get("visible").getAsBoolean();
+            result.add(entry);
         }
     }
 
     private static String formatJson() {
         JsonObject root = new JsonObject();
         root.addProperty("name", currentSourceName());
+        root.addProperty("visible", visible);
+        root.addProperty("showLine", showLine);
+        root.add("waypoints", entriesJson(ENTRIES));
+        return GSON.toJson(root);
+    }
+
+    private static JsonArray entriesJson(List<Entry> entries) {
         JsonArray waypoints = new JsonArray();
-        for (Entry entry : ENTRIES) {
+        for (Entry entry : entries) {
             JsonObject waypoint = new JsonObject();
             waypoint.addProperty("name", entry.name);
+            waypoint.addProperty("visible", entry.visible);
             addCoordinate(waypoint, "x", entry.x);
             addCoordinate(waypoint, "y", entry.y);
             addCoordinate(waypoint, "z", entry.z);
             waypoints.add(waypoint);
         }
-        root.add("waypoints", waypoints);
-        return GSON.toJson(root);
+        return waypoints;
     }
 
     private static void addCoordinate(JsonObject object, String key, String value) {
@@ -449,25 +666,29 @@ public final class RouteManager {
     }
 
     private static void render() {
-        IrcConfig config = IrcConfig.get();
-        if (!config.routeVisible || ENTRIES.isEmpty()) return;
-
-        boolean showLine = config.routeShowLine;
+        if (!visible || ENTRIES.isEmpty()) return;
+        var camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+        Vec3 cameraPosition = camera.position();
+        var up = camera.upVector();
+        Vec3 cameraUp = new Vec3(up.x(), up.y(), up.z());
         BlockPos previous = null;
         int index = 0;
         for (Entry entry : ENTRIES) {
-            BlockPos pos = blockPos(entry);
+            BlockPos pos = entry.visible ? blockPos(entry) : null;
             if (pos == null) {
                 previous = null;
                 index++;
                 continue;
             }
 
-            Gizmos.cuboid(pos, FILL_STYLE).setAlwaysOnTop();
+            Gizmos.cuboid(pos, BLOCK_STYLE).setAlwaysOnTop();
             Gizmos.billboardTextOverBlock(displayName(entry, index), pos, 0, TEXT_COLOR, 1.0f);
 
-            if (showLine && previous != null) {
-                Gizmos.line(linePoint(previous), linePoint(pos), LINE_COLOR).setAlwaysOnTop();
+            if (showLine) {
+                Vec3 node = visibleLinePoint(pos, cameraPosition, cameraUp);
+                Vec3 blockTop = Vec3.atBottomCenterOf(pos).add(0, 1, 0);
+                Gizmos.line(blockTop, node, LINE_COLOR).setAlwaysOnTop();
+                if (previous != null) Gizmos.line(visibleLinePoint(previous, cameraPosition, cameraUp), blockTop, LINE_COLOR).setAlwaysOnTop();
             }
             previous = pos;
             index++;
@@ -475,7 +696,16 @@ public final class RouteManager {
     }
 
     private static Vec3 linePoint(BlockPos pos) {
-        return new Vec3(pos.getX() + 0.5, pos.getY() + 1.5, pos.getZ() + 0.5);
+        // A player standing on this block has their feet at its top face.
+        return Vec3.atBottomCenterOf(pos).add(0, 1 + (double) Avatar.DEFAULT_EYE_HEIGHT, 0);
+    }
+
+    private static Vec3 visibleLinePoint(BlockPos pos, Vec3 cameraPosition, Vec3 cameraUp) {
+        Vec3 node = linePoint(pos);
+        double proximity = Math.max(0, 1 - node.distanceTo(cameraPosition) / 0.75);
+        double offset = 0.18 * proximity * proximity * (3 - 2 * proximity);
+        // A line starting at the camera collapses to a screen point. Move it down in view space nearby.
+        return node.subtract(cameraUp.scale(offset));
     }
 
     private static boolean isRouteFile(Path path) {
@@ -519,6 +749,7 @@ public final class RouteManager {
         public String x;
         public String y;
         public String z;
+        public boolean visible = true;
 
         public Entry(String name, String x, String y, String z) {
             this.name = name != null ? name : "";

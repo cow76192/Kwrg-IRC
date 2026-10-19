@@ -1,6 +1,7 @@
 package me.cookie.kwrg.mixin;
 
 import me.cookie.kwrg.util.ChatNotifier;
+import me.cookie.kwrg.irc.manager.WaypointManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.client.multiplayer.chat.GuiMessage;
@@ -50,6 +51,7 @@ public abstract class ChatComponentMixin {
         }
 
         ChatNotifier.onMessageAdded(message);
+        WaypointManager.observeChat(message.content().getString());
 
         if (ChatNotifier.hasAnimation(message)) {
             ci.cancel();

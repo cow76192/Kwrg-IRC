@@ -2,6 +2,7 @@ package me.cookie.kwrg.util;
 
 import me.cookie.kwrg.gui.notification.NotificationManager;
 import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.irc.manager.WaypointManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -20,6 +21,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ChatNotifier {
+
+    public static String expandCoordsShortcut(String content) {
+        if (content == null || !content.trim().equalsIgnoreCase("!coords")) return content;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return content;
+        var pos = mc.player.blockPosition();
+        return WaypointManager.formatCoordMessage(pos.getX(), pos.getY(), pos.getZ());
+    }
 
     private static final Queue<Component> PENDING_MESSAGES = new ConcurrentLinkedQueue<>();
     private static final Pattern URL_PATTERN = Pattern.compile(
@@ -203,17 +212,13 @@ public class ChatNotifier {
         return new String[]{title, subtitle};
     }
 
-    public record AnimatedSegment(String text, String styleConfig, boolean isRaw, Style overrideStyle) {
-        public AnimatedSegment(String text, String styleConfig, boolean isRaw) {
-            this(text, styleConfig, isRaw, null);
-        }
-    }
+    public record AnimatedSegment(String text, String styleConfig, boolean isRaw) {}
 
     private static Component buildSegment(AnimatedSegment segment) {
         String safeText = me.cookie.kwrg.irc.manager.NickManager.protectText(segment.text());
         if (!segment.isRaw()) return ColorUtil.applyStyle(safeText, segment.styleConfig());
         MutableComponent part = Component.literal(safeText);
-        return segment.overrideStyle() != null ? part.setStyle(segment.overrideStyle()) : part;
+        return part;
     }
 
     private static final Queue<List<AnimatedSegment>> PENDING_ANIMATIONS = new ConcurrentLinkedQueue<>();

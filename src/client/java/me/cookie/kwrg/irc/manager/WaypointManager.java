@@ -21,7 +21,10 @@ import net.minecraft.world.phys.Vec3;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -42,30 +45,33 @@ public final class WaypointManager {
     );
     private static final Pattern FORMATTING_PATTERN = Pattern.compile("§[0-9a-fk-orA-FK-OR]");
 
-    private static final GizmoStyle FILL_STYLE = GizmoStyle.fill(0x8000FF88);
+    private static final GizmoStyle BLOCK_STYLE = GizmoStyle.strokeAndFill(0xFF00FF88, 1.0f, 0x8000FF88);
     private static final int TEXT_COLOR = 0xFF00FF88;
     private static final int BEAM_COLOR = 0xFF00FF88;
 
-    private static ChatWaypoint chatWaypoint = null;
-    private static long nearSince = 0L;
+    private static final Map<String, IrcConfig.WaypointEntry> SAVED_WAYPOINTS = new LinkedHashMap<>();
+    private static final Map<String, ChatWaypoint> TEMP_WAYPOINTS = new LinkedHashMap<>();
 
     private WaypointManager() {
     }
 
     public static void reloadFromConfig() {
         IrcConfig config = IrcConfig.get();
-        config.waypoints = normalize(config.waypoints);
+        Map<String, IrcConfig.WaypointEntry> normalized = normalize(config.waypoints);
+        SAVED_WAYPOINTS.clear();
+        SAVED_WAYPOINTS.putAll(normalized);
+        config.waypoints = SAVED_WAYPOINTS;
     }
 
-    private static List<IrcConfig.WaypointEntry> normalize(List<IrcConfig.WaypointEntry> input) {
-        List<IrcConfig.WaypointEntry> result = new ArrayList<>();
+    private static Map<String, IrcConfig.WaypointEntry> normalize(Map<String, IrcConfig.WaypointEntry> input) {
+        Map<String, IrcConfig.WaypointEntry> result = new LinkedHashMap<>();
         if (input == null) return result;
 
-        for (IrcConfig.WaypointEntry entry : input) {
+        for (Map.Entry<String, IrcConfig.WaypointEntry> item : input.entrySet()) {
+            IrcConfig.WaypointEntry entry = item.getValue();
             if (entry == null || !isValidCoord(entry.x, entry.y, entry.z)) continue;
             entry.name = sanitizeName(entry.name);
-            entry.source = sanitizeSource(entry.source);
-            result.add(entry);
+            result.put(item.getKey(), entry);
             if (result.size() >= MAX_WAYPOINTS) break;
         }
         return result;
@@ -78,23 +84,24 @@ public final class WaypointManager {
         return clean.length() > MAX_NAME_LENGTH ? clean.substring(0, MAX_NAME_LENGTH) : clean;
     }
 
-    private static String sanitizeSource(String value) {
-        if (value == null) return "";
-        return value.replaceAll("[\\r\\n\\t]", " ").trim();
-    }
-
     public static void init() {
         LevelRenderEvents.BEFORE_GIZMOS.register(context -> renderWaypoints());
         LevelRenderEvents.END_EXTRACTION.register(WaypointManager::extractBeam);
         ClientTickEvents.END_CLIENT_TICK.register(WaypointManager::onTick);
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
-            chatWaypoint = null;
-            nearSince = 0L;
+            clearTemporary();
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
-            chatWaypoint = null;
-            nearSince = 0L;
+            clearTemporary();
         });
+    }
+
+    public static void clearTemporary() {
+        TEMP_WAYPOINTS.clear();
+    }
+
+    public static List<IrcConfig.WaypointEntry> savedEntries() {
+        return new ArrayList<>(SAVED_WAYPOINTS.values());
     }
 
     public static boolean saveEntry(int editIndex, String name, String[] values) {
@@ -116,22 +123,16 @@ public final class WaypointManager {
         }
         if (!isValidCoord(x, y, z)) return false;
 
-        IrcConfig config = IrcConfig.get();
-        List<IrcConfig.WaypointEntry> list = config.waypoints;
-        if (list == null) {
-            list = new ArrayList<>();
-            config.waypoints = list;
-        }
-
-        if (editIndex >= 0 && editIndex < list.size()) {
-            IrcConfig.WaypointEntry entry = list.get(editIndex);
+        List<String> keys = new ArrayList<>(SAVED_WAYPOINTS.keySet());
+        if (editIndex >= 0 && editIndex < keys.size()) {
+            IrcConfig.WaypointEntry entry = SAVED_WAYPOINTS.get(keys.get(editIndex));
             entry.name = cleanName;
             entry.x = x;
             entry.y = y;
             entry.z = z;
         } else {
-            if (list.size() >= MAX_WAYPOINTS) return false;
-            list.add(new IrcConfig.WaypointEntry(cleanName, x, y, z));
+            if (SAVED_WAYPOINTS.size() >= MAX_WAYPOINTS) return false;
+            SAVED_WAYPOINTS.put(UUID.randomUUID().toString(), new IrcConfig.WaypointEntry(cleanName, x, y, z));
         }
 
         IrcConfig.save();
@@ -139,74 +140,21 @@ public final class WaypointManager {
     }
 
     public static boolean removeAt(int index) {
-        List<IrcConfig.WaypointEntry> list = IrcConfig.get().waypoints;
-        if (list == null || index < 0 || index >= list.size()) return false;
-        list.remove(index);
+        List<String> keys = new ArrayList<>(SAVED_WAYPOINTS.keySet());
+        if (index < 0 || index >= keys.size()) return false;
+        SAVED_WAYPOINTS.remove(keys.get(index));
         IrcConfig.save();
         return true;
     }
 
     public static boolean toggleAt(int index) {
-        List<IrcConfig.WaypointEntry> list = IrcConfig.get().waypoints;
-        if (list == null || index < 0 || index >= list.size()) return false;
-        IrcConfig.WaypointEntry entry = list.get(index);
+        List<String> keys = new ArrayList<>(SAVED_WAYPOINTS.keySet());
+        if (index < 0 || index >= keys.size()) return false;
+        IrcConfig.WaypointEntry entry = SAVED_WAYPOINTS.get(keys.get(index));
         if (entry == null) return false;
         entry.enabled = !entry.enabled;
         IrcConfig.save();
         return true;
-    }
-
-    public static int removeBySource(String source) {
-        if (source == null || source.isBlank()) return 0;
-        List<IrcConfig.WaypointEntry> list = IrcConfig.get().waypoints;
-        if (list == null || list.isEmpty()) return 0;
-        int before = list.size();
-        list.removeIf(entry -> entry != null && source.equals(entry.source));
-        int removed = before - list.size();
-        if (removed > 0) IrcConfig.save();
-        return removed;
-    }
-
-    public static int importFromRoute(String source, List<RouteManager.Entry> routeEntries) {
-        if (source == null || source.isBlank() || routeEntries == null) return 0;
-
-        IrcConfig config = IrcConfig.get();
-        List<IrcConfig.WaypointEntry> list = config.waypoints;
-        if (list == null) {
-            list = new ArrayList<>();
-            config.waypoints = list;
-        }
-
-        boolean anyValid = false;
-        for (RouteManager.Entry coord : routeEntries) {
-            if (RouteManager.valid(coord)) {
-                anyValid = true;
-                break;
-            }
-        }
-        if (!anyValid) return 0;
-
-        list.removeIf(entry -> entry != null && source.equals(entry.source));
-        int added = 0;
-        for (int i = 0; i < routeEntries.size(); i++) {
-            RouteManager.Entry coord = routeEntries.get(i);
-            if (!RouteManager.valid(coord)) continue;
-            if (list.size() >= MAX_WAYPOINTS) break;
-
-            String name = coord.name == null || coord.name.isBlank() ? EMPTY_NAME : coord.name.trim();
-            if (name.length() > MAX_NAME_LENGTH) name = name.substring(0, MAX_NAME_LENGTH);
-            double x = Double.parseDouble(coord.x.trim());
-            double y = Double.parseDouble(coord.y.trim());
-            double z = Double.parseDouble(coord.z.trim());
-
-            IrcConfig.WaypointEntry entry = new IrcConfig.WaypointEntry(name, x, y, z);
-            entry.source = source;
-            list.add(entry);
-            added++;
-        }
-
-        IrcConfig.save();
-        return added;
     }
 
     public static int showChatWaypoint(double x, double y, double z) {
@@ -230,10 +178,26 @@ public final class WaypointManager {
             cleanSender = cleanSender.substring(0, MAX_NAME_LENGTH);
         }
 
-        chatWaypoint = new ChatWaypoint(BlockPos.containing(x, y, z), mc.level.dimension(), cleanSender);
-        nearSince = 0L;
+        addTemporary(x, y, z, cleanSender);
         ChatNotifier.send("§a[Waypoint] 已标记 | " + formatCoordMessage(x, y, z), NotificationType.SUCCESS);
         return 1;
+    }
+
+    public static void observeChat(String message) {
+        if (message == null || message.contains("[Waypoint]") || message.contains("[Route]")) return;
+        Coord coord = parseChat(message);
+        if (coord != null) addTemporary(coord.x(), coord.y(), coord.z(), "");
+    }
+
+    private static void addTemporary(double x, double y, double z, String sender) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || !isValidCoord(x, y, z)) return;
+        BlockPos pos = BlockPos.containing(x, y, z);
+        String key = mc.level.dimension().toString() + ":" + pos.asLong();
+        if (TEMP_WAYPOINTS.size() >= MAX_WAYPOINTS && !TEMP_WAYPOINTS.containsKey(key)) {
+            TEMP_WAYPOINTS.remove(TEMP_WAYPOINTS.keySet().iterator().next());
+        }
+        TEMP_WAYPOINTS.put(key, new ChatWaypoint(pos, mc.level.dimension(), sender));
     }
 
     public static Coord parseChat(String message) {
@@ -283,24 +247,23 @@ public final class WaypointManager {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) return;
 
-        List<IrcConfig.WaypointEntry> list = IrcConfig.get().waypoints;
-        if (list != null) {
+        {
             int count = 0;
-            for (IrcConfig.WaypointEntry entry : list) {
+            for (IrcConfig.WaypointEntry entry : SAVED_WAYPOINTS.values()) {
                 if (entry == null || !entry.enabled || !isValidCoord(entry.x, entry.y, entry.z)) continue;
                 if (++count > MAX_WAYPOINTS) break;
 
                 BlockPos pos = BlockPos.containing(entry.x, entry.y, entry.z);
-                Gizmos.cuboid(pos, FILL_STYLE).setAlwaysOnTop();
+                Gizmos.cuboid(pos, BLOCK_STYLE).setAlwaysOnTop();
                 if (entry.name != null && !entry.name.isBlank() && !EMPTY_NAME.equals(entry.name)) {
                     Gizmos.billboardTextOverBlock(entry.name, pos, 0, TEXT_COLOR, 1.0f);
                 }
             }
         }
 
-        ChatWaypoint waypoint = chatWaypoint;
-        if (waypoint != null && waypoint.dimension().equals(mc.level.dimension())) {
-            Gizmos.cuboid(waypoint.pos(), FILL_STYLE).setAlwaysOnTop();
+        for (ChatWaypoint waypoint : TEMP_WAYPOINTS.values()) {
+            if (!waypoint.dimension.equals(mc.level.dimension())) continue;
+            Gizmos.cuboid(waypoint.pos(), BLOCK_STYLE).setAlwaysOnTop();
             if (!waypoint.sender().isBlank()) {
                 Gizmos.billboardTextOverBlock(waypoint.sender(), waypoint.pos(), 0, TEXT_COLOR, 1.0f);
             }
@@ -308,50 +271,59 @@ public final class WaypointManager {
     }
 
     private static void extractBeam(LevelExtractionContext context) {
-        ChatWaypoint waypoint = chatWaypoint;
         Minecraft mc = Minecraft.getInstance();
-        if (waypoint == null || mc.level == null || !waypoint.dimension().equals(mc.level.dimension())) return;
-
-        BeaconRenderState state = new BeaconRenderState();
-        state.blockPos = waypoint.pos();
-        state.blockEntityType = BlockEntityType.BEACON;
-        state.lightCoords = LightCoordsUtil.FULL_BRIGHT;
-        state.animationTime = Math.floorMod(context.level().getGameTime(), 40)
-                + context.deltaTracker().getGameTimeDeltaPartialTick(true);
-        float distance = (float) context.camera().position().distanceTo(Vec3.atCenterOf(waypoint.pos()));
-        state.beamRadiusScale = Math.max(1.0f, distance / 96.0f);
-        state.sections.add(new BeaconRenderState.Section(BEAM_COLOR, BeaconRenderer.MAX_RENDER_Y));
-        context.levelState().blockEntityRenderStates.add(state);
+        if (mc.level == null) return;
+        for (ChatWaypoint waypoint : TEMP_WAYPOINTS.values()) {
+            if (!waypoint.dimension.equals(mc.level.dimension())) continue;
+            BeaconRenderState state = new BeaconRenderState();
+            state.blockPos = waypoint.pos();
+            state.blockEntityType = BlockEntityType.BEACON;
+            state.lightCoords = LightCoordsUtil.FULL_BRIGHT;
+            state.animationTime = Math.floorMod(context.level().getGameTime(), 40)
+                    + context.deltaTracker().getGameTimeDeltaPartialTick(true);
+            float distance = (float) context.camera().position().distanceTo(Vec3.atCenterOf(waypoint.pos()));
+            state.beamRadiusScale = Math.max(1.0f, distance / 96.0f);
+            state.sections.add(new BeaconRenderState.Section(BEAM_COLOR, BeaconRenderer.MAX_RENDER_Y));
+            context.levelState().blockEntityRenderStates.add(state);
+        }
     }
 
     private static void onTick(Minecraft mc) {
-        ChatWaypoint waypoint = chatWaypoint;
-        if (waypoint == null) return;
-        if (mc.level == null || mc.player == null || !waypoint.dimension().equals(mc.level.dimension())) {
-            chatWaypoint = null;
-            nearSince = 0L;
+        if (mc.level == null || mc.player == null) {
+            clearTemporary();
             return;
         }
-
-        if (mc.player.position().distanceToSqr(Vec3.atCenterOf(waypoint.pos())) > 36.0) {
-            nearSince = 0L;
-            return;
-        }
-
         long now = System.currentTimeMillis();
-        if (nearSince == 0L) {
-            nearSince = now;
-            return;
-        }
-        if (now - nearSince >= 3000L) {
-            chatWaypoint = null;
-            nearSince = 0L;
+        for (var iterator = TEMP_WAYPOINTS.values().iterator(); iterator.hasNext(); ) {
+            ChatWaypoint waypoint = iterator.next();
+            if (!waypoint.dimension.equals(mc.level.dimension())) {
+                iterator.remove();
+            } else if (mc.player.position().distanceToSqr(Vec3.atCenterOf(waypoint.pos())) > 36.0) {
+                waypoint.nearSince = 0L;
+            } else if (waypoint.nearSince == 0L) {
+                waypoint.nearSince = now;
+            } else if (now - waypoint.nearSince >= 3000L) {
+                iterator.remove();
+            }
         }
     }
 
     public record Coord(double x, double y, double z) {
     }
 
-    private record ChatWaypoint(BlockPos pos, ResourceKey<Level> dimension, String sender) {
+    private static final class ChatWaypoint {
+        private final BlockPos pos;
+        private final ResourceKey<Level> dimension;
+        private final String sender;
+        private long nearSince;
+
+        private ChatWaypoint(BlockPos pos, ResourceKey<Level> dimension, String sender) {
+            this.pos = pos;
+            this.dimension = dimension;
+            this.sender = sender;
+        }
+
+        private BlockPos pos() { return pos; }
+        private String sender() { return sender; }
     }
 }

@@ -1,5 +1,7 @@
 {
   "name": "kuudra_pearl_waypoints",
+  "visible": true,
+  "showLine": false,
   "waypoints": [
     {
       "name": "X - X",

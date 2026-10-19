@@ -51,15 +51,6 @@ public final class ConfigMigrator {
             jsonObj.remove("chatSuffixText");
         }
 
-        if (jsonObj.has("coordsShowLine")) {
-            JsonElement routeShowLineVal = jsonObj.get("coordsShowLine");
-            if (!jsonObj.has("routeShowLine")) {
-                jsonObj.add("routeShowLine", routeShowLineVal);
-                notifyMigration("coordsShowLine", "routeShowLine", routeShowLineVal);
-            }
-            jsonObj.remove("coordsShowLine");
-        }
-
         // 3. 移除已废弃字段
         removeDeprecatedField(jsonObj, "autoTrackPlayer");
         removeDeprecatedField(jsonObj, "scoreboardExternalInterop");
