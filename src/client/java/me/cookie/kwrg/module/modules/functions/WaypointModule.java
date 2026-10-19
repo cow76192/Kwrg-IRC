@@ -1,6 +1,7 @@
 package me.cookie.kwrg.module.modules.functions;
 
 import me.cookie.kwrg.gui.component.PanelItemComponent;
+import me.cookie.kwrg.gui.WaypointScreen;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
@@ -16,6 +17,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 
 import java.util.List;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 public class WaypointModule extends Module {
 
@@ -29,6 +32,12 @@ public class WaypointModule extends Module {
 
     @Override
     public void onExecute() {
+        WaypointScreen.open();
+    }
+
+    @Override
+    public PanelItemComponent createPanelItem(Consumer<PanelItemComponent> openTertiaryCallback) {
+        return new PanelItemComponent(getName(), getType(), (item, click) -> WaypointScreen.openFrom(item), openTertiaryCallback, this::isActive);
     }
 
     @Override
@@ -98,6 +107,10 @@ public class WaypointModule extends Module {
             String label = (entry.enabled ? "[显示] " : "[隐藏] ")
                     + "§f" + entry.name
                     + " §7(" + coords + ")";
+            BooleanSupplier shown = () -> {
+                List<IrcConfig.WaypointEntry> current = WaypointManager.savedEntries();
+                return entryIndex < current.size() && current.get(entryIndex).enabled;
+            };
 
             PanelItemComponent item = new PanelItemComponent(
                     label,
@@ -113,22 +126,25 @@ public class WaypointModule extends Module {
                                 renderUI(panel, null);
                             });
                         } else {
-                            this.editingIndex = entryIndex;
-                            this.currentName = entry.name;
-                            this.currentValues = new String[]{
-                                    WaypointManager.formatCoord(entry.x),
-                                    WaypointManager.formatCoord(entry.y),
-                                    WaypointManager.formatCoord(entry.z)
-                            };
-                            renderUI(panel, null);
+                            WaypointManager.toggleAt(entryIndex);
                         }
                     },
-                    btn -> WaypointManager.toggleAt(entryIndex),
-                    () -> entry.enabled
+                    btn -> {
+                        this.editingIndex = entryIndex;
+                        this.currentName = entry.name;
+                        this.currentValues = new String[]{
+                                WaypointManager.formatCoord(entry.x),
+                                WaypointManager.formatCoord(entry.y),
+                                WaypointManager.formatCoord(entry.z)
+                        };
+                        renderUI(panel, null);
+                    },
+                    shown
             );
             item.withStyledTitle(() -> {
-                MutableComponent title = Component.literal(entry.enabled ? "[显示] " : "[隐藏] ")
-                        .withStyle(style -> style.withColor(entry.enabled ? 0xFF55FF55 : 0xFFAAAAAA));
+                boolean visible = shown.getAsBoolean();
+                MutableComponent title = Component.literal(visible ? "[显示] " : "[隐藏] ")
+                        .withStyle(style -> style.withColor(visible ? 0xFF55FF55 : 0xFFAAAAAA));
                 title.append(Component.literal(entry.name).withStyle(ChatFormatting.WHITE));
                 title.append(Component.literal(" (" + coords + ")").withStyle(ChatFormatting.GRAY));
                 return FontManagerHelper.apply(title);

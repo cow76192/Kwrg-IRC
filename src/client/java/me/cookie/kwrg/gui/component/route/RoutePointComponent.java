@@ -5,7 +5,8 @@ import io.wispforest.owo.ui.core.OwoUIGraphics;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
-import me.cookie.kwrg.irc.manager.RouteManager;
+import me.cookie.kwrg.util.PointEntry;
+import me.cookie.kwrg.gui.PointCollectionStore;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.input.CharacterEvent;
@@ -19,7 +20,8 @@ import java.util.function.Consumer;
 public final class RoutePointComponent {
     public static final int HEIGHT = 40;
     private int index;
-    private final RouteManager.Entry entry;
+    private final PointCollectionStore store;
+    private final PointEntry entry;
     private final EditBox[] inputs = new EditBox[3];
     private final EditBox nameInput;
     private final float[] focusProgress = new float[4];
@@ -29,7 +31,7 @@ public final class RoutePointComponent {
     private long lastFrame = System.currentTimeMillis();
     private final RouteNodeAnimation appearance = new RouteNodeAnimation();
 
-    public RouteManager.Entry entry() { return entry; }
+    public PointEntry entry() { return entry; }
     public void setIndex(int index) { this.index = index; }
     public RouteButtonComponent deleteButton() { return deleteButton; }
     public void remove(long now) { blur(); appearance.remove(now); }
@@ -38,8 +40,9 @@ public final class RoutePointComponent {
     private boolean hideDeleteButton;
     public void hideDeleteButton(boolean hide) { hideDeleteButton = hide; }
 
-    public RoutePointComponent(int index, RouteManager.Entry entry, Runnable changed) {
+    public RoutePointComponent(int index, PointEntry entry, PointCollectionStore store, Runnable changed) {
         this.index = index;
+        this.store = store;
         this.entry = entry;
         nameInput = new EditBox(FontManagerHelper.getGuiInputFont(), 0, 0, 100, 16, Component.literal("点位名称"));
         nameInput.setBordered(false);
@@ -48,7 +51,7 @@ public final class RoutePointComponent {
         nameInput.setValue(entry.name);
         nameInput.setHint(Component.literal("点位名称"));
         nameInput.setResponder(value -> {
-            RouteManager.updateName(this.index, value);
+            entry.name = value;
             changed.run();
         });
         String[] values = {entry.x, entry.y, entry.z};
@@ -60,7 +63,7 @@ public final class RoutePointComponent {
             input.setMaxLength(24);
             input.setValue(values[axis]);
             input.onChanged = value -> {
-                RouteManager.updateCoordinate(this.index, currentAxis, value);
+                switch (currentAxis) { case 0 -> entry.x = value; case 1 -> entry.y = value; case 2 -> entry.z = value; }
                 changed.run();
             };
             inputs[axis] = input;
@@ -92,7 +95,7 @@ public final class RoutePointComponent {
         owo = RenderUtil.beginRowAppearance(owo, x, y, width, HEIGHT, appear);
         float step = (float) (1 - Math.exp(-(now - lastFrame) / 90.0));
         lastFrame = now;
-        boolean valid = RouteManager.valid(entry);
+        boolean valid = entry.valid();
         RenderUtil.drawSubpixelRoundedPanel(owo, x, y + 2, width, HEIGHT - 4, 7,
                 Color.ofArgb(valid ? 0xA0192431 : 0xB038242A), Color.ofArgb(valid ? 0x35394A5A : 0xAAAF5D65));
         RenderUtil.drawSmoothText(owo, Component.literal((index + 1) + "."), x + 6, y + 17, 0.72f, 0xFF81929F);
@@ -100,7 +103,7 @@ public final class RoutePointComponent {
             EditBox input = field(field);
             focusProgress[field] = AnimationUtil.lerp(step, focusProgress[field], input.isFocused() ? 1 : 0);
             Color line = AnimationUtil.lerpColor(focusProgress[field], Color.ofArgb(0xFF546979), Color.ofArgb(0xFF80D7FF));
-            RenderUtil.drawSmoothText(owo, Component.literal(field == 0 ? "名称" : "XYZ".substring(field - 1, field)), input.getX(), y + 5, 0.62f, 0xFF819BAF);
+            RenderUtil.drawSmoothText(owo, Component.literal(field == 0 ? entry.temporary ? "名称 · 临时" : "名称" : "XYZ".substring(field - 1, field)), input.getX(), y + 5, 0.62f, 0xFF819BAF);
             RenderUtil.fillSubpixel(owo, input.getX(), y + 32, input.getX() + input.getWidth(), y + 32.8f, line.argb());
             input.setTextColor(field == 0 ? (entry.visible ? 0xFFE0ECF4 : 0xFF81929F) : valid ? 0xFFECEFF1 : 0xFFFFB4BC);
             // EditBox does not apply its widget alpha to text; use the row's fading graphics.
@@ -116,7 +119,8 @@ public final class RoutePointComponent {
         if (click.button() != 0 || appearance.progress(System.currentTimeMillis()) < 0.95f) return false;
         if (visibleButton.contains(click.x(), click.y())) {
             visibleButton.press();
-            RouteManager.setEntryVisible(index, !entry.visible);
+            entry.visible = !entry.visible;
+            store.saveCurrent();
         } else if (deleteButton.contains(click.x(), click.y())) {
             deleteButton.press();
             return true;

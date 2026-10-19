@@ -1,5 +1,9 @@
 package me.cookie.kwrg.irc.manager;
 
+import me.cookie.kwrg.util.PointEntry;
+import me.cookie.kwrg.util.WaypointFiles;
+import me.cookie.kwrg.util.SkyblockLocation;
+
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -60,8 +64,22 @@ public final class WaypointManager {
         Map<String, IrcConfig.WaypointEntry> normalized = normalize(config.waypoints);
         SAVED_WAYPOINTS.clear();
         SAVED_WAYPOINTS.putAll(normalized);
-        config.waypoints = SAVED_WAYPOINTS;
+        WaypointFiles.initialize(normalized);
+        config.waypoints = new LinkedHashMap<>();
     }
+
+    public static void replaceSavedEntries(List<PointEntry> points) {
+        SAVED_WAYPOINTS.clear();
+        for (PointEntry point : points) {
+            if (point.temporary || !point.valid()) continue;
+            IrcConfig.WaypointEntry entry = new IrcConfig.WaypointEntry(sanitizeName(point.name), Double.parseDouble(point.x), Double.parseDouble(point.y), Double.parseDouble(point.z));
+            entry.enabled = point.visible;
+            SAVED_WAYPOINTS.put(point.id, entry);
+        }
+    }
+
+    public static List<PointEntry> temporaryEntries() { return TEMP_WAYPOINTS.values().stream().map(waypoint -> waypoint.entry).toList(); }
+    public static boolean removeTemporary(PointEntry entry) { return TEMP_WAYPOINTS.values().removeIf(waypoint -> waypoint.entry == entry); }
 
     private static Map<String, IrcConfig.WaypointEntry> normalize(Map<String, IrcConfig.WaypointEntry> input) {
         Map<String, IrcConfig.WaypointEntry> result = new LinkedHashMap<>();
@@ -85,6 +103,7 @@ public final class WaypointManager {
     }
 
     public static void init() {
+        SkyblockLocation.init();
         LevelRenderEvents.BEFORE_GIZMOS.register(context -> renderWaypoints());
         LevelRenderEvents.END_EXTRACTION.register(WaypointManager::extractBeam);
         ClientTickEvents.END_CLIENT_TICK.register(WaypointManager::onTick);
@@ -135,16 +154,14 @@ public final class WaypointManager {
             SAVED_WAYPOINTS.put(UUID.randomUUID().toString(), new IrcConfig.WaypointEntry(cleanName, x, y, z));
         }
 
-        IrcConfig.save();
-        return true;
+        return WaypointFiles.saveDefault(SAVED_WAYPOINTS);
     }
 
     public static boolean removeAt(int index) {
         List<String> keys = new ArrayList<>(SAVED_WAYPOINTS.keySet());
         if (index < 0 || index >= keys.size()) return false;
         SAVED_WAYPOINTS.remove(keys.get(index));
-        IrcConfig.save();
-        return true;
+        return WaypointFiles.saveDefault(SAVED_WAYPOINTS);
     }
 
     public static boolean toggleAt(int index) {
@@ -153,8 +170,7 @@ public final class WaypointManager {
         IrcConfig.WaypointEntry entry = SAVED_WAYPOINTS.get(keys.get(index));
         if (entry == null) return false;
         entry.enabled = !entry.enabled;
-        IrcConfig.save();
-        return true;
+        return WaypointFiles.saveDefault(SAVED_WAYPOINTS);
     }
 
     public static int showChatWaypoint(double x, double y, double z) {
@@ -247,13 +263,11 @@ public final class WaypointManager {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || mc.player == null) return;
 
-        {
-            int count = 0;
-            for (IrcConfig.WaypointEntry entry : SAVED_WAYPOINTS.values()) {
-                if (entry == null || !entry.enabled || !isValidCoord(entry.x, entry.y, entry.z)) continue;
-                if (++count > MAX_WAYPOINTS) break;
-
-                BlockPos pos = BlockPos.containing(entry.x, entry.y, entry.z);
+        for (WaypointFiles.Collection file : WaypointFiles.collections()) {
+            if (!file.activeIn(SkyblockLocation.island())) continue;
+            for (PointEntry entry : file.points) {
+                if (!entry.visible || !entry.valid()) continue;
+                BlockPos pos = entry.blockPos();
                 Gizmos.cuboid(pos, BLOCK_STYLE).setAlwaysOnTop();
                 if (entry.name != null && !entry.name.isBlank() && !EMPTY_NAME.equals(entry.name)) {
                     Gizmos.billboardTextOverBlock(entry.name, pos, 0, TEXT_COLOR, 1.0f);
@@ -261,8 +275,9 @@ public final class WaypointManager {
             }
         }
 
+        if (!defaultActive()) return;
         for (ChatWaypoint waypoint : TEMP_WAYPOINTS.values()) {
-            if (!waypoint.dimension.equals(mc.level.dimension())) continue;
+            if (!waypoint.dimension.equals(mc.level.dimension()) || !waypoint.entry.visible || !waypoint.entry.valid()) continue;
             Gizmos.cuboid(waypoint.pos(), BLOCK_STYLE).setAlwaysOnTop();
             if (!waypoint.sender().isBlank()) {
                 Gizmos.billboardTextOverBlock(waypoint.sender(), waypoint.pos(), 0, TEXT_COLOR, 1.0f);
@@ -272,9 +287,9 @@ public final class WaypointManager {
 
     private static void extractBeam(LevelExtractionContext context) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) return;
+        if (mc.level == null || !defaultActive()) return;
         for (ChatWaypoint waypoint : TEMP_WAYPOINTS.values()) {
-            if (!waypoint.dimension.equals(mc.level.dimension())) continue;
+            if (!waypoint.dimension.equals(mc.level.dimension()) || !waypoint.entry.visible || !waypoint.entry.valid()) continue;
             BeaconRenderState state = new BeaconRenderState();
             state.blockPos = waypoint.pos();
             state.blockEntityType = BlockEntityType.BEACON;
@@ -298,6 +313,8 @@ public final class WaypointManager {
             ChatWaypoint waypoint = iterator.next();
             if (!waypoint.dimension.equals(mc.level.dimension())) {
                 iterator.remove();
+            } else if (!waypoint.entry.valid()) {
+                waypoint.nearSince = 0L;
             } else if (mc.player.position().distanceToSqr(Vec3.atCenterOf(waypoint.pos())) > 36.0) {
                 waypoint.nearSince = 0L;
             } else if (waypoint.nearSince == 0L) {
@@ -311,19 +328,23 @@ public final class WaypointManager {
     public record Coord(double x, double y, double z) {
     }
 
+    private static boolean defaultActive() {
+        var defaults = WaypointFiles.collection(WaypointFiles.defaultFile());
+        return defaults != null && defaults.activeIn(SkyblockLocation.island());
+    }
+
     private static final class ChatWaypoint {
-        private final BlockPos pos;
+        private final PointEntry entry;
         private final ResourceKey<Level> dimension;
-        private final String sender;
         private long nearSince;
 
         private ChatWaypoint(BlockPos pos, ResourceKey<Level> dimension, String sender) {
-            this.pos = pos;
+            this.entry = new PointEntry(sender, String.valueOf(pos.getX()), String.valueOf(pos.getY()), String.valueOf(pos.getZ()));
+            this.entry.temporary = true;
             this.dimension = dimension;
-            this.sender = sender;
         }
 
-        private BlockPos pos() { return pos; }
-        private String sender() { return sender; }
+        private BlockPos pos() { return entry.blockPos(); }
+        private String sender() { return entry.name; }
     }
 }

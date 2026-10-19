@@ -340,14 +340,12 @@ public final class RenderUtil {
 
     public static void drawSmoothText(OwoUIGraphics graphics, Component text, float x, float y, float scale, int textColor) {
         Component styledText = text.copy().setStyle(text.getStyle().applyTo(FontManagerHelper.getGuiStyle()));
-
-        int softShadow = ARGB.color(55, 10, 15, 20);
-        graphics.drawText(styledText, x - 0.5f, y, scale, softShadow, OwoUIGraphics.TextAnchor.TOP_LEFT);
-        graphics.drawText(styledText, x + 0.5f, y, scale, softShadow, OwoUIGraphics.TextAnchor.TOP_LEFT);
-        graphics.drawText(styledText, x, y - 0.5f, scale, softShadow, OwoUIGraphics.TextAnchor.TOP_LEFT);
-        graphics.drawText(styledText, x, y + 0.5f, scale, softShadow, OwoUIGraphics.TextAnchor.TOP_LEFT);
-
-        graphics.drawText(styledText, x, y, scale, textColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
+        // Keep fractional positions in the pose instead of rounding each offset text pass.
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(x, y);
+        graphics.pose().scale(scale, scale);
+        graphics.text(Minecraft.getInstance().font, styledText, 0, 0, textColor, false);
+        graphics.pose().popMatrix();
     }
 
     public static void drawSmoothText(OwoUIGraphics graphics, String text, float x, float y, int color) {

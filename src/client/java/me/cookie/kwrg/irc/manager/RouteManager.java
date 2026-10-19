@@ -1,5 +1,7 @@
 package me.cookie.kwrg.irc.manager;
 
+import me.cookie.kwrg.util.PointEntry;
+
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -53,19 +55,17 @@ public final class RouteManager {
     }
 
     public static void init() {
-        migrateLegacyDir();
-        seedDefaultRoute();
-        reloadFromConfig();
         LevelRenderEvents.BEFORE_GIZMOS.register(context -> render());
     }
 
     public static void reloadFromConfig() {
+        migrateLegacyDir();
+        seedDefaultRoute();
         String savedName = IrcConfig.get().currentRouteFileName;
         if (savedName != null && !savedName.isBlank()) {
             Path savedFile = getDir().resolve(savedName).normalize();
             if (savedFile.getParent().equals(getDir().normalize()) && Files.isRegularFile(savedFile)) {
-                importFile(savedFile);
-                return;
+                if (loadFile(savedFile, false)) return;
             }
         }
         ENTRIES.clear();
@@ -74,7 +74,6 @@ public final class RouteManager {
         showLine = false;
         if (savedName != null && !savedName.isBlank()) {
             IrcConfig.get().currentRouteFileName = "";
-            IrcConfig.save();
         }
     }
 
@@ -333,9 +332,15 @@ public final class RouteManager {
     }
 
     public static boolean importFile(Path path) {
+        return loadFile(path, true);
+    }
+
+    /** Restore during config loading without saving the profile or showing import notifications. */
+    private static boolean loadFile(Path path, boolean interactive) {
         String text = readFile(path);
         if (text == null) {
-            ChatNotifier.send("§c[Route] 读取失败 | " + fileName(path), NotificationType.ERR);
+            if (interactive) ChatNotifier.send("§c[Route] 读取失败 | " + fileName(path), NotificationType.ERR);
+            else LOGGER.warn("[Route] 恢复路线失败: {}", path);
             return false;
         }
 
@@ -347,9 +352,12 @@ public final class RouteManager {
         if (json) readSettings(text);
         currentFile = json ? path : getDir().resolve(baseName(path) + ".json");
         if (!json && !saveCurrent()) return false;
+        boolean selectionChanged = !currentFileName().equals(IrcConfig.get().currentRouteFileName);
         IrcConfig.get().currentRouteFileName = currentFileName();
-        IrcConfig.save();
-        ChatNotifier.send("§a[Route] 已导入 | " + fileName(path) + " (" + ENTRIES.size() + " 条)", NotificationType.SUCCESS);
+        if (interactive) {
+            if (selectionChanged) IrcConfig.save();
+            ChatNotifier.send("§a[Route] 已导入 | " + fileName(path) + " (" + ENTRIES.size() + " 条)", NotificationType.SUCCESS);
+        }
         return true;
     }
 
@@ -744,18 +752,7 @@ public final class RouteManager {
         return text == null ? "" : text.replace(",", " ").replace("[", "").replace("]", "").trim();
     }
 
-    public static final class Entry {
-        public String name;
-        public String x;
-        public String y;
-        public String z;
-        public boolean visible = true;
-
-        public Entry(String name, String x, String y, String z) {
-            this.name = name != null ? name : "";
-            this.x = x != null ? x : "";
-            this.y = y != null ? y : "";
-            this.z = z != null ? z : "";
-        }
+    public static final class Entry extends PointEntry {
+        public Entry(String name, String x, String y, String z) { super(name, x, y, z); }
     }
 }
