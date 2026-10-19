@@ -61,6 +61,7 @@ public final class ConfigMigrator {
         migrateIslandToggle(jsonObj);
         migrateTabOpacity(jsonObj);
         migrateElementAppearance(jsonObj);
+        migrateHideArmorParts(jsonObj);
 
         // 5. 校验未知字段
         checkUnknownFields(jsonObj);
@@ -136,6 +137,17 @@ public final class ConfigMigrator {
         if (hadLegacyShadow) {
             writeElementPrimitive(jsonObj, "scoreboard", "shadow", legacyShadow);
             notifyMigration("isShadowEnabled", "hudElements.scoreboard.shadow", legacyShadow);
+        }
+    }
+
+    private static void migrateHideArmorParts(JsonObject jsonObj) {
+        if (!isLegacyTrue(jsonObj, "hideArmor")) return;
+
+        String[] partKeys = {"hideArmorHead", "hideArmorChest", "hideArmorLegs", "hideArmorFeet"};
+        for (String partKey : partKeys) {
+            if (jsonObj.has(partKey)) continue;
+            jsonObj.addProperty(partKey, true);
+            notifyMigration("hideArmor", partKey, true);
         }
     }
 

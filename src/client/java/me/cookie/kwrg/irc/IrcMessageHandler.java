@@ -2,6 +2,7 @@ package me.cookie.kwrg.irc;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonElement;
 import me.cookie.kwrg.irc.manager.HideArmorManager;
 import me.cookie.kwrg.irc.manager.IrcGlowManager;
 import me.cookie.kwrg.module.modules.style.ChatModule;
@@ -9,8 +10,12 @@ import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.*;
+import net.minecraft.world.entity.EquipmentSlot;
 
 import java.util.Objects;
+import java.util.EnumSet;
+import java.util.Locale;
+import java.util.Set;
 
 public class IrcMessageHandler {
 
@@ -83,10 +88,38 @@ public class IrcMessageHandler {
             if ("function_sync".equalsIgnoreCase(type)) {
                 String function = obj.has("function") ? obj.get("function").getAsString() : "";
                 String user = obj.has("username") ? obj.get("username").getAsString() : "";
-                boolean enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
-
                 if ("hideArmor".equalsIgnoreCase(function)) {
-                    HideArmorManager.setPlayerHideArmor(user, enabled);
+                    if (!obj.has("parts")) {
+                        boolean enabled = !obj.has("enabled") || obj.get("enabled").getAsBoolean();
+                        HideArmorManager.setRemotePlayerHideArmor(user, enabled);
+                        return;
+                    }
+                    if (!obj.get("parts").isJsonArray()) return;
+                    Set<EquipmentSlot> parts = EnumSet.noneOf(EquipmentSlot.class);
+                    for (JsonElement part : obj.getAsJsonArray("parts")) {
+                        if (!part.isJsonPrimitive() || !part.getAsJsonPrimitive().isString()) continue;
+                        EquipmentSlot slot = switch (part.getAsString().toLowerCase(Locale.ROOT)) {
+                            case "head" -> EquipmentSlot.HEAD;
+                            case "chest" -> EquipmentSlot.CHEST;
+                            case "legs" -> EquipmentSlot.LEGS;
+                            case "feet" -> EquipmentSlot.FEET;
+                            default -> null;
+                        };
+                        if (slot != null) parts.add(slot);
+                    }
+                    HideArmorManager.setRemotePlayerHideArmor(user, parts);
+                } else if ("hideArmorHead".equalsIgnoreCase(function)
+                        || "hideArmorChest".equalsIgnoreCase(function)
+                        || "hideArmorLegs".equalsIgnoreCase(function)
+                        || "hideArmorFeet".equalsIgnoreCase(function)) {
+                    EquipmentSlot slot = switch (function.toLowerCase(Locale.ROOT)) {
+                        case "hidearmorhead" -> EquipmentSlot.HEAD;
+                        case "hidearmorchest" -> EquipmentSlot.CHEST;
+                        case "hidearmorlegs" -> EquipmentSlot.LEGS;
+                        default -> EquipmentSlot.FEET;
+                    };
+                    boolean enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
+                    HideArmorManager.setRemotePlayerHideArmor(user, slot, enabled);
                 } else if ("modelScale".equalsIgnoreCase(function)) {
                     float scale = obj.has("scale") ? obj.get("scale").getAsFloat() : 1.0f;
                     me.cookie.kwrg.irc.manager.PlayerCustomizationManager.setRemotePlayerScale(user, scale);
@@ -98,7 +131,7 @@ public class IrcMessageHandler {
                 String user = obj.has("username") ? obj.get("username").getAsString() : "Unknown";
                 String rank = obj.has("rank") ? obj.get("rank").getAsString() : "";
                 String formattedRank = formatRankWithBrackets(rank);
-                IrcClient.sendFunctionSync("hideArmor", IrcConfig.get().hideArmor);
+                IrcClient.sendHideArmorSync();
                 me.cookie.kwrg.irc.manager.IrcGlowManager.addPlayer(user);
                 IrcMessageHandler.printMessage("§e[IRC] " + (formattedRank.isEmpty() ? "" : formattedRank + " ") + "§f" + user + " §a加入了 IRC!");
                 return;

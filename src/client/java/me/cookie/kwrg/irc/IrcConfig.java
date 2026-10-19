@@ -38,6 +38,10 @@ public class IrcConfig {
     public String namestyle = "";
     public String chatstyle = "";
     public boolean hideArmor = false;
+    public boolean hideArmorHead = false;
+    public boolean hideArmorChest = false;
+    public boolean hideArmorLegs = false;
+    public boolean hideArmorFeet = false;
     public boolean glowEnabled = true;
     public String glowColor = "#00FF88";
     public List<String> importantPlayers = new ArrayList<>();

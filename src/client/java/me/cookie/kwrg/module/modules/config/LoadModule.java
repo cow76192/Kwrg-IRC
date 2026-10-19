@@ -2,12 +2,15 @@ package me.cookie.kwrg.module.modules.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.pane.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcConfig;
+import me.cookie.kwrg.irc.ConfigMigrator;
 import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -124,7 +127,9 @@ public class LoadModule extends Module {
             }
 
             try {
-                IrcConfig parsed = GSON.fromJson(clipboard.trim(), IrcConfig.class);
+                JsonObject rawConfig = JsonParser.parseString(clipboard.trim()).getAsJsonObject();
+                ConfigMigrator.migrate(rawConfig);
+                IrcConfig parsed = GSON.fromJson(rawConfig, IrcConfig.class);
                 if (parsed == null || parsed.glowColor == null) {
                     throw new IllegalArgumentException("配置缺少关键字段");
                 }

@@ -1,6 +1,7 @@
 package me.cookie.kwrg.irc;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.manager.HideArmorManager;
@@ -8,6 +9,7 @@ import me.cookie.kwrg.irc.manager.IrcGlowManager;
 import me.cookie.kwrg.module.modules.functions.ChatSuffixModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.entity.EquipmentSlot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -136,7 +138,7 @@ public class IrcClient {
                 joinJson.addProperty("rank", IrcConfig.get().rank);
                 sendRaw(GSON.toJson(joinJson));
 
-                sendFunctionSync("hideArmor", IrcConfig.get().hideArmor);
+                sendHideArmorSync();
                 sendScaleSync(IrcConfig.get().myScale);
                 me.cookie.kwrg.irc.manager.IrcCapeManager.syncMyCape();
                 sendChannelSync(IrcConfig.get().currentChannel, IrcConfig.get().channelEnabled, IrcConfig.get().savedChannels);
@@ -406,6 +408,30 @@ public class IrcClient {
         json.addProperty("username", username);
         json.addProperty("enabled", enabled);
 
+        sendRaw(GSON.toJson(json));
+    }
+
+    public static void sendHideArmorSync() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getUser() == null) return;
+
+        IrcConfig config = IrcConfig.get();
+        JsonArray parts = new JsonArray();
+        if (config.hideArmor) {
+            for (EquipmentSlot slot : List.of(EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET)) {
+                if (HideArmorManager.isPartHidden(slot)) {
+                    parts.add(slot.getName());
+                }
+            }
+        }
+
+        JsonObject json = new JsonObject();
+        json.addProperty("type", "function_sync");
+        json.addProperty("function", "hideArmor");
+        json.addProperty("senderId", currentSenderId());
+        json.addProperty("username", mc.getUser().getName());
+        json.addProperty("enabled", config.hideArmor && !parts.isEmpty());
+        json.add("parts", parts);
         sendRaw(GSON.toJson(json));
     }
 
