@@ -463,8 +463,9 @@ public final class RouteManager {
         }
         int index = Math.max(1, Math.min(position, ENTRIES.size() + 1)) - 1;
         ENTRIES.add(index, new Entry(name, x, y, z));
-        saveCurrent();
-        return index;
+        if (saveCurrent()) return index;
+        ENTRIES.remove(index);
+        return -1;
     }
 
     public static int addEmpty(int position) {

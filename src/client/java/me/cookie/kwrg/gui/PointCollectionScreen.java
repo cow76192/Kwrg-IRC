@@ -349,7 +349,9 @@ public abstract class PointCollectionScreen {
             if (click.button() == 0 && addButton.contains(click.x(), click.y())) {
                 if (!flush()) return;
                 addButton.press();
+                int previousSize = store.entries().size();
                 store.addEmpty(points.size() + 1);
+                if (store.entries().size() == previousSize) return;
                 markDirty();
                 rebuildPoints();
                 pointScroll = Math.max(0, points.size() * RoutePointComponent.HEIGHT - contentH);
@@ -430,7 +432,10 @@ public abstract class PointCollectionScreen {
                     }
                 } else {
                     row.surface.press();
-                    if (!store.supportsLines()) store.setEnabled(row.path, !store.enabled(row.path));
+                    if (!store.supportsLines() && !store.setEnabled(row.path, !store.enabled(row.path))) {
+                        ChatNotifier.send("§c[Waypoint] 启用状态保存失败，已恢复原状态 | " + row.path.getFileName(), NotificationType.ERR);
+                        return;
+                    }
                     if (store.importFile(row.path)) { rebuildPoints(); refreshFiles(); }
                 }
             }

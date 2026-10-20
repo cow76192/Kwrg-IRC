@@ -34,7 +34,7 @@ public interface PointCollectionStore {
     default boolean protectedFile(Path path) { return false; }
     default boolean enabled(Path path) { return fileOptions(path).enabled(); }
     default boolean active(Path path) { return supportsLines() ? path.equals(currentFile()) : enabled(path); }
-    default void setEnabled(Path path, boolean enabled) {}
+    default boolean setEnabled(Path path, boolean enabled) { return false; }
     default Set<String> regions(Path path) { return Set.of("all"); }
     default void setRegions(Path path, Set<String> regions) {}
     default void importExternal(Path path) throws Exception {}

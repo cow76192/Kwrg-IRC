@@ -32,7 +32,15 @@ final class WaypointCollectionStore implements PointCollectionStore {
     public boolean deleteAt(int index) { return WaypointFiles.deleteAt(index); }
     public boolean externalFile(Path path) { return WaypointFiles.external(path); }
     public boolean protectedFile(Path path) { return WaypointFiles.isDefault(path); }
-    public void setEnabled(Path path, boolean enabled) { var file = WaypointFiles.collection(path); if (file != null) { file.enabled = enabled; WaypointFiles.save(path); } }
+    public boolean setEnabled(Path path, boolean enabled) {
+        var file = WaypointFiles.collection(path);
+        if (file == null) return false;
+        boolean previous = file.enabled;
+        file.enabled = enabled;
+        if (WaypointFiles.save(path)) return true;
+        file.enabled = previous;
+        return false;
+    }
     public Set<String> regions(Path path) { return Set.copyOf(WaypointFiles.collection(path).regions); }
     public void setRegions(Path path, Set<String> regions) { var file = WaypointFiles.collection(path); file.regions.clear(); file.regions.addAll(regions); WaypointFiles.save(path); }
     public void importExternal(Path path) throws Exception { WaypointFiles.importRoute(path); }
