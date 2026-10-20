@@ -48,6 +48,8 @@ public final class RouteManager {
 
     private static final List<Entry> ENTRIES = new CopyOnWriteArrayList<>();
     private static Path currentFile = null;
+    private static String loadedContent;
+    private static boolean conflictReported;
     private static boolean visible = true;
     private static boolean showLine = false;
 
@@ -70,6 +72,8 @@ public final class RouteManager {
         }
         ENTRIES.clear();
         currentFile = null;
+        loadedContent = null;
+        conflictReported = false;
         visible = true;
         showLine = false;
         if (savedName != null && !savedName.isBlank()) {
@@ -199,6 +203,9 @@ public final class RouteManager {
         Path target = directory.resolve(clean + (isJson(file) ? ".json" : ".txt"));
         String content = readFile(file);
         if (content == null) throw new IOException("无法读取路线文件");
+        if (file.equals(currentFile) && !java.util.Objects.equals(content, loadedContent)) {
+            throw new IOException("路线文件已被外部修改，请先重新加载再改名");
+        }
         if (isJson(file)) {
             JsonElement parsed = JsonParser.parseString(content);
             JsonObject root;
@@ -223,6 +230,8 @@ public final class RouteManager {
         }
         if (file.equals(currentFile)) {
             currentFile = target;
+            loadedContent = content;
+            conflictReported = false;
             IrcConfig.get().currentRouteFileName = currentFileName();
             IrcConfig.save();
         }
@@ -371,7 +380,9 @@ public final class RouteManager {
         visible = loadedVisible;
         showLine = loadedShowLine;
         currentFile = json ? path : getDir().resolve(baseName(path) + ".json");
-        if (!json && !saveCurrent()) return false;
+        loadedContent = json ? text : readFile(currentFile);
+        conflictReported = false;
+        if (!json && !saveCurrent(interactive)) return false;
         boolean selectionChanged = !currentFileName().equals(IrcConfig.get().currentRouteFileName);
         IrcConfig.get().currentRouteFileName = currentFileName();
         if (interactive) {
@@ -384,6 +395,8 @@ public final class RouteManager {
     public static void clear() {
         ENTRIES.clear();
         currentFile = null;
+        loadedContent = null;
+        conflictReported = false;
         IrcConfig.get().currentRouteFileName = "";
         IrcConfig.save();
     }
@@ -411,13 +424,34 @@ public final class RouteManager {
     }
 
     public static boolean saveCurrent() {
+        return saveCurrent(true);
+    }
+
+    private static boolean saveCurrent(boolean notify) {
         if (currentFile == null) return false;
+        String diskContent = readFile(currentFile);
+        if (!java.util.Objects.equals(diskContent, loadedContent)) {
+            if (!conflictReported) {
+                LOGGER.warn("[Route] 路线文件已被外部修改，停止保存并保留内存编辑: {}", currentFile);
+                if (notify) ChatNotifier.send("§c[Route] 文件已被外部修改，保存已停止 | " + currentFileName() + "，请处理未保存的编辑后重新加载路线", NotificationType.ERR);
+                conflictReported = true;
+            }
+            return false;
+        }
+        if (diskContent == null && Files.exists(currentFile)) {
+            if (notify) ChatNotifier.send("§c[Route] 无法读取文件，保存已停止 | " + currentFileName(), NotificationType.ERR);
+            return false;
+        }
         try {
-            Files.createDirectories(getDir());
-            Files.writeString(currentFile, formatJson());
+            Files.createDirectories(currentFile.toAbsolutePath().getParent());
+            String content = formatJson();
+            Files.writeString(currentFile, content);
+            loadedContent = content;
+            conflictReported = false;
             return true;
         } catch (IOException e) {
-            ChatNotifier.send("§c[Route] 保存失败 | " + currentFileName(), NotificationType.ERR);
+            LOGGER.warn("[Route] 保存失败: {}", currentFile, e);
+            if (notify) ChatNotifier.send("§c[Route] 保存失败 | " + currentFileName(), NotificationType.ERR);
             return false;
         }
     }
