@@ -28,7 +28,7 @@ public final class RenderUtil {
 
     public static void drawScrollThumb(OwoUIGraphics graphics, int x, int y, int height, int contentHeight, int scroll, Color color) {
         if (contentHeight <= height || height <= 0) return;
-        float thumbHeight = Math.max(14, (float) height * height / contentHeight);
+        float thumbHeight = me.cookie.kwrg.gui.component.ScrollbarDrag.thumbHeight(height, contentHeight, 14);
         float top = y + (height - thumbHeight) * scroll / Math.max(1, contentHeight - height);
         drawSubpixelRoundedPanel(graphics, x, top, 2, thumbHeight, 1, color, Color.ofArgb(0));
     }

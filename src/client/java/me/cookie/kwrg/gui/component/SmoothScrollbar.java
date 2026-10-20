@@ -14,9 +14,7 @@ public class SmoothScrollbar {
     private float maxScroll = 0.0f;
     private int totalContentHeight = 0;
 
-    private boolean isDragging = false;
-    private double dragStartMouseY = 0.0;
-    private float dragStartScroll = 0.0f;
+    private final ScrollbarDrag drag = new ScrollbarDrag();
 
     private float fadeAlpha = 0.0f;
     private float hoverAnimation = 0.0f;
@@ -33,7 +31,8 @@ public class SmoothScrollbar {
         this.maxScroll = Math.max(0.0f, totalContentHeight - viewportHeight + 10);
         this.targetScrollOffset = Mth.clamp(this.targetScrollOffset, 0.0f, this.maxScroll);
 
-        if (!this.isDragging) {
+        if (this.maxScroll <= 0) drag.cancel();
+        if (!drag.dragging()) {
             this.scrollOffset = Mth.lerp(delta * 0.28f, this.scrollOffset, this.targetScrollOffset);
             if (Math.abs(this.targetScrollOffset - this.scrollOffset) < 0.05f) {
                 this.scrollOffset = this.targetScrollOffset;
@@ -69,7 +68,7 @@ public class SmoothScrollbar {
         this.lastThumbH = thumbH;
 
         boolean isHovered = mouseX >= scrollbarX - 6 && mouseX <= scrollbarX + 8 && mouseY >= thumbY - 2 && mouseY <= thumbY + thumbH + 2;
-        float targetHover = (isHovered || this.isDragging) ? 1.0f : 0.0f;
+        float targetHover = (isHovered || drag.dragging()) ? 1.0f : 0.0f;
         this.hoverAnimation = Mth.clamp(this.hoverAnimation + (targetHover - this.hoverAnimation) * delta * 0.35f, 0.0f, 1.0f);
 
         int alpha = (int) (255 * (0.45f + this.hoverAnimation * 0.40f) * this.fadeAlpha * panelAlpha);
@@ -90,48 +89,22 @@ public class SmoothScrollbar {
     }
 
     public boolean handleMouseDown(MouseButtonEvent click) {
-        if (click.button() == 0 && this.maxScroll > 0 && this.fadeAlpha > 0.1f) {
-            if (click.x() >= this.lastScrollbarX - 6 && click.x() <= this.lastScrollbarX + 8
-                    && click.y() >= this.lastThumbY - 2 && click.y() <= this.lastThumbY + this.lastThumbH + 2) {
-
-                this.isDragging = true;
-                this.dragStartMouseY = click.y();
-                this.dragStartScroll = this.scrollOffset;
-                return true;
-            } else if (click.x() >= this.lastScrollbarX - 6 && click.x() <= this.lastScrollbarX + 8
-                    && click.y() >= this.lastTrackY && click.y() <= this.lastTrackY + this.lastTrackH) {
-
-                float ratio = (float) (click.y() - this.lastTrackY) / this.lastTrackH;
-                this.targetScrollOffset = Mth.clamp(ratio * this.maxScroll, 0.0f, this.maxScroll);
-                this.scrollOffset = this.targetScrollOffset;
-                this.isDragging = true;
-                this.dragStartMouseY = click.y();
-                this.dragStartScroll = this.scrollOffset;
-                return true;
-            }
-        }
-        return false;
+        if (fadeAlpha <= 0.1f || !drag.begin(click, lastScrollbarX, lastTrackY, lastTrackH, lastThumbH, scrollOffset, maxScroll)) return false;
+        scrollOffset = targetScrollOffset = drag.scroll();
+        return true;
     }
 
     public boolean handleMouseDrag(MouseButtonEvent click, double deltaX, double deltaY) {
-        if (this.isDragging && this.maxScroll > 0) {
-            double dy = click.y() - this.dragStartMouseY;
-            int availableTrack = this.lastTrackH - this.lastThumbH;
-            if (availableTrack > 0) {
-                float scrollDelta = (float) (dy / availableTrack * this.maxScroll);
-                this.targetScrollOffset = Mth.clamp(this.dragStartScroll + scrollDelta, 0.0f, this.maxScroll);
-                this.scrollOffset = this.targetScrollOffset;
-            }
-            return true;
-        }
-        return false;
+        if (!drag.drag(click, lastTrackH, lastThumbH, maxScroll)) return false;
+        scrollOffset = targetScrollOffset = drag.scroll();
+        return true;
     }
 
     public void handleMouseUp(MouseButtonEvent click) {
-        if (click.button() == 0) {
-            this.isDragging = false;
-        }
+        drag.release(click);
     }
+
+    public void cancelDrag() { drag.cancel(); }
 
     public float getScrollOffset() {
         return this.scrollOffset;
