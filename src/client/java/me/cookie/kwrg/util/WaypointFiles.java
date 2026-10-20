@@ -66,9 +66,17 @@ public final class WaypointFiles {
         ensure();
         try (var stream = Files.list(getDir())) {
             List<Path> paths = stream.filter(WaypointFiles::isJson).sorted(Comparator.comparing(path -> path.getFileName().toString().toLowerCase(Locale.ROOT))).toList();
-            FILES.keySet().retainAll(paths);
-            for (Path path : paths) if (!FILES.containsKey(path)) {
-                try { FILES.put(path, read(path)); }
+            FILES.entrySet().removeIf(item -> !paths.contains(item.getKey()) && !item.getValue().hasUnsavedChanges());
+            for (Path path : paths) {
+                try {
+                    Collection cached = FILES.get(path);
+                    // Keep the objects referenced by live input boxes until their edits are saved.
+                    if (cached != null && cached.hasUnsavedChanges()) continue;
+                    String text = readText(path);
+                    if (cached != null && text.equals(cached.diskContent)) continue;
+                    FILES.put(path, loaded(path, text));
+                    if (isDefault(path)) syncDefault();
+                }
                 catch (Exception e) { LoggerFactory.getLogger(WaypointFiles.class).warn("无法加载点位文件 {}", path, e); }
             }
         } catch (IOException e) { LoggerFactory.getLogger(WaypointFiles.class).warn("无法读取点位目录", e); }
@@ -242,8 +250,10 @@ public final class WaypointFiles {
     }
 
     public static WaypointRouteUpdate prepareUpdate(Path route) throws IOException {
+        refresh();
         Path target = importedFile(route);
         if (target == null) throw new IllegalArgumentException("该路线尚未导入");
+        if (FILES.get(target).hasUnsavedChanges()) throw new IOException("点位集有未保存的编辑，请先保存后再更新");
         Collection latest = read(target);
         if (!latest.sourceRoute.isEmpty() && !latest.sourceRoute.equalsIgnoreCase(route.getFileName().toString())) throw new IOException("来源关联已变化，请重新加载列表");
         FILES.put(target, latest);
@@ -268,8 +278,18 @@ public final class WaypointFiles {
     }
 
     static Collection read(Path path) throws IOException {
+        return loaded(path, readText(path));
+    }
+
+    private static String readText(Path path) throws IOException {
         if (Files.size(path) > 2 * 1024 * 1024) throw new IOException("点位文件过大");
-        return parse(path, Files.readString(path));
+        return Files.readString(path);
+    }
+
+    private static Collection loaded(Path path, String text) throws IOException {
+        Collection file = parse(path, text);
+        file.rememberSaved(path, text);
+        return file;
     }
 
     static Collection parse(Path path, String text) throws IOException {
@@ -317,6 +337,22 @@ public final class WaypointFiles {
     }
 
     static void write(Path path, Collection file) throws IOException {
+        // Do not overwrite external edits made since this collection was loaded/saved.
+        if (path.equals(file.savedPath) && (!Files.exists(path) || !readText(path).equals(file.diskContent))) {
+            throw new IOException("点位文件已被外部修改，未保存的编辑已保留，请先处理文件冲突");
+        }
+        String text = serialize(file);
+        Files.createDirectories(path.getParent());
+        Path temp = Files.createTempFile(path.getParent(), ".waypoint-", ".tmp");
+        try {
+            Files.writeString(temp, text);
+            try { Files.move(temp, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING); }
+            catch (AtomicMoveNotSupportedException e) { Files.move(temp, path, StandardCopyOption.REPLACE_EXISTING); }
+            file.rememberSaved(path, text);
+        } finally { Files.deleteIfExists(temp); }
+    }
+
+    private static String serialize(Collection file) {
         JsonObject root = new JsonObject();
         root.addProperty("name", file.name); root.addProperty("enabled", file.enabled); root.addProperty("visible", file.visible);
         root.add("regions", GSON.toJsonTree(file.regions));
@@ -326,19 +362,15 @@ public final class WaypointFiles {
             root.add("sourceNodes", GSON.toJsonTree(file.sourceNodes));
         }
         root.add("waypoints", GSON.toJsonTree(file.points.stream().filter(point -> !point.temporary).toList()));
-        Files.createDirectories(path.getParent());
-        Path temp = Files.createTempFile(path.getParent(), ".waypoint-", ".tmp");
-        try {
-            Files.writeString(temp, GSON.toJson(root));
-            try { Files.move(temp, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING); }
-            catch (AtomicMoveNotSupportedException e) { Files.move(temp, path, StandardCopyOption.REPLACE_EXISTING); }
-        } finally { Files.deleteIfExists(temp); }
+        return GSON.toJson(root);
     }
 
     private static boolean isJson(Path path) { return Files.isRegularFile(path) && path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".json"); }
     private static String stem(Path path) { return path.getFileName().toString().replaceFirst("(?i)\\.json$", ""); }
 
     public static final class Collection {
+        private transient Path savedPath;
+        private transient String diskContent, savedState;
         public String name;
         public boolean enabled = true, visible = true;
         public final Set<String> regions = new LinkedHashSet<>(Set.of("all"));
@@ -347,6 +379,12 @@ public final class WaypointFiles {
         public String sourceRoute = "";
         public final List<WaypointRouteUpdate.SourceNode> sourceNodes = new ArrayList<>();
         public Collection(String name) { this.name = name; }
+        private boolean hasUnsavedChanges() { return savedState != null && !savedState.equals(serialize(this)); }
+        private void rememberSaved(Path path, String text) {
+            savedPath = path;
+            diskContent = text;
+            savedState = serialize(this);
+        }
         public boolean activeIn(String island) { return enabled && visible && (regions.contains("all") || !island.isEmpty() && regions.contains(island)); }
     }
 }

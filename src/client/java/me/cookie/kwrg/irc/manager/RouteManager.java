@@ -78,9 +78,12 @@ public final class RouteManager {
     }
 
     private static void seedDefaultRoute() {
-        Path dir = getDir();
-        if (Files.exists(dir)) return;
+        seedDefaultRoute(getDir());
+    }
+
+    private static void seedDefaultRoute(Path dir) {
         Path target = dir.resolve(DEFAULT_ROUTE);
+        if (Files.exists(target)) return;
         try {
             Files.createDirectories(dir);
             if (!Files.exists(target)) {
@@ -345,11 +348,28 @@ public final class RouteManager {
         }
 
         boolean json = isJson(path);
+        List<Entry> loaded;
+        boolean loadedVisible = true;
+        boolean loadedShowLine = false;
+        try {
+            loaded = json ? parseJson(text) : parseTxt(text);
+            if (json) {
+                JsonElement parsed = JsonParser.parseString(text);
+                if (parsed.isJsonObject()) {
+                    JsonObject root = parsed.getAsJsonObject();
+                    loadedVisible = !root.has("visible") || root.get("visible").getAsBoolean();
+                    loadedShowLine = root.has("showLine") && root.get("showLine").getAsBoolean();
+                }
+            }
+        } catch (RuntimeException e) {
+            LOGGER.warn("[Route] 路线格式无效: {}", path, e);
+            if (interactive) ChatNotifier.send("§c[Route] 路线 JSON 格式无效 | " + fileName(path), NotificationType.ERR);
+            return false;
+        }
         ENTRIES.clear();
-        ENTRIES.addAll(json ? parseJson(text) : parseTxt(text));
-        visible = true;
-        showLine = false;
-        if (json) readSettings(text);
+        ENTRIES.addAll(loaded);
+        visible = loadedVisible;
+        showLine = loadedShowLine;
         currentFile = json ? path : getDir().resolve(baseName(path) + ".json");
         if (!json && !saveCurrent()) return false;
         boolean selectionChanged = !currentFileName().equals(IrcConfig.get().currentRouteFileName);
@@ -538,48 +558,30 @@ public final class RouteManager {
 
     private static List<Entry> parseJson(String text) {
         List<Entry> result = new ArrayList<>();
-        if (text == null || text.isBlank()) return result;
+        JsonElement root = JsonParser.parseString(text);
+        if (root.isJsonArray()) {
+            readWaypoints(root.getAsJsonArray(), result, "");
+            return result;
+        }
+        if (!root.isJsonObject()) throw new IllegalArgumentException("路线 JSON 须为对象或数组");
 
-        try {
-            JsonElement root = JsonParser.parseString(text);
-            if (root.isJsonArray()) {
-                readWaypoints(root.getAsJsonArray(), result, "");
-                return result;
-            }
-            if (!root.isJsonObject()) return result;
-
-            JsonObject object = root.getAsJsonObject();
-            if (object.has("areas") && object.get("areas").isJsonArray()) {
-                for (JsonElement areaElement : object.getAsJsonArray("areas")) {
-                    if (!areaElement.isJsonObject()) continue;
-                    JsonObject area = areaElement.getAsJsonObject();
-                    String areaName = string(area, "name");
-                    if (area.has("waypoints") && area.get("waypoints").isJsonArray()) {
-                        readWaypoints(area.getAsJsonArray("waypoints"), result, areaName);
-                    }
+        JsonObject object = root.getAsJsonObject();
+        if (object.has("areas") && object.get("areas").isJsonArray()) {
+            for (JsonElement areaElement : object.getAsJsonArray("areas")) {
+                if (!areaElement.isJsonObject()) continue;
+                JsonObject area = areaElement.getAsJsonObject();
+                String areaName = string(area, "name");
+                if (area.has("waypoints") && area.get("waypoints").isJsonArray()) {
+                    readWaypoints(area.getAsJsonArray("waypoints"), result, areaName);
                 }
-                return result;
             }
+            return result;
+        }
 
-            if (object.has("waypoints") && object.get("waypoints").isJsonArray()) {
-                readWaypoints(object.getAsJsonArray("waypoints"), result, "");
-            }
-        } catch (Exception ignored) {
+        if (object.has("waypoints") && object.get("waypoints").isJsonArray()) {
+            readWaypoints(object.getAsJsonArray("waypoints"), result, "");
         }
         return result;
-    }
-
-    private static void readSettings(String text) {
-        try {
-            JsonElement parsed = JsonParser.parseString(text);
-            if (!parsed.isJsonObject()) return;
-            JsonObject root = parsed.getAsJsonObject();
-            if (root.has("visible")) visible = root.get("visible").getAsBoolean();
-            if (root.has("showLine")) showLine = root.get("showLine").getAsBoolean();
-        } catch (Exception ignored) {
-            visible = true;
-            showLine = false;
-        }
     }
 
     private static void readWaypoints(JsonArray array, List<Entry> result, String areaName) {
