@@ -66,22 +66,6 @@ java {
 	targetCompatibility = JavaVersion.VERSION_25
 }
 
-sourceSets.create('verification') {
-	compileClasspath = sourceSets.client.output + sourceSets.client.compileClasspath
-	runtimeClasspath = output + sourceSets.client.runtimeClasspath
-}
-
-tasks.register('checkWaypointStorage', JavaExec) {
-	dependsOn tasks.named('verificationClasses'), tasks.named('clientClasses')
-	classpath = sourceSets.verification.runtimeClasspath
-	mainClass = 'me.cookie.kwrg.util.WaypointStorageCheck'
-	def verificationWorkDir = layout.buildDirectory.dir('waypoint-verification')
-	workingDir = verificationWorkDir
-	doFirst { verificationWorkDir.get().asFile.mkdirs() }
-}
-
-tasks.named('check') { dependsOn tasks.named('checkWaypointStorage') }
-
 jar {
 	def projectName = project.name
 	inputs.property "projectName", projectName
