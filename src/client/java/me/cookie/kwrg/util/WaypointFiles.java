@@ -157,8 +157,11 @@ public final class WaypointFiles {
         if (index < 0 || index >= entries.size()) return false;
         PointEntry entry = entries.get(index);
         if (entry.temporary) return WaypointManager.removeTemporary(entry);
-        collection(current).points.remove(entry);
-        return saveCurrent();
+        List<PointEntry> points = collection(current).points;
+        points.remove(index);
+        if (saveCurrent()) return true;
+        points.add(index, entry);
+        return false;
     }
 
     public static Path create(String name) throws IOException {

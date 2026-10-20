@@ -14,7 +14,7 @@ public final class WaypointRouteUpdate {
     public record Summary(int added, int deleted, int modified) {
         public String describe() { return "新增 " + added + " / 删除 " + deleted + " / 修改 " + modified + " 个点位"; }
     }
-    private record Node(PointEntry source, PointEntry local, PointEntry binding, boolean add, boolean rename, int issue) {}
+    private record Node(PointEntry source, PointEntry local, PointEntry binding, boolean add, boolean rename, boolean visibility, int issue) {}
     private static final Gson GSON = new Gson();
     private final Path sourcePath, targetPath;
     private final WaypointFiles.Collection target;
@@ -47,12 +47,16 @@ public final class WaypointRouteUpdate {
             boolean competingRename = before != null && local != null
                     && !source.name.equals(before.source.name) && !local.name.equals(before.local.name)
                     && !local.name.equals(source.name);
-            if (local != null && (!coordinates(local, source) || competingRename) && !alreadyAccepted) {
+            boolean competingVisibility = local != null && source.visible != local.visible
+                    && (before == null || source.visible != before.source.visible && local.visible != before.local.visible);
+            if (local != null && (!coordinates(local, source) || competingRename || competingVisibility) && !alreadyAccepted) {
                 issue = issues.size(); issues.add(new Issue(Kind.CONFLICT, copy(local), copy(source)));
             }
             boolean rename = issue < 0 && !alreadyAccepted && before != null && local != null
                     && coordinates(local, source) && !source.name.equals(before.source.name);
-            nodes.add(new Node(source, local, before == null ? null : before.local, before == null && local == null, rename, issue));
+            boolean visibility = issue < 0 && !alreadyAccepted && before != null && local != null
+                    && source.visible != before.source.visible;
+            nodes.add(new Node(source, local, before == null ? null : before.local, before == null && local == null, rename, visibility, issue));
         }
         for (SourceNode before : baseline) if (!matched.contains(before)) {
             PointEntry local = target.points.stream().filter(point -> point.id.equals(before.local.id) && !used.contains(point)).findFirst().orElse(null);
@@ -62,7 +66,7 @@ public final class WaypointRouteUpdate {
 
     private static SourceNode match(PointEntry source, List<SourceNode> baseline, Set<SourceNode> used) {
         if (source.explicitId) for (SourceNode node : baseline) if (!used.contains(node) && source.id.equals(node.sourceId)) return node;
-        for (SourceNode node : baseline) if (!used.contains(node) && same(source, node.source)) return node;
+        for (SourceNode node : baseline) if (!used.contains(node) && source.name.equals(node.source.name) && coordinates(source, node.source)) return node;
         for (SourceNode node : baseline) if (!used.contains(node) && source.name.equals(node.source.name)) return node;
         return null;
     }
@@ -88,9 +92,16 @@ public final class WaypointRouteUpdate {
             if (node.add) {
                 local = copy(node.source); local.id = UUID.randomUUID().toString(); result.points.add(local);
                 added++;
-            } else if (local != null && (node.issue >= 0 ? decisions.get(node.issue) : node.rename)) {
-                if (!same(local, node.source)) modified++;
-                local.name = node.source.name; local.x = node.source.x; local.y = node.source.y; local.z = node.source.z;
+            } else if (local != null) {
+                PointEntry previous = copy(local);
+                if (node.issue >= 0 && decisions.get(node.issue)) {
+                    local.name = node.source.name; local.x = node.source.x; local.y = node.source.y; local.z = node.source.z;
+                    local.visible = node.source.visible;
+                } else if (node.issue < 0) {
+                    if (node.rename) local.name = node.source.name;
+                    if (node.visibility) local.visible = node.source.visible;
+                }
+                if (!same(previous, local)) modified++;
             }
             PointEntry binding = local != null ? local : node.binding;
             if (binding != null) result.sourceNodes.add(snapshot(node.source, binding));
@@ -107,7 +118,7 @@ public final class WaypointRouteUpdate {
         copy.id = point.id; copy.visible = point.visible; copy.temporary = point.temporary; copy.explicitId = point.explicitId;
         return copy;
     }
-    private static boolean same(PointEntry a, PointEntry b) { return a.name.equals(b.name) && coordinates(a, b); }
+    private static boolean same(PointEntry a, PointEntry b) { return a.name.equals(b.name) && coordinates(a, b) && a.visible == b.visible; }
     private static boolean coordinates(PointEntry a, PointEntry b) { return number(a.x, b.x) && number(a.y, b.y) && number(a.z, b.z); }
     private static boolean number(String a, String b) {
         try { return new BigDecimal(a.strip()).compareTo(new BigDecimal(b.strip())) == 0; }

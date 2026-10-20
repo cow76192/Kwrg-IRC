@@ -484,9 +484,10 @@ public final class RouteManager {
 
     public static boolean deleteAt(int index) {
         if (index < 0 || index >= ENTRIES.size()) return false;
-        ENTRIES.remove(index);
-        saveCurrent();
-        return true;
+        Entry removed = ENTRIES.remove(index);
+        if (saveCurrent()) return true;
+        ENTRIES.add(index, removed);
+        return false;
     }
 
     public static boolean deleteByName(String name) {
@@ -495,9 +496,7 @@ public final class RouteManager {
         for (int i = 0; i < ENTRIES.size(); i++) {
             Entry entry = ENTRIES.get(i);
             if (entry.name != null && entry.name.equalsIgnoreCase(clean)) {
-                ENTRIES.remove(i);
-                saveCurrent();
-                return true;
+                return deleteAt(i);
             }
         }
         return false;

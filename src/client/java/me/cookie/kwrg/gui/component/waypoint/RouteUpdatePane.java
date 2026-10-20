@@ -98,7 +98,7 @@ public final class RouteUpdatePane {
             graphics.disableScissor();
         } else {
             RenderUtil.drawSmoothText(content, RenderUtil.fitText(plan.targetPath().getFileName().toString(), width - 32, 0.85f), x + 16, y + 50, 0xFF92DFFF);
-            RenderUtil.drawSmoothText(content, "路线删除 " + deletions + " 个节点 · 名称/坐标冲突 " + (issues.size() - deletions) + " 个", x + 16, y + 80, 0xFFFFDB94);
+            RenderUtil.drawSmoothText(content, "路线删除 " + deletions + " 个节点 · 点位冲突 " + (issues.size() - deletions) + " 个", x + 16, y + 80, 0xFFFFDB94);
             RenderUtil.drawSmoothText(content, "另有 " + plan.additions() + " 个新增节点，将随确认结果加入", x + 16, y + 106, 0xFFA9BDCD);
             RenderUtil.drawSmoothText(content, "可全部采用路线、全部保留本地，或逐个决定", x + 16, y + 132, 0xFF8CA7BA);
         }
@@ -133,5 +133,5 @@ public final class RouteUpdatePane {
         if (!closing && perNode && progress() >= 0.999f && mouseX >= x && mouseX < x + width && mouseY >= y + 50 && mouseY < y + height - 96) scroll -= (int) (amount * 32);
     }
     public void keyPressed(KeyEvent input) { if (input.key() == GLFW.GLFW_KEY_ESCAPE) close(); }
-    private static String describe(PointEntry point) { return point.name + " · " + point.x + ", " + point.y + ", " + point.z; }
+    private static String describe(PointEntry point) { return (point.visible ? "显示 · " : "隐藏 · ") + point.name + " · " + point.x + ", " + point.y + ", " + point.z; }
 }

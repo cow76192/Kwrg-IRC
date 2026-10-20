@@ -409,16 +409,19 @@ public class IrcCommand {
         try {
             int position = Integer.parseInt(clean);
             if (position >= 1 && position <= RouteManager.entries().size()) {
-                RouteManager.deleteAt(position - 1);
+                if (!RouteManager.deleteAt(position - 1)) return 0;
                 IrcMessageHandler.printMessage("§e[Route] 已删除位置 | " + position);
                 return 1;
             }
         } catch (NumberFormatException ignored) {
         }
 
-        if (RouteManager.deleteByName(clean)) {
-            IrcMessageHandler.printMessage("§e[Route] 已删除 | " + clean);
-            return 1;
+        if (RouteManager.entries().stream().anyMatch(entry -> entry.name != null && entry.name.equalsIgnoreCase(clean))) {
+            if (RouteManager.deleteByName(clean)) {
+                IrcMessageHandler.printMessage("§e[Route] 已删除 | " + clean);
+                return 1;
+            }
+            return 0;
         }
 
         IrcMessageHandler.printMessage("§c[Route] 未找到 | " + clean);
