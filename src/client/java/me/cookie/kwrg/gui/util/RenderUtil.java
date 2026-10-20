@@ -332,10 +332,7 @@ public final class RenderUtil {
     }
 
     public static void drawFluidSubpixelText(OwoUIGraphics graphics, Component text, float x, float y, int color) {
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(x, y);
-        graphics.drawText(text, 0, 0, 1.0f, color, OwoUIGraphics.TextAnchor.TOP_LEFT);
-        graphics.pose().popMatrix();
+        drawSmoothText(graphics, text, x, y, 1.0f, color);
     }
 
     public static void drawSmoothText(OwoUIGraphics graphics, Component text, float x, float y, float scale, int textColor) {

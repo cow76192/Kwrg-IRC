@@ -34,6 +34,7 @@ public final class RegionSelectionPane {
     public RegionSelectionPane(RouteButtonComponent source, Set<String> selected, Consumer<Set<String>> changed) {
         this.source = source; this.origin = source.bounds(); this.originColor = source.color();
         this.selected.addAll(selected); this.changed = changed;
+        if (this.selected.isEmpty()) this.selected.add("all");
         search.setBordered(false); search.setTextShadow(false); search.setMaxLength(64);
         search.setHint(Component.literal("搜索岛屿名称 / ID")); search.setFocused(true);
         search.setResponder(value -> scroll = 0);
@@ -100,6 +101,7 @@ public final class RegionSelectionPane {
                 choices.get(island.id()).press();
                 if (island.id().equals("all")) { selected.clear(); selected.add("all"); }
                 else { selected.remove("all"); if (!selected.add(island.id())) selected.remove(island.id()); }
+                if (selected.isEmpty()) selected.add("all");
                 changed.accept(Set.copyOf(selected));
                 return;
             }

@@ -25,11 +25,11 @@ public final class WaypointFiles {
     public static boolean isDefault(Path path) { return defaultFile().equals(path); }
     public static boolean external(Path path) { return !path.toAbsolutePath().normalize().getParent().equals(getDir().toAbsolutePath().normalize()); }
 
-    public static void initialize(Map<String, IrcConfig.WaypointEntry> legacy) {
-        initialize(IrcConfig.getKwrgDir().resolve("wayPoints"), RouteManager.getDir(), legacy);
+    public static boolean initialize(Map<String, IrcConfig.WaypointEntry> legacy) {
+        return initialize(IrcConfig.getKwrgDir().resolve("wayPoints"), RouteManager.getDir(), legacy);
     }
 
-    static void initialize(Path pointDirectory, Path routeDirectory, Map<String, IrcConfig.WaypointEntry> legacy) {
+    static boolean initialize(Path pointDirectory, Path routeDirectory, Map<String, IrcConfig.WaypointEntry> legacy) {
         directory = pointDirectory;
         WaypointFiles.routeDirectory = routeDirectory;
         FILES.clear();
@@ -57,7 +57,18 @@ public final class WaypointFiles {
             }
             current = defaultFile();
             syncDefault();
-        } catch (IOException e) { throw new IllegalStateException("无法初始化点位目录", e); }
+            return true;
+        } catch (IOException | RuntimeException e) {
+            LoggerFactory.getLogger(WaypointFiles.class).warn("无法初始化点位存储，保留配置中的旧点位并使用内存副本", e);
+            Collection fallback = new Collection("默认点位");
+            legacy.forEach((id, saved) -> fallback.points.add(fromSaved(id, saved)));
+            // Block writes over an unreadable/corrupt default file until explicitly recovered.
+            fallback.savedPath = defaultFile();
+            FILES.put(defaultFile(), fallback);
+            current = defaultFile();
+            syncDefault();
+            return false;
+        }
     }
 
     private static void ensure() { if (!initialized) initialize(Map.of()); }
@@ -66,14 +77,17 @@ public final class WaypointFiles {
         ensure();
         try (var stream = Files.list(getDir())) {
             List<Path> paths = stream.filter(WaypointFiles::isJson).sorted(Comparator.comparing(path -> path.getFileName().toString().toLowerCase(Locale.ROOT))).toList();
-            FILES.entrySet().removeIf(item -> !paths.contains(item.getKey()) && !item.getValue().hasUnsavedChanges());
+            Set<Path> present = new HashSet<>(paths);
+            FILES.entrySet().removeIf(item -> !isDefault(item.getKey()) && !present.contains(item.getKey()) && !item.getValue().hasUnsavedChanges());
             for (Path path : paths) {
                 try {
                     Collection cached = FILES.get(path);
+                    var attributes = Files.readAttributes(path, java.nio.file.attribute.BasicFileAttributes.class);
+                    if (cached != null && cached.sameFile(attributes)) continue;
                     // Keep the objects referenced by live input boxes until their edits are saved.
                     if (cached != null && cached.hasUnsavedChanges()) continue;
                     String text = readText(path);
-                    if (cached != null && text.equals(cached.diskContent)) continue;
+                    if (cached != null && text.equals(cached.diskContent)) { cached.rememberAttributes(attributes); continue; }
                     FILES.put(path, loaded(path, text));
                     if (isDefault(path)) syncDefault();
                 }
@@ -113,6 +127,18 @@ public final class WaypointFiles {
     }
 
     public static boolean saveCurrent() { return save(currentFile()); }
+    public static void discardCurrentEdits() {
+        ensure();
+        try {
+            FILES.put(current, read(current));
+        } catch (IOException | RuntimeException e) {
+            LoggerFactory.getLogger(WaypointFiles.class).warn("放弃编辑后无法重载点位文件，保留磁盘内容: {}", current, e);
+            Collection empty = new Collection(isDefault(current) ? "默认点位" : stem(current));
+            empty.savedPath = current;
+            FILES.put(current, empty);
+        }
+        if (isDefault(current)) syncDefault();
+    }
     public static boolean save(Path path) {
         Collection file = collection(path);
         if (file == null) return false;
@@ -325,6 +351,7 @@ public final class WaypointFiles {
             file.regions.clear();
             for (JsonElement region : root.getAsJsonArray("regions")) file.regions.add(region.getAsString());
         }
+        if (file.regions.isEmpty()) file.regions.add("all");
         if (root.has("migratedProfiles")) for (JsonElement profile : root.getAsJsonArray("migratedProfiles")) file.migratedProfiles.add(profile.getAsString());
         if (root.has("sourceRoute")) file.sourceRoute = root.get("sourceRoute").getAsString();
         if (root.has("sourceNodes")) file.sourceNodes.addAll(Arrays.asList(GSON.fromJson(root.get("sourceNodes"), WaypointRouteUpdate.SourceNode[].class)));
@@ -397,6 +424,9 @@ public final class WaypointFiles {
     public static final class Collection {
         private transient Path savedPath;
         private transient String diskContent, savedState;
+        private transient java.nio.file.attribute.FileTime modifiedTime;
+        private transient long diskSize;
+        private transient Object diskKey;
         public String name;
         public boolean enabled = true, visible = true;
         public final Set<String> regions = new LinkedHashSet<>(Set.of("all"));
@@ -410,6 +440,15 @@ public final class WaypointFiles {
             savedPath = path;
             diskContent = text;
             savedState = serialize(this);
+            try { rememberAttributes(Files.readAttributes(path, java.nio.file.attribute.BasicFileAttributes.class)); }
+            catch (IOException e) { modifiedTime = null; }
+        }
+        private boolean sameFile(java.nio.file.attribute.BasicFileAttributes attributes) {
+            return modifiedTime != null && modifiedTime.equals(attributes.lastModifiedTime()) && diskSize == attributes.size()
+                    && Objects.equals(diskKey, attributes.fileKey());
+        }
+        private void rememberAttributes(java.nio.file.attribute.BasicFileAttributes attributes) {
+            modifiedTime = attributes.lastModifiedTime(); diskSize = attributes.size(); diskKey = attributes.fileKey();
         }
         public boolean activeIn(String island) { return enabled && visible && (regions.contains("all") || !island.isEmpty() && regions.contains(island)); }
     }

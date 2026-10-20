@@ -64,8 +64,7 @@ public final class WaypointManager {
         Map<String, IrcConfig.WaypointEntry> normalized = normalize(config.waypoints);
         SAVED_WAYPOINTS.clear();
         SAVED_WAYPOINTS.putAll(normalized);
-        WaypointFiles.initialize(normalized);
-        config.waypoints = new LinkedHashMap<>();
+        if (WaypointFiles.initialize(normalized)) config.waypoints = new LinkedHashMap<>();
     }
 
     public static void replaceSavedEntries(List<PointEntry> points) {

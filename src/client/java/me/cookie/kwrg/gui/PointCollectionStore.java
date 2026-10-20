@@ -17,6 +17,7 @@ public interface PointCollectionStore {
     List<? extends PointEntry> entries();
     boolean importFile(Path path);
     boolean saveCurrent();
+    default void discardCurrentEdits() {}
     Path createRoute(String name) throws Exception;
     Path renameRoute(Path path, String name) throws Exception;
     boolean deleteFile(Path path);

@@ -15,6 +15,7 @@ final class WaypointCollectionStore implements PointCollectionStore {
     public List<PointEntry> entries() { return WaypointFiles.entries(); }
     public boolean importFile(Path path) { return WaypointFiles.select(path); }
     public boolean saveCurrent() { return WaypointFiles.saveCurrent(); }
+    public void discardCurrentEdits() { WaypointFiles.discardCurrentEdits(); }
     public Path createRoute(String name) throws Exception { return WaypointFiles.create(name); }
     public Path renameRoute(Path path, String name) throws Exception { return WaypointFiles.rename(path, name); }
     public boolean deleteFile(Path path) { return WaypointFiles.delete(path); }
@@ -42,7 +43,12 @@ final class WaypointCollectionStore implements PointCollectionStore {
         return false;
     }
     public Set<String> regions(Path path) { return Set.copyOf(WaypointFiles.collection(path).regions); }
-    public void setRegions(Path path, Set<String> regions) { var file = WaypointFiles.collection(path); file.regions.clear(); file.regions.addAll(regions); WaypointFiles.save(path); }
+    public void setRegions(Path path, Set<String> regions) {
+        var file = WaypointFiles.collection(path);
+        Set<String> previous = Set.copyOf(file.regions);
+        file.regions.clear(); file.regions.addAll(regions.isEmpty() ? Set.of("all") : regions);
+        if (!WaypointFiles.save(path)) { file.regions.clear(); file.regions.addAll(previous); }
+    }
     public void importExternal(Path path) throws Exception { WaypointFiles.importRoute(path); }
     public String externalActionLabel(Path path) { return WaypointFiles.importedFile(path) == null ? "导入" : "更新"; }
     public WaypointRouteUpdate prepareExternalUpdate(Path path) throws Exception { return WaypointFiles.prepareUpdate(path); }
