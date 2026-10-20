@@ -6,6 +6,8 @@ import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcCommand;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
+import me.cookie.kwrg.irc.manager.RouteManager;
+import me.cookie.kwrg.irc.manager.WaypointManager;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.GreetingManager;
 import me.cookie.kwrg.util.SkyblockItemHelper;
@@ -38,6 +40,8 @@ public class CookieMain implements ClientModInitializer {
         LOGGER.info(":D");
         IrcConfig.load();
         IrcCommand.register();
+        WaypointManager.init();
+        RouteManager.init();
 
         CompletableFuture.runAsync(() -> {
             try {

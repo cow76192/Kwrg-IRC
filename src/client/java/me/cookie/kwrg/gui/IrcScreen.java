@@ -16,6 +16,8 @@ import me.cookie.kwrg.render.DynamicIslandRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.CharacterEvent;
+import net.minecraft.client.input.PreeditEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
@@ -30,6 +32,15 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
     private StackLayout rootLayout = null;
     private String directCategory = null;
     private String directModule = null;
+    private PointCollectionScreen pointOverlay = null;
+
+    public void openRouteOverlay(float originX, float originY, me.cookie.kwrg.gui.component.PanelItemComponent source) {
+        if (this.pointOverlay == null) this.pointOverlay = new RouteScreen(this, source, originX, originY);
+    }
+
+    public void openWaypointOverlay(float originX, float originY, me.cookie.kwrg.gui.component.PanelItemComponent source) {
+        if (this.pointOverlay == null) this.pointOverlay = new WaypointScreen(this, source, originX, originY);
+    }
 
     private final ParticleBackgroundComponent particleBackground = new ParticleBackgroundComponent();
     private Surface fullscreenBlurSurface = null;
@@ -161,6 +172,8 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
     @Override
     public void removed() {
+        if (this.pointOverlay != null) this.pointOverlay.flush();
+        this.pointOverlay = null;
         super.removed();
         if (this.radialMenu != null && this.radialMenu.getSecondaryPanel() != null) {
             this.radialMenu.getSecondaryPanel().destroyTertiaryImmediately();
@@ -226,6 +239,9 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
             this.fullscreenBlurSurface.draw(owoGraphics, this.rootLayout);
         }
         this.particleBackground.drawDirect(owoGraphics, a);
+        if (this.radialMenu != null && this.radialMenu.getSecondaryPanel() != null) {
+            this.radialMenu.getSecondaryPanel().setVisualAlpha(this.pointOverlay == null ? 1 : 1 - this.pointOverlay.progress());
+        }
 
         float scale = getAnimatedScale();
         float cx = this.width / 2.0f;
@@ -243,12 +259,21 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
         graphics.pose().popMatrix();
 
+        if (this.pointOverlay != null) {
+            this.pointOverlay.render(graphics, mouseX, mouseY, a, this.width, this.height);
+            if (this.pointOverlay.isFinished()) this.pointOverlay = null;
+        }
+
         NotificationManager.render(graphics, mouseX, mouseY, a);
         DynamicIslandRenderer.render(graphics, a);
     }
 
     @Override
     public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
+        if (this.pointOverlay != null) {
+            this.pointOverlay.mouseClicked(click, doubled);
+            return true;
+        }
         if (NotificationManager.onMouseDown(click)) {
             return true;
         }
@@ -284,6 +309,10 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
     @Override
     public boolean mouseReleased(MouseButtonEvent click) {
+        if (this.pointOverlay != null) {
+            this.pointOverlay.mouseReleased(click);
+            return true;
+        }
         float scale = getAnimatedScale();
         if (Math.abs(scale - 1.0f) < 0.001f) {
             return super.mouseReleased(click);
@@ -299,6 +328,10 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
     @Override
     public boolean mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
+        if (this.pointOverlay != null) {
+            this.pointOverlay.mouseDragged(click, deltaX, deltaY);
+            return true;
+        }
         float scale = getAnimatedScale();
         if (Math.abs(scale - 1.0f) < 0.001f) {
             return super.mouseDragged(click, deltaX, deltaY);
@@ -314,11 +347,16 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (this.pointOverlay != null) {
+            this.pointOverlay.mouseScrolled(mouseX, mouseY, verticalAmount);
+            return true;
+        }
         return super.mouseScrolled(toVirtualX(mouseX), toVirtualY(mouseY), horizontalAmount, verticalAmount);
     }
 
     @Override
     public void mouseMoved(double mouseX, double mouseY) {
+        if (this.pointOverlay != null) return;
         super.mouseMoved(toVirtualX(mouseX), toVirtualY(mouseY));
     }
 
@@ -349,10 +387,28 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
     @Override
     public boolean keyPressed(KeyEvent input) {
+        if (this.pointOverlay != null) {
+            this.pointOverlay.keyPressed(input);
+            return true;
+        }
         if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
             this.closeGui();
             return true;
         }
         return super.keyPressed(input);
+    }
+
+    @Override
+    public boolean charTyped(CharacterEvent input) {
+        if (this.pointOverlay != null) {
+            this.pointOverlay.charTyped(input);
+            return true;
+        }
+        return super.charTyped(input);
+    }
+
+    @Override
+    public boolean preeditUpdated(PreeditEvent input) {
+        return this.pointOverlay != null ? this.pointOverlay.preeditUpdated(input) : super.preeditUpdated(input);
     }
 }

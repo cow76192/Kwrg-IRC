@@ -2,6 +2,7 @@ package me.cookie.kwrg.util;
 
 import me.cookie.kwrg.gui.notification.NotificationManager;
 import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.irc.manager.WaypointManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -20,6 +21,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ChatNotifier {
+
+    public static String expandCoordsShortcut(String content) {
+        if (content == null || !content.trim().equalsIgnoreCase("!coords")) return content;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return content;
+        var pos = mc.player.blockPosition();
+        return WaypointManager.formatCoordMessage(pos.getX(), pos.getY(), pos.getZ());
+    }
 
     private static final Queue<Component> PENDING_MESSAGES = new ConcurrentLinkedQueue<>();
     private static final Pattern URL_PATTERN = Pattern.compile(
@@ -205,6 +214,13 @@ public class ChatNotifier {
 
     public record AnimatedSegment(String text, String styleConfig, boolean isRaw) {}
 
+    private static Component buildSegment(AnimatedSegment segment) {
+        String safeText = me.cookie.kwrg.irc.manager.NickManager.protectText(segment.text());
+        if (!segment.isRaw()) return ColorUtil.applyStyle(safeText, segment.styleConfig());
+        MutableComponent part = Component.literal(safeText);
+        return part;
+    }
+
     private static final Queue<List<AnimatedSegment>> PENDING_ANIMATIONS = new ConcurrentLinkedQueue<>();
     private static final java.util.Map<net.minecraft.client.multiplayer.chat.GuiMessage, List<AnimatedSegment>> ACTIVE_ANIMATIONS = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -215,14 +231,9 @@ public class ChatNotifier {
         boolean hasAnimation = false;
 
         for (AnimatedSegment seg : segments) {
-            String safeText = me.cookie.kwrg.irc.manager.NickManager.protectText(seg.text());
-            if (seg.isRaw()) {
-                root.append(Component.literal(safeText));
-            } else {
-                root.append(ColorUtil.applyStyle(safeText, seg.styleConfig()));
-                if (ColorUtil.isAnimatedStyle(seg.styleConfig())) {
-                    hasAnimation = true;
-                }
+            root.append(buildSegment(seg));
+            if (!seg.isRaw() && ColorUtil.isAnimatedStyle(seg.styleConfig())) {
+                hasAnimation = true;
             }
         }
 
@@ -256,12 +267,7 @@ public class ChatNotifier {
 
         MutableComponent root = Component.empty();
         for (AnimatedSegment seg : segs) {
-            String safeText = me.cookie.kwrg.irc.manager.NickManager.protectText(seg.text());
-            if (seg.isRaw()) {
-                root.append(Component.literal(safeText));
-            } else {
-                root.append(ColorUtil.applyStyle(safeText, seg.styleConfig()));
-            }
+            root.append(buildSegment(seg));
         }
         return parseUrls(root);
     }

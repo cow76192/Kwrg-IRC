@@ -4,6 +4,7 @@ import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import me.cookie.kwrg.module.modules.functions.ChatSuffixModule;
+import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 import org.spongepowered.asm.mixin.Mixin;
@@ -26,7 +27,7 @@ public abstract class ClientPacketListenerMixin {
     @ModifyVariable(method = "sendChat", at = @At("HEAD"), ordinal = 0, argsOnly = true)
     private String kwrg$appendPublicChatSuffix(String message) {
         if (IrcClient.isIrcChatActive) return message;
-        return ChatSuffixModule.applyPublicSuffixSafely(message);
+        return ChatSuffixModule.applyPublicSuffixSafely(ChatNotifier.expandCoordsShortcut(message));
     }
 
     @ModifyVariable(method = "sendCommand", at = @At("HEAD"), ordinal = 0, argsOnly = true)

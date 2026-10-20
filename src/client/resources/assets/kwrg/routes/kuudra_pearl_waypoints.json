@@ -1,0 +1,349 @@
+{
+  "name": "kuudra_pearl_waypoints",
+  "visible": true,
+  "showLine": false,
+  "waypoints": [
+    {
+      "name": "X - X",
+      "x": -106.0,
+      "y": 79.0,
+      "z": -113.0
+    },
+    {
+      "name": "X - Square",
+      "x": -140.5,
+      "y": 77.0,
+      "z": -87.0
+    },
+    {
+      "name": "X Cannon - X Cannon",
+      "x": -110.0,
+      "y": 79.0,
+      "z": -106.0
+    },
+    {
+      "name": "X Cannon - Sky X Cannon",
+      "x": -110.0,
+      "y": 79.0,
+      "z": -106.0
+    },
+    {
+      "name": "Square - X",
+      "x": -106.0,
+      "y": 79.0,
+      "z": -113.0
+    },
+    {
+      "name": "Square - X Cannon",
+      "x": -110.0,
+      "y": 79.0,
+      "z": -106.0
+    },
+    {
+      "name": "Square - Slash",
+      "x": -106.0,
+      "y": 79.0,
+      "z": -99.0
+    },
+    {
+      "name": "Square - Equals",
+      "x": -98.0,
+      "y": 79.0,
+      "z": -99.0
+    },
+    {
+      "name": "Square - Triangle",
+      "x": -94.0,
+      "y": 79.0,
+      "z": -106.0
+    },
+    {
+      "name": "Square - Shop",
+      "x": -98.0,
+      "y": 79.0,
+      "z": -113.0
+    },
+    {
+      "name": "Slash - Slash",
+      "x": -98.0,
+      "y": 79.0,
+      "z": -99.0
+    },
+    {
+      "name": "Slash - X Cannon",
+      "x": -129.5,
+      "y": 79.0,
+      "z": -113.5
+    },
+    {
+      "name": "Slash - Square",
+      "x": -140.5,
+      "y": 77.0,
+      "z": -87.0
+    },
+    {
+      "name": "Equals - Equals",
+      "x": -106.0,
+      "y": 79.0,
+      "z": -99.0
+    },
+    {
+      "name": "Equals - Shop",
+      "x": -73.5,
+      "y": 79.0,
+      "z": -133.0
+    },
+    {
+      "name": "Triangle - Triangle",
+      "x": -94.0,
+      "y": 79.0,
+      "z": -106.0
+    },
+    {
+      "name": "Triangle - Shop",
+      "x": -73.5,
+      "y": 79.0,
+      "z": -133.0
+    },
+    {
+      "name": "Shop - Shop",
+      "x": -98.0,
+      "y": 79.0,
+      "z": -113.0
+    },
+    {
+      "name": "Shop - Sky Shop",
+      "x": -98.0,
+      "y": 79.0,
+      "z": -113.0
+    },
+    {
+      "name": "Double Pearl Square Waypoint",
+      "x": -139.25,
+      "y": 124.0,
+      "z": -92.0
+    },
+    {
+      "name": "Flat X Waypoint",
+      "x": -105.5,
+      "y": 91.75,
+      "z": -112.5
+    },
+    {
+      "name": "Flat Slash Waypoint",
+      "x": -97.5,
+      "y": 88.7,
+      "z": -98.5
+    },
+    {
+      "name": "Double Pearl Square Waypoint",
+      "x": -127.0,
+      "y": 119.0,
+      "z": -78.0
+    },
+    {
+      "name": "Double Pearl Square Waypoint 2",
+      "x": -140.0,
+      "y": 89.0,
+      "z": -92.0
+    },
+    {
+      "name": "Double Pearl X Cannon Waypoint",
+      "x": -125.0,
+      "y": 125.0,
+      "z": -105.0
+    },
+    {
+      "name": "Flat Slash Waypoint",
+      "x": -97.5,
+      "y": 87.9,
+      "z": -98.5
+    },
+    {
+      "name": "Double Pearl Square Waypoint 2",
+      "x": -140.0,
+      "y": 88.0,
+      "z": -92.0
+    },
+    {
+      "name": "Flat Equals Waypoint",
+      "x": -105.5,
+      "y": 96.0,
+      "z": -98.5
+    },
+    {
+      "name": "Double Pearl Left Shop Waypoint",
+      "x": -89.0,
+      "y": 145.0,
+      "z": -125.0
+    },
+    {
+      "name": "Double Pearl Right Shop Waypoint",
+      "x": -77.0,
+      "y": 135.0,
+      "z": -136.0
+    },
+    {
+      "name": "Flat Tri Waypoint",
+      "x": -93.5,
+      "y": 86.4,
+      "z": -105.5
+    },
+    {
+      "name": "Double Pearl Shop Waypoint",
+      "x": -74.0,
+      "y": 152.0,
+      "z": -134.0
+    },
+    {
+      "name": "Sky X Cannon Waypoint",
+      "x": -109.5,
+      "y": 163.0,
+      "z": -105.5
+    },
+    {
+      "name": "Flat X Cannon Waypoint",
+      "x": -109.5,
+      "y": 82.1,
+      "z": -105.5
+    },
+    {
+      "name": "Flat Stair Waypoint",
+      "x": -109.5,
+      "y": 86.2,
+      "z": -105.5
+    },
+    {
+      "name": "Flat Coal Waypoint",
+      "x": -109.5,
+      "y": 88.0,
+      "z": -105.5
+    },
+    {
+      "name": "Flat Coal Variation Waypoint Variation",
+      "x": -109.5,
+      "y": 87.5,
+      "z": -105.5
+    },
+    {
+      "name": "Tri Waypoint",
+      "x": -93.5,
+      "y": 107.0,
+      "z": -105.5
+    },
+    {
+      "name": "Shop Waypoint",
+      "x": -97.5,
+      "y": 105.0,
+      "z": -112.5
+    },
+    {
+      "name": "X Waypoint",
+      "x": -105.5,
+      "y": 94.0,
+      "z": -112.5
+    },
+    {
+      "name": "Slash Waypoint",
+      "x": -97.5,
+      "y": 97.0,
+      "z": -98.5
+    },
+    {
+      "name": "Equals Waypoint",
+      "x": -105.5,
+      "y": 89.1,
+      "z": -98.5
+    },
+    {
+      "name": "X Cannon Waypoint",
+      "x": -109.5,
+      "y": 88.5,
+      "z": -105.5
+    },
+    {
+      "name": "Tri Waypoint",
+      "x": -93.5,
+      "y": 116.0,
+      "z": -105.8
+    },
+    {
+      "name": "Shop Waypoint",
+      "x": -97.5,
+      "y": 115.0,
+      "z": -112.5
+    },
+    {
+      "name": "X Waypoint",
+      "x": -105.5,
+      "y": 99.0,
+      "z": -112.5
+    },
+    {
+      "name": "Slash Waypoint",
+      "x": -97.5,
+      "y": 101.5,
+      "z": -98.5
+    },
+    {
+      "name": "Equals Waypoint",
+      "x": -105.5,
+      "y": 91.7,
+      "z": -98.5
+    },
+    {
+      "name": "X Cannon Waypoint",
+      "x": -109.5,
+      "y": 91.0,
+      "z": -105.5
+    },
+    {
+      "name": "Flat Close Shop Waypoint",
+      "x": -97.5,
+      "y": 81.25,
+      "z": -112.5
+    },
+    {
+      "name": "Sky Shop Waypoint",
+      "x": -97.5,
+      "y": 163.0,
+      "z": -112.5
+    },
+    {
+      "name": "Flat Long Shop Waypoint",
+      "x": -97.5,
+      "y": 87.5,
+      "z": -112.5
+    },
+    {
+      "name": "Sky Long Shop Waypoint",
+      "x": -97.5,
+      "y": 153.5,
+      "z": -112.5
+    },
+    {
+      "name": "Flat Border Shop Waypoint",
+      "x": -97.5,
+      "y": 88.8,
+      "z": -112.5
+    },
+    {
+      "name": "Sky Shop Waypoint",
+      "x": -97.5,
+      "y": 159.0,
+      "z": -112.5
+    },
+    {
+      "name": "Flat Border Shop Bottom Waypoint",
+      "x": -97.5,
+      "y": 90.0,
+      "z": -112.5
+    },
+    {
+      "name": "Sky Border Shop Bottom Waypoint",
+      "x": -97.5,
+      "y": 154.0,
+      "z": -112.5
+    }
+  ]
+}

@@ -149,6 +149,7 @@ public class PanelItemComponent extends BaseUIComponent {
         return this.isItemActive();
     }
 
+
     public void setToggled(boolean toggled) {
         this.localToggled = toggled;
     }

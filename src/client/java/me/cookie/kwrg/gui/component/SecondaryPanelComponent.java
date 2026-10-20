@@ -31,6 +31,12 @@ public class SecondaryPanelComponent extends FlowLayout {
     private float originCenterX = 0.0f;
     private float originCenterY = 0.0f;
     private float animationProgress = 0.0f;
+    private float visualAlpha = 1.0f;
+
+    public void setVisualAlpha(float alpha) {
+        this.visualAlpha = Mth.clamp(alpha, 0, 1);
+        if (this.tertiaryPanel != null) this.tertiaryPanel.setVisualAlpha(this.visualAlpha);
+    }
 
     private TertiaryPanelComponent tertiaryPanel = null;
     private boolean tertiaryOpen = false;
@@ -160,6 +166,7 @@ public class SecondaryPanelComponent extends FlowLayout {
 
     @Override
     public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
+        graphics = RenderUtil.withOpacity(graphics, this.visualAlpha);
         if (this.tertiaryPanel != null) {
             long now = System.currentTimeMillis();
             long tElapsed = now - this.tertiaryAnimStartTime;

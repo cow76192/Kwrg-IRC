@@ -5,6 +5,8 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
+import me.cookie.kwrg.irc.manager.RouteManager;
+import me.cookie.kwrg.irc.manager.WaypointManager;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +47,8 @@ public class IrcConfig {
     public boolean glowEnabled = true;
     public String glowColor = "#00FF88";
     public List<String> importantPlayers = new ArrayList<>();
+    public Map<String, WaypointEntry> waypoints = new LinkedHashMap<>();
+    public String currentRouteFileName = "";
 
     public boolean chat = true;
     public String chatSound = "CAT_AMBIENT_BABY";
@@ -173,6 +177,14 @@ public class IrcConfig {
 
                 JsonObject jsonObj = GSON.fromJson(json, JsonObject.class);
                 ConfigMigrator.migrate(jsonObj);
+                if (jsonObj.has("waypoints") && jsonObj.get("waypoints").isJsonArray()) {
+                    JsonObject savedWaypoints = new JsonObject();
+                    int index = 0;
+                    for (var entry : jsonObj.getAsJsonArray("waypoints")) {
+                        savedWaypoints.add("legacy-" + index++, entry);
+                    }
+                    jsonObj.add("waypoints", savedWaypoints);
+                }
                 IrcConfig loaded = GSON.fromJson(jsonObj, IrcConfig.class);
 
                 if (loaded == null) loaded = new IrcConfig();
@@ -201,12 +213,16 @@ public class IrcConfig {
                 saveSelectorMeta(cleanName);
 
                 PlayerFinderManager.reloadFromConfig();
+                WaypointManager.reloadFromConfig();
+                RouteManager.reloadFromConfig();
 
                 LOGGER.info("[Kwrg] 已加载配置文件: {}.json", cleanName);
                 return true;
             } else if (createIfMissing) {
                 instance = new IrcConfig();
                 currentProfileName = cleanName;
+                WaypointManager.reloadFromConfig();
+                RouteManager.reloadFromConfig();
                 save();
                 return true;
             }
@@ -220,6 +236,8 @@ public class IrcConfig {
         String cleanName = sanitizeProfileName(profileName);
         instance = new IrcConfig();
         currentProfileName = cleanName;
+        WaypointManager.reloadFromConfig();
+        RouteManager.reloadFromConfig();
         LOGGER.info("[Kwrg] 已在内存中新建配置 [{}]（尚未保存到磁盘）", cleanName);
     }
 
@@ -285,6 +303,24 @@ public class IrcConfig {
             }
         }
         return list;
+    }
+
+    public static class WaypointEntry {
+        public String name = "";
+        public double x;
+        public double y;
+        public double z;
+        public boolean enabled = true;
+
+        public WaypointEntry() {
+        }
+
+        public WaypointEntry(String name, double x, double y, double z) {
+            this.name = name;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+        }
     }
 
     public static Path getFontDir() {

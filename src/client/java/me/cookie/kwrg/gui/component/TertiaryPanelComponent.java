@@ -28,6 +28,11 @@ public class TertiaryPanelComponent extends FlowLayout {
     private float originCenterX = 0.0f;
     private float originCenterY = 0.0f;
     private float animationProgress = 0.0f;
+    private float visualAlpha = 1.0f;
+
+    public void setVisualAlpha(float alpha) {
+        this.visualAlpha = Mth.clamp(alpha, 0, 1);
+    }
 
     public TertiaryPanelComponent(String itemTitle) {
         super(Sizing.fixed(PANEL_WIDTH), Sizing.fixed(PANEL_HEIGHT), Algorithm.VERTICAL);
@@ -92,6 +97,7 @@ public class TertiaryPanelComponent extends FlowLayout {
 
     @Override
     public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
+        graphics = RenderUtil.withOpacity(graphics, this.visualAlpha);
         if (this.animationProgress <= 0.03f) return;
 
         float ease = AnimationUtil.easeOutCubic(this.animationProgress);

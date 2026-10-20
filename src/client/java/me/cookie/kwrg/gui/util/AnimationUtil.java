@@ -4,7 +4,7 @@ import io.wispforest.owo.ui.core.Color;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 
-public class AnimationUtil {
+    public class AnimationUtil {
     public static float easeSmoothDecel(float progress) {
         float p = Mth.clamp(progress, 0.0f, 1.0f);
         return 1.0f - (float) Math.pow(1.0f - p, 4.0f);

@@ -289,6 +289,7 @@ public class IrcClient {
         IrcConfig config = IrcConfig.get();
 
         // 语气词装饰统一在此处理，覆盖聊天框输入与 /ic、/icall 等所有 IRC 发送路径
+        content = ChatNotifier.expandCoordsShortcut(content);
         ChatSuffixModule.IrcDecoration decoration = ChatSuffixModule.decorateIrcSafely(content);
 
         JsonObject json = new JsonObject();
@@ -352,6 +353,7 @@ public class IrcClient {
 
         IrcConfig config = IrcConfig.get();
 
+        content = ChatNotifier.expandCoordsShortcut(content);
         ChatSuffixModule.IrcDecoration decoration = ChatSuffixModule.decorateIrcSafely(content);
 
         JsonObject json = new JsonObject();
