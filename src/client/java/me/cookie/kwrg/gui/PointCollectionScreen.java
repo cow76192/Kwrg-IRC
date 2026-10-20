@@ -3,6 +3,7 @@ package me.cookie.kwrg.gui;
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import me.cookie.kwrg.gui.component.PanelItemComponent;
+import me.cookie.kwrg.gui.component.ScrollbarDrag;
 import me.cookie.kwrg.gui.component.route.RouteButtonComponent;
 import me.cookie.kwrg.gui.component.route.RoutePointComponent;
 import me.cookie.kwrg.gui.component.route.RouteNodeAnimation;
@@ -56,6 +57,8 @@ public abstract class PointCollectionScreen {
     private int panelX, panelY, panelW, panelH;
     private int contentX, contentY, contentW, contentH;
     private int fileScroll, pointScroll;
+    private final ScrollbarDrag scrollbarDrag = new ScrollbarDrag();
+    private boolean draggingPointScrollbar;
     private final Map<Path, FileRow> files = new LinkedHashMap<>();
     private final List<RoutePointComponent> points = new ArrayList<>();
     private final RouteButtonComponent closeButton = new RouteButtonComponent();
@@ -118,6 +121,7 @@ public abstract class PointCollectionScreen {
     }
 
     public void back() {
+        scrollbarDrag.cancel();
         if (closingAt >= 0) return;
         if (!flush()) { offerSaveRecovery(this::back); return; }
         blurPoints();
@@ -130,6 +134,7 @@ public abstract class PointCollectionScreen {
     }
 
     private void close() {
+        scrollbarDrag.cancel();
         if (!flush()) { offerSaveRecovery(this::close); return; }
         regionPane = null;
         routeUpdatePane = null;
@@ -357,6 +362,7 @@ public abstract class PointCollectionScreen {
     }
 
     public void mouseClicked(MouseButtonEvent click, boolean doubled) {
+        if (click.button() == 0) scrollbarDrag.cancel();
         draggedInput = null;
         if (!interactive()) return;
         if (pendingNavigation != null) {
@@ -391,6 +397,15 @@ public abstract class PointCollectionScreen {
             if (deleteClosing || deleteProgress() < 0.999f) return;
             if (click.button() == 0 && confirmDeleteButton.contains(click.x(), click.y())) closeDeleteConfirmation(true);
             else if (click.button() == 0 && cancelDeleteButton.contains(click.x(), click.y())) closeDeleteConfirmation(false);
+            return;
+        }
+        boolean editor = pageTarget > 0;
+        int contentHeight = editor ? points.size() * RoutePointComponent.HEIGHT : files.size() * FILE_HEIGHT;
+        if (scrollbarDrag.begin(click, contentX + contentW - 2, contentY, contentH,
+                ScrollbarDrag.thumbHeight(contentH, contentHeight, 14), editor ? pointScroll : fileScroll, Math.max(0, contentHeight - contentH))) {
+            draggingPointScrollbar = editor;
+            blurPoints();
+            applyScrollbarDrag();
             return;
         }
         if (!insidePanel(click.x(), click.y())) {
@@ -504,6 +519,11 @@ public abstract class PointCollectionScreen {
     }
 
     public void mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
+        if (scrollbarDrag.dragging()) {
+            int contentHeight = draggingPointScrollbar ? points.size() * RoutePointComponent.HEIGHT : files.size() * FILE_HEIGHT;
+            if (scrollbarDrag.drag(click, contentH, ScrollbarDrag.thumbHeight(contentH, contentHeight, 14), Math.max(0, contentHeight - contentH))) applyScrollbarDrag();
+            return;
+        }
         if (pendingNavigation != null) return;
         if (routeUpdatePane != null) return;
         if (regionPane != null) { regionPane.mouseDragged(click, deltaX, deltaY); return; }
@@ -513,11 +533,17 @@ public abstract class PointCollectionScreen {
     }
 
     public void mouseReleased(MouseButtonEvent click) {
+        scrollbarDrag.release(click);
         if (routeUpdatePane != null) return;
         if (regionPane != null) { regionPane.mouseReleased(click); return; }
         if (click.button() != 0) return;
         if (draggedInput != null) draggedInput.mouseReleased(click);
         draggedInput = null;
+    }
+
+    private void applyScrollbarDrag() {
+        if (draggingPointScrollbar) pointScroll = Math.round(scrollbarDrag.scroll());
+        else fileScroll = Math.round(scrollbarDrag.scroll());
     }
 
     public void mouseScrolled(double x, double y, double amount) {
