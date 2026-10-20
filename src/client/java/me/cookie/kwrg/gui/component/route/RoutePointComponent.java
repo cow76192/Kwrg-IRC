@@ -22,6 +22,7 @@ public final class RoutePointComponent {
     private int index;
     private final PointCollectionStore store;
     private final PointEntry entry;
+    private final Runnable onChanged;
     private final EditBox[] inputs = new EditBox[3];
     private final EditBox nameInput;
     private final float[] focusProgress = new float[4];
@@ -44,6 +45,7 @@ public final class RoutePointComponent {
         this.index = index;
         this.store = store;
         this.entry = entry;
+        this.onChanged = changed;
         nameInput = new EditBox(FontManagerHelper.getGuiInputFont(), 0, 0, 100, 16, Component.literal("点位名称"));
         nameInput.setBordered(false);
         nameInput.setTextShadow(false);
@@ -120,7 +122,7 @@ public final class RoutePointComponent {
         if (visibleButton.contains(click.x(), click.y())) {
             visibleButton.press();
             entry.visible = !entry.visible;
-            store.saveCurrent();
+            if (!store.saveCurrent()) onChanged.run();
         } else if (deleteButton.contains(click.x(), click.y())) {
             deleteButton.press();
             return true;

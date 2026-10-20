@@ -44,10 +44,14 @@ public final class WaypointRouteUpdate {
             if (local != null) used.add(local);
             int issue = -1;
             boolean alreadyAccepted = before != null && same(source, before.source) && local != null && same(local, before.local);
-            if (local != null && !coordinates(local, source) && !alreadyAccepted) {
+            boolean competingRename = before != null && local != null
+                    && !source.name.equals(before.source.name) && !local.name.equals(before.local.name)
+                    && !local.name.equals(source.name);
+            if (local != null && (!coordinates(local, source) || competingRename) && !alreadyAccepted) {
                 issue = issues.size(); issues.add(new Issue(Kind.CONFLICT, copy(local), copy(source)));
             }
-            boolean rename = before != null && local != null && coordinates(local, source) && !source.name.equals(before.source.name);
+            boolean rename = issue < 0 && !alreadyAccepted && before != null && local != null
+                    && coordinates(local, source) && !source.name.equals(before.source.name);
             nodes.add(new Node(source, local, before == null ? null : before.local, before == null && local == null, rename, issue));
         }
         for (SourceNode before : baseline) if (!matched.contains(before)) {
@@ -84,7 +88,7 @@ public final class WaypointRouteUpdate {
             if (node.add) {
                 local = copy(node.source); local.id = UUID.randomUUID().toString(); result.points.add(local);
                 added++;
-            } else if (local != null && (node.rename || node.issue >= 0 && decisions.get(node.issue))) {
+            } else if (local != null && (node.issue >= 0 ? decisions.get(node.issue) : node.rename)) {
                 if (!same(local, node.source)) modified++;
                 local.name = node.source.name; local.x = node.source.x; local.y = node.source.y; local.z = node.source.z;
             }

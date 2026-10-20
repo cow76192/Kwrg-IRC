@@ -113,7 +113,7 @@ public abstract class PointCollectionScreen {
 
     public void back() {
         if (closingAt >= 0) return;
-        flush();
+        if (!flush()) return;
         blurPoints();
         if (pageTarget > 0) {
             pageFrom = pageProgress();
@@ -124,17 +124,20 @@ public abstract class PointCollectionScreen {
     }
 
     private void close() {
+        if (!flush()) return;
         regionPane = null;
         routeUpdatePane = null;
         pendingDelete = null;
         routeNameInput = null;
-        flush();
         blurPoints();
         closingFrom = progress();
         closingAt = System.currentTimeMillis();
     }
 
-    public void flush() { if (dirty && store.saveCurrent()) dirty = false; }
+    public boolean flush() {
+        if (dirty && store.saveCurrent()) dirty = false;
+        return !dirty;
+    }
     private void markDirty() { dirty = true; editedAt = System.currentTimeMillis(); }
 
     private void refreshFiles() {
@@ -226,7 +229,7 @@ public abstract class PointCollectionScreen {
         if (routeUpdatePane != null && routeUpdatePane.finished()) routeUpdatePane = null;
         if (dirty && now - editedAt > 350) flush();
         if (pageTarget == 0 && routeNameInput == null && regionPane == null && routeUpdatePane == null && deletingFile == null && now - refreshedAt > 1000) refreshFiles();
-        if (pageTarget > 0 && pendingDelete == null && deletingPoint == null && !samePoints()) { flush(); rebuildPoints(); }
+        if (pageTarget > 0 && pendingDelete == null && deletingPoint == null && !samePoints() && flush()) rebuildPoints();
         layout(width, height);
         float alpha = progress();
         float sourceX = originX, sourceY = originY, sourceW = 52, sourceH = 28;
@@ -344,8 +347,10 @@ public abstract class PointCollectionScreen {
                 backButton.press(); back(); return;
             }
             if (click.button() == 0 && addButton.contains(click.x(), click.y())) {
-                addButton.press(); flush();
+                if (!flush()) return;
+                addButton.press();
                 store.addEmpty(points.size() + 1);
+                markDirty();
                 rebuildPoints();
                 pointScroll = Math.max(0, points.size() * RoutePointComponent.HEIGHT - contentH);
                 layout(Minecraft.getInstance().getWindow().getGuiScaledWidth(), Minecraft.getInstance().getWindow().getGuiScaledHeight());
@@ -356,7 +361,8 @@ public abstract class PointCollectionScreen {
                 int index = (int) ((click.y() - contentY + pointScroll) / RoutePointComponent.HEIGHT);
                 for (int i = 0; i < points.size(); i++) if (i != index) points.get(i).blur();
                 if (index >= 0 && index < points.size() && points.get(index).mouseClicked(click, doubled)) {
-                    flush(); blurPoints();
+                    if (!flush()) return;
+                    blurPoints();
                     pendingDelete = points.get(index).entry();
                     pendingDeleteFile = store.currentFile();
                     deleteSourcePoint = points.get(index);
@@ -379,11 +385,11 @@ public abstract class PointCollectionScreen {
             FileRow row = fileAt(click.x(), click.y());
             if (row == null) return;
             if (row.appearance.progress(System.currentTimeMillis()) < 0.95f) return;
+            if (!flush()) return;
             if (store.externalFile(row.path)) {
                 if (click.button() == 0 && row.importButton.contains(click.x(), click.y())) {
                     row.importButton.press();
                     try {
-                        flush();
                         if (row.externalAction.equals("更新")) {
                             var plan = store.prepareExternalUpdate(row.path);
                             if (plan.needsConfirmation()) routeUpdatePane = new RouteUpdatePane(row.importButton, plan, this::refreshFiles);
@@ -399,7 +405,7 @@ public abstract class PointCollectionScreen {
                 return;
             }
             if (click.button() == 1) {
-                row.surface.press(); flush();
+                row.surface.press();
                 if (store.importFile(row.path)) {
                     rebuildPoints(); pointScroll = 0;
                     pageFrom = pageProgress(); pageTarget = 1; pageStartedAt = System.currentTimeMillis();
@@ -416,14 +422,14 @@ public abstract class PointCollectionScreen {
                     var options = row.options;
                     if (store.setFileOptions(row.path, toggleVisible ? !options.visible() : options.visible(),
                             toggleVisible ? options.showLine() : !options.showLine())) refreshFiles();
+                    else if (row.path.equals(store.currentFile())) markDirty();
                 } else if (click.hasShiftDown() && !store.protectedFile(row.path)) {
-                    flush();
                     if (store.deleteFile(row.path)) {
                         deletingFile = row;
                         row.appearance.remove(System.currentTimeMillis());
                     }
                 } else {
-                    row.surface.press(); flush();
+                    row.surface.press();
                     if (!store.supportsLines()) store.setEnabled(row.path, !store.enabled(row.path));
                     if (store.importFile(row.path)) { rebuildPoints(); refreshFiles(); }
                 }
@@ -515,7 +521,7 @@ public abstract class PointCollectionScreen {
     }
 
     private void startRouteNaming(Path file, RouteButtonComponent source) {
-        flush();
+        if (!flush()) return;
         namingSource = source;
         namingOrigin = source.bounds();
         namingOriginColor = source.color();
