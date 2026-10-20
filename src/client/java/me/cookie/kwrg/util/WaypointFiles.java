@@ -60,11 +60,13 @@ public final class WaypointFiles {
             return true;
         } catch (IOException | RuntimeException e) {
             LoggerFactory.getLogger(WaypointFiles.class).warn("无法初始化点位存储，保留配置中的旧点位并使用内存副本", e);
-            Collection fallback = new Collection("默认点位");
-            legacy.forEach((id, saved) -> fallback.points.add(fromSaved(id, saved)));
-            // Block writes over an unreadable/corrupt default file until explicitly recovered.
-            fallback.savedPath = defaultFile();
-            FILES.put(defaultFile(), fallback);
+            if (!FILES.containsKey(defaultFile())) {
+                Collection fallback = new Collection("默认点位");
+                legacy.forEach((id, saved) -> fallback.points.add(fromSaved(id, saved)));
+                // Block writes over an unreadable/corrupt default file until explicitly recovered.
+                fallback.savedPath = defaultFile();
+                FILES.put(defaultFile(), fallback);
+            }
             current = defaultFile();
             syncDefault();
             return false;

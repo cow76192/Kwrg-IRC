@@ -14,7 +14,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import org.lwjgl.glfw.GLFW;
 import java.util.*;
-import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 /** Searchable multi-select, morphing out of its source button without a backdrop. */
 public final class RegionSelectionPane {
@@ -23,7 +23,8 @@ public final class RegionSelectionPane {
     private final Color originColor;
     private final EditBox search = new EditBox(FontManagerHelper.getGuiInputFont(), 0, 0, 200, 18, Component.literal("搜索岛屿"));
     private final Set<String> selected = new LinkedHashSet<>();
-    private final Consumer<Set<String>> changed;
+    private final Predicate<Set<String>> changed;
+    private String error = "";
     private final Map<String, RouteButtonComponent> choices = new LinkedHashMap<>();
     private final RouteButtonComponent done = new RouteButtonComponent();
     private long startedAt = System.currentTimeMillis();
@@ -31,7 +32,7 @@ public final class RegionSelectionPane {
     private float closingFrom;
     private int x, y, width, height, scroll;
 
-    public RegionSelectionPane(RouteButtonComponent source, Set<String> selected, Consumer<Set<String>> changed) {
+    public RegionSelectionPane(RouteButtonComponent source, Set<String> selected, Predicate<Set<String>> changed) {
         this.source = source; this.origin = source.bounds(); this.originColor = source.color();
         this.selected.addAll(selected); this.changed = changed;
         if (this.selected.isEmpty()) this.selected.add("all");
@@ -85,7 +86,8 @@ public final class RegionSelectionPane {
             choices.get(island.id()).draw(content, (selected.contains(island.id()) ? "✓ " : "  ") + island.name(), selected.contains(island.id()), mouseX, mouseY);
         }
         graphics.disableScissor();
-        RenderUtil.drawSmoothText(content, selected.contains("all") ? "所有区域均生效" : "已选 " + selected.size() + " 个区域", x + 16, y + height - 24, 0xFF8CA7BA);
+        RenderUtil.drawSmoothText(content, error.isEmpty() ? selected.contains("all") ? "所有区域均生效" : "已选 " + selected.size() + " 个区域" : error,
+                x + 16, y + height - 24, error.isEmpty() ? 0xFF8CA7BA : 0xFFFFA8B4);
         done.draw(content, "完成", false, mouseX, mouseY);
         graphics.disableScissor(); graphics.pose().popMatrix();
     }
@@ -99,15 +101,23 @@ public final class RegionSelectionPane {
         if (click.y() >= y + 72 && click.y() < y + height - 40 && click.x() >= x + 16 && click.x() < x + width - 16) {
             for (SkyblockIsland island : SkyblockIsland.search(search.getValue())) if (choices.get(island.id()).contains(click.x(), click.y())) {
                 choices.get(island.id()).press();
-                if (island.id().equals("all")) { selected.clear(); selected.add("all"); }
-                else { selected.remove("all"); if (!selected.add(island.id())) selected.remove(island.id()); }
-                if (selected.isEmpty()) selected.add("all");
-                changed.accept(Set.copyOf(selected));
+                selectRegion(island.id());
                 return;
             }
         }
         search.setFocused(search.isMouseOver(click.x(), click.y()));
         dragging = search.mouseClicked(click, doubled);
+    }
+    private void selectRegion(String id) {
+        Set<String> previous = Set.copyOf(selected);
+        if (id.equals("all")) { selected.clear(); selected.add("all"); }
+        else { selected.remove("all"); if (!selected.add(id)) selected.remove(id); }
+        if (selected.isEmpty()) selected.add("all");
+        if (changed.test(Set.copyOf(selected))) error = "";
+        else {
+            selected.clear(); selected.addAll(previous);
+            error = "保存失败，已恢复原区域";
+        }
     }
     public void mouseDragged(MouseButtonEvent click, double dx, double dy) { if (dragging && !closing) search.mouseDragged(click, dx, dy); }
     public void mouseReleased(MouseButtonEvent click) { if (click.button() == 0) { search.mouseReleased(click); dragging = false; } }

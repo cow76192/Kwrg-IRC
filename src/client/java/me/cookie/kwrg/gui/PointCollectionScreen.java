@@ -476,7 +476,7 @@ public abstract class PointCollectionScreen {
             } else if (click.button() == 0) {
                 if (!store.supportsLines() && row.region.contains(click.x(), click.y())) {
                     row.region.press();
-                    regionPane = new RegionSelectionPane(row.region, store.regions(row.path), selected -> { store.setRegions(row.path, selected); });
+                    regionPane = new RegionSelectionPane(row.region, store.regions(row.path), selected -> store.setRegions(row.path, selected));
                 } else if (!store.protectedFile(row.path) && row.rename.contains(click.x(), click.y())) {
                     row.rename.press(); startRouteNaming(row.path, row.rename);
                 } else if (row.visible.contains(click.x(), click.y()) || store.supportsLines() && row.line.contains(click.x(), click.y())) {

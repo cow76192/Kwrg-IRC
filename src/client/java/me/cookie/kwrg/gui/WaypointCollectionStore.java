@@ -43,11 +43,14 @@ final class WaypointCollectionStore implements PointCollectionStore {
         return false;
     }
     public Set<String> regions(Path path) { return Set.copyOf(WaypointFiles.collection(path).regions); }
-    public void setRegions(Path path, Set<String> regions) {
+    public boolean setRegions(Path path, Set<String> regions) {
         var file = WaypointFiles.collection(path);
+        if (file == null) return false;
         Set<String> previous = Set.copyOf(file.regions);
         file.regions.clear(); file.regions.addAll(regions.isEmpty() ? Set.of("all") : regions);
-        if (!WaypointFiles.save(path)) { file.regions.clear(); file.regions.addAll(previous); }
+        if (WaypointFiles.save(path)) return true;
+        file.regions.clear(); file.regions.addAll(previous);
+        return false;
     }
     public void importExternal(Path path) throws Exception { WaypointFiles.importRoute(path); }
     public String externalActionLabel(Path path) { return WaypointFiles.importedFile(path) == null ? "导入" : "更新"; }

@@ -37,7 +37,7 @@ public interface PointCollectionStore {
     default boolean active(Path path) { return supportsLines() ? path.equals(currentFile()) : enabled(path); }
     default boolean setEnabled(Path path, boolean enabled) { return false; }
     default Set<String> regions(Path path) { return Set.of("all"); }
-    default void setRegions(Path path, Set<String> regions) {}
+    default boolean setRegions(Path path, Set<String> regions) { return false; }
     default void importExternal(Path path) throws Exception {}
     default String externalActionLabel(Path path) { return "导入"; }
     default WaypointRouteUpdate prepareExternalUpdate(Path path) throws Exception { return null; }
