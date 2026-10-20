@@ -14,6 +14,7 @@ final class RouteCollectionStore implements PointCollectionStore {
     public List<? extends PointEntry> entries() { return RouteManager.entries(); }
     public boolean importFile(Path path) { return RouteManager.importFile(path); }
     public boolean saveCurrent() { return RouteManager.saveCurrent(); }
+    public void discardCurrentEdits() { RouteManager.discardCurrentEdits(); }
     public Path createRoute(String name) throws Exception { return RouteManager.createRoute(name); }
     public Path renameRoute(Path path, String name) throws Exception { return RouteManager.renameRoute(path, name); }
     public boolean deleteFile(Path path) { return RouteManager.deleteFile(path); }

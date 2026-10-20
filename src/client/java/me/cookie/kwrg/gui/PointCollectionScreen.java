@@ -47,6 +47,12 @@ public abstract class PointCollectionScreen {
     private float pageFrom, pageTarget;
     private long pageStartedAt, refreshedAt, editedAt;
     private boolean dirty;
+    private boolean saveBlocked;
+    private Runnable pendingNavigation;
+    private long saveFailureAt;
+    private final RouteButtonComponent retrySaveButton = new RouteButtonComponent();
+    private final RouteButtonComponent discardSaveButton = new RouteButtonComponent();
+    private final RouteButtonComponent continueEditingButton = new RouteButtonComponent();
     private int panelX, panelY, panelW, panelH;
     private int contentX, contentY, contentW, contentH;
     private int fileScroll, pointScroll;
@@ -113,7 +119,7 @@ public abstract class PointCollectionScreen {
 
     public void back() {
         if (closingAt >= 0) return;
-        if (!flush()) return;
+        if (!flush()) { offerSaveRecovery(this::back); return; }
         blurPoints();
         if (pageTarget > 0) {
             pageFrom = pageProgress();
@@ -124,7 +130,7 @@ public abstract class PointCollectionScreen {
     }
 
     private void close() {
-        if (!flush()) return;
+        if (!flush()) { offerSaveRecovery(this::close); return; }
         regionPane = null;
         routeUpdatePane = null;
         pendingDelete = null;
@@ -136,9 +142,27 @@ public abstract class PointCollectionScreen {
 
     public boolean flush() {
         if (dirty && store.saveCurrent()) dirty = false;
+        saveBlocked = dirty;
         return !dirty;
     }
-    private void markDirty() { dirty = true; editedAt = System.currentTimeMillis(); }
+    private void markDirty() { dirty = true; saveBlocked = false; editedAt = System.currentTimeMillis(); }
+
+    private void offerSaveRecovery(Runnable navigation) {
+        if (pendingNavigation == null) { pendingNavigation = navigation; saveFailureAt = System.currentTimeMillis(); }
+    }
+
+    private void resolveSaveFailure(boolean discard) {
+        if (pendingNavigation == null) return;
+        if (discard) {
+            store.discardCurrentEdits();
+            dirty = saveBlocked = false;
+            rebuildPoints();
+            refreshFiles();
+        } else if (!flush()) return;
+        Runnable navigation = pendingNavigation;
+        pendingNavigation = null;
+        navigation.run();
+    }
 
     private void refreshFiles() {
         Map<Path, FileRow> next = new LinkedHashMap<>();
@@ -227,9 +251,9 @@ public abstract class PointCollectionScreen {
         finishDeletion(now);
         if (regionPane != null && regionPane.finished()) regionPane = null;
         if (routeUpdatePane != null && routeUpdatePane.finished()) routeUpdatePane = null;
-        if (dirty && now - editedAt > 350) flush();
+        if (dirty && !saveBlocked && pendingNavigation == null && now - editedAt > 350) flush();
         if (pageTarget == 0 && routeNameInput == null && regionPane == null && routeUpdatePane == null && deletingFile == null && now - refreshedAt > 1000) refreshFiles();
-        if (pageTarget > 0 && pendingDelete == null && deletingPoint == null && !samePoints() && flush()) rebuildPoints();
+        if (pageTarget > 0 && pendingDelete == null && deletingPoint == null && !samePoints() && !saveBlocked && flush()) rebuildPoints();
         layout(width, height);
         float alpha = progress();
         float sourceX = originX, sourceY = originY, sourceW = 52, sourceH = 28;
@@ -281,7 +305,32 @@ public abstract class PointCollectionScreen {
             if (routeNameInput != null) renderRouteNaming(graphics, owo, mouseX, mouseY, partialTick);
             if (regionPane != null) regionPane.render(owo, mouseX, mouseY, partialTick, panelX, panelY, panelW, panelH);
             if (routeUpdatePane != null) routeUpdatePane.render(owo, mouseX, mouseY, panelX, panelY, panelW, panelH);
+            if (pendingNavigation != null) renderSaveRecovery(owo, mouseX, mouseY);
         }
+        graphics.pose().popMatrix();
+    }
+
+    private void renderSaveRecovery(OwoUIGraphics graphics, int mouseX, int mouseY) {
+        int width = Math.min(430, panelW - 24), height = 142;
+        int x = panelX + (panelW - width) / 2, y = panelY + (panelH - height) / 2;
+        int buttonW = (width - 48) / 3;
+        retrySaveButton.bounds(x + 12, y + 102, buttonW, 26);
+        discardSaveButton.bounds(x + 24 + buttonW, y + 102, buttonW, 26);
+        continueEditingButton.bounds(x + 36 + buttonW * 2, y + 102, buttonW, 26);
+        float progress = AnimationUtil.easeOutCubic((System.currentTimeMillis() - saveFailureAt) / (float) ANIMATION_MS);
+        var origin = (pageTarget > 0 ? backButton : closeButton).bounds();
+        float currentX = AnimationUtil.lerp(progress, origin.x(), x), currentY = AnimationUtil.lerp(progress, origin.y(), y);
+        float currentW = AnimationUtil.lerp(progress, origin.width(), width), currentH = AnimationUtil.lerp(progress, origin.height(), height);
+        RenderUtil.drawSubpixelRoundedPanel(graphics, currentX, currentY, currentW, currentH, 8, Color.ofArgb(0xFF1C2734), Color.ofArgb(0xAAAF6976));
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(currentX, currentY); graphics.pose().scale(currentW / width, currentH / height); graphics.pose().translate(-x, -y);
+        graphics = RenderUtil.withOpacity(graphics, progress);
+        RenderUtil.drawSmoothText(graphics, "修改尚未保存", x + 16, y + 16, 0xFFFFDB94);
+        RenderUtil.drawSmoothText(graphics, "文件可能被外部修改，或当前无法写入。", x + 16, y + 42, 0xFFD2DFE8);
+        RenderUtil.drawSmoothText(graphics, "放弃本次编辑会重载文件，不会覆盖磁盘内容。", x + 16, y + 66, 0xFF8CA7BA);
+        retrySaveButton.draw(graphics, "重试保存", false, mouseX, mouseY);
+        discardSaveButton.draw(graphics, "放弃本次编辑", false, mouseX, mouseY);
+        continueEditingButton.draw(graphics, "继续编辑", false, mouseX, mouseY);
         graphics.pose().popMatrix();
     }
 
@@ -302,6 +351,7 @@ public abstract class PointCollectionScreen {
         for (RoutePointComponent point : points) {
             int y = contentY + Math.round(offset) - pointScroll;
             if (y + RoutePointComponent.HEIGHT > contentY && y < contentY + contentH) point.render(graphics, owo, mouseX, mouseY, partialTick);
+            else point.releaseInputs();
             offset += RoutePointComponent.HEIGHT * point.remaining(now);
         }
     }
@@ -309,6 +359,14 @@ public abstract class PointCollectionScreen {
     public void mouseClicked(MouseButtonEvent click, boolean doubled) {
         draggedInput = null;
         if (!interactive()) return;
+        if (pendingNavigation != null) {
+            if (click.button() == 1) { pendingNavigation = null; return; }
+            if (click.button() != 0 || System.currentTimeMillis() - saveFailureAt < ANIMATION_MS) return;
+            if (retrySaveButton.contains(click.x(), click.y())) { retrySaveButton.press(); resolveSaveFailure(false); }
+            else if (discardSaveButton.contains(click.x(), click.y())) { discardSaveButton.press(); resolveSaveFailure(true); }
+            else if (continueEditingButton.contains(click.x(), click.y())) { continueEditingButton.press(); pendingNavigation = null; }
+            return;
+        }
         if (routeUpdatePane != null) { routeUpdatePane.mouseClicked(click); return; }
         if (regionPane != null) { regionPane.mouseClicked(click, doubled); return; }
         if (click.button() == 1 && pageTarget > 0) {
@@ -349,14 +407,17 @@ public abstract class PointCollectionScreen {
             if (click.button() == 0 && addButton.contains(click.x(), click.y())) {
                 if (!flush()) return;
                 addButton.press();
-                int previousSize = store.entries().size();
+                var previousEntries = java.util.Collections.newSetFromMap(new IdentityHashMap<PointEntry, Boolean>());
+                previousEntries.addAll(store.entries());
                 store.addEmpty(points.size() + 1);
-                if (store.entries().size() == previousSize) return;
+                PointEntry added = store.entries().stream().filter(entry -> !entry.temporary && !previousEntries.contains(entry)).findFirst().orElse(null);
+                if (added == null) return;
                 markDirty();
                 rebuildPoints();
-                pointScroll = Math.max(0, points.size() * RoutePointComponent.HEIGHT - contentH);
+                int addedIndex = store.entries().indexOf(added);
+                pointScroll = Math.max(0, (addedIndex + 1) * RoutePointComponent.HEIGHT - contentH);
                 layout(Minecraft.getInstance().getWindow().getGuiScaledWidth(), Minecraft.getInstance().getWindow().getGuiScaledHeight());
-                if (!points.isEmpty()) points.getLast().focus(0);
+                points.get(addedIndex).focus(0);
                 return;
             }
             if (insideContent(click.x(), click.y())) {
@@ -387,7 +448,7 @@ public abstract class PointCollectionScreen {
             FileRow row = fileAt(click.x(), click.y());
             if (row == null) return;
             if (row.appearance.progress(System.currentTimeMillis()) < 0.95f) return;
-            if (!flush()) return;
+            if (!flush()) { offerSaveRecovery(() -> mouseClicked(click, doubled)); return; }
             if (store.externalFile(row.path)) {
                 if (click.button() == 0 && row.importButton.contains(click.x(), click.y())) {
                     row.importButton.press();
@@ -415,7 +476,7 @@ public abstract class PointCollectionScreen {
             } else if (click.button() == 0) {
                 if (!store.supportsLines() && row.region.contains(click.x(), click.y())) {
                     row.region.press();
-                    regionPane = new RegionSelectionPane(row.region, store.regions(row.path), selected -> { store.setRegions(row.path, selected); });
+                    regionPane = new RegionSelectionPane(row.region, store.regions(row.path), selected -> store.setRegions(row.path, selected));
                 } else if (!store.protectedFile(row.path) && row.rename.contains(click.x(), click.y())) {
                     row.rename.press(); startRouteNaming(row.path, row.rename);
                 } else if (row.visible.contains(click.x(), click.y()) || store.supportsLines() && row.line.contains(click.x(), click.y())) {
@@ -443,6 +504,7 @@ public abstract class PointCollectionScreen {
     }
 
     public void mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
+        if (pendingNavigation != null) return;
         if (routeUpdatePane != null) return;
         if (regionPane != null) { regionPane.mouseDragged(click, deltaX, deltaY); return; }
         if (!interactive() || click.button() != 0 || draggedInput == null || pendingDelete != null || namingClosing && routeNameInput != null) return;
@@ -459,6 +521,7 @@ public abstract class PointCollectionScreen {
     }
 
     public void mouseScrolled(double x, double y, double amount) {
+        if (pendingNavigation != null) return;
         if (routeUpdatePane != null) { routeUpdatePane.mouseScrolled(x, y, amount); return; }
         if (regionPane != null) { regionPane.mouseScrolled(x, y, amount); return; }
         if (!interactive() || pendingDelete != null || routeNameInput != null || !insideContent(x, y)) return;
@@ -470,6 +533,11 @@ public abstract class PointCollectionScreen {
     }
 
     public void keyPressed(KeyEvent input) {
+        if (pendingNavigation != null) {
+            if (input.key() == GLFW.GLFW_KEY_ESCAPE) pendingNavigation = null;
+            else if (input.key() == GLFW.GLFW_KEY_ENTER && System.currentTimeMillis() - saveFailureAt >= ANIMATION_MS) resolveSaveFailure(false);
+            return;
+        }
         if (routeUpdatePane != null) { routeUpdatePane.keyPressed(input); return; }
         if (regionPane != null) { regionPane.keyPressed(input); return; }
         if (deletingPoint != null || deletingFile != null) return;
@@ -503,6 +571,7 @@ public abstract class PointCollectionScreen {
     }
 
     public void charTyped(CharacterEvent input) {
+        if (pendingNavigation != null) return;
         if (routeUpdatePane != null) return;
         if (regionPane != null) { regionPane.charTyped(input); return; }
         if (routeNameInput != null) {
@@ -513,6 +582,7 @@ public abstract class PointCollectionScreen {
     }
 
     public boolean preeditUpdated(PreeditEvent input) {
+        if (pendingNavigation != null) return true;
         if (routeUpdatePane != null) return true;
         if (regionPane != null) { regionPane.preeditUpdated(input); return true; }
         if (routeNameInput != null) {

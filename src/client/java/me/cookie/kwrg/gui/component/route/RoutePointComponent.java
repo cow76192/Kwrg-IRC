@@ -24,7 +24,7 @@ public final class RoutePointComponent {
     private final PointEntry entry;
     private final Runnable onChanged;
     private final EditBox[] inputs = new EditBox[3];
-    private final EditBox nameInput;
+    private EditBox nameInput;
     private final float[] focusProgress = new float[4];
     private final RouteButtonComponent visibleButton = new RouteButtonComponent();
     private final RouteButtonComponent deleteButton = new RouteButtonComponent();
@@ -46,6 +46,10 @@ public final class RoutePointComponent {
         this.store = store;
         this.entry = entry;
         this.onChanged = changed;
+    }
+
+    private void ensureInputs() {
+        if (nameInput != null) return;
         nameInput = new EditBox(FontManagerHelper.getGuiInputFont(), 0, 0, 100, 16, Component.literal("点位名称"));
         nameInput.setBordered(false);
         nameInput.setTextShadow(false);
@@ -54,7 +58,7 @@ public final class RoutePointComponent {
         nameInput.setHint(Component.literal("点位名称"));
         nameInput.setResponder(value -> {
             entry.name = value;
-            changed.run();
+            onChanged.run();
         });
         String[] values = {entry.x, entry.y, entry.z};
         for (int axis = 0; axis < 3; axis++) {
@@ -66,16 +70,18 @@ public final class RoutePointComponent {
             input.setValue(values[axis]);
             input.onChanged = value -> {
                 switch (currentAxis) { case 0 -> entry.x = value; case 1 -> entry.y = value; case 2 -> entry.z = value; }
-                changed.run();
+                onChanged.run();
             };
             inputs[axis] = input;
         }
+        layout(x, y, width);
     }
 
     public void layout(int x, int y, int width) {
         this.x = x;
         this.y = y;
         this.width = width;
+        if (nameInput == null) return;
         int inputW = Math.max(28, Math.min(64, (width - 150) / 3));
         int startX = x + width - 92 - (inputW + 12) * 3;
         nameInput.setX(x + 28);
@@ -94,6 +100,7 @@ public final class RoutePointComponent {
         long now = System.currentTimeMillis();
         float appear = appearance.progress(now);
         if (appear <= 0.005f) return;
+        ensureInputs();
         owo = RenderUtil.beginRowAppearance(owo, x, y, width, HEIGHT, appear);
         float step = (float) (1 - Math.exp(-(now - lastFrame) / 90.0));
         lastFrame = now;
@@ -119,6 +126,7 @@ public final class RoutePointComponent {
     /** @return true when the caller should ask for deletion confirmation. */
     public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
         if (click.button() != 0 || appearance.progress(System.currentTimeMillis()) < 0.95f) return false;
+        ensureInputs();
         if (visibleButton.contains(click.x(), click.y())) {
             visibleButton.press();
             entry.visible = !entry.visible;
@@ -139,18 +147,26 @@ public final class RoutePointComponent {
 
     private EditBox field(int index) { return index == 0 ? nameInput : inputs[index - 1]; }
     public EditBox clickedInput(double x, double y) {
+        if (nameInput == null) return null;
         for (int i = 0; i < 4; i++) {
             EditBox input = field(i);
             if (input.isFocused() && input.isMouseOver(x, y)) return input;
         }
         return null;
     }
-    public void blur() { for (int i = 0; i < 4; i++) field(i).setFocused(false); }
+    public void blur() { if (nameInput != null) for (int i = 0; i < 4; i++) field(i).setFocused(false); }
+    public void releaseInputs() {
+        if (focusedField() >= 0) return;
+        nameInput = null;
+        java.util.Arrays.fill(inputs, null);
+    }
     public int focusedField() {
+        if (nameInput == null) return -1;
         for (int i = 0; i < 4; i++) if (field(i).isFocused()) return i;
         return -1;
     }
     public void focus(int index) {
+        ensureInputs();
         blur();
         EditBox input = field(index);
         input.setFocused(true);
@@ -158,16 +174,18 @@ public final class RoutePointComponent {
         input.setCursorPosition(input.getValue().length());
     }
     public boolean keyPressed(KeyEvent input) {
+        if (nameInput == null) return false;
         for (int i = 0; i < 4; i++) if (field(i).isFocused()) return field(i).keyPressed(input);
         return false;
     }
     public boolean charTyped(CharacterEvent input) {
+        if (nameInput == null) return false;
         for (int i = 0; i < 4; i++) if (field(i).isFocused()) return field(i).charTyped(input);
         return false;
     }
 
     public boolean preeditUpdated(PreeditEvent input) {
-        return nameInput.isFocused() && nameInput.preeditUpdated(input);
+        return nameInput != null && nameInput.isFocused() && nameInput.preeditUpdated(input);
     }
 
     private static final class DecimalInput extends EditBox {

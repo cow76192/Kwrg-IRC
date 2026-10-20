@@ -65,8 +65,8 @@ public final class RouteManager {
         seedDefaultRoute();
         String savedName = IrcConfig.get().currentRouteFileName;
         if (savedName != null && !savedName.isBlank()) {
-            Path savedFile = getDir().resolve(savedName).normalize();
-            if (savedFile.getParent().equals(getDir().normalize()) && Files.isRegularFile(savedFile)) {
+            Path savedFile = resolveSavedFile(getDir(), savedName);
+            if (savedFile != null && Files.isRegularFile(savedFile)) {
                 if (loadFile(savedFile, false)) return;
             }
         }
@@ -79,6 +79,25 @@ public final class RouteManager {
         if (savedName != null && !savedName.isBlank()) {
             IrcConfig.get().currentRouteFileName = "";
         }
+    }
+
+    private static Path resolveSavedFile(Path directory, String name) {
+        try {
+            Path relative = Path.of(name);
+            if (relative.isAbsolute() || relative.getNameCount() != 1 || name.indexOf('/') >= 0 || name.indexOf('\\') >= 0) return null;
+            Path base = directory.toAbsolutePath().normalize();
+            Path target = base.resolve(relative).normalize();
+            return base.equals(target.getParent()) ? target : null;
+        } catch (java.nio.file.InvalidPathException e) { return null; }
+    }
+
+    public static void discardCurrentEdits() {
+        if (currentFile != null && loadFile(currentFile, false)) return;
+        ENTRIES.clear();
+        currentFile = null;
+        loadedContent = null;
+        conflictReported = false;
+        IrcConfig.get().currentRouteFileName = "";
     }
 
     private static void seedDefaultRoute() {

@@ -28,7 +28,7 @@ loom {
 }
 
 dependencies {
-	implementation 'net.hypixel:mod-api:1.0.2'
+	compileOnly 'net.hypixel:mod-api:1.0.2'
 	include implementation('maven.modrinth:hypixel-mod-api:1.0.2+build.1+mc26.1')
 	// To change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
