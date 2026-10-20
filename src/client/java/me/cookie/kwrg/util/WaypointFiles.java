@@ -175,10 +175,25 @@ public final class WaypointFiles {
         Path target = newPath(name, path);
         Collection file = collection(path);
         if (file == null) throw new IllegalArgumentException("点位集不存在");
-        String oldName = file.name;
-        file.name = stem(target);
-        try { write(target, file); if (!target.equals(path)) Files.delete(path); }
-        catch (IOException e) { file.name = oldName; throw e; }
+        requireUnchanged(path, file);
+        Collection renamed = copy(file);
+        renamed.name = stem(target);
+        renamed.savedPath = file.savedPath;
+        renamed.diskContent = file.diskContent;
+        write(target, renamed);
+        if (!target.equals(path)) {
+            try {
+                // The source may have changed while the new file was being written.
+                requireUnchanged(path, file);
+                Files.delete(path);
+            } catch (IOException e) {
+                try { Files.deleteIfExists(target); }
+                catch (IOException cleanup) { e.addSuppressed(cleanup); }
+                throw e;
+            }
+        }
+        file.name = renamed.name;
+        file.rememberSaved(target, renamed.diskContent);
         FILES.remove(path); FILES.put(target, file);
         if (path.equals(current)) current = target;
         return target;
@@ -190,9 +205,13 @@ public final class WaypointFiles {
                 || clean.chars().anyMatch(c -> c < 32 || "<>:\"/\\|?*".indexOf(c) >= 0)
                 || clean.split("\\.", 2)[0].toUpperCase(Locale.ROOT).matches("CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9]")) throw new IllegalArgumentException("点位集名称无效");
         Path target = getDir().resolve(clean + ".json");
-        for (Path existing : FILES.keySet()) if (!existing.equals(original) && existing.getFileName().toString().equalsIgnoreCase(target.getFileName().toString())) throw new IllegalArgumentException("已存在同名点位集");
-        if (Files.exists(target) && !target.equals(original)) throw new IllegalArgumentException("已存在同名文件");
+        for (Path existing : FILES.keySet()) if (!existing.equals(original) && existing.getFileName().toString().equalsIgnoreCase(target.getFileName().toString())) throw new DuplicateNameException("已存在同名点位集");
+        if (Files.exists(target) && !target.equals(original)) throw new DuplicateNameException("已存在同名文件");
         return target;
+    }
+
+    private static final class DuplicateNameException extends IllegalArgumentException {
+        private DuplicateNameException(String message) { super(message); }
     }
 
     public static boolean delete(Path path) {
@@ -219,7 +238,7 @@ public final class WaypointFiles {
                 imported.name = stem(target);
                 write(target, imported); FILES.put(target, imported);
                 return target;
-            } catch (IllegalArgumentException duplicate) {
+            } catch (DuplicateNameException duplicate) {
                 if (base.length() > 55) base = base.substring(0, 55);
                 name = base + " (" + i + ")";
             }
@@ -338,9 +357,7 @@ public final class WaypointFiles {
 
     static void write(Path path, Collection file) throws IOException {
         // Do not overwrite external edits made since this collection was loaded/saved.
-        if (path.equals(file.savedPath) && (!Files.exists(path) || !readText(path).equals(file.diskContent))) {
-            throw new IOException("点位文件已被外部修改，未保存的编辑已保留，请先处理文件冲突");
-        }
+        if (path.equals(file.savedPath)) requireUnchanged(path, file);
         String text = serialize(file);
         Files.createDirectories(path.getParent());
         Path temp = Files.createTempFile(path.getParent(), ".waypoint-", ".tmp");
@@ -350,6 +367,12 @@ public final class WaypointFiles {
             catch (AtomicMoveNotSupportedException e) { Files.move(temp, path, StandardCopyOption.REPLACE_EXISTING); }
             file.rememberSaved(path, text);
         } finally { Files.deleteIfExists(temp); }
+    }
+
+    private static void requireUnchanged(Path path, Collection file) throws IOException {
+        if (!Files.exists(path) || !readText(path).equals(file.diskContent)) {
+            throw new IOException("点位文件已被外部修改，未保存的编辑已保留，请先处理文件冲突");
+        }
     }
 
     private static String serialize(Collection file) {
