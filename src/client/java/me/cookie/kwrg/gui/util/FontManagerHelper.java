@@ -1,7 +1,7 @@
 package me.cookie.kwrg.gui.util;
 
 import com.mojang.blaze3d.font.GlyphProvider;
-import me.cookie.kwrg.irc.IrcConfig;
+import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.mixin.accessor.FontManagerAccessor;
 import me.cookie.kwrg.mixin.accessor.FontSetAccessor;
 import me.cookie.kwrg.mixin.accessor.MinecraftAccessor;

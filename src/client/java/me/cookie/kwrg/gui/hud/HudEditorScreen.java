@@ -5,7 +5,7 @@ import io.wispforest.owo.ui.core.OwoUIGraphics;
 import me.cookie.kwrg.gui.IrcScreen;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;
-import me.cookie.kwrg.irc.IrcConfig;
+import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import net.minecraft.client.Minecraft;

@@ -3,7 +3,7 @@ package me.cookie.kwrg.gui.manager;
 import io.wispforest.owo.ui.core.Color;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.gui.util.AnimationUtil;
-import me.cookie.kwrg.irc.IrcConfig;
+import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
 

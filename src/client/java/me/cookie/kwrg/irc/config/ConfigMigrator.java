@@ -1,20 +1,30 @@
-package me.cookie.kwrg.irc;
+package me.cookie.kwrg.irc.config;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.UUID;
 
 public final class ConfigMigrator {
 
     private static final Set<String> KNOWN_CONFIG_KEYS = new HashSet<>();
+    private static final Gson BACKUP_GSON = new GsonBuilder().setPrettyPrinting().create();
 
     static {
         for (Field field : IrcConfig.class.getDeclaredFields()) {
@@ -30,6 +40,7 @@ public final class ConfigMigrator {
 
     public static void migrate(JsonObject jsonObj) {
         if (jsonObj == null) return;
+        JsonObject originalConfig = jsonObj.deepCopy();
 
         // 1. onlyTab -> onlyApplyToTab
         if (jsonObj.has("onlyTab")) {
@@ -64,7 +75,7 @@ public final class ConfigMigrator {
         migrateHideArmorParts(jsonObj);
 
         // 5. 校验未知字段
-        checkUnknownFields(jsonObj);
+        checkUnknownFields(jsonObj, originalConfig);
     }
 
     private static void removeDeprecatedField(JsonObject jsonObj, String key) {
@@ -74,12 +85,34 @@ public final class ConfigMigrator {
         }
     }
 
-    private static void checkUnknownFields(JsonObject jsonObj) {
-        for (String key : new HashSet<>(jsonObj.keySet())) {
+    private static void checkUnknownFields(JsonObject jsonObj, JsonObject originalConfig) {
+        Set<String> unknownKeys = new LinkedHashSet<>();
+        for (String key : jsonObj.keySet()) {
             if (!KNOWN_CONFIG_KEYS.contains(key)) {
-                notifyUnknownField(key);
+                unknownKeys.add(key);
             }
         }
+        if (unknownKeys.isEmpty()) return;
+
+        String unknownFields = String.join(", ", unknownKeys);
+        try {
+            Path backupDir = IrcConfig.getKwrgDir().resolve("backUp");
+            Files.createDirectories(backupDir);
+            Path backupFile = backupDir.resolve("config-" + System.currentTimeMillis() + "-" + UUID.randomUUID() + ".json");
+            Files.writeString(backupFile, BACKUP_GSON.toJson(originalConfig), StandardOpenOption.CREATE_NEW,
+                    StandardOpenOption.WRITE);
+            notifyBackup("§e未知配置字段: §f" + unknownFields + "\n§e原始配置已备份至: §f" + backupFile.toAbsolutePath(),
+                    NotificationType.WARN);
+        } catch (IOException | SecurityException e) {
+            notifyBackup("§c未知配置字段: §f" + unknownFields + "\n§c原始配置备份失败: §f" + e.getMessage(),
+                    NotificationType.ERR);
+        }
+    }
+
+    private static void notifyBackup(String message, NotificationType type) {
+        // 启动时弹窗可能在进入世界前过期，聊天队列会保留消息直到玩家可用。
+        ChatNotifier.sendInChatScreen(message);
+        ChatNotifier.send(message, type);
     }
 
     private static void migrateIslandToggle(JsonObject jsonObj) {
@@ -225,7 +258,6 @@ public final class ConfigMigrator {
                 : new JsonObject();
     }
 
-    // ==================== 提示通知封装 ====================
 
     private static void notifyMigration(String oldKey, String newTarget, Object newValue) {
         Component message = Component.literal("[INFO] ")
@@ -245,11 +277,4 @@ public final class ConfigMigrator {
         ChatNotifier.sendInChatScreen(message);
     }
 
-    private static void notifyUnknownField(String unknownKey) {
-        Component message = Component.literal("[ERROR] ")
-                .withStyle(ChatFormatting.RED)
-                .append(Component.literal("未知配置字段: ").withStyle(ChatFormatting.GRAY))
-                .append(Component.literal(unknownKey).withStyle(ChatFormatting.RED));
-        ChatNotifier.sendInChatScreen(message);
-    }
 }

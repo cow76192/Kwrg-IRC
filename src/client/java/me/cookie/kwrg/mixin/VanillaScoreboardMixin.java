@@ -6,7 +6,7 @@ import io.wispforest.owo.ui.core.OwoUIGraphics;
 import me.cookie.kwrg.gui.hud.HudEditorScreen;
 import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.gui.hud.HudElementRegistry;
-import me.cookie.kwrg.irc.IrcConfig;
+import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.render.ScoreboardIslandRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;

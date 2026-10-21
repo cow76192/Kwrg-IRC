@@ -1,7 +1,7 @@
 package me.cookie.kwrg.irc.manager;
 
 import com.mojang.authlib.GameProfile;
-import me.cookie.kwrg.irc.IrcConfig;
+import me.cookie.kwrg.irc.config.IrcConfig;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;

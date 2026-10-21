@@ -4,7 +4,7 @@ import me.cookie.kwrg.irc.manager.WaypointManager;
 import me.cookie.kwrg.irc.manager.RouteManager;
 
 import com.google.gson.*;
-import me.cookie.kwrg.irc.IrcConfig;
+import me.cookie.kwrg.irc.config.IrcConfig;
 import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.*;

@@ -1,6 +1,6 @@
 package me.cookie.kwrg.gui.util;
 
-import me.cookie.kwrg.irc.IrcConfig;
+import me.cookie.kwrg.irc.config.IrcConfig;
 import java.util.concurrent.locks.LockSupport;
 
 public class GuiFpsLimiter {
