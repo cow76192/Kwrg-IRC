@@ -5,7 +5,7 @@ import me.cookie.kwrg.util.WaypointFiles;
 import me.cookie.kwrg.util.SkyblockLocation;
 
 import me.cookie.kwrg.gui.notification.NotificationType;
-import me.cookie.kwrg.irc.IrcConfig;
+import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;

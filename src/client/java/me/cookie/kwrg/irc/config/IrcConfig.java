@@ -1,4 +1,4 @@
-package me.cookie.kwrg.irc;
+package me.cookie.kwrg.irc.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;

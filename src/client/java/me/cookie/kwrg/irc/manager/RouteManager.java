@@ -9,7 +9,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import me.cookie.kwrg.gui.notification.NotificationType;
-import me.cookie.kwrg.irc.IrcConfig;
+import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;

@@ -5,7 +5,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.textures.GpuSampler;
 import me.cookie.kwrg.irc.IrcClient;
-import me.cookie.kwrg.irc.IrcConfig;
+import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.mixin.accessor.NativeImageAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;

@@ -4,7 +4,7 @@ import me.cookie.kwrg.gui.component.pane.ColorSettingComponent;
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
-import me.cookie.kwrg.irc.IrcConfig;
+import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.manager.IrcGlowManager;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;

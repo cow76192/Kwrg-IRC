@@ -1,7 +1,7 @@
 package me.cookie.kwrg.mixin;
 
 import me.cookie.kwrg.gui.notification.NotificationManager;
-import me.cookie.kwrg.irc.IrcConfig;
+import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import me.cookie.kwrg.render.PlayerFinderRadarRenderer;
