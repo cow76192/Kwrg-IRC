@@ -13,11 +13,14 @@ public final class SkyblockLocation {
     private static String island = "";
     private static String server = "";
     private SkyblockLocation() {}
+
     public static String island() {
         var level = Minecraft.getInstance().level;
         if (level != null && (island.equals("dynamic") || island.equals("garden"))) {
             var objective = level.getScoreboard().getDisplayObjective(DisplaySlot.SIDEBAR);
-            if (objective != null && objective.getDisplayName().getString().replaceAll("§.", "").strip().endsWith("GUEST")) return island + "_guest";
+            if (objective != null && objective.getDisplayName().getString().replaceAll("§.", "").strip().endsWith("GUEST")) {
+                return island + "_guest";
+            }
         }
         return island;
     }
@@ -26,7 +29,9 @@ public final class SkyblockLocation {
         var api = HypixelModAPI.getInstance();
         api.subscribeToEventPacket(ClientboundLocationPacket.class);
         api.createHandler(ClientboundLocationPacket.class, packet -> Minecraft.getInstance().execute(() -> {
-            if (!server.equals(packet.getServerName())) WaypointManager.clearTemporary();
+            if (!server.equals(packet.getServerName())) {
+                WaypointManager.clearTemporary();
+            }
             server = packet.getServerName();
             boolean skyblock = packet.getServerType().map(type -> type.name().equals("SKYBLOCK")).orElse(false);
             island = skyblock ? packet.getMode().orElse("") : "";
@@ -35,5 +40,8 @@ public final class SkyblockLocation {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> reset());
     }
 
-    public static void reset() { island = ""; server = ""; }
+    public static void reset() {
+        island = "";
+        server = "";
+    }
 }

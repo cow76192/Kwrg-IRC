@@ -38,12 +38,16 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
     public void openRouteOverlay(float originX, float originY, me.cookie.kwrg.gui.component.PanelItemComponent source) {
         cancelScrollbarDrag();
-        if (this.pointOverlay == null) this.pointOverlay = new RouteScreen(this, source, originX, originY);
+        if (this.pointOverlay == null) {
+            this.pointOverlay = new RouteScreen(this, source, originX, originY);
+        }
     }
 
     public void openWaypointOverlay(float originX, float originY, me.cookie.kwrg.gui.component.PanelItemComponent source) {
         cancelScrollbarDrag();
-        if (this.pointOverlay == null) this.pointOverlay = new WaypointScreen(this, source, originX, originY);
+        if (this.pointOverlay == null) {
+            this.pointOverlay = new WaypointScreen(this, source, originX, originY);
+        }
     }
 
     private final ParticleBackgroundComponent particleBackground = new ParticleBackgroundComponent();
@@ -177,12 +181,17 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
     @Override
     public void removed() {
         cancelScrollbarDrag();
-        if (this.pointOverlay != null) this.pointOverlay.flush();
+        if (this.pointOverlay != null) {
+            this.pointOverlay.flush();
+        }
+
         this.pointOverlay = null;
         super.removed();
+
         if (this.radialMenu != null && this.radialMenu.getSecondaryPanel() != null) {
             this.radialMenu.getSecondaryPanel().destroyTertiaryImmediately();
         }
+
         if (currentInstance == this) {
             currentInstance = null;
         }
@@ -222,14 +231,20 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
     public double toVirtualX(double screenX) {
         float scale = getAnimatedScale();
-        if (Math.abs(scale - 1.0f) < 0.001f) return screenX;
+        if (Math.abs(scale - 1.0f) < 0.001f) {
+            return screenX;
+        }
+
         double cx = this.width / 2.0;
         return cx + (screenX - cx) / scale;
     }
 
     public double toVirtualY(double screenY) {
         float scale = getAnimatedScale();
-        if (Math.abs(scale - 1.0f) < 0.001f) return screenY;
+        if (Math.abs(scale - 1.0f) < 0.001f) {
+            return screenY;
+        }
+
         double cy = this.height / 2.0;
         return cy + (screenY - cy) / scale;
     }
@@ -266,7 +281,9 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
         if (this.pointOverlay != null) {
             this.pointOverlay.render(graphics, mouseX, mouseY, a, this.width, this.height);
-            if (this.pointOverlay.isFinished()) this.pointOverlay = null;
+            if (this.pointOverlay.isFinished()) {
+                this.pointOverlay = null;
+            }
         }
 
         NotificationManager.render(graphics, mouseX, mouseY, a);
@@ -279,6 +296,7 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
             this.pointOverlay.mouseClicked(click, doubled);
             return true;
         }
+
         if (NotificationManager.onMouseDown(click)) {
             return true;
         }
@@ -301,6 +319,7 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
                         draggedScrollbar = tertiary.getScrollbar();
                         return true;
                     }
+
                     if (secondary.getScrollbar().handleMouseDown(virtualClick)) {
                         draggedScrollbar = secondary.getScrollbar();
                         return true;
@@ -336,10 +355,12 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
             cancelScrollbarDrag();
             return true;
         }
+
         if (this.pointOverlay != null) {
             this.pointOverlay.mouseReleased(click);
             return true;
         }
+
         float scale = getAnimatedScale();
         if (Math.abs(scale - 1.0f) < 0.001f) {
             return super.mouseReleased(click);
@@ -359,11 +380,13 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
             this.pointOverlay.mouseDragged(click, deltaX, deltaY);
             return true;
         }
+
         float scale = getAnimatedScale();
         if (draggedScrollbar != null) {
             MouseButtonEvent drag = new MouseButtonEvent(toVirtualX(click.x()), toVirtualY(click.y()), click.buttonInfo());
             return draggedScrollbar.handleMouseDrag(drag, deltaX / scale, deltaY / scale);
         }
+
         if (Math.abs(scale - 1.0f) < 0.001f) {
             return super.mouseDragged(click, deltaX, deltaY);
         }
@@ -377,7 +400,10 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
     }
 
     private void cancelScrollbarDrag() {
-        if (draggedScrollbar != null) { draggedScrollbar.cancelDrag(); draggedScrollbar = null; }
+        if (draggedScrollbar != null) {
+            draggedScrollbar.cancelDrag();
+            draggedScrollbar = null;
+        }
     }
 
     @Override
@@ -386,12 +412,16 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
             this.pointOverlay.mouseScrolled(mouseX, mouseY, verticalAmount);
             return true;
         }
+
         return super.mouseScrolled(toVirtualX(mouseX), toVirtualY(mouseY), horizontalAmount, verticalAmount);
     }
 
     @Override
     public void mouseMoved(double mouseX, double mouseY) {
-        if (this.pointOverlay != null) return;
+        if (this.pointOverlay != null) {
+            return;
+        }
+
         super.mouseMoved(toVirtualX(mouseX), toVirtualY(mouseY));
     }
 
@@ -426,6 +456,7 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
             this.pointOverlay.keyPressed(input);
             return true;
         }
+
         if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
             this.closeGui();
             return true;

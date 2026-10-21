@@ -38,10 +38,12 @@ import java.util.Map;
 public abstract class PointCollectionScreen {
     private static final long ANIMATION_MS = 250;
     private static final int FILE_HEIGHT = 44;
+
     private final PointCollectionStore store;
     private final float originX, originY;
     private final IrcScreen host;
     private final PanelItemComponent originComponent;
+
     private final long openedAt = System.currentTimeMillis();
     private long closingAt = -1;
     private float closingFrom;
@@ -51,9 +53,11 @@ public abstract class PointCollectionScreen {
     private boolean saveBlocked;
     private Runnable pendingNavigation;
     private long saveFailureAt;
+
     private final RouteButtonComponent retrySaveButton = new RouteButtonComponent();
     private final RouteButtonComponent discardSaveButton = new RouteButtonComponent();
     private final RouteButtonComponent continueEditingButton = new RouteButtonComponent();
+
     private int panelX, panelY, panelW, panelH;
     private int contentX, contentY, contentW, contentH;
     private int fileScroll, pointScroll;
@@ -61,6 +65,7 @@ public abstract class PointCollectionScreen {
     private boolean draggingPointScrollbar;
     private final Map<Path, FileRow> files = new LinkedHashMap<>();
     private final List<RoutePointComponent> points = new ArrayList<>();
+
     private final RouteButtonComponent closeButton = new RouteButtonComponent();
     private final RouteButtonComponent directoryButton = new RouteButtonComponent();
     private final RouteButtonComponent backButton = new RouteButtonComponent();
@@ -68,27 +73,36 @@ public abstract class PointCollectionScreen {
     private final RouteButtonComponent newRouteButton = new RouteButtonComponent();
     private final RouteButtonComponent saveRouteButton = new RouteButtonComponent();
     private final RouteButtonComponent cancelRouteButton = new RouteButtonComponent();
+
     private EditBox routeNameInput;
     private EditBox draggedInput;
+
     private RegionSelectionPane regionPane;
     private RouteUpdatePane routeUpdatePane;
+
     private Path renamingRoute;
     private String routeNameError = "";
+
     private RouteButtonComponent namingSource;
     private RouteButtonComponent.Bounds namingOrigin;
+
     private Color namingOriginColor;
     private long namingAnimStarted;
     private float namingClosingFrom;
     private boolean namingClosing;
     private Path routeToReveal;
+
     private final RouteButtonComponent confirmDeleteButton = new RouteButtonComponent();
     private final RouteButtonComponent cancelDeleteButton = new RouteButtonComponent();
+
     private PointEntry pendingDelete;
     private Path pendingDeleteFile;
     private RoutePointComponent deletingPoint;
     private FileRow deletingFile;
+
     private RoutePointComponent deleteSourcePoint;
     private RouteButtonComponent.Bounds deleteOrigin;
+
     private Color deleteOriginColor;
     private long deleteAnimStarted;
     private boolean deleteClosing, deleteConfirmed;
@@ -122,8 +136,15 @@ public abstract class PointCollectionScreen {
 
     public void back() {
         scrollbarDrag.cancel();
-        if (closingAt >= 0) return;
-        if (!flush()) { offerSaveRecovery(this::back); return; }
+        if (closingAt >= 0) {
+            return;
+        }
+
+        if (!flush()) {
+            offerSaveRecovery(this::back);
+            return;
+        }
+
         blurPoints();
         if (pageTarget > 0) {
             pageFrom = pageProgress();
@@ -135,7 +156,11 @@ public abstract class PointCollectionScreen {
 
     private void close() {
         scrollbarDrag.cancel();
-        if (!flush()) { offerSaveRecovery(this::close); return; }
+        if (!flush()) {
+            offerSaveRecovery(this::close);
+            return;
+        }
+
         regionPane = null;
         routeUpdatePane = null;
         pendingDelete = null;
@@ -146,24 +171,41 @@ public abstract class PointCollectionScreen {
     }
 
     public boolean flush() {
-        if (dirty && store.saveCurrent()) dirty = false;
+        if (dirty && store.saveCurrent()) {
+            dirty = false;
+        }
+
         saveBlocked = dirty;
         return !dirty;
     }
-    private void markDirty() { dirty = true; saveBlocked = false; editedAt = System.currentTimeMillis(); }
+
+    private void markDirty() {
+        dirty = true;
+        saveBlocked = false;
+        editedAt = System.currentTimeMillis();
+    }
 
     private void offerSaveRecovery(Runnable navigation) {
-        if (pendingNavigation == null) { pendingNavigation = navigation; saveFailureAt = System.currentTimeMillis(); }
+        if (pendingNavigation == null) {
+            pendingNavigation = navigation;
+            saveFailureAt = System.currentTimeMillis();
+        }
     }
 
     private void resolveSaveFailure(boolean discard) {
-        if (pendingNavigation == null) return;
+        if (pendingNavigation == null) {
+            return;
+        }
+
         if (discard) {
             store.discardCurrentEdits();
             dirty = saveBlocked = false;
             rebuildPoints();
             refreshFiles();
-        } else if (!flush()) return;
+        } else if (!flush()) {
+            return;
+        }
+
         Runnable navigation = pendingNavigation;
         pendingNavigation = null;
         navigation.run();
@@ -171,13 +213,20 @@ public abstract class PointCollectionScreen {
 
     private void refreshFiles() {
         Map<Path, FileRow> next = new LinkedHashMap<>();
+
         for (Path path : store.listFiles()) {
             FileRow row = files.get(path);
-            if (row == null) row = new FileRow(path);
+            if (row == null) {
+                row = new FileRow(path);
+            }
+
             row.options = store.fileOptions(path);
-            if (store.externalFile(path)) row.externalAction = store.externalActionLabel(path);
+            if (store.externalFile(path)) {
+                row.externalAction = store.externalActionLabel(path);
+            }
             next.put(path, row);
         }
+
         files.clear();
         files.putAll(next);
         refreshedAt = System.currentTimeMillis();
@@ -186,12 +235,18 @@ public abstract class PointCollectionScreen {
     private void rebuildPoints() {
         blurPoints();
         Map<PointEntry, RoutePointComponent> existing = new IdentityHashMap<>();
-        for (RoutePointComponent point : points) existing.put(point.entry(), point);
+        for (RoutePointComponent point : points) {
+            existing.put(point.entry(), point);
+        }
+
         points.clear();
+
         var entries = store.entries();
         for (int i = 0; i < entries.size(); i++) {
             RoutePointComponent point = existing.get(entries.get(i));
-            if (point == null) point = new RoutePointComponent(i, entries.get(i), store, this::markDirty);
+            if (point == null) {
+                point = new RoutePointComponent(i, entries.get(i), store, this::markDirty);
+            }
             point.setIndex(i);
             points.add(point);
         }
@@ -201,8 +256,16 @@ public abstract class PointCollectionScreen {
 
     private boolean samePoints() {
         var entries = store.entries();
-        if (entries.size() != points.size()) return false;
-        for (int i = 0; i < entries.size(); i++) if (entries.get(i) != points.get(i).entry()) return false;
+        if (entries.size() != points.size()) {
+            return false;
+        }
+
+        for (int i = 0; i < entries.size(); i++) {
+            if (entries.get(i) != points.get(i).entry()) {
+                return false;
+            }
+        }
+
         return true;
     }
 
@@ -216,33 +279,41 @@ public abstract class PointCollectionScreen {
         panelH = Math.min(440, height - 40);
         panelX = (width - panelW) / 2;
         panelY = (height - panelH) / 2;
+
         contentX = panelX + 12;
         contentY = panelY + 70;
         contentW = panelW - 24;
         contentH = Math.max(24, panelH - 110);
+
         fileScroll = Mth.clamp(fileScroll, 0, Math.max(0, files.size() * FILE_HEIGHT - contentH));
         pointScroll = Mth.clamp(pointScroll, 0, Math.max(0, points.size() * RoutePointComponent.HEIGHT - contentH));
+
         closeButton.bounds(panelX + panelW - 32, panelY + 14, 20, 22);
         directoryButton.bounds(panelX + panelW - 120, panelY + 14, 80, 22);
         newRouteButton.bounds(panelX + panelW - 205, panelY + 14, 78, 22);
         addButton.bounds(panelX + panelW - 120, panelY + 14, 80, 22);
         backButton.bounds(panelX + 12, panelY + 14, 48, 22);
+
         confirmDeleteButton.bounds(panelX + panelW / 2 - 96, panelY + panelH / 2 + 20, 88, 24);
         cancelDeleteButton.bounds(panelX + panelW / 2 + 8, panelY + panelH / 2 + 20, 88, 24);
+
         saveRouteButton.bounds(panelX + panelW / 2 - 96, panelY + panelH / 2 + 42, 88, 24);
         cancelRouteButton.bounds(panelX + panelW / 2 + 8, panelY + panelH / 2 + 42, 88, 24);
+
         if (routeNameInput != null) {
             int dialogW = Math.min(340, panelW - 32);
             routeNameInput.setX(panelX + (panelW - dialogW) / 2 + 16);
             routeNameInput.setY(panelY + panelH / 2 - 28);
             routeNameInput.setWidth(dialogW - 32);
         }
+
         long now = System.currentTimeMillis();
         float offset = 0;
         for (FileRow row : files.values()) {
             row.layout(contentX, contentY + Math.round(offset) - fileScroll, contentW);
             offset += FILE_HEIGHT * row.appearance.remaining(now);
         }
+
         offset = 0;
         for (RoutePointComponent point : points) {
             point.layout(contentX, contentY + Math.round(offset) - pointScroll, contentW);
@@ -254,14 +325,30 @@ public abstract class PointCollectionScreen {
         long now = System.currentTimeMillis();
         finishRouteNaming(now);
         finishDeletion(now);
-        if (regionPane != null && regionPane.finished()) regionPane = null;
-        if (routeUpdatePane != null && routeUpdatePane.finished()) routeUpdatePane = null;
-        if (dirty && !saveBlocked && pendingNavigation == null && now - editedAt > 350) flush();
-        if (pageTarget == 0 && routeNameInput == null && regionPane == null && routeUpdatePane == null && deletingFile == null && now - refreshedAt > 1000) refreshFiles();
-        if (pageTarget > 0 && pendingDelete == null && deletingPoint == null && !samePoints() && !saveBlocked && flush()) rebuildPoints();
+        if (regionPane != null && regionPane.finished()) {
+            regionPane = null;
+        }
+
+        if (routeUpdatePane != null && routeUpdatePane.finished()) {
+            routeUpdatePane = null;
+        }
+
+        if (dirty && !saveBlocked && pendingNavigation == null && now - editedAt > 350) {
+            flush();
+        }
+
+        if (pageTarget == 0 && routeNameInput == null && regionPane == null && routeUpdatePane == null && deletingFile == null && now - refreshedAt > 1000) {
+            refreshFiles();
+        }
+
+        if (pageTarget > 0 && pendingDelete == null && deletingPoint == null && !samePoints() && !saveBlocked && flush()) {
+            rebuildPoints();
+        }
         layout(width, height);
+
         float alpha = progress();
         float sourceX = originX, sourceY = originY, sourceW = 52, sourceH = 28;
+
         if (originComponent != null && originComponent.parent() != null) {
             float scale = host.getAnimatedScale();
             sourceX = width / 2.0f + (originComponent.x() + originComponent.width() / 2.0f - width / 2.0f) * scale;
@@ -269,15 +356,19 @@ public abstract class PointCollectionScreen {
             sourceW = originComponent.width() * scale;
             sourceH = originComponent.height() * scale;
         }
+
         float w = AnimationUtil.lerp(alpha, sourceW, panelW), h = AnimationUtil.lerp(alpha, sourceH, panelH);
         float cx = AnimationUtil.lerp(alpha, sourceX, width / 2.0f), cy = AnimationUtil.lerp(alpha, sourceY, height / 2.0f);
+
         graphics.pose().pushMatrix();
         graphics.pose().translate(cx - w / 2, cy - h / 2);
         graphics.pose().scale(w / panelW, h / panelH);
         graphics.pose().translate(-panelX, -panelY);
+
         OwoUIGraphics owo = RenderUtil.withOpacity(OwoUIGraphics.of(graphics), alpha);
         RenderUtil.drawSubpixelRoundedPanel(owo, panelX, panelY, panelW, panelH, 14,
                 Color.ofArgb(0xF511161F), Color.ofArgb(0x804FC3F7));
+
         if (alpha > 0.03f) {
             boolean editor = pageTarget > 0;
             closeButton.draw(owo, "×", false, mouseX, mouseY);
@@ -285,33 +376,62 @@ public abstract class PointCollectionScreen {
                 backButton.draw(owo, "‹ 返回", false, mouseX, mouseY);
                 addButton.draw(owo, "+ 点位", false, mouseX, mouseY);
             } else {
-                if (routeNameInput == null || namingSource != newRouteButton) newRouteButton.draw(owo, label("+ 新建路线"), false, mouseX, mouseY);
+                if (routeNameInput == null || namingSource != newRouteButton) {
+                    newRouteButton.draw(owo, label("+ 新建路线"), false, mouseX, mouseY);
+                }
+
                 directoryButton.draw(owo, "打开目录", false, mouseX, mouseY);
             }
+
             RenderUtil.drawSmoothText(owo, RenderUtil.fitText(editor ? store.currentFileName() : label("路线管理"), panelW - (editor ? 205 : 235), 0.85f), panelX + (editor ? 68 : 16), panelY + 17, 0xFFE1F5FE);
             RenderUtil.drawSmoothText(owo, editor ? "直接编辑名称 / X / Y / Z · 修改自动保存" : store.supportsLines() ? label("选择路线文件 · 独立设置显示与连线") : "多点位集同时启用 · 独立显示与区域 · 灰色路线仅可导入", panelX + 16, panelY + 45, 0xFF8CA7BA);
             RenderUtil.fillSubpixel(owo, panelX + 12, panelY + 61, panelX + panelW - 12, panelY + 62, 0x304FC3F7);
+
             graphics.enableScissor(contentX, contentY, contentX + contentW, contentY + contentH);
             float page = pageProgress();
             graphics.pose().pushMatrix();
             graphics.pose().translate(-page * (contentW + 16), 0);
-            if (page < 1) renderFiles(owo, mouseX, mouseY);
+
+            if (page < 1) {
+                renderFiles(owo, mouseX, mouseY);
+            }
+
             graphics.pose().popMatrix();
             graphics.pose().pushMatrix();
             graphics.pose().translate((1 - page) * (contentW + 16), 0);
-            if (page > 0) renderPoints(graphics, owo, mouseX, mouseY, partialTick);
+
+            if (page > 0) {
+                renderPoints(graphics, owo, mouseX, mouseY, partialTick);
+            }
             graphics.pose().popMatrix();
             graphics.disableScissor();
+
             RenderUtil.drawScrollThumb(owo, contentX + contentW - 2, contentY, contentH,
                     editor ? points.size() * RoutePointComponent.HEIGHT : files.size() * FILE_HEIGHT,
                     editor ? pointScroll : fileScroll, Color.ofArgb(0xAA4FC3F7));
             RenderUtil.drawSmoothText(owo, editor ? "右键任意位置返回列表 · × 删除需确认" : store.supportsLines() ? "左键激活 · 右键编辑 · Shift + 左键删除 · 右键面板外关闭" : "左键切换激活 · 右键编辑 · Shift + 左键删除 · 可多选激活", panelX + 16, panelY + panelH - 25, 0xFF7893A6);
-            if (pendingDelete != null) renderDeleteConfirmation(owo, mouseX, mouseY);
-            if (routeNameInput != null) renderRouteNaming(graphics, owo, mouseX, mouseY, partialTick);
-            if (regionPane != null) regionPane.render(owo, mouseX, mouseY, partialTick, panelX, panelY, panelW, panelH);
-            if (routeUpdatePane != null) routeUpdatePane.render(owo, mouseX, mouseY, panelX, panelY, panelW, panelH);
-            if (pendingNavigation != null) renderSaveRecovery(owo, mouseX, mouseY);
+
+            if (pendingDelete != null) {
+                renderDeleteConfirmation(owo, mouseX, mouseY);
+            }
+
+            if (routeNameInput != null) {
+                renderRouteNaming(graphics, owo, mouseX, mouseY, partialTick);
+            }
+
+            if (regionPane != null) {
+                regionPane.render(owo, mouseX, mouseY, partialTick, panelX, panelY, panelW, panelH);
+            }
+
+            if (routeUpdatePane != null) {
+                routeUpdatePane.render(owo, mouseX, mouseY, panelX, panelY, panelW, panelH);
+            }
+
+            if (pendingNavigation != null) {
+                renderSaveRecovery(owo, mouseX, mouseY);
+            }
         }
+
         graphics.pose().popMatrix();
     }
 
@@ -319,23 +439,31 @@ public abstract class PointCollectionScreen {
         int width = Math.min(430, panelW - 24), height = 142;
         int x = panelX + (panelW - width) / 2, y = panelY + (panelH - height) / 2;
         int buttonW = (width - 48) / 3;
+
         retrySaveButton.bounds(x + 12, y + 102, buttonW, 26);
         discardSaveButton.bounds(x + 24 + buttonW, y + 102, buttonW, 26);
         continueEditingButton.bounds(x + 36 + buttonW * 2, y + 102, buttonW, 26);
+
         float progress = AnimationUtil.easeOutCubic((System.currentTimeMillis() - saveFailureAt) / (float) ANIMATION_MS);
         var origin = (pageTarget > 0 ? backButton : closeButton).bounds();
         float currentX = AnimationUtil.lerp(progress, origin.x(), x), currentY = AnimationUtil.lerp(progress, origin.y(), y);
         float currentW = AnimationUtil.lerp(progress, origin.width(), width), currentH = AnimationUtil.lerp(progress, origin.height(), height);
+
         RenderUtil.drawSubpixelRoundedPanel(graphics, currentX, currentY, currentW, currentH, 8, Color.ofArgb(0xFF1C2734), Color.ofArgb(0xAAAF6976));
         graphics.pose().pushMatrix();
-        graphics.pose().translate(currentX, currentY); graphics.pose().scale(currentW / width, currentH / height); graphics.pose().translate(-x, -y);
+        graphics.pose().translate(currentX, currentY);
+        graphics.pose().scale(currentW / width, currentH / height);
+        graphics.pose().translate(-x, -y);
         graphics = RenderUtil.withOpacity(graphics, progress);
+
         RenderUtil.drawSmoothText(graphics, "修改尚未保存", x + 16, y + 16, 0xFFFFDB94);
         RenderUtil.drawSmoothText(graphics, "文件可能被外部修改，或当前无法写入。", x + 16, y + 42, 0xFFD2DFE8);
         RenderUtil.drawSmoothText(graphics, "放弃本次编辑会重载文件，不会覆盖磁盘内容。", x + 16, y + 66, 0xFF8CA7BA);
+
         retrySaveButton.draw(graphics, "重试保存", false, mouseX, mouseY);
         discardSaveButton.draw(graphics, "放弃本次编辑", false, mouseX, mouseY);
         continueEditingButton.draw(graphics, "继续编辑", false, mouseX, mouseY);
+
         graphics.pose().popMatrix();
     }
 
@@ -344,61 +472,121 @@ public abstract class PointCollectionScreen {
             RenderUtil.drawSmoothText(owo, label("暂无路线文件"), contentX + 12, contentY + 24, 0xFFCFDFEA);
             RenderUtil.drawSmoothText(owo, label("点击 + 新建路线，或打开目录导入 .json / .txt 文件"), contentX + 12, contentY + 44, 0xFF7893A6);
         }
-        for (FileRow row : files.values()) if (row.y + FILE_HEIGHT > contentY && row.y < contentY + contentH) {
-            row.draw(owo, mouseX, mouseY, routeUpdatePane != null ? routeUpdatePane.source() : regionPane != null ? regionPane.source() : routeNameInput == null ? null : namingSource);
+
+        for (FileRow row : files.values()) {
+            if (row.y + FILE_HEIGHT > contentY && row.y < contentY + contentH) {
+                row.draw(owo, mouseX, mouseY, routeUpdatePane != null ? routeUpdatePane.source() : regionPane != null ? regionPane.source() : routeNameInput == null ? null : namingSource);
+            }
         }
     }
 
     private void renderPoints(GuiGraphicsExtractor graphics, OwoUIGraphics owo, int mouseX, int mouseY, float partialTick) {
-        if (points.isEmpty()) RenderUtil.drawSmoothText(owo, "暂无点位，点击右上角 + 点位开始添加", contentX + 12, contentY + 24, 0xFF8CA7BA);
+        if (points.isEmpty()) {
+            RenderUtil.drawSmoothText(owo, "暂无点位，点击右上角 + 点位开始添加", contentX + 12, contentY + 24, 0xFF8CA7BA);
+        }
+
         float offset = 0;
         long now = System.currentTimeMillis();
         for (RoutePointComponent point : points) {
             int y = contentY + Math.round(offset) - pointScroll;
-            if (y + RoutePointComponent.HEIGHT > contentY && y < contentY + contentH) point.render(graphics, owo, mouseX, mouseY, partialTick);
-            else point.releaseInputs();
+            if (y + RoutePointComponent.HEIGHT > contentY && y < contentY + contentH) {
+                point.render(graphics, owo, mouseX, mouseY, partialTick);
+            } else {
+                point.releaseInputs();
+            }
             offset += RoutePointComponent.HEIGHT * point.remaining(now);
         }
     }
 
     public void mouseClicked(MouseButtonEvent click, boolean doubled) {
-        if (click.button() == 0) scrollbarDrag.cancel();
+        if (click.button() == 0) {
+            scrollbarDrag.cancel();
+        }
         draggedInput = null;
-        if (!interactive()) return;
-        if (pendingNavigation != null) {
-            if (click.button() == 1) { pendingNavigation = null; return; }
-            if (click.button() != 0 || System.currentTimeMillis() - saveFailureAt < ANIMATION_MS) return;
-            if (retrySaveButton.contains(click.x(), click.y())) { retrySaveButton.press(); resolveSaveFailure(false); }
-            else if (discardSaveButton.contains(click.x(), click.y())) { discardSaveButton.press(); resolveSaveFailure(true); }
-            else if (continueEditingButton.contains(click.x(), click.y())) { continueEditingButton.press(); pendingNavigation = null; }
+        if (!interactive()) {
             return;
         }
-        if (routeUpdatePane != null) { routeUpdatePane.mouseClicked(click); return; }
-        if (regionPane != null) { regionPane.mouseClicked(click, doubled); return; }
+
+        if (pendingNavigation != null) {
+            if (click.button() == 1) {
+                pendingNavigation = null;
+                return;
+            }
+
+            if (click.button() != 0 || System.currentTimeMillis() - saveFailureAt < ANIMATION_MS) {
+                return;
+            }
+
+            if (retrySaveButton.contains(click.x(), click.y())) {
+                retrySaveButton.press();
+                resolveSaveFailure(false);
+            } else if (discardSaveButton.contains(click.x(), click.y())) {
+                discardSaveButton.press();
+                resolveSaveFailure(true);
+            } else if (continueEditingButton.contains(click.x(), click.y())) {
+                continueEditingButton.press();
+                pendingNavigation = null;
+            }
+
+            return;
+        }
+
+        if (routeUpdatePane != null) {
+            routeUpdatePane.mouseClicked(click);
+            return;
+        }
+
+        if (regionPane != null) {
+            regionPane.mouseClicked(click, doubled);
+            return;
+        }
+
         if (click.button() == 1 && pageTarget > 0) {
-            if (deleteSourcePoint != null) deleteSourcePoint.hideDeleteButton(false);
+            if (deleteSourcePoint != null) {
+                deleteSourcePoint.hideDeleteButton(false);
+            }
             pendingDelete = null;
             back();
             return;
         }
+
         if (routeNameInput != null) {
-            if (namingClosing) return;
-            if (click.button() == 1) { closeRouteNaming(); return; }
-            if (namingProgress() < 0.999f) return;
-            if (click.button() == 0 && cancelRouteButton.contains(click.x(), click.y())) closeRouteNaming();
-            else if (click.button() == 0 && saveRouteButton.contains(click.x(), click.y())) saveRouteName();
-            else if (click.button() == 0) {
+            if (namingClosing) {
+                return;
+            }
+            if (click.button() == 1) {
+                closeRouteNaming();
+                return;
+            }
+
+            if (namingProgress() < 0.999f) {
+                return;
+            }
+            if (click.button() == 0 && cancelRouteButton.contains(click.x(), click.y())) {
+                closeRouteNaming();
+            } else if (click.button() == 0 && saveRouteButton.contains(click.x(), click.y())) {
+                saveRouteName();
+            } else if (click.button() == 0) {
                 routeNameInput.setFocused(routeNameInput.isMouseOver(click.x(), click.y()));
-                if (routeNameInput.mouseClicked(click, doubled)) draggedInput = routeNameInput;
+                if (routeNameInput.mouseClicked(click, doubled)) {
+                    draggedInput = routeNameInput;
+                }
             }
             return;
         }
+
         if (pendingDelete != null) {
-            if (deleteClosing || deleteProgress() < 0.999f) return;
-            if (click.button() == 0 && confirmDeleteButton.contains(click.x(), click.y())) closeDeleteConfirmation(true);
-            else if (click.button() == 0 && cancelDeleteButton.contains(click.x(), click.y())) closeDeleteConfirmation(false);
+            if (deleteClosing || deleteProgress() < 0.999f) {
+                return;
+            }
+            if (click.button() == 0 && confirmDeleteButton.contains(click.x(), click.y())) {
+                closeDeleteConfirmation(true);
+            } else if (click.button() == 0 && cancelDeleteButton.contains(click.x(), click.y())) {
+                closeDeleteConfirmation(false);
+            }
             return;
         }
+
         boolean editor = pageTarget > 0;
         int contentHeight = editor ? points.size() * RoutePointComponent.HEIGHT : files.size() * FILE_HEIGHT;
         if (scrollbarDrag.begin(click, contentX + contentW - 2, contentY, contentH,
@@ -408,41 +596,68 @@ public abstract class PointCollectionScreen {
             applyScrollbarDrag();
             return;
         }
+
         if (!insidePanel(click.x(), click.y())) {
-            if (click.button() == 1 || (pageTarget > 0 && click.button() == 0)) close();
+            if (click.button() == 1 || (pageTarget > 0 && click.button() == 0)) {
+                close();
+            }
             return;
         }
+
         if (click.button() == 0 && closeButton.contains(click.x(), click.y())) {
-            closeButton.press(); close(); return;
+            closeButton.press();
+            close();
+            return;
         }
+
         if (pageTarget > 0) {
             if (click.button() == 0 && backButton.contains(click.x(), click.y())) {
-                backButton.press(); back(); return;
+                backButton.press();
+                back();
+                return;
             }
             if (click.button() == 0 && addButton.contains(click.x(), click.y())) {
-                if (!flush()) return;
+                if (!flush()) {
+                    return;
+                }
+
                 addButton.press();
                 var previousEntries = java.util.Collections.newSetFromMap(new IdentityHashMap<PointEntry, Boolean>());
                 previousEntries.addAll(store.entries());
                 store.addEmpty(points.size() + 1);
+
                 PointEntry added = store.entries().stream().filter(entry -> !entry.temporary && !previousEntries.contains(entry)).findFirst().orElse(null);
-                if (added == null) return;
+                if (added == null) {
+                    return;
+                }
+
                 markDirty();
                 rebuildPoints();
+
                 int addedIndex = store.entries().indexOf(added);
                 pointScroll = Math.max(0, (addedIndex + 1) * RoutePointComponent.HEIGHT - contentH);
                 layout(Minecraft.getInstance().getWindow().getGuiScaledWidth(), Minecraft.getInstance().getWindow().getGuiScaledHeight());
                 points.get(addedIndex).focus(0);
                 return;
             }
+
             if (insideContent(click.x(), click.y())) {
                 int index = (int) ((click.y() - contentY + pointScroll) / RoutePointComponent.HEIGHT);
-                for (int i = 0; i < points.size(); i++) if (i != index) points.get(i).blur();
+                for (int i = 0; i < points.size(); i++) {
+                    if (i != index) {
+                        points.get(i).blur();
+                    }
+                }
+
                 if (index >= 0 && index < points.size() && points.get(index).mouseClicked(click, doubled)) {
-                    if (!flush()) return;
+                    if (!flush()) {
+                        return;
+                    }
                     blurPoints();
+
                     pendingDelete = points.get(index).entry();
                     pendingDeleteFile = store.currentFile();
+
                     deleteSourcePoint = points.get(index);
                     deleteOrigin = deleteSourcePoint.deleteButton().bounds();
                     deleteOriginColor = deleteSourcePoint.deleteButton().color();
@@ -452,55 +667,90 @@ public abstract class PointCollectionScreen {
                 } else if (click.button() == 0 && index >= 0 && index < points.size()) {
                     draggedInput = points.get(index).clickedInput(click.x(), click.y());
                 }
-            } else blurPoints();
+            } else {
+                blurPoints();
+            }
         } else {
             if (click.button() == 0 && newRouteButton.contains(click.x(), click.y())) {
-                newRouteButton.press(); startRouteNaming(null, newRouteButton); return;
+                newRouteButton.press();
+                startRouteNaming(null, newRouteButton);
+                return;
             }
+
             if (click.button() == 0 && directoryButton.contains(click.x(), click.y())) {
-                directoryButton.press(); openDirectory(); return;
+                directoryButton.press();
+                openDirectory();
+                return;
             }
+
             FileRow row = fileAt(click.x(), click.y());
-            if (row == null) return;
-            if (row.appearance.progress(System.currentTimeMillis()) < 0.95f) return;
-            if (!flush()) { offerSaveRecovery(() -> mouseClicked(click, doubled)); return; }
+            if (row == null) {
+                return;
+            }
+
+            if (row.appearance.progress(System.currentTimeMillis()) < 0.95f) {
+                return;
+            }
+
+            if (!flush()) {
+                offerSaveRecovery(() -> mouseClicked(click, doubled));
+                return;
+            }
+
             if (store.externalFile(row.path)) {
                 if (click.button() == 0 && row.importButton.contains(click.x(), click.y())) {
                     row.importButton.press();
                     try {
                         if (row.externalAction.equals("更新")) {
                             var plan = store.prepareExternalUpdate(row.path);
-                            if (plan.needsConfirmation()) routeUpdatePane = new RouteUpdatePane(row.importButton, plan, this::refreshFiles);
-                            else {
-                                var summary = plan.apply(Map.of()); refreshFiles();
+                            if (plan.needsConfirmation()) {
+                                routeUpdatePane = new RouteUpdatePane(row.importButton, plan, this::refreshFiles);
+                            } else {
+                                var summary = plan.apply(Map.of());
+                                refreshFiles();
                                 ChatNotifier.send("§a[Waypoint] 更新完成 | " + summary.describe(), NotificationType.SUCCESS);
                             }
                         } else {
-                            store.importExternal(row.path); refreshFiles(); ChatNotifier.send("§a[Waypoint] 已导入为独立点位集", NotificationType.SUCCESS);
+                            store.importExternal(row.path);
+                            refreshFiles();
+                            ChatNotifier.send("§a[Waypoint] 已导入为独立点位集", NotificationType.SUCCESS);
                         }
-                    } catch (Exception e) { ChatNotifier.send("§c[Waypoint] " + row.externalAction + "失败 | " + e.getMessage(), NotificationType.ERR); }
+                    } catch (Exception e) {
+                        ChatNotifier.send("§c[Waypoint] " + row.externalAction + "失败 | " + e.getMessage(), NotificationType.ERR);
+                    }
                 }
+
                 return;
             }
+
             if (click.button() == 1) {
                 row.surface.press();
                 if (store.importFile(row.path)) {
-                    rebuildPoints(); pointScroll = 0;
-                    pageFrom = pageProgress(); pageTarget = 1; pageStartedAt = System.currentTimeMillis();
+                    rebuildPoints();
+                    pointScroll = 0;
+                    pageFrom = pageProgress();
+                    pageTarget = 1;
+                    pageStartedAt = System.currentTimeMillis();
                 }
+
             } else if (click.button() == 0) {
                 if (!store.supportsLines() && row.region.contains(click.x(), click.y())) {
                     row.region.press();
                     regionPane = new RegionSelectionPane(row.region, store.regions(row.path), selected -> store.setRegions(row.path, selected));
                 } else if (!store.protectedFile(row.path) && row.rename.contains(click.x(), click.y())) {
-                    row.rename.press(); startRouteNaming(row.path, row.rename);
+                    row.rename.press();
+                    startRouteNaming(row.path, row.rename);
                 } else if (row.visible.contains(click.x(), click.y()) || store.supportsLines() && row.line.contains(click.x(), click.y())) {
                     boolean toggleVisible = row.visible.contains(click.x(), click.y());
                     (toggleVisible ? row.visible : row.line).press();
                     var options = row.options;
                     if (store.setFileOptions(row.path, toggleVisible ? !options.visible() : options.visible(),
-                            toggleVisible ? options.showLine() : !options.showLine())) refreshFiles();
-                    else if (row.path.equals(store.currentFile())) markDirty();
+                            toggleVisible ? options.showLine() : !options.showLine())) {
+                        refreshFiles();
+                    } else if (row.path.equals(store.currentFile())) {
+                        markDirty();
+                    }
+
                 } else if (click.hasShiftDown() && !store.protectedFile(row.path)) {
                     if (store.deleteFile(row.path)) {
                         deletingFile = row;
@@ -512,7 +762,11 @@ public abstract class PointCollectionScreen {
                         ChatNotifier.send("§c[Waypoint] 启用状态保存失败，已恢复原状态 | " + row.path.getFileName(), NotificationType.ERR);
                         return;
                     }
-                    if (store.importFile(row.path)) { rebuildPoints(); refreshFiles(); }
+
+                    if (store.importFile(row.path)) {
+                        rebuildPoints();
+                        refreshFiles();
+                    }
                 }
             }
         }
@@ -521,128 +775,270 @@ public abstract class PointCollectionScreen {
     public void mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
         if (scrollbarDrag.dragging()) {
             int contentHeight = draggingPointScrollbar ? points.size() * RoutePointComponent.HEIGHT : files.size() * FILE_HEIGHT;
-            if (scrollbarDrag.drag(click, contentH, ScrollbarDrag.thumbHeight(contentH, contentHeight, 14), Math.max(0, contentHeight - contentH))) applyScrollbarDrag();
+            if (scrollbarDrag.drag(click, contentH, ScrollbarDrag.thumbHeight(contentH, contentHeight, 14), Math.max(0, contentHeight - contentH))) {
+                applyScrollbarDrag();
+            }
             return;
         }
-        if (pendingNavigation != null) return;
-        if (routeUpdatePane != null) return;
-        if (regionPane != null) { regionPane.mouseDragged(click, deltaX, deltaY); return; }
-        if (!interactive() || click.button() != 0 || draggedInput == null || pendingDelete != null || namingClosing && routeNameInput != null) return;
+
+        if (pendingNavigation != null) {
+            return;
+        }
+
+        if (routeUpdatePane != null) {
+            return;
+        }
+
+        if (regionPane != null) {
+            regionPane.mouseDragged(click, deltaX, deltaY);
+            return;
+        }
+
+        if (!interactive() || click.button() != 0 || draggedInput == null || pendingDelete != null || namingClosing && routeNameInput != null) {
+            return;
+        }
         // Keep forwarding to the pressed input even when the pointer leaves its bounds.
         draggedInput.mouseDragged(click, deltaX, deltaY);
     }
 
     public void mouseReleased(MouseButtonEvent click) {
         scrollbarDrag.release(click);
-        if (routeUpdatePane != null) return;
-        if (regionPane != null) { regionPane.mouseReleased(click); return; }
-        if (click.button() != 0) return;
-        if (draggedInput != null) draggedInput.mouseReleased(click);
+        if (routeUpdatePane != null) {
+            return;
+        }
+
+        if (regionPane != null) {
+            regionPane.mouseReleased(click);
+            return;
+        }
+
+        if (click.button() != 0) {
+            return;
+        }
+
+        if (draggedInput != null) {
+            draggedInput.mouseReleased(click);
+        }
         draggedInput = null;
     }
 
     private void applyScrollbarDrag() {
-        if (draggingPointScrollbar) pointScroll = Math.round(scrollbarDrag.scroll());
-        else fileScroll = Math.round(scrollbarDrag.scroll());
+        if (draggingPointScrollbar) {
+            pointScroll = Math.round(scrollbarDrag.scroll());
+        } else {
+            fileScroll = Math.round(scrollbarDrag.scroll());
+        }
     }
 
     public void mouseScrolled(double x, double y, double amount) {
-        if (pendingNavigation != null) return;
-        if (routeUpdatePane != null) { routeUpdatePane.mouseScrolled(x, y, amount); return; }
-        if (regionPane != null) { regionPane.mouseScrolled(x, y, amount); return; }
-        if (!interactive() || pendingDelete != null || routeNameInput != null || !insideContent(x, y)) return;
+        if (pendingNavigation != null) {
+            return;
+        }
+
+        if (routeUpdatePane != null) {
+            routeUpdatePane.mouseScrolled(x, y, amount);
+            return;
+        }
+
+        if (regionPane != null) {
+            regionPane.mouseScrolled(x, y, amount);
+            return;
+        }
+
+        if (!interactive() || pendingDelete != null || routeNameInput != null || !insideContent(x, y)) {
+            return;
+        }
+
         draggedInput = null;
         if (pageTarget > 0) {
-            blurPoints(); flush();
+            blurPoints();
+            flush();
             pointScroll = Mth.clamp(pointScroll - (int) (amount * 30), 0, Math.max(0, points.size() * RoutePointComponent.HEIGHT - contentH));
-        } else fileScroll = Mth.clamp(fileScroll - (int) (amount * 30), 0, Math.max(0, files.size() * FILE_HEIGHT - contentH));
+        } else {
+            fileScroll = Mth.clamp(fileScroll - (int) (amount * 30), 0, Math.max(0, files.size() * FILE_HEIGHT - contentH));
+        }
     }
 
     public void keyPressed(KeyEvent input) {
         if (pendingNavigation != null) {
-            if (input.key() == GLFW.GLFW_KEY_ESCAPE) pendingNavigation = null;
-            else if (input.key() == GLFW.GLFW_KEY_ENTER && System.currentTimeMillis() - saveFailureAt >= ANIMATION_MS) resolveSaveFailure(false);
+            if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
+                pendingNavigation = null;
+            } else if (input.key() == GLFW.GLFW_KEY_ENTER && System.currentTimeMillis() - saveFailureAt >= ANIMATION_MS) {
+                resolveSaveFailure(false);
+            }
             return;
         }
-        if (routeUpdatePane != null) { routeUpdatePane.keyPressed(input); return; }
-        if (regionPane != null) { regionPane.keyPressed(input); return; }
-        if (deletingPoint != null || deletingFile != null) return;
+
+        if (routeUpdatePane != null) {
+            routeUpdatePane.keyPressed(input);
+            return;
+        }
+
+        if (regionPane != null) {
+            regionPane.keyPressed(input);
+            return;
+        }
+
+        if (deletingPoint != null || deletingFile != null) {
+            return;
+        }
+
         if (routeNameInput != null) {
-            if (namingClosing) return;
-            if (input.key() == GLFW.GLFW_KEY_ESCAPE) closeRouteNaming();
-            else if (namingProgress() < 0.999f) return;
-            else if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) saveRouteName();
-            else routeNameInput.keyPressed(input);
+            if (namingClosing) {
+                return;
+            }
+
+            if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
+                closeRouteNaming();
+            } else if (namingProgress() < 0.999f) {
+                return;
+            } else if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) {
+                saveRouteName();
+            } else {
+                routeNameInput.keyPressed(input);
+            }
             return;
         }
         if (pendingDelete != null) {
-            if (deleteClosing) return;
-            if (input.key() == GLFW.GLFW_KEY_ESCAPE) closeDeleteConfirmation(false);
-            else if (deleteProgress() >= 0.999f && (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER)) closeDeleteConfirmation(true);
+            if (deleteClosing) {
+                return;
+            }
+            if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
+                closeDeleteConfirmation(false);
+            } else if (deleteProgress() >= 0.999f && (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER)) {
+                closeDeleteConfirmation(true);
+            }
             return;
         }
-        if (input.key() == GLFW.GLFW_KEY_ESCAPE) { back(); return; }
-        if (!interactive() || pageTarget == 0) return;
-        if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) { flush(); blurPoints(); }
-        else if (input.key() == GLFW.GLFW_KEY_TAB && !points.isEmpty()) {
+
+        if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
+            back();
+            return;
+        }
+
+        if (!interactive() || pageTarget == 0) {
+            return;
+        }
+
+        if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) {
+            flush();
+            blurPoints();
+        } else if (input.key() == GLFW.GLFW_KEY_TAB && !points.isEmpty()) {
             int focused = -1;
-            for (int i = 0; i < points.size(); i++) if (points.get(i).focusedField() >= 0) focused = i * 4 + points.get(i).focusedField();
+            for (int i = 0; i < points.size(); i++) {
+                if (points.get(i).focusedField() >= 0) {
+                    focused = i * 4 + points.get(i).focusedField();
+                }
+            }
+
             int total = points.size() * 4;
             int next = focused < 0 ? (input.hasShiftDown() ? total - 1 : 0)
                     : Math.floorMod(focused + (input.hasShiftDown() ? -1 : 1), total);
-            blurPoints(); points.get(next / 4).focus(next % 4);
+            blurPoints();
+            points.get(next / 4).focus(next % 4);
             int top = next / 4 * RoutePointComponent.HEIGHT;
             pointScroll = Mth.clamp(pointScroll, Math.max(0, top + RoutePointComponent.HEIGHT - contentH), top);
-        } else for (var point : points) if (point.keyPressed(input)) break;
+        } else {
+            for (var point : points) {
+                if (point.keyPressed(input)) {
+                    break;
+                }
+            }
+        }
     }
 
     public void charTyped(CharacterEvent input) {
-        if (pendingNavigation != null) return;
-        if (routeUpdatePane != null) return;
-        if (regionPane != null) { regionPane.charTyped(input); return; }
-        if (routeNameInput != null) {
-            if (!namingClosing && namingProgress() >= 0.999f) routeNameInput.charTyped(input);
+        if (pendingNavigation != null) {
             return;
         }
-        if (interactive() && pendingDelete == null && pageTarget > 0) for (var point : points) if (point.charTyped(input)) break;
+
+        if (routeUpdatePane != null) {
+            return;
+        }
+
+        if (regionPane != null) {
+            regionPane.charTyped(input);
+            return;
+        }
+
+        if (routeNameInput != null) {
+            if (!namingClosing && namingProgress() >= 0.999f) {
+                routeNameInput.charTyped(input);
+            }
+            return;
+        }
+        if (interactive() && pendingDelete == null && pageTarget > 0) {
+            for (var point : points) {
+                if (point.charTyped(input)) {
+                    break;
+                }
+            }
+        }
     }
 
     public boolean preeditUpdated(PreeditEvent input) {
-        if (pendingNavigation != null) return true;
-        if (routeUpdatePane != null) return true;
-        if (regionPane != null) { regionPane.preeditUpdated(input); return true; }
+        if (pendingNavigation != null) {
+            return true;
+        }
+        if (routeUpdatePane != null) {
+            return true;
+        }
+        if (regionPane != null) {
+            regionPane.preeditUpdated(input);
+            return true;
+        }
+
         if (routeNameInput != null) {
-            if (!namingClosing && namingProgress() >= 0.999f) routeNameInput.preeditUpdated(input);
+            if (!namingClosing && namingProgress() >= 0.999f) {
+                routeNameInput.preeditUpdated(input);
+            }
             return true;
         }
         if (interactive() && pendingDelete == null && pageTarget > 0) {
-            for (var point : points) if (point.preeditUpdated(input)) return true;
+            for (var point : points) {
+                if (point.preeditUpdated(input)) {
+                    return true;
+                }
+            }
         }
         return true;
     }
 
     private void startRouteNaming(Path file, RouteButtonComponent source) {
-        if (!flush()) return;
+        if (!flush()) {
+            return;
+        }
         namingSource = source;
         namingOrigin = source.bounds();
         namingOriginColor = source.color();
+
         namingAnimStarted = System.currentTimeMillis();
         namingClosing = false;
+
         routeToReveal = null;
         renamingRoute = file;
+
         routeNameError = "";
         routeNameInput = new EditBox(FontManagerHelper.getGuiInputFont(), 0, 0, 200, 18, Component.literal(label("路线名称")));
         routeNameInput.setBordered(false);
         routeNameInput.setTextShadow(false);
         routeNameInput.setMaxLength(69);
         routeNameInput.setHint(Component.literal(label("输入路线名称")));
-        if (file != null) routeNameInput.setValue(file.getFileName().toString().replaceFirst("(?i)\\.(json|txt)$", ""));
+
+        if (file != null) {
+            routeNameInput.setValue(file.getFileName().toString().replaceFirst("(?i)\\.(json|txt)$", ""));
+        }
+
         routeNameInput.setResponder(value -> routeNameError = "");
         routeNameInput.setFocused(true);
     }
 
     private void saveRouteName() {
-        if (namingClosing) return;
+        if (namingClosing) {
+            return;
+        }
+
+
         try {
             routeToReveal = renamingRoute == null ? store.createRoute(routeNameInput.getValue())
                     : store.renameRoute(renamingRoute, routeNameInput.getValue());
@@ -660,7 +1056,10 @@ public abstract class PointCollectionScreen {
     }
 
     private void closeRouteNaming() {
-        if (namingClosing) return;
+        if (namingClosing) {
+            return;
+        }
+
         draggedInput = null;
         namingClosingFrom = namingProgress();
         namingClosing = true;
@@ -669,13 +1068,19 @@ public abstract class PointCollectionScreen {
     }
 
     private void finishRouteNaming(long now) {
-        if (routeNameInput == null || !namingClosing || now - namingAnimStarted < ANIMATION_MS) return;
+        if (routeNameInput == null || !namingClosing || now - namingAnimStarted < ANIMATION_MS) {
+            return;
+        }
+
         routeNameInput = null;
         namingSource = null;
+
         if (routeToReveal != null) {
             refreshFiles();
             int index = new ArrayList<>(files.keySet()).indexOf(routeToReveal);
-            if (index >= 0) fileScroll = Math.max(0, (index + 1) * FILE_HEIGHT - contentH);
+            if (index >= 0) {
+                fileScroll = Math.max(0, (index + 1) * FILE_HEIGHT - contentH);
+            }
             routeToReveal = null;
         }
     }
@@ -683,7 +1088,9 @@ public abstract class PointCollectionScreen {
     private void renderRouteNaming(GuiGraphicsExtractor graphics, OwoUIGraphics owo, int mouseX, int mouseY, float partialTick) {
         int dialogW = Math.min(340, panelW - 32);
         int x = panelX + (panelW - dialogW) / 2, y = panelY + panelH / 2 - 76;
+
         float progress = namingProgress();
+
         float currentX = AnimationUtil.lerp(progress, namingOrigin.x(), x);
         float currentY = AnimationUtil.lerp(progress, namingOrigin.y(), y);
         float currentW = AnimationUtil.lerp(progress, namingOrigin.width(), dialogW);
@@ -692,28 +1099,38 @@ public abstract class PointCollectionScreen {
                 AnimationUtil.lerp(progress, 5, 10),
                 AnimationUtil.lerpColor(progress, namingOriginColor, Color.ofArgb(0xFF1C2734)),
                 Color.ofArgb(0x885AA5C4));
+
         float labelAlpha = 1 - Mth.clamp(progress * 4, 0, 1);
+
         if (labelAlpha > 0.005f) {
             RenderUtil.drawCenteredSmoothText(RenderUtil.withOpacity(owo, labelAlpha),
                     Component.literal(renamingRoute == null ? label("+ 新建路线") : "改名"),
                     currentX + currentW / 2, currentY + currentH / 2, 0.80f, 0xFFD2DFE8);
         }
+
         float contentAlpha = Mth.clamp((progress - 0.2f) / 0.8f, 0, 1);
-        if (contentAlpha <= 0.005f) return;
+        if (contentAlpha <= 0.005f) {
+            return;
+        }
+
         graphics.pose().pushMatrix();
         graphics.pose().translate(currentX, currentY);
         graphics.pose().scale(currentW / dialogW, currentH / 152);
         graphics.pose().translate(-x, -y);
         graphics.enableScissor(x, y, x + dialogW, y + 152);
+
         OwoUIGraphics content = RenderUtil.withOpacity(owo, contentAlpha);
+
         RenderUtil.drawSmoothText(content, renamingRoute == null ? label("新建路线") : label("修改路线名称"), x + 16, y + 16, 0xFFE1F5FE);
         routeNameInput.extractRenderState(content, mouseX, mouseY, partialTick);
         RenderUtil.fillSubpixel(content, x + 16, y + 67, x + dialogW - 16, y + 68, 0xFF80D7FF);
+
         String hint = routeNameError.isEmpty() ? label("名称将用作路线文件名，同名文件不会被覆盖") : routeNameError;
-        RenderUtil.drawSmoothText(content, RenderUtil.fitText(hint, dialogW - 32, 0.85f), x + 16, y + 82,
-                routeNameError.isEmpty() ? 0xFF8CA7BA : 0xFFFFA8B4);
+        RenderUtil.drawSmoothText(content, RenderUtil.fitText(hint, dialogW - 32, 0.85f), x + 16, y + 82, routeNameError.isEmpty() ? 0xFF8CA7BA : 0xFFFFA8B4);
+
         saveRouteButton.draw(content, renamingRoute == null ? "创建" : "保存名称", true, mouseX, mouseY);
         cancelRouteButton.draw(content, "取消", false, mouseX, mouseY);
+
         graphics.disableScissor();
         graphics.pose().popMatrix();
     }
@@ -721,30 +1138,44 @@ public abstract class PointCollectionScreen {
     private void renderDeleteConfirmation(OwoUIGraphics graphics, int mouseX, int mouseY) {
         int dialogW = Math.min(320, panelW - 32);
         int x = panelX + (panelW - dialogW) / 2, y = panelY + panelH / 2 - 56;
+
         float progress = deleteProgress();
+
         float currentX = AnimationUtil.lerp(progress, deleteOrigin.x(), x);
         float currentY = AnimationUtil.lerp(progress, deleteOrigin.y(), y);
         float currentW = AnimationUtil.lerp(progress, deleteOrigin.width(), dialogW);
         float currentH = AnimationUtil.lerp(progress, deleteOrigin.height(), 112);
+
         RenderUtil.drawSubpixelRoundedPanel(graphics, currentX, currentY, currentW, currentH,
                 AnimationUtil.lerp(progress, 5, 10),
                 AnimationUtil.lerpColor(progress, deleteOriginColor, Color.ofArgb(0xFF1C2734)), Color.ofArgb(0xAAAF6976));
         float labelAlpha = 1 - Mth.clamp(progress * 4, 0, 1);
-        if (labelAlpha > 0.005f) RenderUtil.drawCenteredSmoothText(RenderUtil.withOpacity(graphics, labelAlpha),
-                Component.literal("×"), currentX + currentW / 2, currentY + currentH / 2, 0.80f, 0xFFD2DFE8);
+
+        if (labelAlpha > 0.005f) {
+            RenderUtil.drawCenteredSmoothText(RenderUtil.withOpacity(graphics, labelAlpha),
+                    Component.literal("×"), currentX + currentW / 2, currentY + currentH / 2, 0.80f, 0xFFD2DFE8);
+        }
+
         float contentAlpha = Mth.clamp((progress - 0.2f) / 0.8f, 0, 1);
-        if (contentAlpha <= 0.005f) return;
+        if (contentAlpha <= 0.005f) {
+            return;
+        }
+
         graphics.pose().pushMatrix();
         graphics.pose().translate(currentX, currentY);
         graphics.pose().scale(currentW / dialogW, currentH / 112);
         graphics.pose().translate(-x, -y);
         graphics.enableScissor(x, y, x + dialogW, y + 112);
+
         OwoUIGraphics content = RenderUtil.withOpacity(graphics, contentAlpha);
+
         RenderUtil.drawSmoothText(content, "确认删除这个点位？", x + 16, y + 16, 0xFFFFCBD1);
         String name = pendingDelete.name == null || pendingDelete.name.isBlank() ? "未命名点位" : pendingDelete.name;
         RenderUtil.drawSmoothText(content, RenderUtil.fitText(name, dialogW - 32, 0.85f), x + 16, y + 37, 0xFFBBCDDD);
+
         confirmDeleteButton.draw(content, "确认删除", true, mouseX, mouseY);
         cancelDeleteButton.draw(content, "取消", false, mouseX, mouseY);
+
         graphics.disableScissor();
         graphics.pose().popMatrix();
     }
@@ -755,11 +1186,15 @@ public abstract class PointCollectionScreen {
     }
 
     private void closeDeleteConfirmation(boolean confirmed) {
-        if (deleteClosing) return;
+        if (deleteClosing) {
+            return;
+        }
+
         deleteClosingFrom = deleteProgress();
         deleteClosing = true;
         deleteConfirmed = confirmed;
         deleteAnimStarted = System.currentTimeMillis();
+
         (confirmed ? confirmDeleteButton : cancelDeleteButton).press();
     }
 
@@ -776,10 +1211,12 @@ public abstract class PointCollectionScreen {
             pendingDelete = null;
             deleteSourcePoint = null;
         }
+
         if (deletingPoint != null && deletingPoint.removalFinished(now)) {
             deletingPoint = null;
             rebuildPoints();
         }
+
         if (deletingFile != null && deletingFile.appearance.finished(now)) {
             deletingFile = null;
             refreshFiles();
@@ -791,8 +1228,15 @@ public abstract class PointCollectionScreen {
 
     private boolean insideContent(double x, double y) { return x >= contentX && x < contentX + contentW && y >= contentY && y < contentY + contentH; }
     private FileRow fileAt(double x, double y) {
-        if (!insideContent(x, y)) return null;
-        for (FileRow row : files.values()) if (y >= row.y && y < row.y + FILE_HEIGHT) return row;
+        if (!insideContent(x, y)) {
+            return null;
+        }
+
+        for (FileRow row : files.values()) {
+            if (y >= row.y && y < row.y + FILE_HEIGHT) {
+                return row;
+            }
+        }
         return null;
     }
 
@@ -806,52 +1250,82 @@ public abstract class PointCollectionScreen {
     private final class FileRow {
         private final Path path;
         private PointCollectionStore.FileOptions options;
+
         private final RouteButtonComponent surface = new RouteButtonComponent();
         private final RouteButtonComponent visible = new RouteButtonComponent();
         private final RouteButtonComponent line = new RouteButtonComponent();
         private final RouteButtonComponent rename = new RouteButtonComponent();
         private final RouteButtonComponent region = new RouteButtonComponent();
         private final RouteButtonComponent importButton = new RouteButtonComponent();
+
         private String externalAction = "导入";
         private final RouteNodeAnimation appearance = new RouteNodeAnimation();
         private int x, y, width;
-        private FileRow(Path path) { this.path = path; this.options = store.fileOptions(path); }
+
+        private FileRow(Path path) {
+            this.path = path;
+            this.options = store.fileOptions(path);
+        }
+
         private void layout(int x, int y, int width) {
-            this.x = x; this.y = y; this.width = width;
+            this.x = x;
+            this.y = y;
+            this.width = width;
+
             surface.bounds(x, y + 2, width - 4, FILE_HEIGHT - 4);
             visible.bounds(x + width - 132, y + 11, 58, 22);
             line.bounds(x + width - 68, y + 11, 58, 22);
             rename.bounds(x + width - 196, y + 11, 58, 22);
+
             if (!store.supportsLines()) {
                 visible.bounds(x + width - 68, y + 11, 58, 22);
                 region.bounds(x + width - 132, y + 11, 58, 22);
                 rename.bounds(x + width - 196, y + 11, 58, 22);
             }
+
             importButton.bounds(x + width - 68, y + 11, 58, 22);
         }
         private void draw(OwoUIGraphics graphics, int mouseX, int mouseY, RouteButtonComponent hiddenButton) {
             float appear = appearance.progress(System.currentTimeMillis());
-            if (appear <= 0.005f) return;
+            if (appear <= 0.005f) {
+                return;
+            }
+
             graphics = RenderUtil.beginRowAppearance(graphics, x, y, width, FILE_HEIGHT, appear);
+
             boolean external = store.externalFile(path);
             boolean active = !external && store.active(path);
+
             surface.draw(graphics, "", active, mouseX, mouseY);
             String name = store.protectedFile(path) ? "默认点位 (default.json)" : path.getFileName().toString();
             RenderUtil.drawSmoothText(graphics, RenderUtil.fitText((active ? "● " : "") + name, width - (external ? 86 : 218), 0.85f), x + 10, y + 11, external ? 0xFF808995 : active ? 0xFF92DFFF : 0xFFE0EAF1);
+
             String hint = external ? "来自 routes · 导入为独立点位集"
                     : active ? store.supportsLines() ? "当前路线 · 右键编辑" : "已激活 · 右键编辑"
                     : "左键激活 · 右键编辑";
             RenderUtil.drawSmoothText(graphics, hint, x + 10, y + 27, 0xFF7893A6);
+
             if (external) {
-                if (hiddenButton != importButton) importButton.draw(graphics, externalAction, false, mouseX, mouseY);
-                graphics.pose().popMatrix(); return;
+                if (hiddenButton != importButton) {
+                    importButton.draw(graphics, externalAction, false, mouseX, mouseY);
+                }
+                graphics.pose().popMatrix();
+                return;
             }
+
             visible.draw(graphics, options.visible() ? "显示 开" : "显示 关", options.visible(), mouseX, mouseY);
-            if (store.supportsLines()) line.draw(graphics, options.showLine() ? "连线 开" : "连线 关", options.showLine(), mouseX, mouseY);
-            else {
-                if (hiddenButton != region) region.draw(graphics, "生效区域", false, mouseX, mouseY);
+            if (store.supportsLines()) {
+                line.draw(graphics, options.showLine() ? "连线 开" : "连线 关", options.showLine(), mouseX, mouseY);
+            } else {
+                if (hiddenButton != region) {
+                    region.draw(graphics, "生效区域", false, mouseX, mouseY);
+                }
             }
-            if (hiddenButton != rename && !store.protectedFile(path)) rename.draw(graphics, "改名", false, mouseX, mouseY);
+
+            if (hiddenButton != rename && !store.protectedFile(path)) {
+                rename.draw(graphics, "改名", false, mouseX, mouseY);
+            }
+
             graphics.pose().popMatrix();
         }
     }
