@@ -3,6 +3,7 @@ package me.cookie.kwrg.gui;
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import me.cookie.kwrg.gui.component.PanelItemComponent;
+import me.cookie.kwrg.gui.component.PointListDrag;
 import me.cookie.kwrg.gui.component.ScrollbarDrag;
 import me.cookie.kwrg.gui.component.route.RouteButtonComponent;
 import me.cookie.kwrg.gui.component.route.RoutePointComponent;
@@ -29,6 +30,8 @@ import org.lwjgl.glfw.GLFW;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -63,8 +66,19 @@ public abstract class PointCollectionScreen {
     private int fileScroll, pointScroll;
     private final ScrollbarDrag scrollbarDrag = new ScrollbarDrag();
     private boolean draggingPointScrollbar;
+
     private final Map<Path, FileRow> files = new LinkedHashMap<>();
     private final List<RoutePointComponent> points = new ArrayList<>();
+    private final PointListDrag<RoutePointComponent> pointDrag = new PointListDrag<>();
+
+    private final Map<RoutePointComponent, PointMotion> pointMotions = new IdentityHashMap<>();
+    private final Map<Path, List<String>> displayOrders = new HashMap<>();
+
+    private Path pointsFile;
+    private List<? extends PointEntry> dragEntries = List.of();
+
+    private long dragFrameAt;
+    private float dragScroll;
 
     private final RouteButtonComponent closeButton = new RouteButtonComponent();
     private final RouteButtonComponent directoryButton = new RouteButtonComponent();
@@ -135,6 +149,8 @@ public abstract class PointCollectionScreen {
     }
 
     public void back() {
+        cancelPointDrag();
+
         scrollbarDrag.cancel();
         if (closingAt >= 0) {
             return;
@@ -155,6 +171,8 @@ public abstract class PointCollectionScreen {
     }
 
     private void close() {
+        cancelPointDrag();
+
         scrollbarDrag.cancel();
         if (!flush()) {
             offerSaveRecovery(this::close);
@@ -233,6 +251,7 @@ public abstract class PointCollectionScreen {
     }
 
     private void rebuildPoints() {
+        cancelPointDrag();
         blurPoints();
         Map<PointEntry, RoutePointComponent> existing = new IdentityHashMap<>();
         for (RoutePointComponent point : points) {
@@ -241,7 +260,12 @@ public abstract class PointCollectionScreen {
 
         points.clear();
 
-        var entries = store.entries();
+        if (!java.util.Objects.equals(pointsFile, store.currentFile())) {
+            pointMotions.clear();
+        }
+
+        pointsFile = store.currentFile();
+        var entries = orderedEntries();
         for (int i = 0; i < entries.size(); i++) {
             RoutePointComponent point = existing.get(entries.get(i));
             if (point == null) {
@@ -250,14 +274,45 @@ public abstract class PointCollectionScreen {
             point.setIndex(i);
             points.add(point);
         }
+
+        pointMotions.keySet().retainAll(points);
+        rememberDisplayOrder();
+    }
+
+    private List<? extends PointEntry> orderedEntries() {
+        var entries = new ArrayList<>(store.entries());
+        if (!store.persistsPointOrder()) {
+            List<String> order = displayOrders.get(store.currentFile());
+            if (order != null) {
+                Map<String, Integer> positions = new HashMap<>();
+                for (int i = 0; i < order.size(); i++) positions.put(order.get(i), i);
+                // Stable sorting appends new nodes while preserving the surviving nodes' positions.
+                entries.sort(Comparator.comparingInt(entry -> positions.getOrDefault(entry.id, Integer.MAX_VALUE)));
+            }
+        }
+        return entries;
+    }
+
+    private void rememberDisplayOrder() {
+        if (!store.persistsPointOrder() && store.currentFile() != null) {
+            displayOrders.put(store.currentFile(), points.stream().map(point -> point.entry().id).toList());
+        }
     }
 
     private String label(String text) { return text.replace("路线", store.noun()); }
 
     private boolean samePoints() {
+        if (!java.util.Objects.equals(pointsFile, store.currentFile())) return false;
+
         var entries = store.entries();
         if (entries.size() != points.size()) {
             return false;
+        }
+
+        if (!store.persistsPointOrder()) {
+            var identities = java.util.Collections.newSetFromMap(new IdentityHashMap<PointEntry, Boolean>());
+            identities.addAll(entries);
+            return points.stream().allMatch(point -> identities.contains(point.entry()));
         }
 
         for (int i = 0; i < entries.size(); i++) {
@@ -316,8 +371,122 @@ public abstract class PointCollectionScreen {
 
         offset = 0;
         for (RoutePointComponent point : points) {
-            point.layout(contentX, contentY + Math.round(offset) - pointScroll, contentW);
+            PointMotion motion = pointMotions.computeIfAbsent(point, ignored -> new PointMotion());
+            point.layout(contentX + Math.round(motion.horizontalOffset(now)), contentY + Math.round(motion.position(offset, now)) - pointScroll, contentW);
             offset += RoutePointComponent.HEIGHT * point.remaining(now);
+        }
+    }
+
+    /** Slot motion is independent of scrolling, so wheel/edge scrolling stays attached to the pointer. */
+    private static final class PointMotion {
+        private float from, target = Float.NaN;
+        private float releasedX;
+        private long startedAt, releasedAt;
+
+        float position(float next, long now) {
+            if (Float.isNaN(target)) from = target = next;
+            float current = AnimationUtil.lerp(AnimationUtil.easeOutCubic((now - startedAt) / 180f), from, target);
+            if (next != target) {
+                from = current;
+                target = next;
+                startedAt = now;
+            }
+            return current;
+        }
+
+        float horizontalOffset(long now) {
+            return releasedX * (1 - AnimationUtil.easeOutCubic((now - releasedAt) / 180f));
+        }
+
+        void snap(float x, float position, long now) {
+            from = target = position;
+            startedAt = now;
+            releasedX = x;
+            releasedAt = now;
+        }
+    }
+
+    private boolean dragEntriesUnchanged() {
+        var entries = store.entries();
+        return java.util.Objects.equals(pointsFile, store.currentFile()) && entries.equals(dragEntries);
+    }
+
+    private void updatePointDrag(double mouseX, double mouseY, long now) {
+        if (pointDrag.item() == null) return;
+        if (!interactive() || pageTarget == 0 || pendingDelete != null || pendingNavigation != null
+                || routeNameInput != null || regionPane != null || routeUpdatePane != null || !dragEntriesUnchanged()) {
+            cancelPointDrag();
+            return;
+        }
+
+        if (pointDrag.update(mouseX, mouseY, now)) {
+            blurPoints();
+            dragScroll = pointScroll;
+            dragFrameAt = now;
+        }
+
+        if (!pointDrag.holding()) return;
+
+        float elapsed = Math.min(50, now - dragFrameAt) / 1000f;
+        dragFrameAt = now;
+        // Scroll at either edge, including while holding the pointer still.
+        if (pointDrag.moved() && mouseX >= contentX - 24 && mouseX <= contentX + contentW + 24) {
+            float edge = Math.min(32, contentH / 3f);
+            float velocity = mouseY < contentY + edge ? -Mth.clamp((float) (contentY + edge - mouseY) / edge, 0, 1)
+                    : mouseY > contentY + contentH - edge ? Mth.clamp((float) (mouseY - contentY - contentH + edge) / edge, 0, 1) : 0;
+            dragScroll = Mth.clamp(dragScroll + velocity * 240 * elapsed, 0, Math.max(0, points.size() * RoutePointComponent.HEIGHT - contentH));
+            pointScroll = Math.round(dragScroll);
+        }
+
+        int from = points.indexOf(pointDrag.item());
+        int to = pointDrag.insertionIndex(contentY, pointScroll, RoutePointComponent.HEIGHT, points.size());
+        if (mouseX >= contentX - 24 && mouseX <= contentX + contentW + 24 && from != to) {
+            points.add(to, points.remove(from));
+            for (int i = 0; i < points.size(); i++) points.get(i).setIndex(i);
+        }
+    }
+
+    private void cancelPointDrag() {
+        if (pointDrag.holding()) {
+            int index = points.indexOf(pointDrag.item());
+            if (index >= 0) {
+                pointMotions.computeIfAbsent(pointDrag.item(), ignored -> new PointMotion())
+                        .snap(pointDrag.x() - contentX, pointDrag.y() - contentY + pointScroll, System.currentTimeMillis());
+                points.add(Math.min(pointDrag.originalIndex(), points.size() - 1), points.remove(index));
+                for (int i = 0; i < points.size(); i++) points.get(i).setIndex(i);
+            }
+        }
+
+        pointDrag.clear();
+        dragEntries = List.of();
+    }
+
+    private void dropPoint() {
+        if (!pointDrag.holding()) {
+            pointDrag.clear();
+            return;
+        }
+
+        if (!dragEntriesUnchanged()) {
+            cancelPointDrag();
+            return;
+        }
+
+        RoutePointComponent held = pointDrag.item();
+        int to = points.indexOf(held);
+        pointMotions.computeIfAbsent(held, ignored -> new PointMotion())
+                .snap(pointDrag.x() - contentX, pointDrag.y() - contentY + pointScroll, System.currentTimeMillis());
+        int from = store.entries().indexOf(held.entry());
+        pointDrag.clear();
+        dragEntries = List.of();
+
+        if (store.persistsPointOrder()) {
+            if (store.moveEntry(from, to)) {
+                markDirty();
+                flush();
+            }
+        } else {
+            rememberDisplayOrder();
         }
     }
 
@@ -341,10 +510,14 @@ public abstract class PointCollectionScreen {
             refreshFiles();
         }
 
-        if (pageTarget > 0 && pendingDelete == null && deletingPoint == null && !samePoints() && !saveBlocked && flush()) {
+        if (pageTarget > 0 && pendingDelete == null && deletingPoint == null
+                && (!pointDrag.holding() || !dragEntriesUnchanged()) && !samePoints() && !saveBlocked && flush()) {
             rebuildPoints();
         }
+
         layout(width, height);
+        updatePointDrag(mouseX, mouseY, now);
+        if (pointDrag.holding()) layout(width, height);
 
         float alpha = progress();
         float sourceX = originX, sourceY = originY, sourceW = 52, sourceH = 28;
@@ -409,7 +582,9 @@ public abstract class PointCollectionScreen {
             RenderUtil.drawScrollThumb(owo, contentX + contentW - 2, contentY, contentH,
                     editor ? points.size() * RoutePointComponent.HEIGHT : files.size() * FILE_HEIGHT,
                     editor ? pointScroll : fileScroll, Color.ofArgb(0xAA4FC3F7));
-            RenderUtil.drawSmoothText(owo, editor ? "右键任意位置返回列表 · × 删除需确认" : store.supportsLines() ? "左键激活 · 右键编辑 · Shift + 左键删除 · 右键面板外关闭" : "左键切换激活 · 右键编辑 · Shift + 左键删除 · 可多选激活", panelX + 16, panelY + panelH - 25, 0xFF7893A6);
+            RenderUtil.drawSmoothText(owo, editor ? "长按序号 / 空白拖动排序 · 右键返回 · × 删除需确认" : store.supportsLines() ? "左键激活 · 右键编辑 · Shift + 左键删除 · 右键面板外关闭" : "左键切换激活 · 右键编辑 · Shift + 左键删除 · 可多选激活", panelX + 16, panelY + panelH - 25, 0xFF7893A6);
+
+            if (pointDrag.holding()) renderHeldPoint(graphics, owo, mouseX, mouseY, partialTick, now);
 
             if (pendingDelete != null) {
                 renderDeleteConfirmation(owo, mouseX, mouseY);
@@ -485,20 +660,50 @@ public abstract class PointCollectionScreen {
             RenderUtil.drawSmoothText(owo, "暂无点位，点击右上角 + 点位开始添加", contentX + 12, contentY + 24, 0xFF8CA7BA);
         }
 
-        float offset = 0;
-        long now = System.currentTimeMillis();
         for (RoutePointComponent point : points) {
-            int y = contentY + Math.round(offset) - pointScroll;
+            if (pointDrag.holding() && point == pointDrag.item()) continue;
+            int y = point.y();
             if (y + RoutePointComponent.HEIGHT > contentY && y < contentY + contentH) {
                 point.render(graphics, owo, mouseX, mouseY, partialTick);
             } else {
                 point.releaseInputs();
             }
-            offset += RoutePointComponent.HEIGHT * point.remaining(now);
         }
     }
 
+    private void renderHeldPoint(GuiGraphicsExtractor graphics, OwoUIGraphics owo, int mouseX, int mouseY, float partialTick, long now) {
+        RoutePointComponent held = pointDrag.item();
+        float lift = AnimationUtil.easeOutCubic(pointDrag.heldFor(now) / 130f);
+        float x = pointDrag.x(), y = pointDrag.y();
+        held.layout(Math.round(x), Math.round(y), contentW);
+
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(x + contentW / 2f, y + RoutePointComponent.HEIGHT / 2f);
+        graphics.pose().scale(1 + lift * 0.025f, 1 + lift * 0.025f);
+        graphics.pose().translate(-x - contentW / 2f, -y - RoutePointComponent.HEIGHT / 2f);
+
+        RenderUtil.drawSubpixelRoundedPanel(owo, x - 1, y + 3 + 3 * lift, contentW + 2, RoutePointComponent.HEIGHT - 2, 8,
+                Color.ofArgb(0x70000000), Color.ofArgb(0x00000000));
+        RenderUtil.drawSubpixelRoundedPanel(owo, x - 1, y + 1, contentW + 2, RoutePointComponent.HEIGHT - 2, 8,
+                Color.ofArgb(0xFF24394B), Color.ofArgb(0xCC80D7FF));
+        held.render(graphics, owo, mouseX, mouseY, partialTick);
+
+        graphics.pose().popMatrix();
+    }
+
+    private int pointAt(double x, double y) {
+        for (int i = points.size() - 1; i >= 0; i--) {
+            if (points.get(i).contains(x, y)) return i;
+        }
+        return -1;
+    }
+
     public void mouseClicked(MouseButtonEvent click, boolean doubled) {
+        if (pointDrag.holding()) {
+            cancelPointDrag();
+            return;
+        }
+        pointDrag.clear();
         if (click.button() == 0) {
             scrollbarDrag.cancel();
         }
@@ -634,7 +839,12 @@ public abstract class PointCollectionScreen {
                 markDirty();
                 rebuildPoints();
 
-                int addedIndex = store.entries().indexOf(added);
+                int addedIndex = -1;
+                for (int i = 0; i < points.size(); i++) {
+                    if (points.get(i).entry() == added) { addedIndex = i; break; }
+                }
+
+                if (addedIndex < 0) return;
                 pointScroll = Math.max(0, (addedIndex + 1) * RoutePointComponent.HEIGHT - contentH);
                 layout(Minecraft.getInstance().getWindow().getGuiScaledWidth(), Minecraft.getInstance().getWindow().getGuiScaledHeight());
                 points.get(addedIndex).focus(0);
@@ -642,7 +852,7 @@ public abstract class PointCollectionScreen {
             }
 
             if (insideContent(click.x(), click.y())) {
-                int index = (int) ((click.y() - contentY + pointScroll) / RoutePointComponent.HEIGHT);
+                int index = pointAt(click.x(), click.y());
                 for (int i = 0; i < points.size(); i++) {
                     if (i != index) {
                         points.get(i).blur();
@@ -665,7 +875,12 @@ public abstract class PointCollectionScreen {
                     deleteAnimStarted = System.currentTimeMillis();
                     deleteClosing = deleteConfirmed = false;
                 } else if (click.button() == 0 && index >= 0 && index < points.size()) {
-                    draggedInput = points.get(index).clickedInput(click.x(), click.y());
+                    RoutePointComponent point = points.get(index);
+                    draggedInput = point.clickedInput(click.x(), click.y());
+                    if (point.canDrag(click.x(), click.y())) {
+                        dragEntries = new ArrayList<>(store.entries());
+                        pointDrag.press(point, index, click.x(), click.y(), point.x(), point.y(), System.currentTimeMillis());
+                    }
                 }
             } else {
                 blurPoints();
@@ -753,6 +968,7 @@ public abstract class PointCollectionScreen {
 
                 } else if (click.hasShiftDown() && !store.protectedFile(row.path)) {
                     if (store.deleteFile(row.path)) {
+                        displayOrders.remove(row.path);
                         deletingFile = row;
                         row.appearance.remove(System.currentTimeMillis());
                     }
@@ -773,6 +989,11 @@ public abstract class PointCollectionScreen {
     }
 
     public void mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
+        if (click.button() == 0 && pointDrag.item() != null) {
+            updatePointDrag(click.x(), click.y(), System.currentTimeMillis());
+            if (pointDrag.item() != null) return;
+        }
+
         if (scrollbarDrag.dragging()) {
             int contentHeight = draggingPointScrollbar ? points.size() * RoutePointComponent.HEIGHT : files.size() * FILE_HEIGHT;
             if (scrollbarDrag.drag(click, contentH, ScrollbarDrag.thumbHeight(contentH, contentHeight, 14), Math.max(0, contentHeight - contentH))) {
@@ -802,6 +1023,11 @@ public abstract class PointCollectionScreen {
     }
 
     public void mouseReleased(MouseButtonEvent click) {
+        if (click.button() == 0 && pointDrag.item() != null) {
+            if (pointDrag.holding()) updatePointDrag(click.x(), click.y(), System.currentTimeMillis());
+            dropPoint();
+        }
+
         scrollbarDrag.release(click);
         if (routeUpdatePane != null) {
             return;
@@ -831,6 +1057,14 @@ public abstract class PointCollectionScreen {
     }
 
     public void mouseScrolled(double x, double y, double amount) {
+        if (pointDrag.holding()) {
+            pointScroll = Mth.clamp(pointScroll - (int) (amount * 30), 0, Math.max(0, points.size() * RoutePointComponent.HEIGHT - contentH));
+            dragScroll = pointScroll;
+            updatePointDrag(x, y, System.currentTimeMillis());
+            return;
+        }
+
+        pointDrag.clear();
         if (pendingNavigation != null) {
             return;
         }
@@ -860,6 +1094,12 @@ public abstract class PointCollectionScreen {
     }
 
     public void keyPressed(KeyEvent input) {
+        if (pointDrag.holding()) {
+            if (input.key() == GLFW.GLFW_KEY_ESCAPE) cancelPointDrag();
+            return;
+        }
+
+        pointDrag.clear();
         if (pendingNavigation != null) {
             if (input.key() == GLFW.GLFW_KEY_ESCAPE) {
                 pendingNavigation = null;
@@ -948,6 +1188,9 @@ public abstract class PointCollectionScreen {
     }
 
     public void charTyped(CharacterEvent input) {
+        if (pointDrag.holding()) return;
+        pointDrag.clear();
+
         if (pendingNavigation != null) {
             return;
         }
@@ -977,6 +1220,8 @@ public abstract class PointCollectionScreen {
     }
 
     public boolean preeditUpdated(PreeditEvent input) {
+        if (pointDrag.holding()) return true;
+
         if (pendingNavigation != null) {
             return true;
         }
@@ -1042,6 +1287,11 @@ public abstract class PointCollectionScreen {
         try {
             routeToReveal = renamingRoute == null ? store.createRoute(routeNameInput.getValue())
                     : store.renameRoute(renamingRoute, routeNameInput.getValue());
+            if (renamingRoute != null && !renamingRoute.equals(routeToReveal)) {
+                List<String> order = displayOrders.remove(renamingRoute);
+                if (order != null) displayOrders.put(routeToReveal, order);
+            }
+
             closeRouteNaming();
         } catch (IllegalArgumentException e) {
             routeNameError = e.getMessage();

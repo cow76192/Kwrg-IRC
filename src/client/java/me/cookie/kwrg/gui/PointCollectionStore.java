@@ -43,6 +43,10 @@ public interface PointCollectionStore {
 
     boolean deleteAt(int index);
 
+    default boolean persistsPointOrder() { return false; }
+
+    default boolean moveEntry(int from, int to) { return false; }
+
     default void updateName(int index, String name) { entries().get(index).name = name; }
 
     default void updateCoordinate(int index, int axis, String value) {
