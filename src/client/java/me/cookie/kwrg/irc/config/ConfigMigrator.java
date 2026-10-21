@@ -101,12 +101,18 @@ public final class ConfigMigrator {
             Path backupFile = backupDir.resolve("config-" + System.currentTimeMillis() + "-" + UUID.randomUUID() + ".json");
             Files.writeString(backupFile, BACKUP_GSON.toJson(originalConfig), StandardOpenOption.CREATE_NEW,
                     StandardOpenOption.WRITE);
-            ChatNotifier.send("§e未知配置字段: §f" + unknownFields + "\n§e原始配置已备份至: §f" + backupFile.toAbsolutePath(),
+            notifyBackup("§e未知配置字段: §f" + unknownFields + "\n§e原始配置已备份至: §f" + backupFile.toAbsolutePath(),
                     NotificationType.WARN);
         } catch (IOException | SecurityException e) {
-            ChatNotifier.send("§c未知配置字段: §f" + unknownFields + "\n§c原始配置备份失败: §f" + e.getMessage(),
+            notifyBackup("§c未知配置字段: §f" + unknownFields + "\n§c原始配置备份失败: §f" + e.getMessage(),
                     NotificationType.ERR);
         }
+    }
+
+    private static void notifyBackup(String message, NotificationType type) {
+        // 启动时弹窗可能在进入世界前过期，聊天队列会保留消息直到玩家可用。
+        ChatNotifier.sendInChatScreen(message);
+        ChatNotifier.send(message, type);
     }
 
     private static void migrateIslandToggle(JsonObject jsonObj) {
