@@ -3,6 +3,7 @@ package me.cookie.kwrg.gui.component.pane;
 import io.wispforest.owo.ui.core.CursorStyle;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import me.cookie.kwrg.gui.component.BasePaneComponent;
+import me.cookie.kwrg.gui.manager.GuiColorManager;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -10,7 +11,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.ARGB;
 import net.minecraft.util.FormattedCharSequence;
 
 import java.util.List;
@@ -79,9 +79,8 @@ public class TextInfoPaneComponent extends BasePaneComponent {
     }
 
     @Override
-    protected int getBorderColorArgb() {
-        int borderAlpha = (int) (40 + this.hoverAnimation * 160);
-        return ARGB.color(borderAlpha, 144, 164, 174);
+    protected float borderHoverSpan() {
+        return 160f;
     }
 
     @Override
@@ -102,7 +101,7 @@ public class TextInfoPaneComponent extends BasePaneComponent {
         } else {
             Component styledLabel = FontManagerHelper.apply(this.label);
             if (styledLabel.getStyle().getColor() == null) {
-                styledLabel = styledLabel.copy().withStyle(s -> s.withColor(0x78909C));
+                styledLabel = styledLabel.copy().withStyle(s -> s.withColor(GuiColorManager.textMuted()));
             }
 
             Component styledVal = null;
@@ -115,7 +114,7 @@ public class TextInfoPaneComponent extends BasePaneComponent {
             if (styledVal != null && !styledVal.getString().isEmpty()) {
                 fullComp = Component.empty()
                         .append(styledLabel)
-                        .append(Component.literal(": ").withStyle(s -> s.withColor(0x78909C)))
+                        .append(Component.literal(": ").withStyle(s -> s.withColor(GuiColorManager.textMuted())))
                         .append(styledVal);
             } else {
                 fullComp = styledLabel;
@@ -137,7 +136,7 @@ public class TextInfoPaneComponent extends BasePaneComponent {
                 graphics.pose().pushMatrix();
                 graphics.pose().translate(-titleW / 2.0f, curLineY);
                 graphics.pose().scale(textScale, textScale);
-                graphics.text(font, line, 0, 0, 0xFFB0BEC5, false);
+                graphics.text(font, line, 0, 0, GuiColorManager.opaque(GuiColorManager.textHeader()), false);
                 graphics.pose().popMatrix();
             }
         } else {
@@ -149,7 +148,7 @@ public class TextInfoPaneComponent extends BasePaneComponent {
                 graphics.pose().pushMatrix();
                 graphics.pose().translate(-halfW + 8.0f, singleLineY);
                 graphics.pose().scale(textScale, textScale);
-                graphics.drawText(styledLabel, 0, 0, 1.0f, 0xFF78909C, OwoUIGraphics.TextAnchor.TOP_LEFT);
+                graphics.drawText(styledLabel, 0, 0, 1.0f, GuiColorManager.opaque(GuiColorManager.textMuted()), OwoUIGraphics.TextAnchor.TOP_LEFT);
                 graphics.pose().popMatrix();
 
                 if (valComp != null) {
@@ -158,12 +157,14 @@ public class TextInfoPaneComponent extends BasePaneComponent {
                     graphics.pose().pushMatrix();
                     graphics.pose().translate(halfW - valW - 8.0f, singleLineY);
                     graphics.pose().scale(textScale, textScale);
-                    graphics.drawText(styledVal, 0, 0, 1.0f, 0xFFFFFFFF, OwoUIGraphics.TextAnchor.TOP_LEFT);
+                    graphics.drawText(styledVal, 0, 0, 1.0f, GuiColorManager.opaque(GuiColorManager.textStrong()), OwoUIGraphics.TextAnchor.TOP_LEFT);
                     graphics.pose().popMatrix();
                 } else if (!valStr.isEmpty()) {
                     Component styledVal = FontManagerHelper.apply(valStr);
                     float valW = font.width(styledVal) * textScale;
-                    int valTextColor = this.hovered ? 0xFFFFFFFF : 0xFFECEFF1;
+                    int valTextColor = this.hovered
+                            ? GuiColorManager.opaque(GuiColorManager.textStrong())
+                            : GuiColorManager.opaque(GuiColorManager.textBody());
                     graphics.pose().pushMatrix();
                     graphics.pose().translate(halfW - valW - 8.0f, singleLineY);
                     graphics.pose().scale(textScale, textScale);
@@ -178,7 +179,7 @@ public class TextInfoPaneComponent extends BasePaneComponent {
                     graphics.pose().pushMatrix();
                     graphics.pose().translate(-halfW + 8.0f, curLineY);
                     graphics.pose().scale(textScale, textScale);
-                    graphics.text(font, line, 0, 0, 0xFFECEFF1, false);
+                    graphics.text(font, line, 0, 0, GuiColorManager.opaque(GuiColorManager.textBody()), false);
                     graphics.pose().popMatrix();
                 }
             }

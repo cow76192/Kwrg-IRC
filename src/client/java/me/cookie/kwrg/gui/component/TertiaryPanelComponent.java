@@ -13,14 +13,12 @@ import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 
 public class TertiaryPanelComponent extends FlowLayout {
 
     public static final int PANEL_WIDTH = 190;
     public static final int PANEL_HEIGHT = 315;
-    private static final int BG_COLOR_RGB = 0x11161F;
 
     private final String itemTitle;
     private final SmoothScrollbar scrollbar = new SmoothScrollbar();
@@ -125,8 +123,8 @@ public class TertiaryPanelComponent extends FlowLayout {
         int bgAlpha = (int) (255 * panelAlpha);
         int outlineAlpha = (int) (85 * panelAlpha);
 
-        Color panelBg = AnimationUtil.withAlpha(GuiColorManager.getBgColorRgb(), bgAlpha);
-        Color outlineColor = AnimationUtil.withAlpha(GuiColorManager.getOutlineColorRgb(), outlineAlpha);
+        Color panelBg = AnimationUtil.withAlpha(GuiColorManager.panelBg(), bgAlpha);
+        Color outlineColor = AnimationUtil.withAlpha(GuiColorManager.panelOutline(), outlineAlpha);
 
         RenderUtil.drawRoundedPanel(graphics, px, py, width, height, 14.0f, panelBg, outlineColor);
 
@@ -138,21 +136,21 @@ public class TertiaryPanelComponent extends FlowLayout {
         if (ease > 0.15f) {
             float contentAlpha = (ease - 0.15f) / 0.85f;
 
-            Color badgeBg = AnimationUtil.withAlpha(0x1D2633, (int) (255 * contentAlpha));
-            Color badgeOutline = AnimationUtil.withAlpha(0xFFFFFF, (int) (85 * contentAlpha));
+            Color badgeBg = AnimationUtil.withAlpha(GuiColorManager.badgeBg(), (int) (255 * contentAlpha));
+            Color badgeOutline = AnimationUtil.withAlpha(GuiColorManager.textStrong(), (int) (85 * contentAlpha));
             graphics.drawCircle(iconBadgeX, iconBadgeY, 32, iconBadgeRadius, badgeBg);
             graphics.drawRing(iconBadgeX, iconBadgeY, 32, iconBadgeRadius - 0.8, iconBadgeRadius, badgeOutline, badgeOutline);
 
             String initialChar = this.itemTitle.isEmpty() ? "•" : this.itemTitle.substring(0, 1).toUpperCase();
             var font = Minecraft.getInstance().font;
             float initialW = font.width(initialChar);
-            int badgeTextColor = AnimationUtil.withAlpha(0xFFFFFF, (int) (255 * contentAlpha)).argb();
+            int badgeTextColor = AnimationUtil.withAlpha(GuiColorManager.textStrong(), (int) (255 * contentAlpha)).argb();
             RenderUtil.drawSmoothText(graphics, Component.literal(initialChar), iconBadgeX - initialW / 2.0f, iconBadgeY - 4.5f, 1.0f, badgeTextColor);
 
-            int headerTextColor = AnimationUtil.withAlpha(0xFFFFFF, (int) (255 * contentAlpha)).argb();
+            int headerTextColor = AnimationUtil.withAlpha(GuiColorManager.textStrong(), (int) (255 * contentAlpha)).argb();
             RenderUtil.drawSmoothText(graphics, Component.literal(this.itemTitle), iconBadgeX + 18, iconBadgeY - 4.5f, 1.0f, headerTextColor);
 
-            graphics.fill(px + 12, py + headerHeight, px + width - 12, py + headerHeight + 1, ARGB.color((int) (45 * contentAlpha), 255, 255, 255));
+            graphics.fill(px + 12, py + headerHeight, px + width - 12, py + headerHeight + 1, GuiColorManager.withAlpha(GuiColorManager.textStrong(), (int) (45 * contentAlpha)));
         }
 
         int itemStartY = py + headerHeight + 8;
