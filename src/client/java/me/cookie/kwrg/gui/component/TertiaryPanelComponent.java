@@ -2,7 +2,6 @@ package me.cookie.kwrg.gui.component;
 
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.core.*;
-import me.cookie.kwrg.gui.manager.GuiColorManager;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;
@@ -123,8 +122,8 @@ public class TertiaryPanelComponent extends FlowLayout {
         int bgAlpha = (int) (255 * panelAlpha);
         int outlineAlpha = (int) (85 * panelAlpha);
 
-        Color panelBg = AnimationUtil.withAlpha(GuiColorManager.panelBg(), bgAlpha);
-        Color outlineColor = AnimationUtil.withAlpha(GuiColorManager.panelOutline(), outlineAlpha);
+        Color panelBg = AnimationUtil.withAlpha(BaseGuiComponent.panelBg(), bgAlpha);
+        Color outlineColor = AnimationUtil.withAlpha(BaseGuiComponent.panelOutline(), outlineAlpha);
 
         RenderUtil.drawRoundedPanel(graphics, px, py, width, height, 14.0f, panelBg, outlineColor);
 
@@ -136,21 +135,21 @@ public class TertiaryPanelComponent extends FlowLayout {
         if (ease > 0.15f) {
             float contentAlpha = (ease - 0.15f) / 0.85f;
 
-            Color badgeBg = AnimationUtil.withAlpha(GuiColorManager.badgeBg(), (int) (255 * contentAlpha));
-            Color badgeOutline = AnimationUtil.withAlpha(GuiColorManager.textStrong(), (int) (85 * contentAlpha));
+            Color badgeBg = AnimationUtil.withAlpha(BaseGuiComponent.badgeBg(), (int) (255 * contentAlpha));
+            Color badgeOutline = AnimationUtil.withAlpha(BaseGuiComponent.textStrong(), (int) (85 * contentAlpha));
             graphics.drawCircle(iconBadgeX, iconBadgeY, 32, iconBadgeRadius, badgeBg);
             graphics.drawRing(iconBadgeX, iconBadgeY, 32, iconBadgeRadius - 0.8, iconBadgeRadius, badgeOutline, badgeOutline);
 
             String initialChar = this.itemTitle.isEmpty() ? "•" : this.itemTitle.substring(0, 1).toUpperCase();
             var font = Minecraft.getInstance().font;
             float initialW = font.width(initialChar);
-            int badgeTextColor = AnimationUtil.withAlpha(GuiColorManager.textStrong(), (int) (255 * contentAlpha)).argb();
+            int badgeTextColor = AnimationUtil.withAlpha(BaseGuiComponent.textStrong(), (int) (255 * contentAlpha)).argb();
             RenderUtil.drawSmoothText(graphics, Component.literal(initialChar), iconBadgeX - initialW / 2.0f, iconBadgeY - 4.5f, 1.0f, badgeTextColor);
 
-            int headerTextColor = AnimationUtil.withAlpha(GuiColorManager.textStrong(), (int) (255 * contentAlpha)).argb();
+            int headerTextColor = AnimationUtil.withAlpha(BaseGuiComponent.textStrong(), (int) (255 * contentAlpha)).argb();
             RenderUtil.drawSmoothText(graphics, Component.literal(this.itemTitle), iconBadgeX + 18, iconBadgeY - 4.5f, 1.0f, headerTextColor);
 
-            graphics.fill(px + 12, py + headerHeight, px + width - 12, py + headerHeight + 1, GuiColorManager.withAlpha(GuiColorManager.textStrong(), (int) (45 * contentAlpha)));
+            graphics.fill(px + 12, py + headerHeight, px + width - 12, py + headerHeight + 1, AnimationUtil.argb(BaseGuiComponent.textStrong(), (int) (45 * contentAlpha)));
         }
 
         int itemStartY = py + headerHeight + 8;

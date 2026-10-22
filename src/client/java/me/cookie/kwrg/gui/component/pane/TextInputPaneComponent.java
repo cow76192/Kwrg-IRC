@@ -2,8 +2,9 @@ package me.cookie.kwrg.gui.component.pane;
 
 import io.wispforest.owo.ui.core.CursorStyle;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
+import me.cookie.kwrg.gui.component.BaseGuiComponent;
 import me.cookie.kwrg.gui.component.BasePaneComponent;
-import me.cookie.kwrg.gui.manager.GuiColorManager;
+import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -254,8 +255,8 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
     @Override
     protected int borderBaseRgb() {
         return this.focused
-                ? GuiColorManager.paneBorderFocused()
-                : (this.readOnly ? GuiColorManager.paneBorderReadOnly() : GuiColorManager.paneBorder());
+                ? BaseGuiComponent.paneBorderFocused()
+                : (this.readOnly ? BaseGuiComponent.paneBorderReadOnly() : BaseGuiComponent.paneBorder());
     }
 
     // ==================== 物理 Shift 键判定 ====================
@@ -383,9 +384,9 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
 
         boolean blink = (System.currentTimeMillis() - this.lastActionTime < 300) || (System.currentTimeMillis() % 1000 < 500);
         boolean showCursor = !this.readOnly && this.focused && blink;
-        int textColor = GuiColorManager.opaque(this.readOnly
-                ? (this.hovered ? GuiColorManager.textStrong() : GuiColorManager.textReadOnly())
-                : (this.focused ? GuiColorManager.textStrong() : GuiColorManager.textBody()));
+        int textColor = AnimationUtil.opaqueArgb(this.readOnly
+                ? (this.hovered ? BaseGuiComponent.textStrong() : BaseGuiComponent.textReadOnly())
+                : (this.focused ? BaseGuiComponent.textStrong() : BaseGuiComponent.textBody()));
 
         int cursorLineIdx = getCursorLineIndex(this.cachedLines);
         int selStart = getSelectionStart();
@@ -396,7 +397,7 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
             graphics.pose().pushMatrix();
             graphics.pose().translate(-halfW + 8.0f, textStartY);
             graphics.pose().scale(textScale, textScale);
-            graphics.drawText(this.styledPlaceholder, 0, 0, 1.0f, GuiColorManager.opaque(GuiColorManager.textFaint()), OwoUIGraphics.TextAnchor.TOP_LEFT);
+            graphics.drawText(this.styledPlaceholder, 0, 0, 1.0f, AnimationUtil.opaqueArgb(BaseGuiComponent.textFaint()), OwoUIGraphics.TextAnchor.TOP_LEFT);
             graphics.pose().popMatrix();
         } else {
             for (int i = 0; i < this.cachedLines.size(); i++) {
@@ -421,7 +422,7 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
                         int hX1 = preSub.isEmpty() ? 0 : font.width(FontManagerHelper.apply(preSub));
                         int hX2 = hX1 + font.width(FontManagerHelper.apply(selSub));
 
-                        graphics.fill(hX1, -1, hX2, font.lineHeight, GuiColorManager.withAlpha(GuiColorManager.selectionTint(), 110));
+                        graphics.fill(hX1, -1, hX2, font.lineHeight, AnimationUtil.argb(BaseGuiComponent.selectionTint(), 110));
                     }
                 }
 
@@ -431,7 +432,7 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
                     int offsetInLine = Mth.clamp(this.cursorPos - line.start, 0, line.text.length());
                     String subStr = line.text.substring(0, offsetInLine);
                     int cursorX = subStr.isEmpty() ? 0 : font.width(FontManagerHelper.apply(subStr));
-                    graphics.fill(cursorX, -1, cursorX + 1, font.lineHeight, GuiColorManager.opaque(GuiColorManager.textStrong()));
+                    graphics.fill(cursorX, -1, cursorX + 1, font.lineHeight, AnimationUtil.opaqueArgb(BaseGuiComponent.textStrong()));
                 }
 
                 graphics.pose().popMatrix();
@@ -488,7 +489,7 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
 
         if (this.rightHintAlpha > 0.02f) {
             int alpha = (int) (255 * this.rightHintAlpha);
-            int color = GuiColorManager.withAlpha(GuiColorManager.textFaint(), alpha);
+            int color = AnimationUtil.argb(BaseGuiComponent.textFaint(), alpha);
 
             graphics.pose().pushMatrix();
             graphics.pose().translate(halfW - 8.0f, textStartY);

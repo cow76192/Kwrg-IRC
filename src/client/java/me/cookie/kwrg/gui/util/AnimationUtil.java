@@ -29,6 +29,14 @@ import net.minecraft.util.Mth;
         return start + delta * (end - start);
     }
 
+    public static int argb(int rgb, int alpha) {
+        return ((alpha & 0xFF) << 24) | (rgb & 0xFFFFFF);
+    }
+
+    public static int opaqueArgb(int rgb) {
+        return 0xFF000000 | (rgb & 0xFFFFFF);
+    }
+
     public static Color withAlpha(int rgb, int alpha) {
         int r = (rgb >> 16) & 0xFF;
         int g = (rgb >> 8) & 0xFF;
