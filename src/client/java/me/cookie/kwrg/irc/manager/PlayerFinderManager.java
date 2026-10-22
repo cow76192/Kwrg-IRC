@@ -1,7 +1,7 @@
 package me.cookie.kwrg.irc.manager;
 
 import me.cookie.kwrg.gui.notification.NotificationType;
-import me.cookie.kwrg.uil.PlayerFinderChatState;
+import me.cookie.kwrg.util.PlayerFinderChatState;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;

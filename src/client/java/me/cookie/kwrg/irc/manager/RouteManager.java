@@ -1,5 +1,6 @@
 package me.cookie.kwrg.irc.manager;
 
+import me.cookie.kwrg.render.RouteLineRenderer;
 import me.cookie.kwrg.util.PointEntry;
 
 import com.google.gson.Gson;
@@ -12,6 +13,7 @@ import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcConfig;
 import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.util.ChatNotifier;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -19,6 +21,7 @@ import net.minecraft.gizmos.GizmoStyle;
 import net.minecraft.gizmos.Gizmos;
 import net.minecraft.world.entity.Avatar;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +60,7 @@ public final class RouteManager {
     }
 
     public static void init() {
-        LevelRenderEvents.BEFORE_GIZMOS.register(context -> render());
+        LevelRenderEvents.BEFORE_GIZMOS.register(RouteManager::render);
     }
 
     public static void reloadFromConfig() {
@@ -728,14 +731,21 @@ public final class RouteManager {
         return element == null || element.isJsonNull() ? "" : element.getAsString().trim();
     }
 
-    private static void render() {
+    private static void render(LevelRenderContext context) {
         if (!visible || ENTRIES.isEmpty()) return;
-        var camera = Minecraft.getInstance().gameRenderer.getMainCamera();
-        Vec3 cameraPosition = camera.position();
-        var up = camera.upVector();
+
+        var camera = context.levelState().cameraRenderState;
+        if (!camera.initialized) return;
+
+        Vec3 cameraPosition = camera.pos;
+        var up = camera.orientation.transform(new Vector3f(0, 1, 0));
         Vec3 cameraUp = new Vec3(up.x(), up.y(), up.z());
+
+        RouteLineRenderer lines = showLine ? new RouteLineRenderer() : null;
+        BlockPos first = null;
         BlockPos previous = null;
         int index = 0;
+
         for (Entry entry : ENTRIES) {
             BlockPos pos = entry.visible ? blockPos(entry) : null;
             if (pos == null) {
@@ -743,19 +753,28 @@ public final class RouteManager {
                 index++;
                 continue;
             }
+            if (index == 0) first = pos;
 
             Gizmos.cuboid(pos, BLOCK_STYLE).setAlwaysOnTop();
             Gizmos.billboardTextOverBlock(displayName(entry, index), pos, 0, TEXT_COLOR, 1.0f);
 
-            if (showLine) {
+            if (lines != null) {
                 Vec3 node = visibleLinePoint(pos, cameraPosition, cameraUp);
                 Vec3 blockTop = Vec3.atBottomCenterOf(pos).add(0, 1, 0);
-                Gizmos.line(blockTop, node, LINE_COLOR).setAlwaysOnTop();
-                if (previous != null) Gizmos.line(visibleLinePoint(previous, cameraPosition, cameraUp), blockTop, LINE_COLOR).setAlwaysOnTop();
+                lines.line(blockTop, node, LINE_COLOR);
+                if (previous != null) lines.line(visibleLinePoint(previous, cameraPosition, cameraUp), blockTop, LINE_COLOR);
             }
+
             previous = pos;
             index++;
         }
+
+        if (lines != null && index > 1 && previous != null && first != null) {
+            Vec3 firstBlockTop = Vec3.atBottomCenterOf(first).add(0, 1, 0);
+            lines.line(visibleLinePoint(previous, cameraPosition, cameraUp), firstBlockTop, LINE_COLOR);
+        }
+
+        if (lines != null) lines.draw(context);
     }
 
     private static Vec3 linePoint(BlockPos pos) {
