@@ -2,16 +2,15 @@ package me.cookie.kwrg.gui.component;
 
 import io.wispforest.owo.ui.base.BaseUIComponent;
 import io.wispforest.owo.ui.core.*;
+import me.cookie.kwrg.gui.manager.GuiColorManager;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 
 public abstract class BasePaneComponent extends BaseUIComponent {
 
-    public static final int BG_COLOR_RGB = 0x161D26;
     public static final float DEFAULT_TEXT_SCALE = 0.85f;
 
     protected final int baseHeight;
@@ -40,9 +39,15 @@ public abstract class BasePaneComponent extends BaseUIComponent {
      * 获取边框颜色 (ARGB)，子类可覆写以定制高亮色
      */
     protected int getBorderColorArgb() {
-        int borderAlpha = (int) (40 + this.hoverAnimation * 180);
-        int borderRgb = this.focused ? 0x90CAF9 : 0x90A4AE;
-        return ARGB.color(borderAlpha, (borderRgb >> 16) & 0xFF, (borderRgb >> 8) & 0xFF, borderRgb & 0xFF);
+        return GuiColorManager.withAlpha(this.borderBaseRgb(), (int) (40 + this.hoverAnimation * borderHoverSpan()));
+    }
+
+    protected int borderBaseRgb() {
+        return this.focused ? GuiColorManager.paneBorderFocused() : GuiColorManager.paneBorder();
+    }
+
+    protected float borderHoverSpan() {
+        return 180f;
     }
 
     @Override
@@ -62,7 +67,7 @@ public abstract class BasePaneComponent extends BaseUIComponent {
         int y = this.y();
         int width = this.width();
 
-        Color paneBg = Color.ofRgb(BG_COLOR_RGB);
+        Color paneBg = Color.ofRgb(GuiColorManager.paneBg());
         Color borderColor = Color.ofArgb(getBorderColorArgb());
 
         float halfW = width / 2.0f;

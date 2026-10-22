@@ -276,6 +276,23 @@ public class ColorUtil {
         return Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]) & 0xFFFFFF;
     }
 
+    public static int deriveOutline(int bgRgb) {
+        int r = (bgRgb >> 16) & 0xFF;
+        int g = (bgRgb >> 8) & 0xFF;
+        int b = bgRgb & 0xFF;
+        float[] hsb = Color.RGBtoHSB(r, g, b, null);
+        float hue = hsb[0], sat = hsb[1], bri = hsb[2];
+
+        if (bri < 0.5f) {
+            sat = Math.max(0.0f, sat * 0.6f);
+            bri = Math.min(1.0f, bri + 0.35f + (1.0f - bri) * 0.25f);
+        } else {
+            sat = Math.min(1.0f, sat * 1.25f);
+            bri = Math.max(0.0f, bri * 0.60f);
+        }
+        return Color.HSBtoRGB(hue, sat, bri) & 0xFFFFFF;
+    }
+
     private static Color[] parseColorList(String colorListStr) {
         List<Color> result = new ArrayList<>();
         String[] parts = colorListStr.split(",");

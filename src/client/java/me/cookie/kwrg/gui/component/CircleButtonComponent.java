@@ -1,6 +1,5 @@
 package me.cookie.kwrg.gui.component;
 
-import io.wispforest.owo.ui.base.BaseUIComponent;
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.CursorStyle;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
@@ -17,9 +16,8 @@ import net.minecraft.util.Mth;
 import java.util.Locale;
 import java.util.function.Consumer;
 
-public class CircleButtonComponent extends BaseUIComponent {
+public class CircleButtonComponent extends BaseGuiComponent {
 
-    private static final int BG_COLOR_RGB = 0x161D26;
     private static final double BASE_RADIUS = 26.0;
     private static final int BASE_IMG_SIZE = 32;
 
@@ -78,12 +76,12 @@ public class CircleButtonComponent extends BaseUIComponent {
         double currentRadius = (BASE_RADIUS + this.hoverAnimation * 1.5) * (1.0 - this.clickFeedback * 0.12);
 
         int bgAlpha = (int) (255 * this.visualAlpha);
-        Color solidBgColor = AnimationUtil.withAlpha(BG_COLOR_RGB, bgAlpha);
-        Color solidBgFade = AnimationUtil.withAlpha(BG_COLOR_RGB, 0);
+        Color solidBgColor = AnimationUtil.withAlpha(this.paneBg(), bgAlpha);
+        Color solidBgFade = AnimationUtil.withAlpha(this.paneBg(), 0);
 
         int lineAlpha = (int) (255 * (0.45f + this.hoverAnimation * 0.45f) * this.visualAlpha);
-        Color borderPeakColor = AnimationUtil.withAlpha(0xFFFFFF, lineAlpha);
-        Color borderFadeColor = AnimationUtil.withAlpha(0xFFFFFF, 0);
+        Color borderPeakColor = AnimationUtil.withAlpha(this.textStrong(), lineAlpha);
+        Color borderFadeColor = AnimationUtil.withAlpha(this.textStrong(), 0);
 
         RenderUtil.drawAACircle(graphics, cx, cy, currentRadius, solidBgColor, solidBgFade);
         RenderUtil.drawAARing(graphics, cx, cy, currentRadius, borderPeakColor, borderFadeColor);
@@ -106,7 +104,7 @@ public class CircleButtonComponent extends BaseUIComponent {
             float titleScale = 0.85f;
             float textW = font.width(this.title) * titleScale;
             float textH = font.lineHeight * titleScale;
-            int textColor = AnimationUtil.withAlpha(this.hovered ? 0xFFFFFF : 0x90A4AE, (int) (255 * this.visualAlpha)).argb();
+            int textColor = AnimationUtil.withAlpha(this.hovered ? this.textStrong() : this.paneBorder(), (int) (255 * this.visualAlpha)).argb();
 
             RenderUtil.drawSmoothText(graphics, Component.literal(this.title), -textW / 2.0f, -textH / 2.0f, titleScale, textColor);
         }
