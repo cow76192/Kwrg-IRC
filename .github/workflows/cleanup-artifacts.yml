@@ -1,4 +1,4 @@
-name: Clean artifacts older than 3 days
+name: Clean artifacts older than 1 days
 
 on:
   push:
@@ -45,4 +45,4 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           EXECUTE: ${{ github.event_name == 'schedule' || github.event_name == 'push' || inputs.dry_run == false }}
         run: |
-          & "$env:RUNNER_TEMP/cleanup-artifacts.ps1" -Repository $env:REPOSITORY -Days 3 -ArtifactName Artifacts -Execute:($env:EXECUTE -eq 'true')
+          & "$env:RUNNER_TEMP/cleanup-artifacts.ps1" -Repository $env:REPOSITORY -Days 1 -ArtifactName Artifacts -Execute:($env:EXECUTE -eq 'true')
