@@ -77,6 +77,17 @@ public class IrcCommand {
         ClientCommandRegistrationCallback.EVENT.register(IrcCommand::registerCommands);
     }
 
+    private static LiteralArgumentBuilder<FabricClientCommandSource> hideArmorNode() {
+        var node = literal("hideArmor");
+        HideArmorModule.PARTS.forEach((name, slot) -> node.then(literal(name)
+                .then(argument("enabled", BoolArgumentType.bool())
+                        .executes(context -> HideArmorModule.setHideArmorPart(slot, BoolArgumentType.getBool(context, "enabled"))))));
+        return node
+                .then(argument("enabled", BoolArgumentType.bool())
+                        .executes(context -> HideArmorModule.setHideArmor(BoolArgumentType.getBool(context, "enabled"))))
+                .executes(context -> HideArmorModule.showHideArmor());
+    }
+
     private static void registerCommands(CommandDispatcher<FabricClientCommandSource> dispatcher, CommandBuildContext buildContext) {
         dispatcher.register(literal("ci")
                 .then(literal("all")
@@ -322,20 +333,14 @@ public class IrcCommand {
                                     return 1;
                                 })))
                 .then(literal("functions")
-                        .then(literal("hideArmor")
-                                .then(argument("enabled", BoolArgumentType.bool())
-                                        .executes(context -> HideArmorModule.setHideArmor(BoolArgumentType.getBool(context, "enabled"))))
-                                .executes(context -> HideArmorModule.showHideArmor()))
+                        .then(hideArmorNode())
                         .then(literal("glowColor")
                                 .then(argument("color", StringArgumentType.greedyString())
                                         .suggests(STYLE_SUGGESTIONS)
                                         .executes(context -> GlowColorModule.setGlowColor(StringArgumentType.getString(context, "color"))))
                                 .executes(context -> GlowColorModule.showGlowColor())))
                 .then(literal("func")
-                        .then(literal("hideArmor")
-                                .then(argument("enabled", BoolArgumentType.bool())
-                                        .executes(context -> HideArmorModule.setHideArmor(BoolArgumentType.getBool(context, "enabled"))))
-                                .executes(context -> HideArmorModule.showHideArmor()))
+                        .then(hideArmorNode())
                         .then(literal("glowColor")
                                 .then(argument("color", StringArgumentType.greedyString())
                                         .suggests(STYLE_SUGGESTIONS)
