@@ -1,10 +1,10 @@
 package me.cookie.kwrg.irc.manager;
 
 import me.cookie.kwrg.gui.notification.NotificationType;
-import me.cookie.kwrg.util.PlayerFinderChatState;
-import me.cookie.kwrg.irc.IrcConfig;
+import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
+import me.cookie.kwrg.util.PlayerFinderChatState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 
