@@ -210,15 +210,13 @@ public class ColorUtil {
             float h = Float.parseFloat(hslMatcher.group(1)) % 360.0F / 360.0F;
             float s = Float.parseFloat(hslMatcher.group(2)) / 100.0F;
             float l = Float.parseFloat(hslMatcher.group(3)) / 100.0F;
+            if (!Float.isFinite(h) || !Float.isFinite(s) || !Float.isFinite(l)) return null;
             return hslToRgb(h, s, l);
         }
 
         Matcher rgbMatcher = RGB_PATTERN.matcher(str);
         if (rgbMatcher.find()) {
-            int r = Integer.parseInt(rgbMatcher.group(1));
-            int g = Integer.parseInt(rgbMatcher.group(2));
-            int b = Integer.parseInt(rgbMatcher.group(3));
-            return new Color(Math.clamp(r, 0, 255), Math.clamp(g, 0, 255), Math.clamp(b, 0, 255));
+            return new Color(parseChannel(rgbMatcher.group(1)), parseChannel(rgbMatcher.group(2)), parseChannel(rgbMatcher.group(3)));
         }
 
         Matcher hexMatcher = HEX_PATTERN.matcher(str);
@@ -259,6 +257,14 @@ public class ColorUtil {
         return null;
     }
 
+    private static int parseChannel(String raw) {
+        try {
+            return Math.clamp(Integer.parseInt(raw), 0, 255);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
     private static int clamp255(int v) {
         return Math.min(255, Math.max(0, v));
     }
@@ -273,6 +279,22 @@ public class ColorUtil {
         hsb[1] = Math.min(1.0f, Math.max(0.0f, hsb[1] * saturation));
         hsb[2] = Math.min(1.0f, Math.max(0.0f, hsb[2] * lightness));
 
+        return Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]) & 0xFFFFFF;
+    }
+
+    public static float brightness(int rgb) {
+        return Color.RGBtoHSB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, null)[2];
+    }
+
+    public static int neighborTone(int rgb, float brightnessDelta) {
+        int r = (rgb >> 16) & 0xFF;
+        int g = (rgb >> 8) & 0xFF;
+        int b = rgb & 0xFF;
+        float[] hsb = Color.RGBtoHSB(r, g, b, null);
+        hsb[1] = Math.min(1.0f, hsb[1] * 1.1f);
+        hsb[2] = hsb[2] < 0.5f
+                ? Math.min(1.0f, hsb[2] + brightnessDelta)
+                : Math.max(0.0f, hsb[2] - brightnessDelta);
         return Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]) & 0xFFFFFF;
     }
 

@@ -124,7 +124,7 @@ public class HudElement {
             offsetY = Mth.clamp(offsetY, -4000.0f, 4000.0f);
 
             if (!Float.isFinite(opacity)) opacity = 1.0f;
-            opacity = Mth.clamp(opacity, 0.0f, 1.0f);
+            opacity = Mth.clamp(opacity, 0.1f, 1.0f);
             padding = Mth.clamp(padding, 0, 64);
         }
 

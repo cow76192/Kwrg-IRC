@@ -230,13 +230,7 @@ public class PanelItemComponent extends BaseGuiComponent {
         float textScale = 0.88f;
         float textH = font.lineHeight * textScale;
 
-        float emphasis = Math.max(this.activeAnimation, this.hoverAnimation);
-        int textFrom = BaseGuiComponent.rowText();
-        int textTo = BaseGuiComponent.textStrong();
-        int textR = (int) Mth.lerp(emphasis, (textFrom >> 16) & 0xFF, (textTo >> 16) & 0xFF);
-        int textG = (int) Mth.lerp(emphasis, (textFrom >> 8) & 0xFF, (textTo >> 8) & 0xFF);
-        int textB = (int) Mth.lerp(emphasis, textFrom & 0xFF, textTo & 0xFF);
-        int textColor = ARGB.color((int) (255 * totalAlpha), textR, textG, textB);
+        int textColor = AnimationUtil.argb(BaseGuiComponent.textStrong(), (int) (255 * totalAlpha));
 
         float textOffsetX = 10.0f;
         if (this.previewSupplier != null) {

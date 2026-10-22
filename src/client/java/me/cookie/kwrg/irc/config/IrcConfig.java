@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import me.cookie.kwrg.gui.hud.HudElement;
+import me.cookie.kwrg.gui.manager.GuiColorManager;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import me.cookie.kwrg.irc.manager.RouteManager;
 import me.cookie.kwrg.irc.manager.WaypointManager;
@@ -95,6 +96,7 @@ public class IrcConfig {
 
     public String guiFont = "default";
     public String guiColor = "#11161F";
+    public float guiOpacity = 1.0f;
 
     public float guiScale = 1.0f;
 
@@ -210,6 +212,7 @@ public class IrcConfig {
 
                 instance = loaded;
                 currentProfileName = cleanName;
+                GuiColorManager.refresh();
                 saveSelectorMeta(cleanName);
 
                 PlayerFinderManager.reloadFromConfig();
@@ -221,6 +224,7 @@ public class IrcConfig {
             } else if (createIfMissing) {
                 instance = new IrcConfig();
                 currentProfileName = cleanName;
+                GuiColorManager.refresh();
                 WaypointManager.reloadFromConfig();
                 RouteManager.reloadFromConfig();
                 save();
@@ -236,6 +240,7 @@ public class IrcConfig {
         String cleanName = sanitizeProfileName(profileName);
         instance = new IrcConfig();
         currentProfileName = cleanName;
+        GuiColorManager.refresh();
         WaypointManager.reloadFromConfig();
         RouteManager.reloadFromConfig();
         LOGGER.info("[Kwrg] 已在内存中新建配置 [{}]（尚未保存到磁盘）", cleanName);

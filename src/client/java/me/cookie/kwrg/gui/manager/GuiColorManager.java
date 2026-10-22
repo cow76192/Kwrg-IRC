@@ -20,6 +20,7 @@ public class GuiColorManager {
         BaseGuiComponent.setPanelBg(c != null
                 ? (c.getRed() << 16) | (c.getGreen() << 8) | c.getBlue()
                 : BaseGuiComponent.DEFAULT_PANEL_BG);
+        BaseGuiComponent.setOpacity(config.guiOpacity);
     }
 
     public static String getGuiColorStr() {
@@ -41,8 +42,20 @@ public class GuiColorManager {
         return 1;
     }
 
+    public static void setGuiOpacity(float opacity) {
+        BaseGuiComponent.setOpacity(opacity);
+        IrcConfig.get().guiOpacity = BaseGuiComponent.opacity();
+        IrcConfig.saveDelayed(800L);
+    }
+
     public static void resetDefault() {
-        setGuiColor(DEFAULT_COLOR);
-        ChatNotifier.send("§a[IRC] GUI 主题颜色已重置为默认值: §f" + DEFAULT_COLOR, NotificationType.INFO);
+        BaseGuiComponent.setPanelBg(BaseGuiComponent.DEFAULT_PANEL_BG);
+        BaseGuiComponent.setOpacity(1.0f);
+
+        IrcConfig config = IrcConfig.get();
+        config.guiColor = DEFAULT_COLOR;
+        config.guiOpacity = 1.0f;
+        IrcConfig.save();
+        ChatNotifier.send("§a[IRC] GUI 主题颜色与透明度已重置为默认值: §f" + DEFAULT_COLOR + " §7/ §f100%", NotificationType.INFO);
     }
 }
