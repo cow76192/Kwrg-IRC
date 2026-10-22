@@ -742,36 +742,34 @@ public final class RouteManager {
         Vec3 cameraUp = new Vec3(up.x(), up.y(), up.z());
 
         RouteLineRenderer lines = showLine ? new RouteLineRenderer() : null;
-        BlockPos first = null;
-        BlockPos previous = null;
+        Vec3 firstBlockTop = null;
+        Vec3 previousNode = null;
         int index = 0;
 
         for (Entry entry : ENTRIES) {
             BlockPos pos = entry.visible ? blockPos(entry) : null;
             if (pos == null) {
-                previous = null;
+                previousNode = null;
                 index++;
                 continue;
             }
-            if (index == 0) first = pos;
-
             Gizmos.cuboid(pos, BLOCK_STYLE).setAlwaysOnTop();
             Gizmos.billboardTextOverBlock(displayName(entry, index), pos, 0, TEXT_COLOR, 1.0f);
 
             if (lines != null) {
                 Vec3 node = visibleLinePoint(pos, cameraPosition, cameraUp);
                 Vec3 blockTop = Vec3.atBottomCenterOf(pos).add(0, 1, 0);
+                if (index == 0) firstBlockTop = blockTop;
                 lines.line(blockTop, node, LINE_COLOR);
-                if (previous != null) lines.line(visibleLinePoint(previous, cameraPosition, cameraUp), blockTop, LINE_COLOR);
+                if (previousNode != null) lines.line(previousNode, blockTop, LINE_COLOR);
+                previousNode = node;
             }
 
-            previous = pos;
             index++;
         }
 
-        if (lines != null && index > 1 && previous != null && first != null) {
-            Vec3 firstBlockTop = Vec3.atBottomCenterOf(first).add(0, 1, 0);
-            lines.line(visibleLinePoint(previous, cameraPosition, cameraUp), firstBlockTop, LINE_COLOR);
+        if (lines != null && index > 1 && previousNode != null && firstBlockTop != null) {
+            lines.line(previousNode, firstBlockTop, LINE_COLOR);
         }
 
         if (lines != null) lines.draw(context);

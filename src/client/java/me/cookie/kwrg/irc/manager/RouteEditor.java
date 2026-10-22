@@ -61,7 +61,7 @@ public final class RouteEditor {
 
         if (client.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK) {
             int position = RouteManager.entries().size() + 1;
-            addNode(Integer.toString(position), hit.getBlockPos(), position);
+            addNode("", hit.getBlockPos(), position);
         }
     }
 }
