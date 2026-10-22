@@ -6,6 +6,7 @@ import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.manager.GuiColorManager;
 import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -23,7 +24,9 @@ public class GuiColorModule extends Module {
 
     @Override
     public void onExecute() {
-        ChatNotifier.sendInChatScreen("§6[IRC] 当前 GUI 颜色: §f" + GuiColorManager.getGuiColorStr() + " §7(右键打开调色盘)");
+        ChatNotifier.send("§6[IRC] 当前 GUI 颜色: §f" + GuiColorManager.getGuiColorStr()
+                + " §7/ 透明度: §f" + Math.round(IrcConfig.get().guiOpacity * 100.0f) + "% §7(右键打开调色盘)",
+                NotificationType.INFO);
     }
 
     @Override
@@ -92,6 +95,28 @@ public class GuiColorModule extends Module {
         settingHolder[0] = colorSetting;
 
         panel.child(colorSetting);
+
+        panel.child(new SlotInputPaneComponent(
+                "GUI 透明度",
+                new String[]{String.valueOf(Math.round(IrcConfig.get().guiOpacity * 100.0f))},
+                new String[]{"%"},
+                values -> {
+                    try {
+                        int percent = Math.round(Mth.clamp(Float.parseFloat(values[0].trim()), 10.0f, 100.0f));
+                        GuiColorManager.setGuiOpacity(percent / 100.0f);
+                        IrcConfig.save();
+                        ChatNotifier.send("§aGUI 透明度: §e" + percent + "%", NotificationType.SUCCESS);
+                    } catch (NumberFormatException e) {
+                        ChatNotifier.send("§c请输入有效的数字 (例如: 80，最小 10)", NotificationType.WARN);
+                    }
+                },
+                values -> {
+                    try {
+                        GuiColorManager.setGuiOpacity(Mth.clamp(Float.parseFloat(values[0].trim()), 10.0f, 100.0f) / 100.0f);
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+        ).bounds(new int[][]{{10, 100}}).dragStep(2).precision(0).dragSensitivity(6.0));
 
         TextInfoPaneComponent resetPane = new TextInfoPaneComponent(
                 "重置默认",

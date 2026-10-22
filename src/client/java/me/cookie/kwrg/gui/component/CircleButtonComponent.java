@@ -62,6 +62,7 @@ public class CircleButtonComponent extends BaseGuiComponent {
     @Override
     public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
         if (this.visualAlpha <= 0.01f) return;
+        graphics = RenderUtil.withOpacity(graphics, BaseGuiComponent.opacity());
 
         float targetHover = this.hovered ? 1.0f : 0.0f;
         this.hoverAnimation = Mth.clamp(this.hoverAnimation + (targetHover - this.hoverAnimation) * delta * 0.35f, 0.0f, 1.0f);
@@ -76,8 +77,8 @@ public class CircleButtonComponent extends BaseGuiComponent {
         double currentRadius = (BASE_RADIUS + this.hoverAnimation * 1.5) * (1.0 - this.clickFeedback * 0.12);
 
         int bgAlpha = (int) (255 * this.visualAlpha);
-        Color solidBgColor = AnimationUtil.withAlpha(BaseGuiComponent.paneBg(), bgAlpha);
-        Color solidBgFade = AnimationUtil.withAlpha(BaseGuiComponent.paneBg(), 0);
+        Color solidBgColor = AnimationUtil.withAlpha(BaseGuiComponent.circleBg(), bgAlpha);
+        Color solidBgFade = AnimationUtil.withAlpha(BaseGuiComponent.circleBg(), 0);
 
         int lineAlpha = (int) (255 * (0.45f + this.hoverAnimation * 0.45f) * this.visualAlpha);
         Color borderPeakColor = AnimationUtil.withAlpha(BaseGuiComponent.textStrong(), lineAlpha);

@@ -156,6 +156,7 @@ public class RadialMenuComponent extends BaseGuiComponent {
 
     @Override
     public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
+        graphics = RenderUtil.withOpacity(graphics, BaseGuiComponent.opacity());
         long now = System.currentTimeMillis();
 
         if (this.waitingForTertiaryToClose) {

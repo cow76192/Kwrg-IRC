@@ -204,13 +204,15 @@ public class SecondaryPanelComponent extends FlowLayout {
         this.updateY(py);
 
         float panelAlpha = ease;
-        int bgAlpha = (int) (255 * panelAlpha);
+        int bgAlpha = (int) (255 * panelAlpha * BaseGuiComponent.opacity());
         int outlineAlpha = (int) (85 * panelAlpha);
 
         Color panelBg = AnimationUtil.withAlpha(BaseGuiComponent.panelBg(), bgAlpha);
         Color outlineColor = AnimationUtil.withAlpha(BaseGuiComponent.panelOutline(), outlineAlpha);
 
         RenderUtil.drawRoundedPanel(graphics, px, py, width, height, 14.0f, panelBg, outlineColor);
+
+        graphics = RenderUtil.withOpacity(graphics, BaseGuiComponent.opacity());
 
         int headerHeight = 44;
         int iconBadgeRadius = 13;

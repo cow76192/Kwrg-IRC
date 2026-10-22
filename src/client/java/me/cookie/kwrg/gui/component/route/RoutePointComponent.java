@@ -2,6 +2,7 @@ package me.cookie.kwrg.gui.component.route;
 
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
+import me.cookie.kwrg.gui.component.BaseGuiComponent;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
@@ -161,16 +162,16 @@ public final class RoutePointComponent {
         boolean valid = entry.valid();
 
         RenderUtil.drawSubpixelRoundedPanel(owo, x, y + 2, width, HEIGHT - 4, 7,
-                Color.ofArgb(valid ? 0xA0192431 : 0xB038242A), Color.ofArgb(valid ? 0x35394A5A : 0xAAAF5D65));
-        RenderUtil.drawSmoothText(owo, Component.literal((index + 1) + "."), x + 6, y + 17, 0.72f, 0xFF81929F);
+                Color.ofArgb(valid ? AnimationUtil.argb(BaseGuiComponent.cardBg(), 0xA0) : AnimationUtil.argb(BaseGuiComponent.danger(), 0xB0)), Color.ofArgb(valid ? AnimationUtil.argb(BaseGuiComponent.cardBorder(), 0x35) : AnimationUtil.argb(BaseGuiComponent.danger(), 0xAA)));
+        RenderUtil.drawSmoothText(owo, Component.literal((index + 1) + "."), x + 6, y + 17, 0.72f, AnimationUtil.opaqueArgb(BaseGuiComponent.textMuted()));
 
         for (int field = 0; field < 4; field++) {
             EditBox input = field(field);
             focusProgress[field] = AnimationUtil.lerp(step, focusProgress[field], input.isFocused() ? 1 : 0);
-            Color line = AnimationUtil.lerpColor(focusProgress[field], Color.ofArgb(0xFF546979), Color.ofArgb(0xFF80D7FF));
-            RenderUtil.drawSmoothText(owo, Component.literal(field == 0 ? entry.temporary ? "名称 · 临时" : "名称" : "XYZ".substring(field - 1, field)), input.getX(), y + 5, 0.62f, 0xFF819BAF);
+            Color line = AnimationUtil.lerpColor(focusProgress[field], Color.ofArgb(AnimationUtil.opaqueArgb(BaseGuiComponent.textFaint())), Color.ofArgb(AnimationUtil.opaqueArgb(BaseGuiComponent.accentSoft())));
+            RenderUtil.drawSmoothText(owo, Component.literal(field == 0 ? entry.temporary ? "名称 · 临时" : "名称" : "XYZ".substring(field - 1, field)), input.getX(), y + 5, 0.62f, AnimationUtil.opaqueArgb(BaseGuiComponent.textMuted()));
             RenderUtil.fillSubpixel(owo, input.getX(), y + 32, input.getX() + input.getWidth(), y + 32.8f, line.argb());
-            input.setTextColor(field == 0 ? (entry.visible ? 0xFFE0ECF4 : 0xFF81929F) : valid ? 0xFFECEFF1 : 0xFFFFB4BC);
+            input.setTextColor(field == 0 ? (entry.visible ? AnimationUtil.opaqueArgb(BaseGuiComponent.textStrong()) : AnimationUtil.opaqueArgb(BaseGuiComponent.textMuted())) : valid ? AnimationUtil.opaqueArgb(BaseGuiComponent.textBody()) : AnimationUtil.opaqueArgb(BaseGuiComponent.danger()));
             // EditBox does not apply its widget alpha to text; use the row's fading graphics.
             input.extractRenderState(owo, mouseX, mouseY, partialTick);
         }

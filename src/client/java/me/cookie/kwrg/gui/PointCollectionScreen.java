@@ -2,6 +2,7 @@ package me.cookie.kwrg.gui;
 
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
+import me.cookie.kwrg.gui.component.BaseGuiComponent;
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.PointListDrag;
 import me.cookie.kwrg.gui.component.ScrollbarDrag;
@@ -538,9 +539,9 @@ public abstract class PointCollectionScreen {
         graphics.pose().scale(w / panelW, h / panelH);
         graphics.pose().translate(-panelX, -panelY);
 
-        OwoUIGraphics owo = RenderUtil.withOpacity(OwoUIGraphics.of(graphics), alpha);
+        OwoUIGraphics owo = RenderUtil.withOpacity(OwoUIGraphics.of(graphics), alpha * BaseGuiComponent.opacity());
         RenderUtil.drawSubpixelRoundedPanel(owo, panelX, panelY, panelW, panelH, 14,
-                Color.ofArgb(0xF511161F), Color.ofArgb(0x804FC3F7));
+                Color.ofArgb(AnimationUtil.argb(BaseGuiComponent.panelBg(), 0xF5)), Color.ofArgb(AnimationUtil.argb(BaseGuiComponent.panelOutline(), 0x80)));
 
         if (alpha > 0.03f) {
             boolean editor = pageTarget > 0;
@@ -556,9 +557,9 @@ public abstract class PointCollectionScreen {
                 directoryButton.draw(owo, "打开目录", false, mouseX, mouseY);
             }
 
-            RenderUtil.drawSmoothText(owo, RenderUtil.fitText(editor ? store.currentFileName() : label("路线管理"), panelW - (editor ? 205 : 235), 0.85f), panelX + (editor ? 68 : 16), panelY + 17, 0xFFE1F5FE);
-            RenderUtil.drawSmoothText(owo, editor ? "直接编辑名称 / X / Y / Z · 修改自动保存" : store.supportsLines() ? label("选择路线文件 · 独立设置显示与连线") : "多点位集同时启用 · 独立显示与区域 · 灰色路线仅可导入", panelX + 16, panelY + 45, 0xFF8CA7BA);
-            RenderUtil.fillSubpixel(owo, panelX + 12, panelY + 61, panelX + panelW - 12, panelY + 62, 0x304FC3F7);
+            RenderUtil.drawSmoothText(owo, RenderUtil.fitText(editor ? store.currentFileName() : label("路线管理"), panelW - (editor ? 205 : 235), 0.85f), panelX + (editor ? 68 : 16), panelY + 17, AnimationUtil.opaqueArgb(BaseGuiComponent.textStrong()));
+            RenderUtil.drawSmoothText(owo, editor ? "直接编辑名称 / X / Y / Z · 修改自动保存" : store.supportsLines() ? label("选择路线文件 · 独立设置显示与连线") : "多点位集同时启用 · 独立显示与区域 · 灰色路线仅可导入", panelX + 16, panelY + 45, AnimationUtil.opaqueArgb(BaseGuiComponent.textMuted()));
+            RenderUtil.fillSubpixel(owo, panelX + 12, panelY + 61, panelX + panelW - 12, panelY + 62, AnimationUtil.argb(BaseGuiComponent.panelOutline(), 0x30));
 
             graphics.enableScissor(contentX, contentY, contentX + contentW, contentY + contentH);
             float page = pageProgress();
@@ -581,10 +582,11 @@ public abstract class PointCollectionScreen {
 
             RenderUtil.drawScrollThumb(owo, contentX + contentW - 2, contentY, contentH,
                     editor ? points.size() * RoutePointComponent.HEIGHT : files.size() * FILE_HEIGHT,
-                    editor ? pointScroll : fileScroll, Color.ofArgb(0xAA4FC3F7));
-            RenderUtil.drawSmoothText(owo, editor ? "长按序号 / 空白拖动排序 · 右键返回 · × 删除需确认" : store.supportsLines() ? "左键激活 · 右键编辑 · Shift + 左键删除 · 右键面板外关闭" : "左键切换激活 · 右键编辑 · Shift + 左键删除 · 可多选激活", panelX + 16, panelY + panelH - 25, 0xFF7893A6);
+                    editor ? pointScroll : fileScroll, Color.ofArgb(AnimationUtil.argb(BaseGuiComponent.panelOutline(), 0xAA)));
+            RenderUtil.drawSmoothText(owo, editor ? "长按序号 / 空白拖动排序 · 右键返回 · × 删除需确认" : store.supportsLines() ? "左键激活 · 右键编辑 · Shift + 左键删除 · 右键面板外关闭" : "左键切换激活 · 右键编辑 · Shift + 左键删除 · 可多选激活", panelX + 16, panelY + panelH - 25, AnimationUtil.opaqueArgb(BaseGuiComponent.textMuted()));
 
             if (pointDrag.holding()) renderHeldPoint(graphics, owo, mouseX, mouseY, partialTick, now);
+
 
             if (pendingDelete != null) {
                 renderDeleteConfirmation(owo, mouseX, mouseY);
@@ -624,16 +626,16 @@ public abstract class PointCollectionScreen {
         float currentX = AnimationUtil.lerp(progress, origin.x(), x), currentY = AnimationUtil.lerp(progress, origin.y(), y);
         float currentW = AnimationUtil.lerp(progress, origin.width(), width), currentH = AnimationUtil.lerp(progress, origin.height(), height);
 
-        RenderUtil.drawSubpixelRoundedPanel(graphics, currentX, currentY, currentW, currentH, 8, Color.ofArgb(0xFF1C2734), Color.ofArgb(0xAAAF6976));
+        RenderUtil.drawSubpixelRoundedPanel(graphics, currentX, currentY, currentW, currentH, 8, Color.ofArgb(AnimationUtil.opaqueArgb(BaseGuiComponent.cardBg())), Color.ofArgb(AnimationUtil.argb(BaseGuiComponent.danger(), 0xAA)));
         graphics.pose().pushMatrix();
         graphics.pose().translate(currentX, currentY);
         graphics.pose().scale(currentW / width, currentH / height);
         graphics.pose().translate(-x, -y);
         graphics = RenderUtil.withOpacity(graphics, progress);
 
-        RenderUtil.drawSmoothText(graphics, "修改尚未保存", x + 16, y + 16, 0xFFFFDB94);
-        RenderUtil.drawSmoothText(graphics, "文件可能被外部修改，或当前无法写入。", x + 16, y + 42, 0xFFD2DFE8);
-        RenderUtil.drawSmoothText(graphics, "放弃本次编辑会重载文件，不会覆盖磁盘内容。", x + 16, y + 66, 0xFF8CA7BA);
+        RenderUtil.drawSmoothText(graphics, "修改尚未保存", x + 16, y + 16, AnimationUtil.opaqueArgb(BaseGuiComponent.warning()));
+        RenderUtil.drawSmoothText(graphics, "文件可能被外部修改，或当前无法写入。", x + 16, y + 42, AnimationUtil.opaqueArgb(BaseGuiComponent.textBody()));
+        RenderUtil.drawSmoothText(graphics, "放弃本次编辑会重载文件，不会覆盖磁盘内容。", x + 16, y + 66, AnimationUtil.opaqueArgb(BaseGuiComponent.textMuted()));
 
         retrySaveButton.draw(graphics, "重试保存", false, mouseX, mouseY);
         discardSaveButton.draw(graphics, "放弃本次编辑", false, mouseX, mouseY);
@@ -644,8 +646,8 @@ public abstract class PointCollectionScreen {
 
     private void renderFiles(OwoUIGraphics owo, int mouseX, int mouseY) {
         if (files.isEmpty()) {
-            RenderUtil.drawSmoothText(owo, label("暂无路线文件"), contentX + 12, contentY + 24, 0xFFCFDFEA);
-            RenderUtil.drawSmoothText(owo, label("点击 + 新建路线，或打开目录导入 .json / .txt 文件"), contentX + 12, contentY + 44, 0xFF7893A6);
+            RenderUtil.drawSmoothText(owo, label("暂无路线文件"), contentX + 12, contentY + 24, AnimationUtil.opaqueArgb(BaseGuiComponent.textBody()));
+            RenderUtil.drawSmoothText(owo, label("点击 + 新建路线，或打开目录导入 .json / .txt 文件"), contentX + 12, contentY + 44, AnimationUtil.opaqueArgb(BaseGuiComponent.textMuted()));
         }
 
         for (FileRow row : files.values()) {
@@ -657,7 +659,7 @@ public abstract class PointCollectionScreen {
 
     private void renderPoints(GuiGraphicsExtractor graphics, OwoUIGraphics owo, int mouseX, int mouseY, float partialTick) {
         if (points.isEmpty()) {
-            RenderUtil.drawSmoothText(owo, "暂无点位，点击右上角 + 点位开始添加", contentX + 12, contentY + 24, 0xFF8CA7BA);
+            RenderUtil.drawSmoothText(owo, "暂无点位，点击右上角 + 点位开始添加", contentX + 12, contentY + 24, AnimationUtil.opaqueArgb(BaseGuiComponent.textMuted()));
         }
 
         for (RoutePointComponent point : points) {
@@ -685,7 +687,7 @@ public abstract class PointCollectionScreen {
         RenderUtil.drawSubpixelRoundedPanel(owo, x - 1, y + 3 + 3 * lift, contentW + 2, RoutePointComponent.HEIGHT - 2, 8,
                 Color.ofArgb(0x70000000), Color.ofArgb(0x00000000));
         RenderUtil.drawSubpixelRoundedPanel(owo, x - 1, y + 1, contentW + 2, RoutePointComponent.HEIGHT - 2, 8,
-                Color.ofArgb(0xFF24394B), Color.ofArgb(0xCC80D7FF));
+                Color.ofArgb(AnimationUtil.opaqueArgb(BaseGuiComponent.cardBg())), Color.ofArgb(AnimationUtil.argb(BaseGuiComponent.accentSoft(), 0xCC)));
         held.render(graphics, owo, mouseX, mouseY, partialTick);
 
         graphics.pose().popMatrix();
@@ -1347,15 +1349,15 @@ public abstract class PointCollectionScreen {
         float currentH = AnimationUtil.lerp(progress, namingOrigin.height(), 152);
         RenderUtil.drawSubpixelRoundedPanel(owo, currentX, currentY, currentW, currentH,
                 AnimationUtil.lerp(progress, 5, 10),
-                AnimationUtil.lerpColor(progress, namingOriginColor, Color.ofArgb(0xFF1C2734)),
-                Color.ofArgb(0x885AA5C4));
+                AnimationUtil.lerpColor(progress, namingOriginColor, Color.ofArgb(AnimationUtil.opaqueArgb(BaseGuiComponent.cardBg()))),
+                Color.ofArgb(AnimationUtil.argb(BaseGuiComponent.regionFill(), 0x88)));
 
         float labelAlpha = 1 - Mth.clamp(progress * 4, 0, 1);
 
         if (labelAlpha > 0.005f) {
             RenderUtil.drawCenteredSmoothText(RenderUtil.withOpacity(owo, labelAlpha),
                     Component.literal(renamingRoute == null ? label("+ 新建路线") : "改名"),
-                    currentX + currentW / 2, currentY + currentH / 2, 0.80f, 0xFFD2DFE8);
+                    currentX + currentW / 2, currentY + currentH / 2, 0.80f, AnimationUtil.opaqueArgb(BaseGuiComponent.textBody()));
         }
 
         float contentAlpha = Mth.clamp((progress - 0.2f) / 0.8f, 0, 1);
@@ -1371,12 +1373,12 @@ public abstract class PointCollectionScreen {
 
         OwoUIGraphics content = RenderUtil.withOpacity(owo, contentAlpha);
 
-        RenderUtil.drawSmoothText(content, renamingRoute == null ? label("新建路线") : label("修改路线名称"), x + 16, y + 16, 0xFFE1F5FE);
+        RenderUtil.drawSmoothText(content, renamingRoute == null ? label("新建路线") : label("修改路线名称"), x + 16, y + 16, AnimationUtil.opaqueArgb(BaseGuiComponent.textStrong()));
         routeNameInput.extractRenderState(content, mouseX, mouseY, partialTick);
-        RenderUtil.fillSubpixel(content, x + 16, y + 67, x + dialogW - 16, y + 68, 0xFF80D7FF);
+        RenderUtil.fillSubpixel(content, x + 16, y + 67, x + dialogW - 16, y + 68, AnimationUtil.opaqueArgb(BaseGuiComponent.accentSoft()));
 
         String hint = routeNameError.isEmpty() ? label("名称将用作路线文件名，同名文件不会被覆盖") : routeNameError;
-        RenderUtil.drawSmoothText(content, RenderUtil.fitText(hint, dialogW - 32, 0.85f), x + 16, y + 82, routeNameError.isEmpty() ? 0xFF8CA7BA : 0xFFFFA8B4);
+        RenderUtil.drawSmoothText(content, RenderUtil.fitText(hint, dialogW - 32, 0.85f), x + 16, y + 82, routeNameError.isEmpty() ? AnimationUtil.opaqueArgb(BaseGuiComponent.textMuted()) : AnimationUtil.opaqueArgb(BaseGuiComponent.danger()));
 
         saveRouteButton.draw(content, renamingRoute == null ? "创建" : "保存名称", true, mouseX, mouseY);
         cancelRouteButton.draw(content, "取消", false, mouseX, mouseY);
@@ -1398,12 +1400,12 @@ public abstract class PointCollectionScreen {
 
         RenderUtil.drawSubpixelRoundedPanel(graphics, currentX, currentY, currentW, currentH,
                 AnimationUtil.lerp(progress, 5, 10),
-                AnimationUtil.lerpColor(progress, deleteOriginColor, Color.ofArgb(0xFF1C2734)), Color.ofArgb(0xAAAF6976));
+                AnimationUtil.lerpColor(progress, deleteOriginColor, Color.ofArgb(AnimationUtil.opaqueArgb(BaseGuiComponent.cardBg()))), Color.ofArgb(AnimationUtil.argb(BaseGuiComponent.danger(), 0xAA)));
         float labelAlpha = 1 - Mth.clamp(progress * 4, 0, 1);
 
         if (labelAlpha > 0.005f) {
             RenderUtil.drawCenteredSmoothText(RenderUtil.withOpacity(graphics, labelAlpha),
-                    Component.literal("×"), currentX + currentW / 2, currentY + currentH / 2, 0.80f, 0xFFD2DFE8);
+                    Component.literal("×"), currentX + currentW / 2, currentY + currentH / 2, 0.80f, AnimationUtil.opaqueArgb(BaseGuiComponent.textBody()));
         }
 
         float contentAlpha = Mth.clamp((progress - 0.2f) / 0.8f, 0, 1);
@@ -1419,9 +1421,9 @@ public abstract class PointCollectionScreen {
 
         OwoUIGraphics content = RenderUtil.withOpacity(graphics, contentAlpha);
 
-        RenderUtil.drawSmoothText(content, "确认删除这个点位？", x + 16, y + 16, 0xFFFFCBD1);
+        RenderUtil.drawSmoothText(content, "确认删除这个点位？", x + 16, y + 16, AnimationUtil.opaqueArgb(BaseGuiComponent.danger()));
         String name = pendingDelete.name == null || pendingDelete.name.isBlank() ? "未命名点位" : pendingDelete.name;
-        RenderUtil.drawSmoothText(content, RenderUtil.fitText(name, dialogW - 32, 0.85f), x + 16, y + 37, 0xFFBBCDDD);
+        RenderUtil.drawSmoothText(content, RenderUtil.fitText(name, dialogW - 32, 0.85f), x + 16, y + 37, AnimationUtil.opaqueArgb(BaseGuiComponent.textMuted()));
 
         confirmDeleteButton.draw(content, "确认删除", true, mouseX, mouseY);
         cancelDeleteButton.draw(content, "取消", false, mouseX, mouseY);
@@ -1548,12 +1550,12 @@ public abstract class PointCollectionScreen {
 
             surface.draw(graphics, "", active, mouseX, mouseY);
             String name = store.protectedFile(path) ? "默认点位 (default.json)" : path.getFileName().toString();
-            RenderUtil.drawSmoothText(graphics, RenderUtil.fitText((active ? "● " : "") + name, width - (external ? 86 : 218), 0.85f), x + 10, y + 11, external ? 0xFF808995 : active ? 0xFF92DFFF : 0xFFE0EAF1);
+            RenderUtil.drawSmoothText(graphics, RenderUtil.fitText((active ? "● " : "") + name, width - (external ? 86 : 218), 0.85f), x + 10, y + 11, external ? AnimationUtil.opaqueArgb(BaseGuiComponent.textMuted()) : active ? AnimationUtil.opaqueArgb(BaseGuiComponent.accentSoft()) : AnimationUtil.opaqueArgb(BaseGuiComponent.textStrong()));
 
             String hint = external ? "来自 routes · 导入为独立点位集"
                     : active ? store.supportsLines() ? "当前路线 · 右键编辑" : "已激活 · 右键编辑"
                     : "左键激活 · 右键编辑";
-            RenderUtil.drawSmoothText(graphics, hint, x + 10, y + 27, 0xFF7893A6);
+            RenderUtil.drawSmoothText(graphics, hint, x + 10, y + 27, AnimationUtil.opaqueArgb(BaseGuiComponent.textMuted()));
 
             if (external) {
                 if (hiddenButton != importButton) {
