@@ -46,8 +46,8 @@ public abstract class PointCollectionScreen {
     private final float originX, originY;
     private final IrcScreen host;
     private final PanelItemComponent originComponent;
-
     private final long openedAt = System.currentTimeMillis();
+
     private long closingAt = -1;
     private float closingFrom;
     private float pageFrom, pageTarget;

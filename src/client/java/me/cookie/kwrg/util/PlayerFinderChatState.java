@@ -2,6 +2,7 @@ package me.cookie.kwrg.util;
 
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
+import me.cookie.kwrg.irc.manager.RouteEditor;
 import me.cookie.kwrg.irc.manager.WaypointManager;
 import net.minecraft.client.Minecraft;
 
@@ -136,6 +137,9 @@ public final class PlayerFinderChatState {
         String lower = line.toLowerCase(Locale.ROOT);
 
         if (lower.startsWith("sending to server ")) {
+            if (RouteEditor.isEnabled()) {
+                RouteEditor.setEnabled(false);
+            }
             WaypointManager.clearTemporary();
             waitingForStart = false;
             synchronized (PARTY_LOCK) {
