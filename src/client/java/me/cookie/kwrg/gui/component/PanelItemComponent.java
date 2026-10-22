@@ -1,7 +1,6 @@
 package me.cookie.kwrg.gui.component;
 
 import io.wispforest.owo.ui.core.*;
-import me.cookie.kwrg.gui.manager.GuiColorManager;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
@@ -204,10 +203,10 @@ public class PanelItemComponent extends BaseGuiComponent {
         float borderAlphaFactor = Mth.lerp(this.activeAnimation, this.hoverAnimation * 0.45f, 1.0f);
         int currentBorderAlpha = (int) (255 * borderAlphaFactor * totalAlpha);
 
-        Color itemBg = Color.ofArgb(GuiColorManager.withAlpha(this.rowBg(), currentBgAlpha));
+        Color itemBg = Color.ofArgb(AnimationUtil.argb(BaseGuiComponent.rowBg(), currentBgAlpha));
 
-        int borderFrom = this.rowBg();
-        int borderTo = this.rowBorder();
+        int borderFrom = BaseGuiComponent.rowBg();
+        int borderTo = BaseGuiComponent.rowBorder();
         int borderR = (int) Mth.lerp(this.activeAnimation, (borderFrom >> 16) & 0xFF, (borderTo >> 16) & 0xFF);
         int borderG = (int) Mth.lerp(this.activeAnimation, (borderFrom >> 8) & 0xFF, (borderTo >> 8) & 0xFF);
         int borderB = (int) Mth.lerp(this.activeAnimation, borderFrom & 0xFF, borderTo & 0xFF);
@@ -232,8 +231,8 @@ public class PanelItemComponent extends BaseGuiComponent {
         float textH = font.lineHeight * textScale;
 
         float emphasis = Math.max(this.activeAnimation, this.hoverAnimation);
-        int textFrom = this.rowText();
-        int textTo = this.textStrong();
+        int textFrom = BaseGuiComponent.rowText();
+        int textTo = BaseGuiComponent.textStrong();
         int textR = (int) Mth.lerp(emphasis, (textFrom >> 16) & 0xFF, (textTo >> 16) & 0xFF);
         int textG = (int) Mth.lerp(emphasis, (textFrom >> 8) & 0xFF, (textTo >> 8) & 0xFF);
         int textB = (int) Mth.lerp(emphasis, textFrom & 0xFF, textTo & 0xFF);
@@ -261,8 +260,8 @@ public class PanelItemComponent extends BaseGuiComponent {
         int dotY = 0;
 
         if (this.type == ItemType.TOGGLE) {
-            int mutedRgb = this.toggleOff();
-            int activeRgb = this.toggleOn();
+            int mutedRgb = BaseGuiComponent.toggleOff();
+            int activeRgb = BaseGuiComponent.toggleOn();
             int dotR = (int) Mth.lerp(this.activeAnimation, (mutedRgb >> 16) & 0xFF, (activeRgb >> 16) & 0xFF);
             int dotG = (int) Mth.lerp(this.activeAnimation, (mutedRgb >> 8) & 0xFF, (activeRgb >> 8) & 0xFF);
             int dotB = (int) Mth.lerp(this.activeAnimation, mutedRgb & 0xFF, activeRgb & 0xFF);
@@ -270,8 +269,8 @@ public class PanelItemComponent extends BaseGuiComponent {
             Color dotFade = AnimationUtil.withAlpha(ARGB.color(255, dotR, dotG, dotB), 0);
             RenderUtil.drawAACircle(graphics, dotX, dotY, 2.5, dotColor, dotFade);
         } else if (this.hoverAnimation > 0.05f) {
-            Color dotColor = Color.ofArgb(GuiColorManager.withAlpha(this.dotHover(), (int) (160 * this.hoverAnimation * totalAlpha)));
-            Color dotFade = Color.ofArgb(GuiColorManager.withAlpha(this.dotHover(), 0));
+            Color dotColor = Color.ofArgb(AnimationUtil.argb(BaseGuiComponent.dotHover(), (int) (160 * this.hoverAnimation * totalAlpha)));
+            Color dotFade = Color.ofArgb(AnimationUtil.argb(BaseGuiComponent.dotHover(), 0));
             RenderUtil.drawAACircle(graphics, dotX, dotY, 2.0, dotColor, dotFade);
         }
 

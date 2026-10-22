@@ -7,7 +7,7 @@ import io.wispforest.owo.ui.core.Insets;
 import io.wispforest.owo.ui.core.Sizing;
 import io.wispforest.owo.ui.core.Surface;
 import io.wispforest.owo.ui.core.UIComponent;
-import me.cookie.kwrg.gui.manager.GuiColorManager;
+import me.cookie.kwrg.gui.component.BaseGuiComponent;
 import me.cookie.kwrg.util.ColorUtil;
 
 import java.util.function.Consumer;
@@ -18,7 +18,7 @@ public class ColorSettingComponent extends FlowLayout {
     private TextInfoPaneComponent hexPane;
     private TextInfoPaneComponent rgbPane;
 
-    private int currentRgbInt = GuiColorManager.pickerDefault();
+    private int currentRgbInt = BaseGuiComponent.pickerDefault();
     private boolean updatingFromCode = false;
 
     public ColorSettingComponent(String initialColorStr, Consumer<String> onColorChanged) {
@@ -63,7 +63,7 @@ public class ColorSettingComponent extends FlowLayout {
             this.currentRgbInt = currentColor.getRGB() & 0xFFFFFF;
             this.picker.selectedColor(Color.ofRgb(this.currentRgbInt));
         } else {
-            this.picker.selectedColor(Color.ofRgb(GuiColorManager.pickerDefault()));
+            this.picker.selectedColor(Color.ofRgb(BaseGuiComponent.pickerDefault()));
         }
 
         this.child(this.picker);

@@ -3,7 +3,6 @@ package me.cookie.kwrg.gui.component;
 import io.wispforest.owo.ui.container.FlowLayout;
 import io.wispforest.owo.ui.container.StackLayout;
 import io.wispforest.owo.ui.core.*;
-import me.cookie.kwrg.gui.manager.GuiColorManager;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.module.Category;
@@ -208,8 +207,8 @@ public class SecondaryPanelComponent extends FlowLayout {
         int bgAlpha = (int) (255 * panelAlpha);
         int outlineAlpha = (int) (85 * panelAlpha);
 
-        Color panelBg = AnimationUtil.withAlpha(GuiColorManager.panelBg(), bgAlpha);
-        Color outlineColor = AnimationUtil.withAlpha(GuiColorManager.panelOutline(), outlineAlpha);
+        Color panelBg = AnimationUtil.withAlpha(BaseGuiComponent.panelBg(), bgAlpha);
+        Color outlineColor = AnimationUtil.withAlpha(BaseGuiComponent.panelOutline(), outlineAlpha);
 
         RenderUtil.drawRoundedPanel(graphics, px, py, width, height, 14.0f, panelBg, outlineColor);
 
@@ -218,8 +217,8 @@ public class SecondaryPanelComponent extends FlowLayout {
         int iconBadgeX = px + 22;
         int iconBadgeY = py + 22;
 
-        Color badgeBg = AnimationUtil.withAlpha(GuiColorManager.badgeBg(), (int) (255 * panelAlpha));
-        Color badgeOutline = AnimationUtil.withAlpha(GuiColorManager.textStrong(), (int) (85 * panelAlpha));
+        Color badgeBg = AnimationUtil.withAlpha(BaseGuiComponent.badgeBg(), (int) (255 * panelAlpha));
+        Color badgeOutline = AnimationUtil.withAlpha(BaseGuiComponent.textStrong(), (int) (85 * panelAlpha));
         graphics.drawCircle(iconBadgeX, iconBadgeY, 32, iconBadgeRadius, badgeBg);
         graphics.drawRing(iconBadgeX, iconBadgeY, 32, iconBadgeRadius - 0.8, iconBadgeRadius, badgeOutline, badgeOutline);
 
@@ -230,10 +229,10 @@ public class SecondaryPanelComponent extends FlowLayout {
         }
 
         String titleStr = Character.toUpperCase(this.categoryTitle.charAt(0)) + this.categoryTitle.substring(1);
-        int headerTextColor = AnimationUtil.withAlpha(GuiColorManager.textStrong(), (int) (255 * panelAlpha)).argb();
+        int headerTextColor = AnimationUtil.withAlpha(BaseGuiComponent.textStrong(), (int) (255 * panelAlpha)).argb();
         RenderUtil.drawSmoothText(graphics, Component.literal(titleStr), iconBadgeX + 18, iconBadgeY - 4.5f, 1.0f, headerTextColor);
 
-        graphics.fill(px + 12, py + headerHeight, px + width - 12, py + headerHeight + 1, GuiColorManager.withAlpha(GuiColorManager.textStrong(), (int) (45 * panelAlpha)));
+        graphics.fill(px + 12, py + headerHeight, px + width - 12, py + headerHeight + 1, AnimationUtil.argb(BaseGuiComponent.textStrong(), (int) (45 * panelAlpha)));
 
         int trackStartY = py + headerHeight + 8;
         int trackHeight = height - headerHeight - 26;
