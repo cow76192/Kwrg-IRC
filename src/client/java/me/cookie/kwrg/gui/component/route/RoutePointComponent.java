@@ -36,6 +36,29 @@ public final class RoutePointComponent {
 
     public void setIndex(int index) { this.index = index; }
 
+    public int x() { return x; }
+    public int y() { return y; }
+
+    public boolean contains(double mouseX, double mouseY) {
+        return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + HEIGHT;
+    }
+
+    /** Keep text selection and action buttons available; the number and row background are handles. */
+    public boolean canDrag(double mouseX, double mouseY) {
+        if (!contains(mouseX, mouseY) || appearance.progress(System.currentTimeMillis()) < 0.95f) {
+            return false;
+        }
+
+        ensureInputs();
+
+        if (visibleButton.contains(mouseX, mouseY) || deleteButton.contains(mouseX, mouseY)) return false;
+        for (int i = 0; i < 4; i++) {
+            if (field(i).isMouseOver(mouseX, mouseY)) return false;
+        }
+
+        return true;
+    }
+
     public RouteButtonComponent deleteButton() { return deleteButton; }
 
     public void remove(long now) {

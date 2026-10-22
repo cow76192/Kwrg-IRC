@@ -7,7 +7,11 @@ public final class WaypointScreen extends PointCollectionScreen {
     WaypointScreen(IrcScreen host, PanelItemComponent source, float x, float y) {
         super(host, source, x, y, new WaypointCollectionStore());
     }
-    public static void open() { openFrom(null); }
+
+    public static void open() {
+        openFrom(null);
+    }
+
     public static void openFrom(PanelItemComponent source) {
         Minecraft mc = Minecraft.getInstance();
         mc.execute(() -> {
@@ -17,6 +21,7 @@ public final class WaypointScreen extends PointCollectionScreen {
                 host.setDirectOpenTarget("functions", "waypoint");
                 mc.setScreen(host);
             }
+
             float cx = host.width / 2f, cy = host.height / 2f;
             float x = source == null ? cx : source.x() + source.width() / 2f;
             float y = source == null ? cy : source.y() + source.height() / 2f;

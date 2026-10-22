@@ -40,4 +40,16 @@ final class RouteCollectionStore implements PointCollectionStore {
     public void addEmpty(int position) { RouteManager.addEmpty(position); }
 
     public boolean deleteAt(int index) { return RouteManager.deleteAt(index); }
+
+    public boolean persistsPointOrder() { return true; }
+
+    public boolean moveEntry(int from, int to) {
+        var entries = RouteManager.entries();
+        if (from < 0 || from >= entries.size() || to < 0 || to >= entries.size() || from == to) {
+            return false;
+        }
+
+        entries.add(to, entries.remove(from));
+        return true;
+    }
 }
