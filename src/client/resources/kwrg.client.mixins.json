@@ -12,6 +12,7 @@
 		"MinecraftGlowMixin",
 		"OptionsMixin",
 		"MinecraftKeybindMixin",
+		"MouseHandlerMixin",
 		"HudNotificationMixin",
 		"VanillaScoreboardMixin",
 		"ChatComponentMixin",

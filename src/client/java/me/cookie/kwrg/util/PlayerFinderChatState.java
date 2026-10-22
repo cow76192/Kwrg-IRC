@@ -1,9 +1,8 @@
-package me.cookie.kwrg.uil;
+package me.cookie.kwrg.util;
 
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import me.cookie.kwrg.irc.manager.WaypointManager;
-import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.client.Minecraft;
 
 import java.util.ArrayList;
