@@ -3,24 +3,21 @@ package me.cookie.kwrg.irc.manager;
 import me.cookie.kwrg.util.PointEntry;
 import me.cookie.kwrg.util.WaypointFiles;
 import me.cookie.kwrg.util.SkyblockLocation;
+import me.cookie.kwrg.render.WaypointRenderer;
 
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelExtractionContext;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.blockentity.BeaconRenderer;
-import net.minecraft.client.renderer.blockentity.state.BeaconRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gizmos.GizmoStyle;
 import net.minecraft.gizmos.Gizmos;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.phys.Vec3;
 
 import java.math.BigDecimal;
@@ -103,8 +100,7 @@ public final class WaypointManager {
 
     public static void init() {
         SkyblockLocation.init();
-        LevelRenderEvents.BEFORE_GIZMOS.register(context -> renderWaypoints());
-        LevelRenderEvents.END_EXTRACTION.register(WaypointManager::extractBeam);
+        LevelRenderEvents.BEFORE_GIZMOS.register(WaypointManager::renderWaypoints);
         ClientTickEvents.END_CLIENT_TICK.register(WaypointManager::onTick);
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             clearTemporary();
@@ -172,32 +168,6 @@ public final class WaypointManager {
         return WaypointFiles.saveDefault(SAVED_WAYPOINTS);
     }
 
-    public static int showChatWaypoint(double x, double y, double z) {
-        return showChatWaypoint(x, y, z, "");
-    }
-
-    public static int showChatWaypoint(double x, double y, double z, String sender) {
-        if (!isValidCoord(x, y, z)) {
-            ChatNotifier.send("§c[Waypoint] 坐标无效 | 超出范围", NotificationType.ERR);
-            return 0;
-        }
-
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || mc.player == null) {
-            ChatNotifier.send("§c[Waypoint] 当前不在世界中", NotificationType.ERR);
-            return 0;
-        }
-
-        String cleanSender = sender == null ? "" : sender.replaceAll("[\\r\\n\\t]", " ").trim();
-        if (cleanSender.length() > MAX_NAME_LENGTH) {
-            cleanSender = cleanSender.substring(0, MAX_NAME_LENGTH);
-        }
-
-        addTemporary(x, y, z, cleanSender);
-        ChatNotifier.send("§a[Waypoint] 已标记 | " + formatCoordMessage(x, y, z), NotificationType.SUCCESS);
-        return 1;
-    }
-
     public static void observeChat(String message) {
         if (message == null || message.contains("[Waypoint]") || message.contains("[Route]")) return;
         Coord coord = parseChat(message);
@@ -213,6 +183,8 @@ public final class WaypointManager {
             TEMP_WAYPOINTS.remove(TEMP_WAYPOINTS.keySet().iterator().next());
         }
         TEMP_WAYPOINTS.put(key, new ChatWaypoint(pos, mc.level.dimension(), sender));
+//        ChatNotifier.sendInChatScreen("§a[Waypoint] 已标记 | " + formatCoordMessage(x, y, z));
+        ChatNotifier.send("§a[Waypoint] 已标记 | " + formatCoordMessage(x, y, z), NotificationType.SUCCESS);
     }
 
     public static Coord parseChat(String message) {
@@ -258,9 +230,12 @@ public final class WaypointManager {
         }
     }
 
-    private static void renderWaypoints() {
+    private static void renderWaypoints(LevelRenderContext context) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || mc.player == null) return;
+        if (mc.level == null || mc.player == null || !context.levelState().cameraRenderState.initialized) return;
+        float animationTime = Math.floorMod(mc.level.getGameTime(), 40)
+                + mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);
+        WaypointRenderer renderer = new WaypointRenderer(context, animationTime);
 
         for (WaypointFiles.Collection file : WaypointFiles.collections()) {
             if (!file.activeIn(SkyblockLocation.island())) continue;
@@ -268,38 +243,25 @@ public final class WaypointManager {
                 if (!entry.visible || !entry.valid()) continue;
                 BlockPos pos = entry.blockPos();
                 Gizmos.cuboid(pos, BLOCK_STYLE).setAlwaysOnTop();
+                renderer.waypoint(pos, TEXT_COLOR, false);
                 if (entry.name != null && !entry.name.isBlank() && !EMPTY_NAME.equals(entry.name)) {
                     Gizmos.billboardTextOverBlock(entry.name, pos, 0, TEXT_COLOR, 1.0f);
                 }
             }
         }
 
-        if (!defaultActive()) return;
-        for (ChatWaypoint waypoint : TEMP_WAYPOINTS.values()) {
-            if (!waypoint.dimension.equals(mc.level.dimension()) || !waypoint.entry.visible || !waypoint.entry.valid()) continue;
-            Gizmos.cuboid(waypoint.pos(), BLOCK_STYLE).setAlwaysOnTop();
-            if (!waypoint.sender().isBlank()) {
-                Gizmos.billboardTextOverBlock(waypoint.sender(), waypoint.pos(), 0, TEXT_COLOR, 1.0f);
+        if (defaultActive()) {
+            for (ChatWaypoint waypoint : TEMP_WAYPOINTS.values()) {
+                if (!waypoint.dimension.equals(mc.level.dimension()) || !waypoint.entry.visible || !waypoint.entry.valid()) continue;
+                BlockPos pos = waypoint.pos();
+                Gizmos.cuboid(pos, BLOCK_STYLE).setAlwaysOnTop();
+                renderer.waypoint(pos, BEAM_COLOR, true);
+                if (!waypoint.sender().isBlank()) {
+                    Gizmos.billboardTextOverBlock(waypoint.sender(), pos, 0, TEXT_COLOR, 1.0f);
+                }
             }
         }
-    }
-
-    private static void extractBeam(LevelExtractionContext context) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || !defaultActive()) return;
-        for (ChatWaypoint waypoint : TEMP_WAYPOINTS.values()) {
-            if (!waypoint.dimension.equals(mc.level.dimension()) || !waypoint.entry.visible || !waypoint.entry.valid()) continue;
-            BeaconRenderState state = new BeaconRenderState();
-            state.blockPos = waypoint.pos();
-            state.blockEntityType = BlockEntityType.BEACON;
-            state.lightCoords = LightCoordsUtil.FULL_BRIGHT;
-            state.animationTime = Math.floorMod(context.level().getGameTime(), 40)
-                    + context.deltaTracker().getGameTimeDeltaPartialTick(true);
-            float distance = (float) context.camera().position().distanceTo(Vec3.atCenterOf(waypoint.pos()));
-            state.beamRadiusScale = Math.max(1.0f, distance / 96.0f);
-            state.sections.add(new BeaconRenderState.Section(BEAM_COLOR, BeaconRenderer.MAX_RENDER_Y));
-            context.levelState().blockEntityRenderStates.add(state);
-        }
+        renderer.draw();
     }
 
     private static void onTick(Minecraft mc) {

@@ -1,18 +1,19 @@
 package me.cookie.kwrg.irc;
 
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import me.cookie.kwrg.gui.IrcScreen;
 import me.cookie.kwrg.gui.hud.HudEditorScreen;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.manager.RouteEditor;
 import me.cookie.kwrg.irc.manager.RouteManager;
-import me.cookie.kwrg.irc.manager.WaypointManager;
 import me.cookie.kwrg.module.modules.debug.ClearIndexCacheModule;
 import me.cookie.kwrg.module.modules.functions.GlowColorModule;
 import me.cookie.kwrg.module.modules.functions.HideArmorModule;
@@ -21,6 +22,7 @@ import me.cookie.kwrg.module.modules.play.PlayModule;
 import me.cookie.kwrg.module.modules.style.MessageStyleModule;
 import me.cookie.kwrg.module.modules.style.NameStyleModule;
 import me.cookie.kwrg.module.modules.style.RankModule;
+import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.SkyblockItemHelper;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
@@ -76,16 +78,14 @@ public class IrcCommand {
     }
 
     private static LiteralArgumentBuilder<FabricClientCommandSource> hideArmorNode() {
-        LiteralArgumentBuilder<FabricClientCommandSource> node = literal("hideArmor");
-
+        var node = literal("hideArmor");
         HideArmorModule.PARTS.forEach((name, slot) -> node.then(literal(name)
                 .then(argument("enabled", BoolArgumentType.bool())
                         .executes(context -> HideArmorModule.setHideArmorPart(slot, BoolArgumentType.getBool(context, "enabled"))))));
-        node.then(argument("enabled", BoolArgumentType.bool())
-                .executes(context -> HideArmorModule.setHideArmor(BoolArgumentType.getBool(context, "enabled"))));
-        node.executes(context -> HideArmorModule.showHideArmor());
-
-        return node;
+        return node
+                .then(argument("enabled", BoolArgumentType.bool())
+                        .executes(context -> HideArmorModule.setHideArmor(BoolArgumentType.getBool(context, "enabled"))))
+                .executes(context -> HideArmorModule.showHideArmor());
     }
 
     private static void registerCommands(CommandDispatcher<FabricClientCommandSource> dispatcher, CommandBuildContext buildContext) {
@@ -298,42 +298,11 @@ public class IrcCommand {
                             IrcClient.queryOnline();
                             return 1;
                         }))
-                .then(literal("waypoint")
-                        .then(literal("chat")
-                                .then(argument("x", DoubleArgumentType.doubleArg())
-                                        .then(argument("y", DoubleArgumentType.doubleArg())
-                                                .then(argument("z", DoubleArgumentType.doubleArg())
-                                                        .executes(context -> WaypointManager.showChatWaypoint(
-                                                                DoubleArgumentType.getDouble(context, "x"),
-                                                                DoubleArgumentType.getDouble(context, "y"),
-                                                                DoubleArgumentType.getDouble(context, "z")
-                                                        ))
-                                                        .then(argument("sender", StringArgumentType.greedyString())
-                                                                .executes(context -> WaypointManager.showChatWaypoint(
-                                                                        DoubleArgumentType.getDouble(context, "x"),
-                                                                        DoubleArgumentType.getDouble(context, "y"),
-                                                                        DoubleArgumentType.getDouble(context, "z"),
-                                                                        StringArgumentType.getString(context, "sender")
-                                                                ))))))))
-                .then(literal("route")
-                        .then(literal("show")
-                                .executes(context -> {
-                                    RouteManager.showInChat();
-                                    return 1;
-                                }))
-                        .then(literal("add")
-                                .then(argument("name", StringArgumentType.string())
-                                        .then(argument("x", DoubleArgumentType.doubleArg())
-                                                .then(argument("y", DoubleArgumentType.doubleArg())
-                                                        .then(argument("z", DoubleArgumentType.doubleArg())
-                                                                .executes(context -> addRoute(context, -1))
-                                                                .then(literal("to")
-                                                                        .then(argument("pos", IntegerArgumentType.integer(1))
-                                                                                .executes(context -> addRoute(context,
-                                                                                        IntegerArgumentType.getInteger(context, "pos"))))))))))
-                        .then(literal("delete")
-                                .then(argument("target", StringArgumentType.greedyString())
-                                        .executes(context -> deleteRoute(StringArgumentType.getString(context, "target"))))))
+                .then(literal("routeEdit")
+                        .executes(context -> RouteEditor.setEnabled(!RouteEditor.isEnabled()))
+                        .then(argument("enabled", BoolArgumentType.bool())
+                                .executes(context -> RouteEditor.setEnabled(BoolArgumentType.getBool(context, "enabled")))))
+//                .then(routeCommand())
                 .then(literal("debug")
                         .then(literal("clearImgCache")
                                 .executes(context -> ClearIndexCacheModule.handleClearImgCache()))
@@ -385,6 +354,7 @@ public class IrcCommand {
                 .then(hudEditorAlias("hud"));
 
         dispatcher.register(ircRoot);
+        dispatcher.register(routeCommand());
     }
 
     private static LiteralArgumentBuilder<FabricClientCommandSource> hudEditorAlias(String alias) {
@@ -398,42 +368,71 @@ public class IrcCommand {
         HudEditorScreen.open(null);
     }
 
-    private static int addRoute(CommandContext<FabricClientCommandSource> context, int position) {
-        String name = StringArgumentType.getString(context, "name");
-        double x = DoubleArgumentType.getDouble(context, "x");
-        double y = DoubleArgumentType.getDouble(context, "y");
-        double z = DoubleArgumentType.getDouble(context, "z");
-        int target = position < 1 ? RouteManager.entries().size() + 1 : position;
-
-        int index = RouteManager.add(name, WaypointManager.formatCoord(x), WaypointManager.formatCoord(y), WaypointManager.formatCoord(z), target);
-        if (index < 0) return 0;
-
-        IrcMessageHandler.printMessage("§a[Route] 已添加 | " + RouteManager.displayName(RouteManager.entries().get(index), index));
-        return 1;
+    private static LiteralArgumentBuilder<FabricClientCommandSource> routeCommand() {
+        return literal("route")
+                .then(literal("show").executes(context -> {
+                    RouteManager.showInChat();
+                    return 1;
+                }))
+                .then(literal("add")
+                        .then(argument("name", StringArgumentType.string())
+                                .executes(context -> addRoute(context, RouteManager.entries().size() + 1))
+                                .then(argument("x", DoubleArgumentType.doubleArg())
+                                        .then(argument("y", DoubleArgumentType.doubleArg())
+                                                .then(argument("z", DoubleArgumentType.doubleArg())
+                                                        .executes(IrcCommand::addRouteAtCoordinates))))))
+                .then(routeInsertAlias("ins"))
+                .then(routeInsertAlias("insert"))
+                .then(routeDeleteAlias("del"))
+                .then(routeDeleteAlias("delete"));
     }
 
-    private static int deleteRoute(String target) {
-        String clean = target.trim();
-        try {
-            int position = Integer.parseInt(clean);
-            if (position >= 1 && position <= RouteManager.entries().size()) {
-                if (!RouteManager.deleteAt(position - 1)) return 0;
-                IrcMessageHandler.printMessage("§e[Route] 已删除位置 | " + position);
-                return 1;
-            }
-        } catch (NumberFormatException ignored) {
-        }
+    private static LiteralArgumentBuilder<FabricClientCommandSource> routeInsertAlias(String alias) {
+        return literal(alias)
+                .then(argument("name", StringArgumentType.string())
+                        .then(argument("before", IntegerArgumentType.integer(1))
+                                .then(argument("after", IntegerArgumentType.integer(1))
+                                        .executes(context -> {
+                                            int before = IntegerArgumentType.getInteger(context, "before");
+                                            int after = IntegerArgumentType.getInteger(context, "after");
+                                            if (before >= RouteManager.entries().size() || after != before + 1) {
+                                                ChatNotifier.send("§c[Route] 请指定两个相邻且存在的节点索引，例如 /route ins <节点名> 2 3", NotificationType.ERR);
+                                                return 0;
+                                            }
+                                            return addRoute(context, after);
+                                        }))));
+    }
 
-        if (RouteManager.entries().stream().anyMatch(entry -> entry.name != null && entry.name.equalsIgnoreCase(clean))) {
-            if (RouteManager.deleteByName(clean)) {
-                IrcMessageHandler.printMessage("§e[Route] 已删除 | " + clean);
-                return 1;
-            }
+    private static LiteralArgumentBuilder<FabricClientCommandSource> routeDeleteAlias(String alias) {
+        return literal(alias)
+                .then(argument("index", IntegerArgumentType.integer(1))
+                        .executes(context -> deleteRoute(IntegerArgumentType.getInteger(context, "index"))));
+    }
+
+    private static int addRouteAtCoordinates(CommandContext<FabricClientCommandSource> context) {
+        return RouteEditor.addNode(StringArgumentType.getString(context, "name"),
+                DoubleArgumentType.getDouble(context, "x"),
+                DoubleArgumentType.getDouble(context, "y"),
+                DoubleArgumentType.getDouble(context, "z"), RouteManager.entries().size() + 1);
+    }
+
+    private static int addRoute(CommandContext<FabricClientCommandSource> context, int position) {
+        var player = context.getSource().getPlayer();
+        if (player == null) {
+            ChatNotifier.send("§c[Route] 请先进入世界", NotificationType.ERR);
             return 0;
         }
+        return RouteEditor.addNode(StringArgumentType.getString(context, "name"), player.blockPosition(), position);
+    }
 
-        IrcMessageHandler.printMessage("§c[Route] 未找到 | " + clean);
-        return 0;
+    private static int deleteRoute(int position) {
+        if (position < 1 || position > RouteManager.entries().size()) {
+            ChatNotifier.send("§c[Route] 节点索引不存在 | " + position, NotificationType.ERR);
+            return 0;
+        }
+        if (!RouteManager.deleteAt(position - 1)) return 0;
+        ChatNotifier.send("§e[Route] 已删除位置 | " + position, NotificationType.SUCCESS);
+        return 1;
     }
 
     private static void sendHelp() {
@@ -448,6 +447,11 @@ public class IrcCommand {
         IrcMessageHandler.printMessage("§e/irc config/cfg save §7- 保存当前配置至文件(只有新建的配置文件才需要保存)");
         IrcMessageHandler.printMessage("§e/irc play/p <玩家名> <物品ID> §7- 向指定玩家发送 Totem 动画效果");
         IrcMessageHandler.printMessage("§e/irc online §7- 查看当前 IRC 在线玩家列表");
+        IrcMessageHandler.printMessage("§e/irc routeEdit [true/false] §7- 切换或指定快速编辑状态，开启后 Alt＋左键方块添加节点");
+        IrcMessageHandler.printMessage("§e/route show §7- 查看当前路线节点（索引从 1 开始）");
+        IrcMessageHandler.printMessage("§e/route add <节点名> [<x> <y> <z>] §7- 在末尾添加节点，省略坐标时使用当前位置");
+        IrcMessageHandler.printMessage("§e/route ins/insert <节点名> <前索引> <后索引> §7- 在相邻节点间插入当前位置");
+        IrcMessageHandler.printMessage("§e/route del/delete <索引> §7- 删除指定节点");
         IrcMessageHandler.printMessage("§e/irc hudeditor §7或 §e/irc hud §7- 打开 HUD 布局编辑器");
         IrcMessageHandler.printMessage("§e/irc functions §7- 查看功能列表");
         IrcMessageHandler.printMessage("§e/irc debug  §7- 查看调试选项");
