@@ -1,7 +1,7 @@
 package me.cookie.kwrg.module.modules.functions;
 
-import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.WaypointScreen;
+import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
@@ -50,6 +50,8 @@ public class WaypointModule extends Module {
 
     private void renderUI(TertiaryPanelComponent panel, String newlyAdded) {
         panel.clearChildren();
+        panel.child(new PanelItemComponent("打开 Waypoint 管理器", PanelItemComponent.ItemType.TRIGGER,
+                (item, click) -> WaypointScreen.openFrom(item), null));
 
         SlotInputPaneComponent[] inputHolder = new SlotInputPaneComponent[1];
         inputHolder[0] = new SlotInputPaneComponent("名字", this.currentValues, null, values -> {

@@ -28,7 +28,7 @@ public class RouteModule extends Module {
 
     @Override
     public void buildTertiaryUI(TertiaryPanelComponent panel) {
-        panel.child(new PanelItemComponent("打开路线合集管理器", PanelItemComponent.ItemType.TRIGGER,
+        panel.child(new PanelItemComponent("打开 route 管理器", PanelItemComponent.ItemType.TRIGGER,
                 (item, click) -> RouteScreen.openFrom(item), null));
     }
 }
