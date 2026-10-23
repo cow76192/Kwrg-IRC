@@ -34,15 +34,24 @@ public abstract class BaseGuiComponent extends BaseUIComponent {
     private static final int TOGGLE_OFF = 0x455A64;
     private static final int TOGGLE_ON = 0xB0BEC5;
     private static final int BADGE_BG = 0x1D2633;
+    private static final int BADGE_TEXT = 0xF2F6FA;
     private static final int ACCENT = 0x4FC3F7;
-    private static final int TEXT_READ_ONLY = 0xB2EBF2;
+    private static final int TEXT_READ_ONLY_DARK = 0xB2EBF2;
+    private static final int TEXT_READ_ONLY_LIGHT = 0x2C5D6B;
     private static final int SELECTION_TINT = 0x26C6DA;
     private static final int PICKER_DEFAULT = 0x00F2FE;
     private static final int DOT_HOVER = 0xB0BEC5;
-    private static final int DANGER = 0xFFA8B4;
-    private static final int WARNING = 0xFFDB94;
+    private static final int DANGER_DARK = 0xFFA8B4;
+    private static final int WARNING_DARK = 0xFFDB94;
     private static final int REGION_FILL = 0x5AA5C4;
-    private static final int ACCENT_SOFT = 0x80D7FF;
+    private static final int ACCENT_SOFT_DARK = 0x80D7FF;
+    private static final int DANGER_LIGHT = 0x9B2C3A;
+    private static final int WARNING_LIGHT = 0x8A5A00;
+    private static final int ACCENT_SOFT_LIGHT = 0x1F6E86;
+    private static final int ERROR_SURFACE_DARK = 0x38242A;
+    private static final int ERROR_SURFACE_LIGHT = 0xF2DCE0;
+    private static final int ERROR_BORDER_DARK = 0xAF5D65;
+    private static final int ERROR_BORDER_LIGHT = 0xC0858D;
 
     private static final int TONE_PANEL_BG = 0;
     private static final int TONE_PANEL_OUTLINE = 1;
@@ -54,7 +63,13 @@ public abstract class BaseGuiComponent extends BaseUIComponent {
     private static final int TONE_TEXT_FAINT = 7;
     private static final int TONE_TEXT_DIM = 8;
     private static final int TONE_TEXT_HEADER = 9;
-    private static final int TONE_COUNT = 10;
+    private static final int TONE_TEXT_READ_ONLY = 10;
+    private static final int TONE_DANGER = 11;
+    private static final int TONE_WARNING = 12;
+    private static final int TONE_ACCENT_SOFT = 13;
+    private static final int TONE_ERROR_SURFACE = 14;
+    private static final int TONE_ERROR_BORDER = 15;
+    private static final int TONE_COUNT = 16;
 
     private static volatile int[] toneFrom = new int[TONE_COUNT];
     private static volatile int[] toneTo = new int[TONE_COUNT];
@@ -89,15 +104,18 @@ public abstract class BaseGuiComponent extends BaseUIComponent {
     public static int toggleOff() { return TOGGLE_OFF; }
     public static int toggleOn() { return TOGGLE_ON; }
     public static int badgeBg() { return BADGE_BG; }
+    public static int badgeText() { return BADGE_TEXT; }
     public static int accent() { return ACCENT; }
-    public static int textReadOnly() { return TEXT_READ_ONLY; }
+    public static int textReadOnly() { return tone(TONE_TEXT_READ_ONLY); }
     public static int selectionTint() { return SELECTION_TINT; }
     public static int pickerDefault() { return PICKER_DEFAULT; }
     public static int dotHover() { return DOT_HOVER; }
-    public static int danger() { return DANGER; }
-    public static int warning() { return WARNING; }
+    public static int danger() { return tone(TONE_DANGER); }
+    public static int warning() { return tone(TONE_WARNING); }
     public static int regionFill() { return REGION_FILL; }
-    public static int accentSoft() { return ACCENT_SOFT; }
+    public static int accentSoft() { return tone(TONE_ACCENT_SOFT); }
+    public static int errorSurface() { return tone(TONE_ERROR_SURFACE); }
+    public static int errorBorder() { return tone(TONE_ERROR_BORDER); }
 
     public static void setOpacity(float opacity) {
         if (!Float.isFinite(opacity)) return;
@@ -124,19 +142,25 @@ public abstract class BaseGuiComponent extends BaseUIComponent {
     }
 
     private static int[] toneValuesFor(int panelBg) {
-        boolean light = ColorUtil.brightness(panelBg) >= 0.5f;
+        boolean darkForeground = ColorUtil.relativeLuminance(panelBg) >= 0.179;
         int cardBg = ColorUtil.neighborTone(panelBg, 0.055f);
         return new int[]{
                 panelBg,
                 ColorUtil.deriveOutline(panelBg),
                 cardBg,
                 ColorUtil.deriveOutline(cardBg),
-                light ? TEXT_STRONG_LIGHT : TEXT_STRONG_DARK,
-                light ? TEXT_BODY_LIGHT : TEXT_BODY_DARK,
-                light ? TEXT_MUTED_LIGHT : TEXT_MUTED_DARK,
-                light ? TEXT_FAINT_LIGHT : TEXT_FAINT_DARK,
-                light ? TEXT_DIM_LIGHT : TEXT_DIM_DARK,
-                light ? TEXT_HEADER_LIGHT : TEXT_HEADER_DARK
+                darkForeground ? TEXT_STRONG_LIGHT : TEXT_STRONG_DARK,
+                darkForeground ? TEXT_BODY_LIGHT : TEXT_BODY_DARK,
+                darkForeground ? TEXT_MUTED_LIGHT : TEXT_MUTED_DARK,
+                darkForeground ? TEXT_FAINT_LIGHT : TEXT_FAINT_DARK,
+                darkForeground ? TEXT_DIM_LIGHT : TEXT_DIM_DARK,
+                darkForeground ? TEXT_HEADER_LIGHT : TEXT_HEADER_DARK,
+                darkForeground ? TEXT_READ_ONLY_LIGHT : TEXT_READ_ONLY_DARK,
+                darkForeground ? DANGER_LIGHT : DANGER_DARK,
+                darkForeground ? WARNING_LIGHT : WARNING_DARK,
+                darkForeground ? ACCENT_SOFT_LIGHT : ACCENT_SOFT_DARK,
+                darkForeground ? ERROR_SURFACE_LIGHT : ERROR_SURFACE_DARK,
+                darkForeground ? ERROR_BORDER_LIGHT : ERROR_BORDER_DARK
         };
     }
 

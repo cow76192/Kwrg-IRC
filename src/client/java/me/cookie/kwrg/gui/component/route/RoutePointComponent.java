@@ -162,7 +162,7 @@ public final class RoutePointComponent {
         boolean valid = entry.valid();
 
         RenderUtil.drawSubpixelRoundedPanel(owo, x, y + 2, width, HEIGHT - 4, 7,
-                Color.ofArgb(valid ? AnimationUtil.argb(BaseGuiComponent.cardBg(), 0xA0) : AnimationUtil.argb(BaseGuiComponent.danger(), 0xB0)), Color.ofArgb(valid ? AnimationUtil.argb(BaseGuiComponent.cardBorder(), 0x35) : AnimationUtil.argb(BaseGuiComponent.danger(), 0xAA)));
+                Color.ofArgb(valid ? AnimationUtil.argb(BaseGuiComponent.cardBg(), 0xA0) : AnimationUtil.argb(BaseGuiComponent.errorSurface(), 0xB0)), Color.ofArgb(valid ? AnimationUtil.argb(BaseGuiComponent.cardBorder(), 0x35) : AnimationUtil.argb(BaseGuiComponent.errorBorder(), 0xAA)));
         RenderUtil.drawSmoothText(owo, Component.literal((index + 1) + "."), x + 6, y + 17, 0.72f, AnimationUtil.opaqueArgb(BaseGuiComponent.textMuted()));
 
         for (int field = 0; field < 4; field++) {
