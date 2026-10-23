@@ -9,6 +9,7 @@ import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
 import me.cookie.kwrg.irc.manager.RouteManager;
 import me.cookie.kwrg.irc.manager.WaypointManager;
 import me.cookie.kwrg.util.ChatNotifier;
+import me.cookie.kwrg.util.EmojiUtil;
 import me.cookie.kwrg.util.GreetingManager;
 import me.cookie.kwrg.util.SkyblockItemHelper;
 import net.fabricmc.api.ClientModInitializer;
@@ -47,6 +48,7 @@ public class CookieMain implements ClientModInitializer {
             try {
                 SkyblockItemHelper.indexItemRepo();
                 LOGGER.info("indexItemRepo completed");
+                EmojiUtil.reload();
             } catch (Throwable e) {
                 LOGGER.error("Failed to indexItemRepo", e);
             }
