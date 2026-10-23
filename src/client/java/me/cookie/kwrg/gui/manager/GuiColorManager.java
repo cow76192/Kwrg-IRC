@@ -1,14 +1,14 @@
 package me.cookie.kwrg.gui.manager;
 
-import me.cookie.kwrg.gui.component.BaseGuiComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
 
 public class GuiColorManager {
 
-    public static final String DEFAULT_COLOR = String.format("#%06X", BaseGuiComponent.DEFAULT_PANEL_BG);
+    public static final String DEFAULT_COLOR = String.format("#%06X", GuiThemeService.DEFAULT_PANEL_BG);
 
     static { refresh(); }
 
@@ -17,10 +17,10 @@ public class GuiColorManager {
         if (config.guiColor == null || config.guiColor.isEmpty()) config.guiColor = DEFAULT_COLOR;
 
         java.awt.Color c = ColorUtil.parseSingleColor(config.guiColor);
-        BaseGuiComponent.setPanelBg(c != null
+        GuiThemeService.setPanelBg(c != null
                 ? (c.getRed() << 16) | (c.getGreen() << 8) | c.getBlue()
-                : BaseGuiComponent.DEFAULT_PANEL_BG);
-        BaseGuiComponent.setOpacity(config.guiOpacity);
+                : GuiThemeService.DEFAULT_PANEL_BG);
+        GuiThemeService.setOpacity(config.guiOpacity);
     }
 
     public static String getGuiColorStr() {
@@ -34,7 +34,7 @@ public class GuiColorManager {
             ChatNotifier.sendInChatScreen("§c[IRC] 无法解析的颜色格式！支持 #HEX, rgb(...), hsl(...)");
             return 0;
         }
-        BaseGuiComponent.setPanelBg((c.getRed() << 16) | (c.getGreen() << 8) | c.getBlue());
+        GuiThemeService.setPanelBg((c.getRed() << 16) | (c.getGreen() << 8) | c.getBlue());
 
         IrcConfig config = IrcConfig.get();
         config.guiColor = colorStr;
@@ -43,14 +43,14 @@ public class GuiColorManager {
     }
 
     public static void setGuiOpacity(float opacity) {
-        BaseGuiComponent.setOpacity(opacity);
-        IrcConfig.get().guiOpacity = BaseGuiComponent.opacity();
+        GuiThemeService.setOpacity(opacity);
+        IrcConfig.get().guiOpacity = GuiThemeService.opacity();
         IrcConfig.saveDelayed(800L);
     }
 
     public static void resetDefault() {
-        BaseGuiComponent.setPanelBg(BaseGuiComponent.DEFAULT_PANEL_BG);
-        BaseGuiComponent.setOpacity(1.0f);
+        GuiThemeService.setPanelBg(GuiThemeService.DEFAULT_PANEL_BG);
+        GuiThemeService.setOpacity(1.0f);
 
         IrcConfig config = IrcConfig.get();
         config.guiColor = DEFAULT_COLOR;

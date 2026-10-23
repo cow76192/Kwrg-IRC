@@ -3,8 +3,8 @@ package me.cookie.kwrg.gui.component.pane;
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.CursorStyle;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
-import me.cookie.kwrg.gui.component.BaseGuiComponent;
 import me.cookie.kwrg.gui.component.BasePaneComponent;
+import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
@@ -353,7 +353,7 @@ public class SlotInputPaneComponent extends BasePaneComponent {
             graphics.pose().pushMatrix();
             graphics.pose().translate(-halfW + 8.0f, textStartY);
             graphics.pose().scale(textScale, textScale);
-            graphics.drawText(this.styledLeftLabel, 0, 0, 1.0f, AnimationUtil.opaqueArgb(BaseGuiComponent.paneBorder()), OwoUIGraphics.TextAnchor.TOP_LEFT);
+            graphics.drawText(this.styledLeftLabel, 0, 0, 1.0f, AnimationUtil.opaqueArgb(GuiThemeService.paneBorder()), OwoUIGraphics.TextAnchor.TOP_LEFT);
             graphics.pose().popMatrix();
         }
 
@@ -387,15 +387,15 @@ public class SlotInputPaneComponent extends BasePaneComponent {
                 styled = FontManagerHelper.apply(clipped + "…");
             }
             int textColor = this.leftValue.isEmpty()
-                    ? AnimationUtil.opaqueArgb(BaseGuiComponent.textFaint())
-                    : AnimationUtil.opaqueArgb(this.leftFocused ? BaseGuiComponent.textStrong() : BaseGuiComponent.textBody());
+                    ? AnimationUtil.opaqueArgb(GuiThemeService.textFaint())
+                    : AnimationUtil.opaqueArgb(this.leftFocused ? GuiThemeService.textStrong() : GuiThemeService.textBody());
 
             graphics.pose().pushMatrix();
             graphics.pose().translate(leftStartX, textStartY);
             graphics.pose().scale(textScale, textScale);
 
             if (this.focused && this.leftFocused && this.leftSelectAll && !this.leftValue.isEmpty()) {
-                graphics.fill(0, -1, Math.min(font.width(styled), maxFontWidth), font.lineHeight, AnimationUtil.argb(BaseGuiComponent.accent(), 120));
+                graphics.fill(0, -1, Math.min(font.width(styled), maxFontWidth), font.lineHeight, AnimationUtil.argb(GuiThemeService.accent(), 120));
             }
             graphics.drawText(styled, 0, 0, 1.0f, textColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
 
@@ -403,7 +403,7 @@ public class SlotInputPaneComponent extends BasePaneComponent {
                 String prefix = this.leftValue.substring(0, Math.min(this.leftCursor, this.leftValue.length()));
                 int prefixW = prefix.isEmpty() ? 0 : font.width(FontManagerHelper.apply(prefix));
                 if (prefixW <= maxFontWidth) {
-                    graphics.fill(prefixW, -1, prefixW + 1, font.lineHeight, AnimationUtil.opaqueArgb(BaseGuiComponent.textStrong()));
+                    graphics.fill(prefixW, -1, prefixW + 1, font.lineHeight, AnimationUtil.opaqueArgb(GuiThemeService.textStrong()));
                 }
             }
             graphics.pose().popMatrix();
@@ -422,7 +422,7 @@ public class SlotInputPaneComponent extends BasePaneComponent {
             float lineH = 1.5f;
             float lineR = 0.75f;
 
-            Color baseLineColor = Color.ofArgb(AnimationUtil.opaqueArgb(BaseGuiComponent.lineBase()));
+            Color baseLineColor = Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.lineBase()));
             RenderUtil.drawSubpixelRoundedPanel(graphics, lineX1, lineY, slotLineWidth, lineH, lineR, baseLineColor, null);
 
             if (ease > 0.005f) {
@@ -432,7 +432,7 @@ public class SlotInputPaneComponent extends BasePaneComponent {
                 float activeX = centerLineX - halfSpread;
                 float activeH = 2.0f;
                 float activeR = 1.0f;
-                Color activeLineColor = Color.ofArgb(AnimationUtil.argb(BaseGuiComponent.accent(), (int) (255 * ease)));
+                Color activeLineColor = Color.ofArgb(AnimationUtil.argb(GuiThemeService.accent(), (int) (255 * ease)));
                 RenderUtil.drawSubpixelRoundedPanel(graphics, activeX, lineY - 0.25f, activeWidth, activeH, activeR, activeLineColor, null);
             }
 
@@ -447,20 +447,20 @@ public class SlotInputPaneComponent extends BasePaneComponent {
             if (val.isEmpty()) {
                 Component dash = Component.literal("_");
                 float dashW = font.width(dash);
-                graphics.drawText(dash, localSlotCenterX - dashW / 2.0f, localTextY, 1.0f, AnimationUtil.opaqueArgb(BaseGuiComponent.textDim()), OwoUIGraphics.TextAnchor.TOP_LEFT);
+                graphics.drawText(dash, localSlotCenterX - dashW / 2.0f, localTextY, 1.0f, AnimationUtil.opaqueArgb(GuiThemeService.textDim()), OwoUIGraphics.TextAnchor.TOP_LEFT);
             } else {
                 Component styledVal = FontManagerHelper.apply(val);
                 float valW = font.width(styledVal);
                 float textDrawX = localSlotCenterX - valW / 2.0f;
 
                 if (isCurFocused && this.selectAll) {
-                    int selectBgColor = AnimationUtil.argb(BaseGuiComponent.accent(), 120);
+                    int selectBgColor = AnimationUtil.argb(GuiThemeService.accent(), 120);
                     graphics.fill((int) (textDrawX - 1), (int) (localTextY - 1), (int) (textDrawX + valW + 1), (int) (localTextY + font.lineHeight), selectBgColor);
                 }
 
                 int valTextColor = AnimationUtil.opaqueArgb(isCurFocused
-                        ? BaseGuiComponent.textStrong()
-                        : BaseGuiComponent.textBody());
+                        ? GuiThemeService.textStrong()
+                        : GuiThemeService.textBody());
                 graphics.drawText(styledVal, textDrawX, localTextY, 1.0f, valTextColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
             }
 
@@ -469,7 +469,7 @@ public class SlotInputPaneComponent extends BasePaneComponent {
                 float totalW = val.isEmpty() ? 0.0f : font.width(FontManagerHelper.apply(val));
                 float cursorDrawX = (lineX1 + slotLineWidth / 2.0f) / textScale - totalW / 2.0f + prefixW;
 
-                graphics.fill((int) cursorDrawX, (int) localTextY - 1, (int) cursorDrawX + 1, (int) (localTextY + font.lineHeight), AnimationUtil.opaqueArgb(BaseGuiComponent.textStrong()));
+                graphics.fill((int) cursorDrawX, (int) localTextY - 1, (int) cursorDrawX + 1, (int) (localTextY + font.lineHeight), AnimationUtil.opaqueArgb(GuiThemeService.textStrong()));
             }
 
             graphics.pose().popMatrix();
@@ -478,7 +478,7 @@ public class SlotInputPaneComponent extends BasePaneComponent {
                 graphics.pose().pushMatrix();
                 graphics.pose().translate(lineX1 + slotLineWidth + 2.0f, textStartY);
                 graphics.pose().scale(textScale, textScale);
-                graphics.drawText(this.styledSlotSuffixes[i], 0, 0, 1.0f, AnimationUtil.opaqueArgb(BaseGuiComponent.textMuted()), OwoUIGraphics.TextAnchor.TOP_LEFT);
+                graphics.drawText(this.styledSlotSuffixes[i], 0, 0, 1.0f, AnimationUtil.opaqueArgb(GuiThemeService.textMuted()), OwoUIGraphics.TextAnchor.TOP_LEFT);
                 graphics.pose().popMatrix();
             }
 
