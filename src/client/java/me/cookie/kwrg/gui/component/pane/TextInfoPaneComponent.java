@@ -2,9 +2,9 @@ package me.cookie.kwrg.gui.component.pane;
 
 import io.wispforest.owo.ui.core.CursorStyle;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
-import me.cookie.kwrg.gui.component.BaseGuiComponent;
 import me.cookie.kwrg.gui.component.BasePaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -102,7 +102,7 @@ public class TextInfoPaneComponent extends BasePaneComponent {
         } else {
             Component styledLabel = FontManagerHelper.apply(this.label);
             if (styledLabel.getStyle().getColor() == null) {
-                styledLabel = styledLabel.copy().withStyle(s -> s.withColor(BaseGuiComponent.textMuted()));
+                styledLabel = styledLabel.copy().withStyle(s -> s.withColor(GuiThemeService.textMuted()));
             }
 
             Component styledVal = null;
@@ -115,7 +115,7 @@ public class TextInfoPaneComponent extends BasePaneComponent {
             if (styledVal != null && !styledVal.getString().isEmpty()) {
                 fullComp = Component.empty()
                         .append(styledLabel)
-                        .append(Component.literal(": ").withStyle(s -> s.withColor(BaseGuiComponent.textMuted())))
+                        .append(Component.literal(": ").withStyle(s -> s.withColor(GuiThemeService.textMuted())))
                         .append(styledVal);
             } else {
                 fullComp = styledLabel;
@@ -137,7 +137,7 @@ public class TextInfoPaneComponent extends BasePaneComponent {
                 graphics.pose().pushMatrix();
                 graphics.pose().translate(-titleW / 2.0f, curLineY);
                 graphics.pose().scale(textScale, textScale);
-                graphics.text(font, line, 0, 0, AnimationUtil.opaqueArgb(BaseGuiComponent.textHeader()), false);
+                graphics.text(font, line, 0, 0, AnimationUtil.opaqueArgb(GuiThemeService.textHeader()), false);
                 graphics.pose().popMatrix();
             }
         } else {
@@ -149,7 +149,7 @@ public class TextInfoPaneComponent extends BasePaneComponent {
                 graphics.pose().pushMatrix();
                 graphics.pose().translate(-halfW + 8.0f, singleLineY);
                 graphics.pose().scale(textScale, textScale);
-                graphics.drawText(styledLabel, 0, 0, 1.0f, AnimationUtil.opaqueArgb(BaseGuiComponent.textMuted()), OwoUIGraphics.TextAnchor.TOP_LEFT);
+                graphics.drawText(styledLabel, 0, 0, 1.0f, AnimationUtil.opaqueArgb(GuiThemeService.textMuted()), OwoUIGraphics.TextAnchor.TOP_LEFT);
                 graphics.pose().popMatrix();
 
                 if (valComp != null) {
@@ -158,14 +158,14 @@ public class TextInfoPaneComponent extends BasePaneComponent {
                     graphics.pose().pushMatrix();
                     graphics.pose().translate(halfW - valW - 8.0f, singleLineY);
                     graphics.pose().scale(textScale, textScale);
-                    graphics.drawText(styledVal, 0, 0, 1.0f, AnimationUtil.opaqueArgb(BaseGuiComponent.textStrong()), OwoUIGraphics.TextAnchor.TOP_LEFT);
+                    graphics.drawText(styledVal, 0, 0, 1.0f, AnimationUtil.opaqueArgb(GuiThemeService.textStrong()), OwoUIGraphics.TextAnchor.TOP_LEFT);
                     graphics.pose().popMatrix();
                 } else if (!valStr.isEmpty()) {
                     Component styledVal = FontManagerHelper.apply(valStr);
                     float valW = font.width(styledVal) * textScale;
                     int valTextColor = this.hovered
-                            ? AnimationUtil.opaqueArgb(BaseGuiComponent.textStrong())
-                            : AnimationUtil.opaqueArgb(BaseGuiComponent.textBody());
+                            ? AnimationUtil.opaqueArgb(GuiThemeService.textStrong())
+                            : AnimationUtil.opaqueArgb(GuiThemeService.textBody());
                     graphics.pose().pushMatrix();
                     graphics.pose().translate(halfW - valW - 8.0f, singleLineY);
                     graphics.pose().scale(textScale, textScale);
@@ -180,7 +180,7 @@ public class TextInfoPaneComponent extends BasePaneComponent {
                     graphics.pose().pushMatrix();
                     graphics.pose().translate(-halfW + 8.0f, curLineY);
                     graphics.pose().scale(textScale, textScale);
-                    graphics.text(font, line, 0, 0, AnimationUtil.opaqueArgb(BaseGuiComponent.textBody()), false);
+                    graphics.text(font, line, 0, 0, AnimationUtil.opaqueArgb(GuiThemeService.textBody()), false);
                     graphics.pose().popMatrix();
                 }
             }

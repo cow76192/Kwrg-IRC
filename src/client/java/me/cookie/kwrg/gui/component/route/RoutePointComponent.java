@@ -2,7 +2,7 @@ package me.cookie.kwrg.gui.component.route;
 
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
-import me.cookie.kwrg.gui.component.BaseGuiComponent;
+import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
@@ -162,16 +162,16 @@ public final class RoutePointComponent {
         boolean valid = entry.valid();
 
         RenderUtil.drawSubpixelRoundedPanel(owo, x, y + 2, width, HEIGHT - 4, 7,
-                Color.ofArgb(valid ? AnimationUtil.argb(BaseGuiComponent.cardBg(), 0xA0) : AnimationUtil.argb(BaseGuiComponent.errorSurface(), 0xB0)), Color.ofArgb(valid ? AnimationUtil.argb(BaseGuiComponent.cardBorder(), 0x35) : AnimationUtil.argb(BaseGuiComponent.errorBorder(), 0xAA)));
-        RenderUtil.drawSmoothText(owo, Component.literal((index + 1) + "."), x + 6, y + 17, 0.72f, AnimationUtil.opaqueArgb(BaseGuiComponent.textMuted()));
+                Color.ofArgb(valid ? AnimationUtil.argb(GuiThemeService.cardBg(), 0xA0) : AnimationUtil.argb(GuiThemeService.errorSurface(), 0xB0)), Color.ofArgb(valid ? AnimationUtil.argb(GuiThemeService.cardBorder(), 0x35) : AnimationUtil.argb(GuiThemeService.errorBorder(), 0xAA)));
+        RenderUtil.drawSmoothText(owo, Component.literal((index + 1) + "."), x + 6, y + 17, 0.72f, AnimationUtil.opaqueArgb(GuiThemeService.textMuted()));
 
         for (int field = 0; field < 4; field++) {
             EditBox input = field(field);
             focusProgress[field] = AnimationUtil.lerp(step, focusProgress[field], input.isFocused() ? 1 : 0);
-            Color line = AnimationUtil.lerpColor(focusProgress[field], Color.ofArgb(AnimationUtil.opaqueArgb(BaseGuiComponent.textFaint())), Color.ofArgb(AnimationUtil.opaqueArgb(BaseGuiComponent.accentSoft())));
-            RenderUtil.drawSmoothText(owo, Component.literal(field == 0 ? entry.temporary ? "名称 · 临时" : "名称" : "XYZ".substring(field - 1, field)), input.getX(), y + 5, 0.62f, AnimationUtil.opaqueArgb(BaseGuiComponent.textMuted()));
+            Color line = AnimationUtil.lerpColor(focusProgress[field], Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.textFaint())), Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.accentSoft())));
+            RenderUtil.drawSmoothText(owo, Component.literal(field == 0 ? entry.temporary ? "名称 · 临时" : "名称" : "XYZ".substring(field - 1, field)), input.getX(), y + 5, 0.62f, AnimationUtil.opaqueArgb(GuiThemeService.textMuted()));
             RenderUtil.fillSubpixel(owo, input.getX(), y + 32, input.getX() + input.getWidth(), y + 32.8f, line.argb());
-            input.setTextColor(field == 0 ? (entry.visible ? AnimationUtil.opaqueArgb(BaseGuiComponent.textStrong()) : AnimationUtil.opaqueArgb(BaseGuiComponent.textMuted())) : valid ? AnimationUtil.opaqueArgb(BaseGuiComponent.textBody()) : AnimationUtil.opaqueArgb(BaseGuiComponent.danger()));
+            input.setTextColor(field == 0 ? (entry.visible ? AnimationUtil.opaqueArgb(GuiThemeService.textStrong()) : AnimationUtil.opaqueArgb(GuiThemeService.textMuted())) : valid ? AnimationUtil.opaqueArgb(GuiThemeService.textBody()) : AnimationUtil.opaqueArgb(GuiThemeService.danger()));
             // EditBox does not apply its widget alpha to text; use the row's fading graphics.
             input.extractRenderState(owo, mouseX, mouseY, partialTick);
         }

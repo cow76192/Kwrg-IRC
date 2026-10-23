@@ -2,6 +2,7 @@ package me.cookie.kwrg.gui.component;
 
 import io.wispforest.owo.ui.base.BaseUIComponent;
 import io.wispforest.owo.ui.core.*;
+import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import net.minecraft.client.Minecraft;
@@ -43,7 +44,7 @@ public abstract class BasePaneComponent extends BaseUIComponent {
     }
 
     protected int borderBaseRgb() {
-        return this.focused ? BaseGuiComponent.paneBorderFocused() : BaseGuiComponent.cardBorder();
+        return this.focused ? GuiThemeService.paneBorderFocused() : GuiThemeService.cardBorder();
     }
 
     protected float borderHoverSpan() {
@@ -67,7 +68,7 @@ public abstract class BasePaneComponent extends BaseUIComponent {
         int y = this.y();
         int width = this.width();
 
-        Color paneBg = Color.ofRgb(BaseGuiComponent.cardBg());
+        Color paneBg = Color.ofRgb(GuiThemeService.cardBg());
         Color borderColor = Color.ofArgb(getBorderColorArgb());
 
         float halfW = width / 2.0f;
