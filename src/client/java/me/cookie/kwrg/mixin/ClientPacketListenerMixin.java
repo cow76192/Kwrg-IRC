@@ -20,7 +20,7 @@ public abstract class ClientPacketListenerMixin {
     @Inject(method = "sendChat", at = @At("HEAD"), cancellable = true)
     private void onSendChat(String message, CallbackInfo ci) {
         if (IrcClient.isIrcChatActive) {
-            IrcClient.sendMessage(EmojiUtil.replaceShortcodes(message));
+            IrcClient.sendMessage(message);
             ci.cancel();
         }
     }
