@@ -5,6 +5,7 @@ import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import me.cookie.kwrg.module.modules.functions.ChatSuffixModule;
 import me.cookie.kwrg.util.ChatNotifier;
+import me.cookie.kwrg.util.EmojiUtil; // 导入新工具类
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 import org.spongepowered.asm.mixin.Mixin;
@@ -19,7 +20,7 @@ public abstract class ClientPacketListenerMixin {
     @Inject(method = "sendChat", at = @At("HEAD"), cancellable = true)
     private void onSendChat(String message, CallbackInfo ci) {
         if (IrcClient.isIrcChatActive) {
-            IrcClient.sendMessage(message);
+            IrcClient.sendMessage(EmojiUtil.replaceShortcodes(message));
             ci.cancel();
         }
     }
@@ -27,17 +28,21 @@ public abstract class ClientPacketListenerMixin {
     @ModifyVariable(method = "sendChat", at = @At("HEAD"), ordinal = 0, argsOnly = true)
     private String kwrg$appendPublicChatSuffix(String message) {
         if (IrcClient.isIrcChatActive) return message;
-        return ChatSuffixModule.applyPublicSuffixSafely(ChatNotifier.expandCoordsShortcut(message));
+
+        String processed = EmojiUtil.replaceShortcodes(message);
+        processed = ChatNotifier.expandCoordsShortcut(processed);
+        return ChatSuffixModule.applyPublicSuffixSafely(processed);
     }
 
     @ModifyVariable(method = "sendCommand", at = @At("HEAD"), ordinal = 0, argsOnly = true)
     private String kwrg$appendPublicCommandSuffix(String command) {
-        return ChatSuffixModule.applyPublicCommandSuffixSafely(command);
+        String processed = EmojiUtil.replaceShortcodes(command);
+        return ChatSuffixModule.applyPublicCommandSuffixSafely(processed);
     }
 
     @Inject(method = "sendCommand", at = @At("HEAD"), cancellable = true)
     private void onSendCommand(String command, CallbackInfo ci) {
-       PlayerFinderManager.onCommandSent(command);
+        PlayerFinderManager.onCommandSent(command);
 
         String lower = command.trim().toLowerCase();
         if (lower.equals("ac") || lower.startsWith("ac ") ||
@@ -46,6 +51,7 @@ public abstract class ClientPacketListenerMixin {
             return;
         }
 
+        // 保留你的 message 逻辑
         if (lower.startsWith("chat ") || lower.startsWith("msg ") || lower.startsWith("message ")) {
             String sub = lower.substring(5).trim();
             if (sub.equals("irc")) {
@@ -60,7 +66,6 @@ public abstract class ClientPacketListenerMixin {
             }
         }
     }
-
 
     @Inject(method = "handleSystemChat", at = @At("HEAD"), cancellable = true)
     private void onHandleSystemChat(ClientboundSystemChatPacket packet, CallbackInfo ci) {
