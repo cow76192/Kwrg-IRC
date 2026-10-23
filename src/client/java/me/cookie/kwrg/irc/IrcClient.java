@@ -9,6 +9,7 @@ import me.cookie.kwrg.irc.manager.HideArmorManager;
 import me.cookie.kwrg.irc.manager.IrcGlowManager;
 import me.cookie.kwrg.module.modules.functions.ChatSuffixModule;
 import me.cookie.kwrg.util.ChatNotifier;
+import me.cookie.kwrg.util.EmojiUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.EquipmentSlot;
 import org.slf4j.Logger;
@@ -22,11 +23,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -290,6 +287,7 @@ public class IrcClient {
         IrcConfig config = IrcConfig.get();
 
         // 语气词装饰统一在此处理，覆盖聊天框输入与 /ic、/icall 等所有 IRC 发送路径
+        content = EmojiUtil.replaceShortcodes(content);
         content = ChatNotifier.expandCoordsShortcut(content);
         ChatSuffixModule.IrcDecoration decoration = ChatSuffixModule.decorateIrcSafely(content);
 
