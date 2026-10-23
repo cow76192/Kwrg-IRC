@@ -282,8 +282,16 @@ public class ColorUtil {
         return Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]) & 0xFFFFFF;
     }
 
-    public static float brightness(int rgb) {
-        return Color.RGBtoHSB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, null)[2];
+    public static double relativeLuminance(int rgb) {
+        double r = linearChannel((rgb >> 16) & 0xFF);
+        double g = linearChannel((rgb >> 8) & 0xFF);
+        double b = linearChannel(rgb & 0xFF);
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+
+    private static double linearChannel(int channel) {
+        double v = channel / 255.0;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
     }
 
     public static int neighborTone(int rgb, float brightnessDelta) {

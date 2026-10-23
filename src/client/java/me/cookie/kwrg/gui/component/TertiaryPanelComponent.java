@@ -145,7 +145,7 @@ public class TertiaryPanelComponent extends FlowLayout {
             String initialChar = this.itemTitle.isEmpty() ? "•" : this.itemTitle.substring(0, 1).toUpperCase();
             var font = Minecraft.getInstance().font;
             float initialW = font.width(initialChar);
-            int badgeTextColor = AnimationUtil.withAlpha(BaseGuiComponent.textStrong(), (int) (255 * contentAlpha)).argb();
+            int badgeTextColor = AnimationUtil.withAlpha(BaseGuiComponent.badgeText(), (int) (255 * contentAlpha)).argb();
             RenderUtil.drawSmoothText(graphics, Component.literal(initialChar), iconBadgeX - initialW / 2.0f, iconBadgeY - 4.5f, 1.0f, badgeTextColor);
 
             int headerTextColor = AnimationUtil.withAlpha(BaseGuiComponent.textStrong(), (int) (255 * contentAlpha)).argb();
