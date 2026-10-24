@@ -9,7 +9,6 @@ public class PointEntry {
     public String name, x, y, z;
     public boolean visible = true;
     public String id = java.util.UUID.randomUUID().toString();
-    public transient boolean temporary;
     public transient boolean explicitId;
 
     public PointEntry(String name, String x, String y, String z) {

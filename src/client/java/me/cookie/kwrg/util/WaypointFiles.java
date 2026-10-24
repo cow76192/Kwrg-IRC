@@ -174,12 +174,7 @@ public final class WaypointFiles {
         if (file == null) {
             return List.of();
         }
-        if (!isDefault(current)) {
-            return file.points;
-        }
-        List<PointEntry> combined = new ArrayList<>(file.points);
-        combined.addAll(WaypointManager.temporaryEntries());
-        return combined;
+        return file.points;
     }
 
     public static boolean saveCurrent() { return save(currentFile()); }
@@ -256,11 +251,8 @@ public final class WaypointFiles {
         if (index < 0 || index >= entries.size()) {
             return false;
         }
-        PointEntry entry = entries.get(index);
-        if (entry.temporary) {
-            return WaypointManager.removeTemporary(entry);
-        }
         List<PointEntry> points = collection(current).points;
+        PointEntry entry = points.get(index);
         points.remove(index);
         if (saveCurrent()) {
             return true;
@@ -617,7 +609,7 @@ public final class WaypointFiles {
             root.addProperty("sourceRoute", file.sourceRoute);
             root.add("sourceNodes", GSON.toJsonTree(file.sourceNodes));
         }
-        root.add("waypoints", GSON.toJsonTree(file.points.stream().filter(point -> !point.temporary).toList()));
+        root.add("waypoints", GSON.toJsonTree(file.points));
         return GSON.toJson(root);
     }
 
