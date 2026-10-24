@@ -70,27 +70,37 @@ public final class Navigator {
     private Navigator() {
     }
 
-    public static void searchAsync(Level level, BlockPos from, BlockPos to, Consumer<List<Vec3>> callback) {
+    public record Result(List<Vec3> points, boolean complete) {
+    }
+
+    public static void searchAsync(Level level, BlockPos from, BlockPos to, Consumer<Result> callback) {
         EXECUTOR.submit(() -> {
-            List<Vec3> result;
-            try {
-                result = search(level, from, to);
-            } catch (RuntimeException e) {
-                report(e.getClass().getSimpleName() + ": " + e.getMessage());
-                result = List.of();
-            }
-            List<Vec3> found = result;
-            Minecraft.getInstance().execute(() -> callback.accept(found));
+            Result result = attempt(level, from, to);
+            Minecraft.getInstance().execute(() -> callback.accept(result));
         });
     }
 
-    private static List<Vec3> search(Level level, BlockPos from, BlockPos to) {
-        if (!level.hasChunkAt(from) || !level.hasChunkAt(to)) return List.of();
+    private static Result attempt(Level level, BlockPos from, BlockPos to) {
+        try {
+            return search(level, from, to);
+        } catch (RuntimeException e) {
+            report(e.getClass().getSimpleName() + ": " + e.getMessage());
+        }
+        try {
+            return search(level, from, to);
+        } catch (RuntimeException e) {
+            report("retry " + e.getClass().getSimpleName() + ": " + e.getMessage());
+            return new Result(List.of(), false);
+        }
+    }
+
+    private static Result search(Level level, BlockPos from, BlockPos to) {
+        if (!level.hasChunkAt(from) || !level.hasChunkAt(to)) return new Result(List.of(), false);
 
         BlockPos start = surface(level, from);
         if (start == null) {
             report("no-start");
-            return List.of();
+            return new Result(List.of(), false);
         }
         BlockPos goal = snapTarget(level, to);
 
@@ -171,9 +181,9 @@ public final class Navigator {
                     + " dy=" + (to.getY() - start.getY())
                     + " snapped=" + goal.toShortString()
                     + " best=" + best.toShortString());
-            return finish(smooth(trace(best, parents)), goal);
+            return new Result(finish(smooth(trace(best, parents)), goal), false);
         }
-        return finish(smooth(trace(reached, parents)), goal);
+        return new Result(finish(smooth(trace(reached, parents)), goal), true);
     }
 
     private static List<Vec3> finish(List<Vec3> points, BlockPos goal) {

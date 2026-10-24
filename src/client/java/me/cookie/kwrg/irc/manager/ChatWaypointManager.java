@@ -220,6 +220,7 @@ public final class ChatWaypointManager {
         private List<Vec3> path = List.of();
         private int[] breaks = new int[0];
         private boolean searching;
+        private boolean complete;
         private long nextAt;
         private boolean warned;
     }
@@ -245,6 +246,7 @@ public final class ChatWaypointManager {
         private void clearPath() {
             main.path = List.of();
             main.breaks = new int[0];
+            main.complete = false;
         }
 
         private boolean hasGuide() {
@@ -269,14 +271,16 @@ public final class ChatWaypointManager {
             if (main.searching) return;
             main.searching = true;
             main.nextAt = now + refresh(active);
-            Navigator.searchAsync(level, origin, pos, found -> {
+            Navigator.searchAsync(level, origin, pos, result -> {
                 main.searching = false;
-                main.path = found;
-                main.breaks = breakpoints(found);
-                main.nextAt = System.currentTimeMillis() + (found.isEmpty() ? RETRY_INTERVAL_MS : refresh(active));
-                if (found.isEmpty() && !main.warned && Minecraft.getInstance().level != null) {
+                main.path = result.points();
+                main.breaks = breakpoints(main.path);
+                main.complete = result.complete();
+                main.nextAt = System.currentTimeMillis()
+                        + (result.complete() ? refresh(active) : RETRY_INTERVAL_MS);
+                if (!result.complete() && !main.warned && Minecraft.getInstance().level != null) {
                     main.warned = true;
-                    ChatNotifier.send("§e[Waypoint] 暂未找到可步行路径，先按直线指向", NotificationType.INFO);
+                    ChatNotifier.send("§e[Waypoint] 不能完整步行到达，已用直线补最后一段", NotificationType.INFO);
                 }
             });
         }
@@ -343,9 +347,9 @@ public final class ChatWaypointManager {
             }
             if (guide.searching) return;
             guide.searching = true;
-            Navigator.searchAsync(level, from, pos, found -> {
+            Navigator.searchAsync(level, from, pos, result -> {
                 guide.searching = false;
-                guide.path = found;
+                guide.path = result.points();
             });
         }
     }
