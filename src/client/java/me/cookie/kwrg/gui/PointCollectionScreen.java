@@ -1341,6 +1341,10 @@ public abstract class PointCollectionScreen {
         int dialogW = Math.min(340, panelW - 32);
         int x = panelX + (panelW - dialogW) / 2, y = panelY + panelH / 2 - 76;
 
+        routeNameInput.setTextColor(AnimationUtil.opaqueArgb(routeNameInput.isFocused()
+                ? GuiThemeService.textStrong()
+                : GuiThemeService.textBody()));
+
         float progress = namingProgress();
 
         float currentX = AnimationUtil.lerp(progress, namingOrigin.x(), x);
