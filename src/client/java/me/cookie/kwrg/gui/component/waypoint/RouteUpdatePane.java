@@ -112,7 +112,7 @@ public final class RouteUpdatePane {
                 currentX, currentY, currentW, currentH,
                 AnimationUtil.lerp(p, 5, 10),
                 AnimationUtil.lerpColor(p, originColor, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.cardBg()))),
-                Color.ofArgb(AnimationUtil.argb(GuiThemeService.regionFill(), 0x88))
+                AnimationUtil.withAlpha(GuiThemeService.regionBorder(), 0x88)
         );
 
         float labelAlpha = 1 - Mth.clamp(p * 4, 0, 1);

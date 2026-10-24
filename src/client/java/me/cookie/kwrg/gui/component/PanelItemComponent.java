@@ -203,7 +203,7 @@ public class PanelItemComponent extends BaseGuiComponent {
         float borderAlphaFactor = Mth.lerp(this.activeAnimation, this.hoverAnimation * 0.45f, 1.0f);
         int currentBorderAlpha = (int) (255 * borderAlphaFactor * totalAlpha);
 
-        Color itemBg = Color.ofArgb(AnimationUtil.argb(this.rowBg(), currentBgAlpha));
+        Color itemBg = AnimationUtil.withAlpha(this.rowBg(), currentBgAlpha);
 
         int borderFrom = this.rowBg();
         int borderTo = this.rowBorder();
@@ -263,8 +263,8 @@ public class PanelItemComponent extends BaseGuiComponent {
             Color dotFade = AnimationUtil.withAlpha(ARGB.color(255, dotR, dotG, dotB), 0);
             RenderUtil.drawAACircle(graphics, dotX, dotY, 2.5, dotColor, dotFade);
         } else if (this.hoverAnimation > 0.05f) {
-            Color dotColor = Color.ofArgb(AnimationUtil.argb(this.dotHover(), (int) (160 * this.hoverAnimation * totalAlpha)));
-            Color dotFade = Color.ofArgb(AnimationUtil.argb(this.dotHover(), 0));
+            Color dotColor = AnimationUtil.withAlpha(this.dotHover(), (int) (160 * this.hoverAnimation * totalAlpha));
+            Color dotFade = AnimationUtil.withAlpha(this.dotHover(), 0);
             RenderUtil.drawAACircle(graphics, dotX, dotY, 2.0, dotColor, dotFade);
         }
 

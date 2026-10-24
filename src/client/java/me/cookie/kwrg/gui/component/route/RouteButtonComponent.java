@@ -10,7 +10,7 @@ import net.minecraft.network.chat.Component;
 /** Small route controls share the same hover, toggle and click colour transitions. */
 public final class RouteButtonComponent {
     private int x, y, width, height;
-    private Color from = Color.ofArgb(AnimationUtil.argb(GuiThemeService.cardBg(), 0x24));
+    private Color from = AnimationUtil.withAlpha(GuiThemeService.cardBg(), 0x24);
     private Color target = from;
     private Color current = from;
     private long transitionStart;

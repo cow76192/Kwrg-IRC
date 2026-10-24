@@ -38,10 +38,7 @@ import net.minecraft.util.Mth;
     }
 
     public static Color withAlpha(int rgb, int alpha) {
-        int r = (rgb >> 16) & 0xFF;
-        int g = (rgb >> 8) & 0xFF;
-        int b = rgb & 0xFF;
-        return Color.ofArgb(ARGB.color(alpha, r, g, b));
+        return Color.ofArgb(argb(rgb, alpha));
     }
 
     public static Color lerpColor(float delta, Color start, Color end) {

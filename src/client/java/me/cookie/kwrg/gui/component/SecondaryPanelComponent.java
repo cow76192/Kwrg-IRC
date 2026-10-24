@@ -206,7 +206,7 @@ public class SecondaryPanelComponent extends FlowLayout {
 
         float panelAlpha = ease;
         int bgAlpha = (int) (255 * panelAlpha * GuiThemeService.opacity());
-        int outlineAlpha = (int) (85 * panelAlpha);
+        int outlineAlpha = (int) (85 * panelAlpha * GuiThemeService.opacity());
 
         Color panelBg = AnimationUtil.withAlpha(GuiThemeService.panelBg(), bgAlpha);
         Color outlineColor = AnimationUtil.withAlpha(GuiThemeService.panelOutline(), outlineAlpha);
@@ -221,7 +221,7 @@ public class SecondaryPanelComponent extends FlowLayout {
         int iconBadgeY = py + 22;
 
         Color badgeBg = AnimationUtil.withAlpha(GuiThemeService.badgeBg(), (int) (255 * panelAlpha));
-        Color badgeOutline = AnimationUtil.withAlpha(GuiThemeService.textStrong(), (int) (85 * panelAlpha));
+        Color badgeOutline = AnimationUtil.withAlpha(GuiThemeService.badgeText(), (int) (85 * panelAlpha));
         graphics.drawCircle(iconBadgeX, iconBadgeY, 32, iconBadgeRadius, badgeBg);
         graphics.drawRing(iconBadgeX, iconBadgeY, 32, iconBadgeRadius - 0.8, iconBadgeRadius, badgeOutline, badgeOutline);
 

@@ -216,7 +216,11 @@ public class ColorUtil {
 
         Matcher rgbMatcher = RGB_PATTERN.matcher(str);
         if (rgbMatcher.find()) {
-            return new Color(parseChannel(rgbMatcher.group(1)), parseChannel(rgbMatcher.group(2)), parseChannel(rgbMatcher.group(3)));
+            Integer red = parseChannel(rgbMatcher.group(1));
+            Integer green = parseChannel(rgbMatcher.group(2));
+            Integer blue = parseChannel(rgbMatcher.group(3));
+            if (red == null || green == null || blue == null) return null;
+            return new Color(red, green, blue);
         }
 
         Matcher hexMatcher = HEX_PATTERN.matcher(str);
@@ -249,24 +253,24 @@ public class ColorUtil {
         if (direct != null) return direct;
         Matcher m = SPACE_RGB_PATTERN.matcher(raw);
         if (m.matches()) {
-            int r = clamp255(Integer.parseInt(m.group(1)));
-            int g = clamp255(Integer.parseInt(m.group(2)));
-            int b = clamp255(Integer.parseInt(m.group(3)));
+            int r = clampChannel(Integer.parseInt(m.group(1)));
+            int g = clampChannel(Integer.parseInt(m.group(2)));
+            int b = clampChannel(Integer.parseInt(m.group(3)));
             return new Color(r, g, b);
         }
         return null;
     }
 
-    private static int parseChannel(String raw) {
+    private static Integer parseChannel(String raw) {
         try {
-            return Math.clamp(Integer.parseInt(raw), 0, 255);
+            return clampChannel(Integer.parseInt(raw));
         } catch (NumberFormatException e) {
-            return 0;
+            return null;
         }
     }
 
-    private static int clamp255(int v) {
-        return Math.min(255, Math.max(0, v));
+    private static int clampChannel(int v) {
+        return Math.clamp(v, 0, 255);
     }
 
     public static int applyHslTransform(int rgb, float hue, float saturation, float lightness) {
@@ -341,7 +345,7 @@ public class ColorUtil {
         float r = hueToRgb(p, q, h + 1.0F / 3.0F);
         float g = hueToRgb(p, q, h);
         float b = hueToRgb(p, q, h - 1.0F / 3.0F);
-        return new Color(Math.clamp((int) (r * 255), 0, 255), Math.clamp((int) (g * 255), 0, 255), Math.clamp((int) (b * 255), 0, 255));
+        return new Color(clampChannel((int) (r * 255)), clampChannel((int) (g * 255)), clampChannel((int) (b * 255)));
     }
 
     private static float hueToRgb(float p, float q, float t) {
