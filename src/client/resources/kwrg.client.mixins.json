@@ -13,6 +13,7 @@
 		"OptionsMixin",
 		"MinecraftKeybindMixin",
 		"MouseHandlerMixin",
+		"GameRendererMixin",
 		"HudNotificationMixin",
 		"VanillaScoreboardMixin",
 		"ChatComponentMixin",

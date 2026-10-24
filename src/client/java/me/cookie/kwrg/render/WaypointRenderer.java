@@ -19,6 +19,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 
@@ -27,6 +28,9 @@ import java.util.List;
 
 /** Frame-local waypoint overlays, independent of chunk distance and world fog. */
 public final class WaypointRenderer {
+    private static final Matrix4f WORLD_PROJECTION = new Matrix4f();
+    // The vanilla line vertex shader shrinks view-space coordinates by this factor.
+    private static final float LINE_VIEW_SHRINK = 1.0f - 1.0f / 256.0f;
     private static final double OVERLAY_DISTANCE = 64.0;
     private static final float BEAM_HEIGHT = 2048.0f;
     private static final Identifier BEAM_TEXTURE = Identifier.withDefaultNamespace("textures/entity/beacon/beacon_beam.png");
@@ -55,27 +59,31 @@ public final class WaypointRenderer {
     private final RouteLineRenderer tracers = new RouteLineRenderer();
     private final List<Beam> beams = new ArrayList<>();
 
+    public static void captureWorldProjection(Matrix4fc projection) {
+        WORLD_PROJECTION.set(projection);
+    }
+
     public WaypointRenderer(LevelRenderContext context, float animationTime) {
         this.context = context;
         this.cameraPosition = context.levelState().cameraRenderState.pos;
         this.animationTime = animationTime;
         // Camera rotation is applied globally by LevelRenderer; the callback pose
         // stack contains only local transforms. Both are needed for view-space tests.
-        this.viewMatrix = new Matrix4f(context.levelState().cameraRenderState.viewRotationMatrix)
+        this.viewMatrix = new Matrix4f().scaling(LINE_VIEW_SHRINK)
+                .mul(context.levelState().cameraRenderState.viewRotationMatrix)
                 .mul(context.poseStack().last().pose());
-        this.projectionMatrix = new Matrix4f(context.levelState().cameraRenderState.projectionMatrix);
+        // GameRenderer adds walking/hurt bobbing to the uploaded projection, rather
+        // than cameraRenderState.projectionMatrix or the callback pose stack.
+        this.projectionMatrix = new Matrix4f(WORLD_PROJECTION);
         this.inverseViewProjection = new Matrix4f(projectionMatrix).mul(viewMatrix).invert();
         Matrix4f inverseView = new Matrix4f(viewMatrix).invert();
         Vector3f eye = inverseView.transformPosition(new Vector3f());
         this.projectionOffset = new Vec3(eye.x(), eye.y(), eye.z());
         this.projectionOrigin = cameraPosition.add(projectionOffset);
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player != null) {
-            float partialTick = mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);
-            this.tracerStart = mc.player.getEyePosition(partialTick).add(mc.player.getViewVector(partialTick).scale(2.0));
-        } else {
-            this.tracerStart = cameraPosition;
-        }
+        // Unproject the crosshair using the exact matrices used by the line shader.
+        // Keep it far enough from the eye to survive vanilla's near-plane clipping.
+        Vector3f origin = inverseViewProjection.transformProject(new Vector3f(0, 0, 0.9f));
+        this.tracerStart = cameraPosition.add(origin.x(), origin.y(), origin.z());
     }
 
     public void waypoint(BlockPos pos, int color, boolean showBeam) {
