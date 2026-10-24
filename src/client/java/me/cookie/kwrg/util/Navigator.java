@@ -35,11 +35,28 @@ public final class Navigator {
     private static final float FALL_PENALTY = 0.5f;
     private static final int MAX_HOP = 8;
     private static final int MAX_JUMP_UP = 1;
+    private static final int TELEPORT_RANGE = 61;
+    private static final float TELEPORT_COST = 2.0f;
     private static final float GOAL_RADIUS_SQ = 6.0f;
     private static final double SMOOTHING_STEP = 0.5;
     private static final int[][] DIRECTIONS = {
             {1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
     };
+
+    private static final int[][] RAY_DIRECTIONS = buildRayDirections();
+
+    private static int[][] buildRayDirections() {
+        java.util.List<int[]> list = new java.util.ArrayList<>(26);
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dy = -1; dy <= 1; dy++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    if (dx == 0 && dy == 0 && dz == 0) continue;
+                    list.add(new int[]{dx, dy, dz});
+                }
+            }
+        }
+        return list.toArray(new int[0][]);
+    }
 
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor(r -> {
         Thread thread = new Thread(r, "kwrg-navigator");
@@ -104,23 +121,28 @@ public final class Navigator {
                 best = current.pos;
             }
 
+            boolean progressed = false;
+
             for (int[] direction : DIRECTIONS) {
                 boolean diagonal = direction[0] != 0 && direction[1] != 0;
 
                 BlockPos walk = walkNeighbour(level, current.pos, direction[0], direction[1]);
                 if (walk != null) {
                     relax(scores, parents, open, current.pos, current.g, walk, stepCost(level, current.pos, walk, diagonal), goal, start);
+                    progressed = true;
                 } else {
                     BlockPos jump = hop(level, current.pos, direction[0], direction[1]);
                     if (jump != null) {
                         relax(scores, parents, open, current.pos, current.g, jump,
                                 (float) Math.sqrt(current.pos.distSqr(jump)) + HOP_COST, goal, start);
+                        progressed = true;
                     }
                 }
 
                 BlockPos drop = fallNeighbour(level, current.pos, direction[0], direction[1]);
                 if (drop != null) {
                     relax(scores, parents, open, current.pos, current.g, drop, stepCost(level, current.pos, drop, diagonal), goal, start);
+                    progressed = true;
                 }
             }
 
@@ -129,7 +151,12 @@ public final class Navigator {
                     BlockPos candidate = current.pos.above(dy);
                     if (!(dy > 0 ? free(level, candidate) : walkable(level, candidate))) continue;
                     relax(scores, parents, open, current.pos, current.g, candidate, CLIMB_COST, goal, start);
+                    progressed = true;
                 }
+            }
+
+            if (!progressed) {
+                teleportEdges(level, current.pos, current.g, goal, start, scores, parents, open);
             }
         }
 
@@ -214,20 +241,47 @@ public final class Navigator {
     }
 
     private static BlockPos hop(Level level, BlockPos from, int dx, int dz) {
+        BlockPos best = null;
+        int bestStep = 0;
+        double bestScore = Double.MAX_VALUE;
+
         for (int step = 1; step <= MAX_HOP + MAX_FALL; step++) {
             BlockPos column = from.offset(dx * step, 0, dz * step);
             BlockPos landing = landing(level, column);
             if (landing != null) {
                 int vertical = landing.getY() - from.getY();
-                if (vertical > MAX_JUMP_UP) continue;
-                if (step > MAX_HOP - vertical) continue;
-                if (dx != 0 && dz != 0
-                        && (!free(level, from.offset(dx * step, 0, 0)) || !free(level, from.offset(0, 0, dz * step)))) return null;
-                return landing;
+                if (vertical <= MAX_JUMP_UP && step <= MAX_HOP - vertical) {
+                    double score = Math.abs(vertical) * 2.0 + step;
+                    if (score < bestScore) {
+                        bestScore = score;
+                        best = landing;
+                        bestStep = step;
+                    }
+                }
             }
-            if (!free(level, column)) return null;
+            if (!free(level, column)) break;
         }
-        return null;
+        if (best == null) return null;
+        if (dx != 0 && dz != 0
+                && (!free(level, from.offset(dx * bestStep, 0, 0)) || !free(level, from.offset(0, 0, dz * bestStep)))) {
+            return null;
+        }
+        return best;
+    }
+
+    private static void teleportEdges(Level level, BlockPos from, float g, BlockPos goal, BlockPos start,
+                                      Map<Long, Float> scores, Map<Long, BlockPos> parents, PriorityQueue<Entry> open) {
+        for (int[] direction : RAY_DIRECTIONS) {
+            for (int step = 1; step <= TELEPORT_RANGE; step++) {
+                BlockPos cell = from.offset(direction[0] * step, direction[1] * step, direction[2] * step);
+                if (blocked(level, cell)) break;
+                if (standable(level, cell)) {
+                    relax(scores, parents, open, from, g, cell,
+                            (float) Math.sqrt(from.distSqr(cell)) + TELEPORT_COST, goal, start);
+                    break;
+                }
+            }
+        }
     }
 
     private static BlockPos landing(Level level, BlockPos column) {
