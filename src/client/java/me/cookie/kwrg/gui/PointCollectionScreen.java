@@ -541,7 +541,7 @@ public abstract class PointCollectionScreen {
 
         OwoUIGraphics owo = RenderUtil.withOpacity(OwoUIGraphics.of(graphics), alpha * GuiThemeService.opacity());
         RenderUtil.drawSubpixelRoundedPanel(owo, panelX, panelY, panelW, panelH, 14,
-                Color.ofArgb(AnimationUtil.argb(GuiThemeService.panelBg(), 0xF5)), Color.ofArgb(AnimationUtil.argb(GuiThemeService.panelOutline(), 0x80)));
+                AnimationUtil.withAlpha(GuiThemeService.panelBg(), 0xF5), AnimationUtil.withAlpha(GuiThemeService.panelOutline(), 0x80));
 
         if (alpha > 0.03f) {
             boolean editor = pageTarget > 0;
@@ -582,7 +582,7 @@ public abstract class PointCollectionScreen {
 
             RenderUtil.drawScrollThumb(owo, contentX + contentW - 2, contentY, contentH,
                     editor ? points.size() * RoutePointComponent.HEIGHT : files.size() * FILE_HEIGHT,
-                    editor ? pointScroll : fileScroll, Color.ofArgb(AnimationUtil.argb(GuiThemeService.panelOutline(), 0xAA)));
+                    editor ? pointScroll : fileScroll, AnimationUtil.withAlpha(GuiThemeService.panelOutline(), 0xAA));
             RenderUtil.drawSmoothText(owo, editor ? "长按序号 / 空白拖动排序 · 右键返回 · × 删除需确认" : store.supportsLines() ? "左键激活 · 右键编辑 · Shift + 左键删除 · 右键面板外关闭" : "左键切换激活 · 右键编辑 · Shift + 左键删除 · 可多选激活", panelX + 16, panelY + panelH - 25, AnimationUtil.opaqueArgb(GuiThemeService.textMuted()));
 
             if (pointDrag.holding()) renderHeldPoint(graphics, owo, mouseX, mouseY, partialTick, now);
@@ -626,7 +626,7 @@ public abstract class PointCollectionScreen {
         float currentX = AnimationUtil.lerp(progress, origin.x(), x), currentY = AnimationUtil.lerp(progress, origin.y(), y);
         float currentW = AnimationUtil.lerp(progress, origin.width(), width), currentH = AnimationUtil.lerp(progress, origin.height(), height);
 
-        RenderUtil.drawSubpixelRoundedPanel(graphics, currentX, currentY, currentW, currentH, 8, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.cardBg())), Color.ofArgb(AnimationUtil.argb(GuiThemeService.danger(), 0xAA)));
+        RenderUtil.drawSubpixelRoundedPanel(graphics, currentX, currentY, currentW, currentH, 8, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.cardBg())), AnimationUtil.withAlpha(GuiThemeService.errorBorder(), 0xAA));
         graphics.pose().pushMatrix();
         graphics.pose().translate(currentX, currentY);
         graphics.pose().scale(currentW / width, currentH / height);
@@ -687,7 +687,7 @@ public abstract class PointCollectionScreen {
         RenderUtil.drawSubpixelRoundedPanel(owo, x - 1, y + 3 + 3 * lift, contentW + 2, RoutePointComponent.HEIGHT - 2, 8,
                 Color.ofArgb(0x70000000), Color.ofArgb(0x00000000));
         RenderUtil.drawSubpixelRoundedPanel(owo, x - 1, y + 1, contentW + 2, RoutePointComponent.HEIGHT - 2, 8,
-                Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.cardBg())), Color.ofArgb(AnimationUtil.argb(GuiThemeService.accentSoft(), 0xCC)));
+                Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.cardBg())), AnimationUtil.withAlpha(GuiThemeService.accentSoft(), 0xCC));
         held.render(graphics, owo, mouseX, mouseY, partialTick);
 
         graphics.pose().popMatrix();
@@ -1354,7 +1354,7 @@ public abstract class PointCollectionScreen {
         RenderUtil.drawSubpixelRoundedPanel(owo, currentX, currentY, currentW, currentH,
                 AnimationUtil.lerp(progress, 5, 10),
                 AnimationUtil.lerpColor(progress, namingOriginColor, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.cardBg()))),
-                Color.ofArgb(AnimationUtil.argb(GuiThemeService.regionFill(), 0x88)));
+                AnimationUtil.withAlpha(GuiThemeService.regionBorder(), 0x88));
 
         float labelAlpha = 1 - Mth.clamp(progress * 4, 0, 1);
 
@@ -1404,7 +1404,7 @@ public abstract class PointCollectionScreen {
 
         RenderUtil.drawSubpixelRoundedPanel(graphics, currentX, currentY, currentW, currentH,
                 AnimationUtil.lerp(progress, 5, 10),
-                AnimationUtil.lerpColor(progress, deleteOriginColor, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.cardBg()))), Color.ofArgb(AnimationUtil.argb(GuiThemeService.danger(), 0xAA)));
+                AnimationUtil.lerpColor(progress, deleteOriginColor, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.cardBg()))), AnimationUtil.withAlpha(GuiThemeService.errorBorder(), 0xAA));
         float labelAlpha = 1 - Mth.clamp(progress * 4, 0, 1);
 
         if (labelAlpha > 0.005f) {

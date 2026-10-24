@@ -73,7 +73,7 @@ public class SmoothScrollbar {
         this.hoverAnimation = Mth.clamp(this.hoverAnimation + (targetHover - this.hoverAnimation) * delta * 0.35f, 0.0f, 1.0f);
 
         int alpha = (int) (255 * (0.45f + this.hoverAnimation * 0.40f) * this.fadeAlpha * panelAlpha);
-        Color thumbColor = Color.ofArgb(AnimationUtil.argb(GuiThemeService.textStrong(), alpha));
+        Color thumbColor = AnimationUtil.withAlpha(GuiThemeService.textStrong(), alpha);
 
         RenderUtil.drawRoundedPanel(graphics, scrollbarX, thumbY, 2, thumbH, 1.0f, thumbColor, thumbColor);
     }

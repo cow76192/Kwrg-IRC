@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.gui.manager.GuiColorManager;
+import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import me.cookie.kwrg.irc.manager.RouteManager;
 import me.cookie.kwrg.irc.manager.WaypointManager;
@@ -195,6 +196,8 @@ public class IrcConfig {
                 if (loaded.myCape == null) loaded.myCape = "";
 
                 if (loaded.myScale <= 0.0f || Float.isNaN(loaded.myScale)) loaded.myScale = 1.0f;
+                if (!Float.isFinite(loaded.guiOpacity)) loaded.guiOpacity = 1.0f;
+                loaded.guiOpacity = Math.clamp(loaded.guiOpacity, GuiThemeService.MIN_OPACITY, 1.0f);
                 if (loaded.capeCanvasSize < 64) loaded.capeCanvasSize = 4096;
                 if (loaded.capeAnimFps <= 0) loaded.capeAnimFps = 10;
                 if (loaded.capeRenderMaxFps <= 0) loaded.capeRenderMaxFps = 120;

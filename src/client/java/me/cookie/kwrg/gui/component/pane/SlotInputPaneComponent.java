@@ -353,7 +353,7 @@ public class SlotInputPaneComponent extends BasePaneComponent {
             graphics.pose().pushMatrix();
             graphics.pose().translate(-halfW + 8.0f, textStartY);
             graphics.pose().scale(textScale, textScale);
-            graphics.drawText(this.styledLeftLabel, 0, 0, 1.0f, AnimationUtil.opaqueArgb(GuiThemeService.paneBorder()), OwoUIGraphics.TextAnchor.TOP_LEFT);
+            graphics.drawText(this.styledLeftLabel, 0, 0, 1.0f, AnimationUtil.opaqueArgb(GuiThemeService.textLabel()), OwoUIGraphics.TextAnchor.TOP_LEFT);
             graphics.pose().popMatrix();
         }
 
@@ -432,7 +432,7 @@ public class SlotInputPaneComponent extends BasePaneComponent {
                 float activeX = centerLineX - halfSpread;
                 float activeH = 2.0f;
                 float activeR = 1.0f;
-                Color activeLineColor = Color.ofArgb(AnimationUtil.argb(GuiThemeService.accent(), (int) (255 * ease)));
+                Color activeLineColor = AnimationUtil.withAlpha(GuiThemeService.accent(), (int) (255 * ease));
                 RenderUtil.drawSubpixelRoundedPanel(graphics, activeX, lineY - 0.25f, activeWidth, activeH, activeR, activeLineColor, null);
             }
 

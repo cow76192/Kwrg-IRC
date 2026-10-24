@@ -26,12 +26,14 @@ public final class GuiThemeService {
     private static final int TEXT_FAINT_DARK = 0x607D8B;
     private static final int TEXT_DIM_DARK = 0x546E7A;
     private static final int TEXT_HEADER_DARK = 0xB0BEC5;
+    private static final int TEXT_LABEL_DARK = 0x90A4AE;
     private static final int TEXT_STRONG_LIGHT = 0x2E3742;
     private static final int TEXT_BODY_LIGHT = 0x3E4854;
     private static final int TEXT_MUTED_LIGHT = 0x616D7A;
     private static final int TEXT_FAINT_LIGHT = 0x7C8794;
     private static final int TEXT_DIM_LIGHT = 0x909BA7;
     private static final int TEXT_HEADER_LIGHT = 0x55606C;
+    private static final int TEXT_LABEL_LIGHT = 0x4E5A66;
     private static final int TOGGLE_OFF = 0x455A64;
     private static final int TOGGLE_ON = 0xB0BEC5;
     private static final int BADGE_BG = 0x1D2633;
@@ -44,7 +46,7 @@ public final class GuiThemeService {
     private static final int DOT_HOVER = 0xB0BEC5;
     private static final int DANGER_DARK = 0xFFA8B4;
     private static final int WARNING_DARK = 0xFFDB94;
-    private static final int REGION_FILL = 0x5AA5C4;
+    private static final int REGION_BORDER = 0x5AA5C4;
     private static final int ACCENT_SOFT_DARK = 0x80D7FF;
     private static final int DANGER_LIGHT = 0x9B2C3A;
     private static final int WARNING_LIGHT = 0x8A5A00;
@@ -70,7 +72,8 @@ public final class GuiThemeService {
     private static final int TONE_ACCENT_SOFT = 13;
     private static final int TONE_ERROR_SURFACE = 14;
     private static final int TONE_ERROR_BORDER = 15;
-    private static final int TONE_COUNT = 16;
+    private static final int TONE_TEXT_LABEL = 16;
+    private static final int TONE_COUNT = 17;
 
     private static volatile int[] toneFrom = new int[TONE_COUNT];
     private static volatile int[] toneTo = new int[TONE_COUNT];
@@ -95,6 +98,7 @@ public final class GuiThemeService {
     public static int textFaint() { return tone(TONE_TEXT_FAINT); }
     public static int textDim() { return tone(TONE_TEXT_DIM); }
     public static int textHeader() { return tone(TONE_TEXT_HEADER); }
+    public static int textLabel() { return tone(TONE_TEXT_LABEL); }
     public static int circleBg() { return PANE_BG; }
     public static int paneBorder() { return PANE_BORDER; }
     public static int paneBorderFocused() { return PANE_BORDER_FOCUSED; }
@@ -113,7 +117,7 @@ public final class GuiThemeService {
     public static int dotHover() { return DOT_HOVER; }
     public static int danger() { return tone(TONE_DANGER); }
     public static int warning() { return tone(TONE_WARNING); }
-    public static int regionFill() { return REGION_FILL; }
+    public static int regionBorder() { return REGION_BORDER; }
     public static int accentSoft() { return tone(TONE_ACCENT_SOFT); }
     public static int errorSurface() { return tone(TONE_ERROR_SURFACE); }
     public static int errorBorder() { return tone(TONE_ERROR_BORDER); }
@@ -143,25 +147,26 @@ public final class GuiThemeService {
     }
 
     private static int[] toneValuesFor(int panelBg) {
-        boolean darkForeground = ColorUtil.relativeLuminance(panelBg) >= 0.179;
+        boolean lightBackground = ColorUtil.relativeLuminance(panelBg) >= 0.179;
         int cardBg = ColorUtil.neighborTone(panelBg, 0.055f);
         return new int[]{
                 panelBg,
                 ColorUtil.deriveOutline(panelBg),
                 cardBg,
                 ColorUtil.deriveOutline(cardBg),
-                darkForeground ? TEXT_STRONG_LIGHT : TEXT_STRONG_DARK,
-                darkForeground ? TEXT_BODY_LIGHT : TEXT_BODY_DARK,
-                darkForeground ? TEXT_MUTED_LIGHT : TEXT_MUTED_DARK,
-                darkForeground ? TEXT_FAINT_LIGHT : TEXT_FAINT_DARK,
-                darkForeground ? TEXT_DIM_LIGHT : TEXT_DIM_DARK,
-                darkForeground ? TEXT_HEADER_LIGHT : TEXT_HEADER_DARK,
-                darkForeground ? TEXT_READ_ONLY_LIGHT : TEXT_READ_ONLY_DARK,
-                darkForeground ? DANGER_LIGHT : DANGER_DARK,
-                darkForeground ? WARNING_LIGHT : WARNING_DARK,
-                darkForeground ? ACCENT_SOFT_LIGHT : ACCENT_SOFT_DARK,
-                darkForeground ? ERROR_SURFACE_LIGHT : ERROR_SURFACE_DARK,
-                darkForeground ? ERROR_BORDER_LIGHT : ERROR_BORDER_DARK
+                lightBackground ? TEXT_STRONG_LIGHT : TEXT_STRONG_DARK,
+                lightBackground ? TEXT_BODY_LIGHT : TEXT_BODY_DARK,
+                lightBackground ? TEXT_MUTED_LIGHT : TEXT_MUTED_DARK,
+                lightBackground ? TEXT_FAINT_LIGHT : TEXT_FAINT_DARK,
+                lightBackground ? TEXT_DIM_LIGHT : TEXT_DIM_DARK,
+                lightBackground ? TEXT_HEADER_LIGHT : TEXT_HEADER_DARK,
+                lightBackground ? TEXT_READ_ONLY_LIGHT : TEXT_READ_ONLY_DARK,
+                lightBackground ? DANGER_LIGHT : DANGER_DARK,
+                lightBackground ? WARNING_LIGHT : WARNING_DARK,
+                lightBackground ? ACCENT_SOFT_LIGHT : ACCENT_SOFT_DARK,
+                lightBackground ? ERROR_SURFACE_LIGHT : ERROR_SURFACE_DARK,
+                lightBackground ? ERROR_BORDER_LIGHT : ERROR_BORDER_DARK,
+                lightBackground ? TEXT_LABEL_LIGHT : TEXT_LABEL_DARK
         };
     }
 
