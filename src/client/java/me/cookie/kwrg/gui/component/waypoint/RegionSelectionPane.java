@@ -86,6 +86,9 @@ public final class RegionSelectionPane {
         search.setX(x + 16);
         search.setY(y + 42);
         search.setWidth(width - 32);
+        search.setTextColor(AnimationUtil.opaqueArgb(search.isFocused()
+                ? GuiThemeService.textStrong()
+                : GuiThemeService.textBody()));
         done.bounds(x + width - 72, y + height - 32, 56, 22);
 
         List<SkyblockIsland> results = SkyblockIsland.search(search.getValue());
