@@ -330,6 +330,8 @@ public class IrcMessageHandler {
             segments.add(new ChatNotifier.AnimatedSegment(suffix, "", true));
         }
 
+        me.cookie.kwrg.irc.manager.ChatWaypointManager.appendButton(segments, body, rank, username);
+
         ChatNotifier.sendAnimatedInChatScreen(segments);
         ChatModule.playConfiguredSound();
 
@@ -339,14 +341,6 @@ public class IrcMessageHandler {
                 break;
             }
         }
-    }
-
-    public static void displayFormattedMessage(String channel, String rank, String nameStyle, String username, String chatStyle, String content) {
-        displayFormattedMessage(channel, rank, nameStyle, username, chatStyle, content, "", "");
-    }
-
-    public static void displayFormattedMessage(String rank, String nameStyle, String username, String chatStyle, String content) {
-        displayFormattedMessage("", rank, nameStyle, username, chatStyle, content);
     }
 
     private static void triggerTotemEffect(String sender, String rawItemId) {

@@ -42,6 +42,7 @@ public class CookieMain implements ClientModInitializer {
         IrcConfig.load();
         IrcCommand.register();
         WaypointManager.init();
+        me.cookie.kwrg.irc.manager.ChatWaypointManager.init();
         RouteManager.init();
 
         CompletableFuture.runAsync(() -> {

@@ -184,7 +184,6 @@ public final class WaypointRouteUpdate {
         PointEntry copy = new PointEntry(point.name, point.x, point.y, point.z);
         copy.id = point.id;
         copy.visible = point.visible;
-        copy.temporary = point.temporary;
         copy.explicitId = point.explicitId;
         return copy;
     }

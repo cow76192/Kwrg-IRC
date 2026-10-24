@@ -219,6 +219,17 @@ public class IrcCommand {
                             me.cookie.kwrg.module.modules.config.ShareModule.openShareGui();
                             return 1;
                         }))
+                .then(literal("waypoint")
+                        .then(literal("chat")
+                                .then(argument("x", IntegerArgumentType.integer(-30000000, 30000000))
+                                        .then(argument("y", IntegerArgumentType.integer(-30000000, 30000000))
+                                                .then(argument("z", IntegerArgumentType.integer(-30000000, 30000000))
+                                                        .then(argument("label", StringArgumentType.greedyString())
+                                                                .executes(context -> me.cookie.kwrg.irc.manager.ChatWaypointManager.mark(
+                                                                        IntegerArgumentType.getInteger(context, "x"),
+                                                                        IntegerArgumentType.getInteger(context, "y"),
+                                                                        IntegerArgumentType.getInteger(context, "z"),
+                                                                        StringArgumentType.getString(context, "label")))))))))
                 .then(literal("rank")
                         .then(argument("name", StringArgumentType.greedyString())
                                 .executes(context -> RankModule.setRank(StringArgumentType.getString(context, "name"))))

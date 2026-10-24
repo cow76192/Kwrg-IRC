@@ -1,6 +1,5 @@
 package me.cookie.kwrg.util;
 
-import me.cookie.kwrg.irc.manager.WaypointManager;
 
 import net.hypixel.modapi.HypixelModAPI;
 import net.hypixel.modapi.packet.impl.clientbound.event.ClientboundLocationPacket;
@@ -30,7 +29,7 @@ public final class SkyblockLocation {
         api.subscribeToEventPacket(ClientboundLocationPacket.class);
         api.createHandler(ClientboundLocationPacket.class, packet -> Minecraft.getInstance().execute(() -> {
             if (!server.equals(packet.getServerName())) {
-                WaypointManager.clearTemporary();
+                me.cookie.kwrg.irc.manager.ChatWaypointManager.clear();
             }
             server = packet.getServerName();
             boolean skyblock = packet.getServerType().map(type -> type.name().equals("SKYBLOCK")).orElse(false);
