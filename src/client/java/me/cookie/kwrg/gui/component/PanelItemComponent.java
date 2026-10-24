@@ -1,6 +1,5 @@
 package me.cookie.kwrg.gui.component;
 
-import io.wispforest.owo.ui.base.BaseUIComponent;
 import io.wispforest.owo.ui.core.*;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
@@ -16,7 +15,7 @@ import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
-public class PanelItemComponent extends BaseUIComponent {
+public class PanelItemComponent extends BaseGuiComponent {
 
     public enum ItemType {
         TRIGGER,
@@ -149,7 +148,6 @@ public class PanelItemComponent extends BaseUIComponent {
         return this.isItemActive();
     }
 
-
     public void setToggled(boolean toggled) {
         this.localToggled = toggled;
     }
@@ -194,16 +192,10 @@ public class PanelItemComponent extends BaseUIComponent {
             this.clickFeedback = Math.max(0.0f, this.clickFeedback - delta * 0.25f);
         }
 
-        boolean active = this.isItemActive();
-
         int x = this.x();
         int y = this.y();
         int width = this.width();
         int height = BASE_HEIGHT;
-
-        int baseR = (int) Mth.lerp(this.activeAnimation, 84f, 84f);
-        int baseG = (int) Mth.lerp(this.activeAnimation, 152f, 152f);
-        int baseB = (int) Mth.lerp(this.activeAnimation, 178f, 178f);
 
         float bgAlphaFactor = Mth.lerp(this.activeAnimation, this.hoverAnimation * 0.22f, 0.85f + this.hoverAnimation * 0.15f);
         int currentBgAlpha = (int) (255 * bgAlphaFactor * totalAlpha);
@@ -211,11 +203,13 @@ public class PanelItemComponent extends BaseUIComponent {
         float borderAlphaFactor = Mth.lerp(this.activeAnimation, this.hoverAnimation * 0.45f, 1.0f);
         int currentBorderAlpha = (int) (255 * borderAlphaFactor * totalAlpha);
 
-        int borderR = (int) Mth.lerp(this.activeAnimation, 84f, 123f);
-        int borderG = (int) Mth.lerp(this.activeAnimation, 152f, 187f);
-        int borderB = (int) Mth.lerp(this.activeAnimation, 178f, 211f);
+        Color itemBg = AnimationUtil.withAlpha(this.rowBg(), currentBgAlpha);
 
-        Color itemBg = Color.ofArgb(ARGB.color(currentBgAlpha, baseR, baseG, baseB));
+        int borderFrom = this.rowBg();
+        int borderTo = this.rowBorder();
+        int borderR = (int) Mth.lerp(this.activeAnimation, (borderFrom >> 16) & 0xFF, (borderTo >> 16) & 0xFF);
+        int borderG = (int) Mth.lerp(this.activeAnimation, (borderFrom >> 8) & 0xFF, (borderTo >> 8) & 0xFF);
+        int borderB = (int) Mth.lerp(this.activeAnimation, borderFrom & 0xFF, borderTo & 0xFF);
         Color itemBorder = Color.ofArgb(ARGB.color(currentBorderAlpha, borderR, borderG, borderB));
 
         float curScale = (0.80f + 0.20f * spawnEase) * (1.0f - dismissEase * 0.20f);
@@ -236,10 +230,7 @@ public class PanelItemComponent extends BaseUIComponent {
         float textScale = 0.88f;
         float textH = font.lineHeight * textScale;
 
-        int textR = (int) Mth.lerp(Math.max(this.activeAnimation, this.hoverAnimation), 207f, 255f);
-        int textG = (int) Mth.lerp(Math.max(this.activeAnimation, this.hoverAnimation), 216f, 255f);
-        int textB = (int) Mth.lerp(Math.max(this.activeAnimation, this.hoverAnimation), 220f, 255f);
-        int textColor = ARGB.color((int) (255 * totalAlpha), textR, textG, textB);
+        int textColor = AnimationUtil.argb(this.textStrong(), (int) (255 * totalAlpha));
 
         float textOffsetX = 10.0f;
         if (this.previewSupplier != null) {
@@ -263,15 +254,17 @@ public class PanelItemComponent extends BaseUIComponent {
         int dotY = 0;
 
         if (this.type == ItemType.TOGGLE) {
-            int dotR = (int) Mth.lerp(this.activeAnimation, 69f, 176f);
-            int dotG = (int) Mth.lerp(this.activeAnimation, 90f, 190f);
-            int dotB = (int) Mth.lerp(this.activeAnimation, 100f, 197f);
+            int mutedRgb = this.toggleOff();
+            int activeRgb = this.toggleOn();
+            int dotR = (int) Mth.lerp(this.activeAnimation, (mutedRgb >> 16) & 0xFF, (activeRgb >> 16) & 0xFF);
+            int dotG = (int) Mth.lerp(this.activeAnimation, (mutedRgb >> 8) & 0xFF, (activeRgb >> 8) & 0xFF);
+            int dotB = (int) Mth.lerp(this.activeAnimation, mutedRgb & 0xFF, activeRgb & 0xFF);
             Color dotColor = Color.ofArgb(ARGB.color((int) (255 * totalAlpha), dotR, dotG, dotB));
             Color dotFade = AnimationUtil.withAlpha(ARGB.color(255, dotR, dotG, dotB), 0);
             RenderUtil.drawAACircle(graphics, dotX, dotY, 2.5, dotColor, dotFade);
         } else if (this.hoverAnimation > 0.05f) {
-            Color dotColor = Color.ofArgb(ARGB.color((int) (160 * this.hoverAnimation * totalAlpha), 176, 190, 197));
-            Color dotFade = Color.ofArgb(ARGB.color(0, 176, 190, 197));
+            Color dotColor = AnimationUtil.withAlpha(this.dotHover(), (int) (160 * this.hoverAnimation * totalAlpha));
+            Color dotFade = AnimationUtil.withAlpha(this.dotHover(), 0);
             RenderUtil.drawAACircle(graphics, dotX, dotY, 2.0, dotColor, dotFade);
         }
 

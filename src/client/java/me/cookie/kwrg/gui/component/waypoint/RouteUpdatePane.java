@@ -3,6 +3,7 @@ package me.cookie.kwrg.gui.component.waypoint;
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import me.cookie.kwrg.gui.component.route.RouteButtonComponent;
+import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.util.PointEntry;
@@ -110,8 +111,8 @@ public final class RouteUpdatePane {
                 graphics,
                 currentX, currentY, currentW, currentH,
                 AnimationUtil.lerp(p, 5, 10),
-                AnimationUtil.lerpColor(p, originColor, Color.ofArgb(0xFF1C2734)),
-                Color.ofArgb(0x885AA5C4)
+                AnimationUtil.lerpColor(p, originColor, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.cardBg()))),
+                AnimationUtil.withAlpha(GuiThemeService.regionBorder(), 0x88)
         );
 
         float labelAlpha = 1 - Mth.clamp(p * 4, 0, 1);
@@ -120,7 +121,7 @@ public final class RouteUpdatePane {
                     RenderUtil.withOpacity(graphics, labelAlpha),
                     Component.literal("更新"),
                     currentX + currentW / 2, currentY + currentH / 2,
-                    0.8f, 0xFFD2DFE8
+                    0.8f, AnimationUtil.opaqueArgb(GuiThemeService.textBody())
             );
         }
 
@@ -136,7 +137,7 @@ public final class RouteUpdatePane {
         graphics.enableScissor(x, y, x + width, y + height);
 
         OwoUIGraphics content = RenderUtil.withOpacity(graphics, alpha);
-        RenderUtil.drawSmoothText(content, "更新点位集 · " + (perNode ? "逐个决定" : "确认变更"), x + 16, y + 15, 0xFFE1F5FE);
+        RenderUtil.drawSmoothText(content, "更新点位集 · " + (perNode ? "逐个决定" : "确认变更"), x + 16, y + 15, AnimationUtil.opaqueArgb(GuiThemeService.textStrong()));
         long deletions = issues.stream().filter(issue -> issue.kind() == WaypointRouteUpdate.Kind.DELETED).count();
 
         if (perNode) {
@@ -153,20 +154,20 @@ public final class RouteUpdatePane {
                         content,
                         RenderUtil.fitText((deleted ? "路线已删除 · " : "点位冲突 · ") + issue.local().name, width - 170, 0.85f),
                         x + 16, top + 3,
-                        deleted ? 0xFFFFB4BC : 0xFFFFDB94
+                        deleted ? AnimationUtil.opaqueArgb(GuiThemeService.danger()) : AnimationUtil.opaqueArgb(GuiThemeService.warning())
                 );
                 RenderUtil.drawSmoothText(
                         content,
                         RenderUtil.fitText("本地 " + describe(issue.local()), width - 170, 0.85f),
                         x + 16, top + 23,
-                        0xFFA9BDCD
+                        AnimationUtil.opaqueArgb(GuiThemeService.textMuted())
                 );
                 if (!deleted) {
                     RenderUtil.drawSmoothText(
                             content,
                             RenderUtil.fitText("路线 " + describe(issue.incoming()), width - 170, 0.85f),
                             x + 16, top + 40,
-                            0xFF8CA7BA
+                            AnimationUtil.opaqueArgb(GuiThemeService.textMuted())
                     );
                 }
 
@@ -179,15 +180,15 @@ public final class RouteUpdatePane {
                     content,
                     RenderUtil.fitText(plan.targetPath().getFileName().toString(), width - 32, 0.85f),
                     x + 16, y + 50,
-                    0xFF92DFFF
+                    AnimationUtil.opaqueArgb(GuiThemeService.accentSoft())
             );
-            RenderUtil.drawSmoothText(content, "路线删除 " + deletions + " 个节点 · 点位冲突 " + (issues.size() - deletions) + " 个", x + 16, y + 80, 0xFFFFDB94);
-            RenderUtil.drawSmoothText(content, "另有 " + plan.additions() + " 个新增节点，将随确认结果加入", x + 16, y + 106, 0xFFA9BDCD);
-            RenderUtil.drawSmoothText(content, "可全部采用路线、全部保留本地，或逐个决定", x + 16, y + 132, 0xFF8CA7BA);
+            RenderUtil.drawSmoothText(content, "路线删除 " + deletions + " 个节点 · 点位冲突 " + (issues.size() - deletions) + " 个", x + 16, y + 80, AnimationUtil.opaqueArgb(GuiThemeService.warning()));
+            RenderUtil.drawSmoothText(content, "另有 " + plan.additions() + " 个新增节点，将随确认结果加入", x + 16, y + 106, AnimationUtil.opaqueArgb(GuiThemeService.textMuted()));
+            RenderUtil.drawSmoothText(content, "可全部采用路线、全部保留本地，或逐个决定", x + 16, y + 132, AnimationUtil.opaqueArgb(GuiThemeService.textMuted()));
         }
 
         if (!error.isEmpty()) {
-            RenderUtil.drawSmoothText(content, RenderUtil.fitText(error, width - 32, 0.85f), x + 16, y + height - 90, 0xFFFFA8B4);
+            RenderUtil.drawSmoothText(content, RenderUtil.fitText(error, width - 32, 0.85f), x + 16, y + height - 90, AnimationUtil.opaqueArgb(GuiThemeService.danger()));
         }
 
         String allLabel = deletions == issues.size() ? "全部删除" : "全部采用路线";

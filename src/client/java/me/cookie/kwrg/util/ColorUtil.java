@@ -210,15 +210,17 @@ public class ColorUtil {
             float h = Float.parseFloat(hslMatcher.group(1)) % 360.0F / 360.0F;
             float s = Float.parseFloat(hslMatcher.group(2)) / 100.0F;
             float l = Float.parseFloat(hslMatcher.group(3)) / 100.0F;
+            if (!Float.isFinite(h) || !Float.isFinite(s) || !Float.isFinite(l)) return null;
             return hslToRgb(h, s, l);
         }
 
         Matcher rgbMatcher = RGB_PATTERN.matcher(str);
         if (rgbMatcher.find()) {
-            int r = Integer.parseInt(rgbMatcher.group(1));
-            int g = Integer.parseInt(rgbMatcher.group(2));
-            int b = Integer.parseInt(rgbMatcher.group(3));
-            return new Color(Math.clamp(r, 0, 255), Math.clamp(g, 0, 255), Math.clamp(b, 0, 255));
+            Integer red = parseChannel(rgbMatcher.group(1));
+            Integer green = parseChannel(rgbMatcher.group(2));
+            Integer blue = parseChannel(rgbMatcher.group(3));
+            if (red == null || green == null || blue == null) return null;
+            return new Color(red, green, blue);
         }
 
         Matcher hexMatcher = HEX_PATTERN.matcher(str);
@@ -251,16 +253,24 @@ public class ColorUtil {
         if (direct != null) return direct;
         Matcher m = SPACE_RGB_PATTERN.matcher(raw);
         if (m.matches()) {
-            int r = clamp255(Integer.parseInt(m.group(1)));
-            int g = clamp255(Integer.parseInt(m.group(2)));
-            int b = clamp255(Integer.parseInt(m.group(3)));
+            int r = clampChannel(Integer.parseInt(m.group(1)));
+            int g = clampChannel(Integer.parseInt(m.group(2)));
+            int b = clampChannel(Integer.parseInt(m.group(3)));
             return new Color(r, g, b);
         }
         return null;
     }
 
-    private static int clamp255(int v) {
-        return Math.min(255, Math.max(0, v));
+    private static Integer parseChannel(String raw) {
+        try {
+            return clampChannel(Integer.parseInt(raw));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static int clampChannel(int v) {
+        return Math.clamp(v, 0, 255);
     }
 
     public static int applyHslTransform(int rgb, float hue, float saturation, float lightness) {
@@ -274,6 +284,53 @@ public class ColorUtil {
         hsb[2] = Math.min(1.0f, Math.max(0.0f, hsb[2] * lightness));
 
         return Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]) & 0xFFFFFF;
+    }
+
+    public static double relativeLuminance(int rgb) {
+        double r = linearChannel((rgb >> 16) & 0xFF);
+        double g = linearChannel((rgb >> 8) & 0xFF);
+        double b = linearChannel(rgb & 0xFF);
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+
+    public static double contrastRatio(int foreground, int background) {
+        double a = relativeLuminance(foreground);
+        double b = relativeLuminance(background);
+        return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    }
+
+    private static double linearChannel(int channel) {
+        double v = channel / 255.0;
+        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    }
+
+    public static int neighborTone(int rgb, float brightnessDelta) {
+        int r = (rgb >> 16) & 0xFF;
+        int g = (rgb >> 8) & 0xFF;
+        int b = rgb & 0xFF;
+        float[] hsb = Color.RGBtoHSB(r, g, b, null);
+        hsb[1] = Math.min(1.0f, hsb[1] * 1.1f);
+        hsb[2] = hsb[2] < 0.5f
+                ? Math.min(1.0f, hsb[2] + brightnessDelta)
+                : Math.max(0.0f, hsb[2] - brightnessDelta);
+        return Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]) & 0xFFFFFF;
+    }
+
+    public static int deriveOutline(int bgRgb) {
+        int r = (bgRgb >> 16) & 0xFF;
+        int g = (bgRgb >> 8) & 0xFF;
+        int b = bgRgb & 0xFF;
+        float[] hsb = Color.RGBtoHSB(r, g, b, null);
+        float hue = hsb[0], sat = hsb[1], bri = hsb[2];
+
+        if (bri < 0.5f) {
+            sat = Math.max(0.0f, sat * 0.6f);
+            bri = Math.min(1.0f, bri + 0.35f + (1.0f - bri) * 0.25f);
+        } else {
+            sat = Math.min(1.0f, sat * 1.25f);
+            bri = Math.max(0.0f, bri * 0.60f);
+        }
+        return Color.HSBtoRGB(hue, sat, bri) & 0xFFFFFF;
     }
 
     private static Color[] parseColorList(String colorListStr) {
@@ -294,7 +351,7 @@ public class ColorUtil {
         float r = hueToRgb(p, q, h + 1.0F / 3.0F);
         float g = hueToRgb(p, q, h);
         float b = hueToRgb(p, q, h - 1.0F / 3.0F);
-        return new Color(Math.clamp((int) (r * 255), 0, 255), Math.clamp((int) (g * 255), 0, 255), Math.clamp((int) (b * 255), 0, 255));
+        return new Color(clampChannel((int) (r * 255)), clampChannel((int) (g * 255)), clampChannel((int) (b * 255)));
     }
 
     private static float hueToRgb(float p, float q, float t) {
