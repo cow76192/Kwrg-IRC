@@ -146,9 +146,16 @@ public final class GuiThemeService {
         return AnimationUtil.easeOutCubic(raw);
     }
 
+    /** 正文实际落在面板底与派生卡片底两种表面上，取两者中较差的那张比较，选对比度更高的一套字档。 */
+    private static boolean prefersDeepText(int panelBg, int cardBg) {
+        double lightText = Math.min(ColorUtil.contrastRatio(TEXT_BODY_DARK, panelBg), ColorUtil.contrastRatio(TEXT_BODY_DARK, cardBg));
+        double deepText = Math.min(ColorUtil.contrastRatio(TEXT_BODY_LIGHT, panelBg), ColorUtil.contrastRatio(TEXT_BODY_LIGHT, cardBg));
+        return deepText >= lightText;
+    }
+
     private static int[] toneValuesFor(int panelBg) {
-        boolean lightBackground = ColorUtil.relativeLuminance(panelBg) >= 0.179;
         int cardBg = ColorUtil.neighborTone(panelBg, 0.055f);
+        boolean lightBackground = prefersDeepText(panelBg, cardBg);
         return new int[]{
                 panelBg,
                 ColorUtil.deriveOutline(panelBg),
