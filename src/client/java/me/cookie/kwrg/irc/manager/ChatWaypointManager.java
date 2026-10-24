@@ -31,8 +31,6 @@ public final class ChatWaypointManager {
 
     private static final String BUTTON_TEXT = "[show waypoints]";
 
-    private static final int MAX_POINTS = 64;
-    private static final int MAX_NAME_LENGTH = 32;
     private static final int MAX_MESSAGE_LENGTH = 1024;
     private static final int MAX_COORD = 30_000_000;
     private static final double NEAR_DISTANCE_SQ = 36.0;
@@ -44,6 +42,7 @@ public final class ChatWaypointManager {
     private static final long EXPIRY_MS = 30_000L;
     private static final long RETRY_INTERVAL_MS = 1000L;
     private static final long REFRESH_INTERVAL_MS = 200L;
+    private static final long IDLE_REFRESH_MS = 1000L;
 
     private static final String NUMBER = "-?\\d{1,9}(?:\\.\\d{1,14})?";
     private static final Pattern LABELED_PATTERN = Pattern.compile(
@@ -76,7 +75,7 @@ public final class ChatWaypointManager {
         POINTS.clear();
     }
 
-    public static int[] parse(String message) {
+    private static int[] parse(String message) {
         if (message == null || message.isEmpty()) return null;
 
         String text = FORMATTING_PATTERN.matcher(message).replaceAll("");
@@ -125,16 +124,16 @@ public final class ChatWaypointManager {
         String name = formatted.isEmpty() ? raw : formatted + " " + raw;
         String clean = UNSAFE_PATTERN.matcher(FORMATTING_PATTERN.matcher(name).replaceAll("")).replaceAll("").trim();
         if (clean.isEmpty()) return "Unknown";
-        return clean.length() > MAX_NAME_LENGTH ? clean.substring(0, MAX_NAME_LENGTH) : clean;
+        return clean.length() > WaypointManager.MAX_NAME_LENGTH ? clean.substring(0, WaypointManager.MAX_NAME_LENGTH) : clean;
     }
 
     public static int mark(int x, int y, int z, String label) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || Math.abs(x) > MAX_COORD || Math.abs(y) > MAX_COORD || Math.abs(z) > MAX_COORD) return 0;
+        if (mc.level == null) return 0;
 
         BlockPos pos = new BlockPos(x, y, z);
         String key = mc.level.dimension().toString() + ":" + pos.asLong();
-        if (POINTS.size() >= MAX_POINTS && !POINTS.containsKey(key)) {
+        if (POINTS.size() >= WaypointManager.MAX_WAYPOINTS && !POINTS.containsKey(key)) {
             POINTS.remove(POINTS.keySet().iterator().next());
         }
         POINTS.put(key, new ChatWaypoint(pos, label, mc.level.dimension(), mc.player == null ? pos : mc.player.blockPosition()));
@@ -159,9 +158,9 @@ public final class ChatWaypointManager {
             renderer.beam(waypoint.pos, BEAM_COLOR);
             Gizmos.billboardTextOverBlock(waypoint.label, waypoint.pos, 0, COLOR, 1.0f);
 
-            List<Vec3> visible = waypoint.visible(playerPos);
+            List<Vec3> visible = waypoint.visible();
             if (!visible.isEmpty()) renderer.path(visible, PATH_COLOR);
-            if (!waypoint.guidePath.isEmpty()) renderer.path(waypoint.guidePath, PATH_COLOR);
+            if (waypoint.hasGuide()) renderer.path(waypoint.guidePath(), PATH_COLOR);
         }
         renderer.draw();
     }
@@ -173,6 +172,15 @@ public final class ChatWaypointManager {
         }
         long now = System.currentTimeMillis();
         Vec3 playerPos = mc.player.position();
+        ChatWaypoint active = null;
+        double activeDistanceSq = Double.MAX_VALUE;
+        for (ChatWaypoint candidate : POINTS.values()) {
+            double distance = playerPos.distanceToSqr(Vec3.atCenterOf(candidate.pos));
+            if (distance < activeDistanceSq) {
+                activeDistanceSq = distance;
+                active = candidate;
+            }
+        }
 
         for (var iterator = POINTS.values().iterator(); iterator.hasNext(); ) {
             ChatWaypoint waypoint = iterator.next();
@@ -201,14 +209,19 @@ public final class ChatWaypointManager {
             }
 
             if (samePlane && horizontalSq <= ARRIVED_DISTANCE_SQ) {
-                waypoint.path = List.of();
+                waypoint.clearPath();
                 continue;
             }
-            if (now >= waypoint.nextAttemptAt) {
-                waypoint.replan(mc.level, now);
-            }
-            waypoint.updateGuide(mc.level, mc.player.blockPosition(), playerPos, now);
+            waypoint.tick(mc.level, mc.player.blockPosition(), playerPos, now, waypoint == active);
         }
+    }
+
+    private static final class Plan {
+        private List<Vec3> path = List.of();
+        private int[] breaks = new int[0];
+        private boolean searching;
+        private long nextAt;
+        private boolean warned;
     }
 
     private static final class ChatWaypoint {
@@ -217,15 +230,10 @@ public final class ChatWaypointManager {
         private final ResourceKey<Level> dimension;
         private final BlockPos origin;
         private final long createdAt = System.currentTimeMillis();
-        private List<Vec3> path = List.of();
-        private List<Vec3> guidePath = List.of();
-        private int[] breaks = new int[0];
-        private long nextGuideAt;
-        private boolean searching;
-        private boolean guideSearching;
+        private final Plan main = new Plan();
+        private final Plan guide = new Plan();
+        private int nearest;
         private long nearSince;
-        private long nextAttemptAt;
-        private boolean warned;
 
         private ChatWaypoint(BlockPos pos, String label, ResourceKey<Level> dimension, BlockPos origin) {
             this.pos = pos;
@@ -234,17 +242,40 @@ public final class ChatWaypointManager {
             this.origin = origin;
         }
 
-        private void replan(Level level, long now) {
-            if (searching) return;
-            searching = true;
-            nextAttemptAt = now + REFRESH_INTERVAL_MS;
+        private void clearPath() {
+            main.path = List.of();
+            main.breaks = new int[0];
+        }
+
+        private boolean hasGuide() {
+            return !guide.path.isEmpty();
+        }
+
+        private List<Vec3> guidePath() {
+            return guide.path;
+        }
+
+        private void tick(Level level, BlockPos from, Vec3 playerPos, long now, boolean active) {
+            if (now >= main.nextAt) replan(level, now, active);
+            updateNearest(playerPos);
+            updateGuide(level, from, playerPos, now, active);
+        }
+
+        private static long refresh(boolean active) {
+            return active ? REFRESH_INTERVAL_MS : IDLE_REFRESH_MS;
+        }
+
+        private void replan(Level level, long now, boolean active) {
+            if (main.searching) return;
+            main.searching = true;
+            main.nextAt = now + refresh(active);
             Navigator.searchAsync(level, origin, pos, found -> {
-                searching = false;
-                path = found;
-                breaks = breakpoints(path);
-                nextAttemptAt = System.currentTimeMillis() + (path.isEmpty() ? RETRY_INTERVAL_MS : REFRESH_INTERVAL_MS);
-                if (path.isEmpty() && !warned) {
-                    warned = true;
+                main.searching = false;
+                main.path = found;
+                main.breaks = breakpoints(found);
+                main.nextAt = System.currentTimeMillis() + (found.isEmpty() ? RETRY_INTERVAL_MS : refresh(active));
+                if (found.isEmpty() && !main.warned && Minecraft.getInstance().level != null) {
+                    main.warned = true;
                     ChatNotifier.send("§e[Waypoint] 暂未找到可步行路径，先按直线指向", NotificationType.INFO);
                 }
             });
@@ -276,57 +307,46 @@ public final class ChatWaypointManager {
             return result;
         }
 
-        private int nearestIndex(Vec3 playerPos) {
-            int nearest = 0;
+        private void updateNearest(Vec3 playerPos) {
+            int index = 0;
             double bestSq = Double.MAX_VALUE;
-            for (int index = 0; index < path.size(); index++) {
-                double distance = path.get(index).distanceToSqr(playerPos);
+            for (int candidate = 0; candidate < main.path.size(); candidate++) {
+                double distance = main.path.get(candidate).distanceToSqr(playerPos);
                 if (distance < bestSq) {
                     bestSq = distance;
-                    nearest = index;
+                    index = candidate;
                 }
             }
-            return nearest;
+            nearest = index;
         }
 
-        private List<Vec3> visible(Vec3 playerPos) {
-            if (path.isEmpty()) return List.of();
+        private List<Vec3> visible() {
+            if (main.path.isEmpty()) return List.of();
             int start = 0;
-            int nearest = nearestIndex(playerPos);
-            for (int index : breaks) {
+            for (int index : main.breaks) {
                 if (index <= nearest) start = index;
             }
-            if (!guidePath.isEmpty()) return List.of();
-            return start == 0 ? path : path.subList(start, path.size());
+            if (!guide.path.isEmpty()) return List.of();
+            return start == 0 ? main.path : main.path.subList(start, main.path.size());
         }
 
-        private void updateGuide(Level level, BlockPos from, Vec3 playerPos, long now) {
-            if (now < nextGuideAt) return;
-            nextGuideAt = now + REFRESH_INTERVAL_MS;
+        private void updateGuide(Level level, BlockPos from, Vec3 playerPos, long now, boolean active) {
+            if (now < guide.nextAt) return;
+            guide.nextAt = now + refresh(active);
 
-            if (!path.isEmpty()) {
-                int nearest = nearestIndex(playerPos);
-                if (path.get(nearest).distanceToSqr(playerPos) <= OFF_PATH_GUIDE_SQ) {
-                    guidePath = List.of();
+            if (!main.path.isEmpty()) {
+                int index = Math.min(nearest, main.path.size() - 1);
+                if (main.path.get(index).distanceToSqr(playerPos) <= OFF_PATH_GUIDE_SQ) {
+                    guide.path = List.of();
                     return;
                 }
             }
-            if (guideSearching) return;
-            guideSearching = true;
+            if (guide.searching) return;
+            guide.searching = true;
             Navigator.searchAsync(level, from, pos, found -> {
-                guideSearching = false;
-                List<Vec3> points = new ArrayList<>(found);
-                Vec3 goal = Vec3.atCenterOf(pos);
-                if (!points.isEmpty() && points.get(points.size() - 1).distanceToSqr(goal) > 1.0) {
-                    points.add(new Vec3(goal.x(), pos.getY() + 0.05, goal.z()));
-                }
-                guidePath = points;
+                guide.searching = false;
+                guide.path = found;
             });
         }
-
-        private static BlockPos blockOf(Vec3 point) {
-            return BlockPos.containing(point.x(), point.y(), point.z());
-        }
-
     }
 }

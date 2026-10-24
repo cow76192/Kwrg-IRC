@@ -9,6 +9,7 @@ import me.cookie.kwrg.irc.manager.IrcGlowManager;
 import me.cookie.kwrg.module.modules.style.ChatModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
+import me.cookie.kwrg.irc.manager.ChatWaypointManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.*;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -330,7 +331,7 @@ public class IrcMessageHandler {
             segments.add(new ChatNotifier.AnimatedSegment(suffix, "", true));
         }
 
-        me.cookie.kwrg.irc.manager.ChatWaypointManager.appendButton(segments, body, rank, username);
+        ChatWaypointManager.appendButton(segments, body, rank, username);
 
         ChatNotifier.sendAnimatedInChatScreen(segments);
         ChatModule.playConfiguredSound();

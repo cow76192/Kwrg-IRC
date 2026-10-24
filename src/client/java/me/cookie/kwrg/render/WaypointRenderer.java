@@ -87,20 +87,29 @@ public final class WaypointRenderer {
     }
 
     public void waypoint(BlockPos pos, int color, boolean showBeam) {
-        Vec3 base = Vec3.atBottomCenterOf(pos).subtract(projectionOrigin);
-        Vec3 target = base.add(0, 0.5, 0);
-        double distance = Math.max(base.length(), target.length());
-        double scale = Math.min(1.0, OVERLAY_DISTANCE / Math.max(1.0, distance));
-        drawTracer(projectionOffset.add(target.scale(scale)), color);
+        Vec3 base = projectionBase(pos);
+        drawTracer(projectionOffset.add(base.add(0, 0.5, 0).scale(projectionScale(base))), color);
         if (showBeam) beam(pos, color);
     }
 
     public void beam(BlockPos pos, int color) {
-        Vec3 base = Vec3.atBottomCenterOf(pos).subtract(projectionOrigin);
-        double distance = Math.max(base.length(), base.add(0, 0.5, 0).length());
-        double scale = Math.min(1.0, OVERLAY_DISTANCE / Math.max(1.0, distance));
+        Vec3 base = projectionBase(pos);
+        double distance = projectionDistance(base);
+        double scale = projectionScale(base);
         float radius = (float) Math.max(1.0, distance / 96.0);
         beams.add(new Beam(projectionOffset.add(base.scale(scale)), (float) scale, radius, color));
+    }
+
+    private Vec3 projectionBase(BlockPos pos) {
+        return Vec3.atBottomCenterOf(pos).subtract(projectionOrigin);
+    }
+
+    private double projectionDistance(Vec3 base) {
+        return Math.max(base.length(), base.add(0, 0.5, 0).length());
+    }
+
+    private double projectionScale(Vec3 base) {
+        return Math.min(1.0, OVERLAY_DISTANCE / Math.max(1.0, projectionDistance(base)));
     }
 
     public void path(List<Vec3> points, int color) {

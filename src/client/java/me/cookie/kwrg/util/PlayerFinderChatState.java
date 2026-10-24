@@ -3,6 +3,7 @@ package me.cookie.kwrg.util;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import me.cookie.kwrg.irc.manager.RouteEditor;
+import me.cookie.kwrg.irc.manager.ChatWaypointManager;
 import net.minecraft.client.Minecraft;
 
 import java.util.ArrayList;
@@ -139,7 +140,7 @@ public final class PlayerFinderChatState {
             if (RouteEditor.isEnabled()) {
                 RouteEditor.setEnabled(false);
             }
-            me.cookie.kwrg.irc.manager.ChatWaypointManager.clear();
+            ChatWaypointManager.clear();
             waitingForStart = false;
             synchronized (PARTY_LOCK) {
                 expectingPartyList = false;

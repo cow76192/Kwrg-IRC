@@ -37,6 +37,7 @@ public final class Navigator {
     private static final int MAX_JUMP_UP = 1;
     private static final int TELEPORT_RANGE = 61;
     private static final float TELEPORT_COST = 2.0f;
+    private static final int TELEPORT_BUDGET = 64;
     private static final float GOAL_RADIUS_SQ = 6.0f;
     private static final double SMOOTHING_STEP = 0.5;
     private static final int[][] DIRECTIONS = {
@@ -46,7 +47,7 @@ public final class Navigator {
     private static final int[][] RAY_DIRECTIONS = buildRayDirections();
 
     private static int[][] buildRayDirections() {
-        java.util.List<int[]> list = new java.util.ArrayList<>(26);
+        List<int[]> list = new ArrayList<>(26);
         for (int dx = -1; dx <= 1; dx++) {
             for (int dy = -1; dy <= 1; dy++) {
                 for (int dz = -1; dz <= 1; dz++) {
@@ -83,7 +84,7 @@ public final class Navigator {
         });
     }
 
-    public static List<Vec3> search(Level level, BlockPos from, BlockPos to) {
+    private static List<Vec3> search(Level level, BlockPos from, BlockPos to) {
         if (!level.hasChunkAt(from) || !level.hasChunkAt(to)) return List.of();
 
         BlockPos start = surface(level, from);
@@ -101,6 +102,7 @@ public final class Navigator {
         open.add(new Entry(start, 0.0f, heuristic(start, goal)));
 
         int visited = 0;
+        int teleportBudget = TELEPORT_BUDGET;
         BlockPos reached = null;
         BlockPos best = start;
         double bestDistance = start.distSqr(goal);
@@ -155,7 +157,8 @@ public final class Navigator {
                 }
             }
 
-            if (!progressed) {
+            if (!progressed && teleportBudget > 0) {
+                teleportBudget--;
                 teleportEdges(level, current.pos, current.g, goal, start, scores, parents, open);
             }
         }
@@ -168,11 +171,16 @@ public final class Navigator {
                     + " dy=" + (to.getY() - start.getY())
                     + " snapped=" + goal.toShortString()
                     + " best=" + best.toShortString());
-            List<Vec3> partial = smooth(trace(best, parents));
-            partial.add(new Vec3(goal.getX() + 0.5, goal.getY() + 0.05, goal.getZ() + 0.5));
-            return partial;
+            return finish(smooth(trace(best, parents)), goal);
         }
-        List<Vec3> points = smooth(trace(reached, parents));
+        return finish(smooth(trace(reached, parents)), goal);
+    }
+
+    private static List<Vec3> finish(List<Vec3> points, BlockPos goal) {
+        Vec3 target = new Vec3(goal.getX() + 0.5, goal.getY() + 0.05, goal.getZ() + 0.5);
+        if (points.isEmpty() || points.get(points.size() - 1).distanceToSqr(target) > 1.0) {
+            points.add(target);
+        }
         return points;
     }
 
@@ -196,11 +204,7 @@ public final class Navigator {
             BlockPos candidate = from.above(dy);
             if (walkable(level, candidate)) return candidate;
         }
-        for (int dy = -1; dy >= -MAX_FALL; dy--) {
-            BlockPos candidate = from.above(dy);
-            if (walkable(level, candidate)) return candidate;
-        }
-        return null;
+        return descendTo(level, from, MAX_FALL);
     }
 
     private static BlockPos walkNeighbour(Level level, BlockPos pos, int dx, int dz) {
@@ -216,8 +220,11 @@ public final class Navigator {
     }
 
     private static BlockPos fallNeighbour(Level level, BlockPos pos, int dx, int dz) {
-        BlockPos column = pos.offset(dx, 0, dz);
-        for (int dy = -1; dy >= -MAX_FALL; dy--) {
+        return descendTo(level, pos.offset(dx, 0, dz), MAX_FALL);
+    }
+
+    private static BlockPos descendTo(Level level, BlockPos column, int maxDown) {
+        for (int dy = -1; dy >= -maxDown; dy--) {
             BlockPos candidate = column.above(dy);
             if (walkable(level, candidate)) return candidate;
         }
@@ -286,11 +293,8 @@ public final class Navigator {
 
     private static BlockPos landing(Level level, BlockPos column) {
         if (standable(level, column)) return column;
-        for (int dy = 1; dy <= 1; dy++) {
-            BlockPos candidate = column.above(dy);
-            if (!free(level, candidate)) break;
-            if (standable(level, candidate)) return candidate;
-        }
+        BlockPos above = column.above(1);
+        if (free(level, above) && standable(level, above)) return above;
         for (int dy = -1; dy >= -MAX_FALL; dy--) {
             BlockPos candidate = column.above(dy);
             if (blocked(level, candidate) || blocked(level, candidate.above())) return null;

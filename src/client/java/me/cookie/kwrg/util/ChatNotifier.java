@@ -220,7 +220,10 @@ public class ChatNotifier {
 
     private static Component buildSegment(AnimatedSegment segment) {
         String safeText = me.cookie.kwrg.irc.manager.NickManager.protectText(segment.text());
-        if (!segment.isRaw()) return ColorUtil.applyStyle(safeText, segment.styleConfig());
+        if (!segment.isRaw()) {
+            Component styled = ColorUtil.applyStyle(safeText, segment.styleConfig());
+            return segment.overrideStyle() == null ? styled : styled.copy().setStyle(segment.overrideStyle());
+        }
         MutableComponent part = Component.literal(safeText);
         if (segment.overrideStyle() != null) part.setStyle(segment.overrideStyle());
         return part;

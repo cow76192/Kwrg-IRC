@@ -13,6 +13,7 @@ import me.cookie.kwrg.gui.hud.HudEditorScreen;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.manager.RouteEditor;
+import me.cookie.kwrg.irc.manager.ChatWaypointManager;
 import me.cookie.kwrg.irc.manager.RouteManager;
 import me.cookie.kwrg.module.modules.debug.ClearIndexCacheModule;
 import me.cookie.kwrg.module.modules.functions.GlowColorModule;
@@ -225,7 +226,7 @@ public class IrcCommand {
                                         .then(argument("y", IntegerArgumentType.integer(-30000000, 30000000))
                                                 .then(argument("z", IntegerArgumentType.integer(-30000000, 30000000))
                                                         .then(argument("label", StringArgumentType.greedyString())
-                                                                .executes(context -> me.cookie.kwrg.irc.manager.ChatWaypointManager.mark(
+                                                                .executes(context -> ChatWaypointManager.mark(
                                                                         IntegerArgumentType.getInteger(context, "x"),
                                                                         IntegerArgumentType.getInteger(context, "y"),
                                                                         IntegerArgumentType.getInteger(context, "z"),

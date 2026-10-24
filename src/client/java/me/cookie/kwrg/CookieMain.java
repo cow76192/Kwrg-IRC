@@ -8,6 +8,7 @@ import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
 import me.cookie.kwrg.irc.manager.RouteManager;
 import me.cookie.kwrg.irc.manager.WaypointManager;
+import me.cookie.kwrg.irc.manager.ChatWaypointManager;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.EmojiUtil;
 import me.cookie.kwrg.util.GreetingManager;
@@ -42,7 +43,7 @@ public class CookieMain implements ClientModInitializer {
         IrcConfig.load();
         IrcCommand.register();
         WaypointManager.init();
-        me.cookie.kwrg.irc.manager.ChatWaypointManager.init();
+        ChatWaypointManager.init();
         RouteManager.init();
 
         CompletableFuture.runAsync(() -> {
