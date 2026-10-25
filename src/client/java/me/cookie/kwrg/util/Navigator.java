@@ -219,6 +219,7 @@ public final class Navigator {
     private static BlockPos descendTo(Level level, BlockPos column, int maxDown) {
         for (int dy = -1; dy >= -maxDown; dy--) {
             BlockPos candidate = column.above(dy);
+            if (blocked(level, candidate) || blocked(level, candidate.above())) return null;
             if (walkable(level, candidate)) return candidate;
         }
         return null;
