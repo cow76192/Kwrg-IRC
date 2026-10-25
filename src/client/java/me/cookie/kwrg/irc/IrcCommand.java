@@ -12,8 +12,8 @@ import me.cookie.kwrg.gui.IrcScreen;
 import me.cookie.kwrg.gui.hud.HudEditorScreen;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
-import me.cookie.kwrg.irc.manager.RouteEditor;
 import me.cookie.kwrg.irc.manager.ChatWaypointManager;
+import me.cookie.kwrg.irc.manager.RouteEditor;
 import me.cookie.kwrg.irc.manager.RouteManager;
 import me.cookie.kwrg.module.modules.debug.ClearIndexCacheModule;
 import me.cookie.kwrg.module.modules.functions.GlowColorModule;
@@ -29,6 +29,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.commands.CommandBuildContext;
 
+import static me.cookie.kwrg.irc.manager.ChatWaypointManager.MAX_COORD;
 import static me.cookie.kwrg.module.modules.config.LoadModule.*;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.argument;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal;
@@ -222,9 +223,9 @@ public class IrcCommand {
                         }))
                 .then(literal("waypoint")
                         .then(literal("chat")
-                                .then(argument("x", IntegerArgumentType.integer(-30000000, 30000000))
-                                        .then(argument("y", IntegerArgumentType.integer(-30000000, 30000000))
-                                                .then(argument("z", IntegerArgumentType.integer(-30000000, 30000000))
+                                .then(argument("x", IntegerArgumentType.integer(-MAX_COORD, MAX_COORD))
+                                        .then(argument("y", IntegerArgumentType.integer(-MAX_COORD, MAX_COORD))
+                                                .then(argument("z", IntegerArgumentType.integer(-MAX_COORD, MAX_COORD))
                                                         .then(argument("label", StringArgumentType.greedyString())
                                                                 .executes(context -> ChatWaypointManager.mark(
                                                                         IntegerArgumentType.getInteger(context, "x"),

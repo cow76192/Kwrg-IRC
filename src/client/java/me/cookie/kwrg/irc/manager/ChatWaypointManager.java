@@ -1,6 +1,7 @@
 package me.cookie.kwrg.irc.manager;
 
 import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.render.WaypointRenderer;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.Navigator;
@@ -32,7 +33,7 @@ public final class ChatWaypointManager {
     private static final String BUTTON_TEXT = "[show waypoints]";
 
     private static final int MAX_MESSAGE_LENGTH = 1024;
-    private static final int MAX_COORD = 30_000_000;
+    public static final int MAX_COORD = 30_000_000;
     private static final double NEAR_DISTANCE_SQ = 36.0;
     private static final double ARRIVED_DISTANCE_SQ = 9.0;
     private static final double OFF_PATH_GUIDE_SQ = 9.0;
@@ -96,7 +97,7 @@ public final class ChatWaypointManager {
             double dz = Double.parseDouble(z);
             if (!Double.isFinite(dx) || !Double.isFinite(dy) || !Double.isFinite(dz)) return null;
             if (Math.abs(dx) > MAX_COORD || Math.abs(dy) > MAX_COORD || Math.abs(dz) > MAX_COORD) return null;
-            return new int[]{(int) Math.round(dx), (int) Math.round(dy), (int) Math.round(dz)};
+            return new int[]{(int) Math.floor(dx), (int) Math.floor(dy), (int) Math.floor(dz)};
         } catch (NumberFormatException e) {
             return null;
         }
@@ -119,7 +120,7 @@ public final class ChatWaypointManager {
     }
 
     private static String label(String rank, String username) {
-        String formatted = me.cookie.kwrg.irc.IrcMessageHandler.formatRankWithBrackets(rank);
+        String formatted = IrcMessageHandler.formatRankWithBrackets(rank);
         String raw = username == null ? "" : username;
         String name = formatted.isEmpty() ? raw : formatted + " " + raw;
         String clean = UNSAFE_PATTERN.matcher(FORMATTING_PATTERN.matcher(name).replaceAll("")).replaceAll("").trim();
@@ -150,17 +151,17 @@ public final class ChatWaypointManager {
         float animationTime = Math.floorMod(mc.level.getGameTime(), 40)
                 + mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);
         WaypointRenderer renderer = new WaypointRenderer(context, animationTime);
-        Vec3 playerPos = mc.player.position();
+        Vec3 cameraPos = context.levelState().cameraRenderState.pos;
 
         for (ChatWaypoint waypoint : POINTS.values()) {
             if (!waypoint.dimension.equals(mc.level.dimension())) continue;
             Gizmos.cuboid(waypoint.pos, BLOCK_STYLE).setAlwaysOnTop();
             renderer.beam(waypoint.pos, BEAM_COLOR);
-            Gizmos.billboardTextOverBlock(waypoint.label, waypoint.pos, 0, COLOR, 1.0f);
+            Gizmos.billboardTextOverBlock(waypoint.label + " §b[" + (int) cameraPos.distanceTo(Vec3.atCenterOf(waypoint.pos)) + "m]", waypoint.pos, 0, COLOR, 1.0f);
 
             List<Vec3> visible = waypoint.visible();
+            if (visible.isEmpty()) visible = waypoint.guidePath();
             if (!visible.isEmpty()) renderer.path(visible, PATH_COLOR);
-            if (waypoint.hasGuide()) renderer.path(waypoint.guidePath(), PATH_COLOR);
         }
         renderer.draw();
     }
@@ -172,9 +173,11 @@ public final class ChatWaypointManager {
         }
         long now = System.currentTimeMillis();
         Vec3 playerPos = mc.player.position();
+        BlockPos from = mc.player.blockPosition();
         ChatWaypoint active = null;
         double activeDistanceSq = Double.MAX_VALUE;
         for (ChatWaypoint candidate : POINTS.values()) {
+            if (!candidate.dimension.equals(mc.level.dimension())) continue;
             double distance = playerPos.distanceToSqr(Vec3.atCenterOf(candidate.pos));
             if (distance < activeDistanceSq) {
                 activeDistanceSq = distance;
@@ -212,7 +215,8 @@ public final class ChatWaypointManager {
                 waypoint.clearPath();
                 continue;
             }
-            waypoint.tick(mc.level, mc.player.blockPosition(), playerPos, now, waypoint == active);
+            waypoint.arrived = false;
+            waypoint.tick(mc.level, from, playerPos, now, waypoint == active);
         }
     }
 
@@ -220,7 +224,6 @@ public final class ChatWaypointManager {
         private List<Vec3> path = List.of();
         private int[] breaks = new int[0];
         private boolean searching;
-        private boolean complete;
         private long nextAt;
         private boolean warned;
     }
@@ -233,6 +236,7 @@ public final class ChatWaypointManager {
         private final long createdAt = System.currentTimeMillis();
         private final Plan main = new Plan();
         private final Plan guide = new Plan();
+        private boolean arrived;
         private int nearest;
         private long nearSince;
 
@@ -244,13 +248,9 @@ public final class ChatWaypointManager {
         }
 
         private void clearPath() {
+            arrived = true;
             main.path = List.of();
             main.breaks = new int[0];
-            main.complete = false;
-        }
-
-        private boolean hasGuide() {
-            return !guide.path.isEmpty();
         }
 
         private List<Vec3> guidePath() {
@@ -273,9 +273,10 @@ public final class ChatWaypointManager {
             main.nextAt = now + refresh(active);
             Navigator.searchAsync(level, origin, pos, result -> {
                 main.searching = false;
+                if (Minecraft.getInstance().level != level) return;
+                if (arrived) return;
                 main.path = result.points();
                 main.breaks = breakpoints(main.path);
-                main.complete = result.complete();
                 main.nextAt = System.currentTimeMillis()
                         + (result.complete() ? refresh(active) : RETRY_INTERVAL_MS);
                 if (!result.complete() && !main.warned && Minecraft.getInstance().level != null) {
@@ -298,17 +299,13 @@ public final class ChatWaypointManager {
                     accumulated = 0.0;
                 }
             }
-            if (points.size() > 1 && points.size() - 2 > indices.get(indices.size() - 1)) {
+            if (points.size() - 2 > indices.get(indices.size() - 1)) {
                 indices.add(points.size() - 2);
             }
             if (points.size() - 1 > indices.get(indices.size() - 1)) {
                 indices.add(points.size() - 1);
             }
-            int[] result = new int[indices.size()];
-            for (int index = 0; index < result.length; index++) {
-                result[index] = indices.get(index);
-            }
-            return result;
+            return indices.stream().mapToInt(Integer::intValue).toArray();
         }
 
         private void updateNearest(Vec3 playerPos) {
@@ -349,6 +346,7 @@ public final class ChatWaypointManager {
             guide.searching = true;
             Navigator.searchAsync(level, from, pos, result -> {
                 guide.searching = false;
+                if (Minecraft.getInstance().level != level) return;
                 guide.path = result.points();
             });
         }

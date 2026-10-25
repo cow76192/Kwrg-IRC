@@ -1,5 +1,7 @@
 package me.cookie.kwrg.util;
 
+import it.unimi.dsi.fastutil.longs.Long2FloatOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.BlockTags;
@@ -12,9 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -24,6 +24,8 @@ public final class Navigator {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("kwrg-navigator");
     private static final int MAX_NODES = 20_000;
+    private static final int MAX_STATES = 65_536;
+    private static final Long2ObjectOpenHashMap<BlockState> STATES = new Long2ObjectOpenHashMap<>(4_096);
     private static final int MAX_RADIUS = 128;
     private static final int MAX_FALL = 8;
     private static final double DIAGONAL = Math.sqrt(2.0);
@@ -75,26 +77,31 @@ public final class Navigator {
 
     public static void searchAsync(Level level, BlockPos from, BlockPos to, Consumer<Result> callback) {
         EXECUTOR.submit(() -> {
-            Result result = attempt(level, from, to);
-            Minecraft.getInstance().execute(() -> callback.accept(result));
+            Result result;
+            try {
+                result = attempt(level, from, to);
+            } catch (Throwable failure) {
+                report("unexpected " + failure.getClass().getSimpleName() + ": " + failure.getMessage());
+                result = new Result(List.of(), false);
+            }
+            Result ready = result;
+            Minecraft.getInstance().execute(() -> callback.accept(ready));
         });
     }
 
     private static Result attempt(Level level, BlockPos from, BlockPos to) {
-        try {
-            return search(level, from, to);
-        } catch (RuntimeException e) {
-            report(e.getClass().getSimpleName() + ": " + e.getMessage());
+        for (int tries = 0; tries < 2; tries++) {
+            try {
+                return search(level, from, to);
+            } catch (RuntimeException e) {
+                report((tries == 0 ? "" : "retry ") + e.getClass().getSimpleName() + ": " + e.getMessage());
+            }
         }
-        try {
-            return search(level, from, to);
-        } catch (RuntimeException e) {
-            report("retry " + e.getClass().getSimpleName() + ": " + e.getMessage());
-            return new Result(List.of(), false);
-        }
+        return new Result(List.of(), false);
     }
 
     private static Result search(Level level, BlockPos from, BlockPos to) {
+        STATES.clear();
         if (!level.hasChunkAt(from) || !level.hasChunkAt(to)) return new Result(List.of(), false);
 
         BlockPos start = surface(level, from);
@@ -104,8 +111,9 @@ public final class Navigator {
         }
         BlockPos goal = snapTarget(level, to);
 
-        Map<Long, Float> scores = new HashMap<>();
-        Map<Long, BlockPos> parents = new HashMap<>();
+        Long2FloatOpenHashMap scores = new Long2FloatOpenHashMap(4_096);
+        scores.defaultReturnValue(Float.MAX_VALUE);
+        Long2ObjectOpenHashMap<BlockPos> parents = new Long2ObjectOpenHashMap<>(4_096);
         PriorityQueue<Entry> open = new PriorityQueue<>((a, b) -> Float.compare(a.f, b.f));
 
         scores.put(start.asLong(), 0.0f);
@@ -119,15 +127,14 @@ public final class Navigator {
 
         while (!open.isEmpty() && visited < MAX_NODES) {
             Entry current = open.poll();
-            Float known = scores.get(current.pos.asLong());
-            if (known == null || current.g > known) continue;
+            if (current.g > scores.get(current.pos.asLong())) continue;
             visited++;
 
-            if (current.pos.distSqr(goal) <= GOAL_RADIUS_SQ) {
+            double distance = current.pos.distSqr(goal);
+            if (distance <= GOAL_RADIUS_SQ) {
                 reached = current.pos;
                 break;
             }
-            double distance = current.pos.distSqr(goal);
             if (distance < bestDistance) {
                 bestDistance = distance;
                 best = current.pos;
@@ -241,7 +248,7 @@ public final class Navigator {
         return null;
     }
 
-    private static void relax(Map<Long, Float> scores, Map<Long, BlockPos> parents, PriorityQueue<Entry> open,
+    private static void relax(Long2FloatOpenHashMap scores, Long2ObjectOpenHashMap<BlockPos> parents, PriorityQueue<Entry> open,
                               BlockPos current, float currentG, BlockPos next, float step, BlockPos goal, BlockPos start) {
         if (Math.abs(next.getX() - start.getX()) > MAX_RADIUS) return;
         if (Math.abs(next.getZ() - start.getZ()) > MAX_RADIUS) return;
@@ -250,8 +257,7 @@ public final class Navigator {
         float tentative = currentG + step;
 
         long key = next.asLong();
-        Float previous = scores.get(key);
-        if (previous != null && tentative >= previous) return;
+        if (tentative >= scores.get(key)) return;
         scores.put(key, tentative);
         parents.put(key, current);
         open.add(new Entry(next, tentative, tentative + heuristic(next, goal)));
@@ -287,10 +293,11 @@ public final class Navigator {
     }
 
     private static void teleportEdges(Level level, BlockPos from, float g, BlockPos goal, BlockPos start,
-                                      Map<Long, Float> scores, Map<Long, BlockPos> parents, PriorityQueue<Entry> open) {
+                                      Long2FloatOpenHashMap scores, Long2ObjectOpenHashMap<BlockPos> parents, PriorityQueue<Entry> open) {
         for (int[] direction : RAY_DIRECTIONS) {
             for (int step = 1; step <= TELEPORT_RANGE; step++) {
                 BlockPos cell = from.offset(direction[0] * step, direction[1] * step, direction[2] * step);
+                if (!level.hasChunkAt(cell)) continue;
                 if (blocked(level, cell)) break;
                 if (standable(level, cell)) {
                     relax(scores, parents, open, from, g, cell,
@@ -332,18 +339,18 @@ public final class Navigator {
     }
 
     private static boolean climbable(Level level, BlockPos pos) {
-        return level.getBlockState(pos).is(BlockTags.CLIMBABLE);
+        return stateAt(level, pos).is(BlockTags.CLIMBABLE);
     }
 
     private static boolean blocked(Level level, BlockPos pos) {
-        BlockState state = level.getBlockState(pos);
+        BlockState state = stateAt(level, pos);
         if (state.getBlock() instanceof DoorBlock) return !state.getValue(DoorBlock.OPEN);
         if (state.getBlock() instanceof FenceGateBlock) return !state.getValue(FenceGateBlock.OPEN);
         return state.blocksMotion();
     }
 
     private static boolean fluid(Level level, BlockPos pos) {
-        return !level.getBlockState(pos).getFluidState().isEmpty();
+        return !stateAt(level, pos).getFluidState().isEmpty();
     }
 
     private static float stepCost(Level level, BlockPos from, BlockPos to, boolean diagonal) {
@@ -358,7 +365,7 @@ public final class Navigator {
         return (float) Math.sqrt(from.distSqr(to));
     }
 
-    private static List<Vec3> trace(BlockPos reached, Map<Long, BlockPos> parents) {
+    private static List<Vec3> trace(BlockPos reached, Long2ObjectOpenHashMap<BlockPos> parents) {
         List<BlockPos> nodes = new ArrayList<>();
         BlockPos current = reached;
         while (current != null) {
@@ -371,6 +378,16 @@ public final class Navigator {
             points.add(new Vec3(node.getX() + 0.5, node.getY() + 0.05, node.getZ() + 0.5));
         }
         return points;
+    }
+
+    private static BlockState stateAt(Level level, BlockPos pos) {
+        long key = pos.asLong();
+        BlockState cached = STATES.get(key);
+        if (cached != null) return cached;
+        if (STATES.size() >= MAX_STATES) STATES.clear();
+        BlockState state = level.getBlockState(pos);
+        STATES.put(key, state);
+        return state;
     }
 
     private static void report(String reason) {
