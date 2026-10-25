@@ -166,6 +166,7 @@ public final class Navigator {
         int dy = to.getY() - from.getY();
         int dz = to.getZ() - from.getZ();
         int steps = Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz)));
+        if (steps <= 1) return clearCorner(level, from, dx, dz);
         for (int step = 1; step < steps; step++) {
             double ratio = (double) step / steps;
             BlockPos cell = new BlockPos(
@@ -175,6 +176,10 @@ public final class Navigator {
             if (!free(level, cell)) return false;
         }
         return true;
+    }
+    private static boolean clearCorner(Level level, BlockPos from, int dx, int dz) {
+        if (dx == 0 || dz == 0) return true;
+        return free(level, from.offset(dx, 0, 0)) && free(level, from.offset(0, 0, dz));
     }
 
     private static BlockPos snapTarget(Level level, BlockPos to) {
@@ -201,9 +206,7 @@ public final class Navigator {
     }
 
     private static BlockPos walkNeighbour(Level level, BlockPos pos, int dx, int dz) {
-        if (dx != 0 && dz != 0) {
-            if (!free(level, pos.offset(dx, 0, 0)) || !free(level, pos.offset(0, 0, dz))) return null;
-        }
+        if (!clearCorner(level, pos, dx, dz)) return null;
         BlockPos column = pos.offset(dx, 0, dz);
         for (int dy = 1; dy >= 0; dy--) {
             BlockPos candidate = column.above(dy);
