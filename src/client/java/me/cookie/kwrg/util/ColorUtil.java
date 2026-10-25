@@ -16,8 +16,8 @@ import java.util.regex.Pattern;
 
 public class ColorUtil {
 
-    private static final Pattern RGB_PATTERN = Pattern.compile("(?:a?rgb)\\s*\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)(?:\\s*,\\s*\\d+)?\\s*\\)", Pattern.CASE_INSENSITIVE);
-    private static final Pattern HSL_PATTERN = Pattern.compile("(?:a?hsl)\\s*\\(\\s*(\\d+(?:\\.\\d+)?)\\s*,\\s*(\\d+(?:\\.\\d+)?)%?\\s*,\\s*(\\d+(?:\\.\\d+)?)%?(?:\\s*,\\s*\\d+(?:\\.\\d+)?%?)?\\s*\\)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern RGB_PATTERN = Pattern.compile("a?rgb\\s*\\(\\s*(\\d+)\\s*,\\s*(\\d+)\\s*,\\s*(\\d+)(?:\\s*,\\s*\\d+)?\\s*\\)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern HSL_PATTERN = Pattern.compile("a?hsl\\s*\\(\\s*(\\d+(?:\\.\\d+)?)\\s*,\\s*(\\d+(?:\\.\\d+)?)%?\\s*,\\s*(\\d+(?:\\.\\d+)?)%?(?:\\s*,\\s*\\d+(?:\\.\\d+)?%?)?\\s*\\)", Pattern.CASE_INSENSITIVE);
     private static final Pattern HEX_PATTERN = Pattern.compile("#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})");
     private static final Pattern GRADIENT_PATTERN = Pattern.compile("(?:linear-)?gradient\\s*\\((.+)\\)", Pattern.CASE_INSENSITIVE);
 
@@ -154,7 +154,7 @@ public class ColorUtil {
                 progress = (charOffset - timePhase) % 1.0F;
                 if (progress < 0) progress += 1.0F;
             } else {
-                progress = (length <= 1) ? 0 : (float) i / (float) (length - 1);
+                progress = (length == 1) ? 0 : (float) i / (float) (length - 1);
             }
 
             float scaled = progress * segments;
@@ -280,8 +280,8 @@ public class ColorUtil {
         float[] hsb = Color.RGBtoHSB(r, g, b, null);
 
         hsb[0] = (hue / 360.0f) % 1.0f;
-        hsb[1] = Math.min(1.0f, Math.max(0.0f, hsb[1] * saturation));
-        hsb[2] = Math.min(1.0f, Math.max(0.0f, hsb[2] * lightness));
+        hsb[1] = Math.clamp(hsb[1] * saturation, 0.0f, 1.0f);
+        hsb[2] = Math.clamp(hsb[2] * lightness, 0.0f, 1.0f);
 
         return Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]) & 0xFFFFFF;
     }
@@ -417,12 +417,12 @@ public class ColorUtil {
         if (styleConfig == null || styleConfig.isBlank()) return true;
 
         String raw = styleConfig.trim();
-        String lower = raw.toLowerCase(Locale.ROOT);
+        String lower;
 
         Matcher gradMatcher = GRADIENT_PATTERN.matcher(raw);
         if (gradMatcher.find()) {
             Color[] colors = parseColorList(gradMatcher.group(1));
-            if (colors == null || colors.length < 2) return false;
+            if (colors.length < 2) return false;
             raw = gradMatcher.replaceAll("").trim();
 //            lower = raw.toLowerCase(Locale.ROOT);
         }
