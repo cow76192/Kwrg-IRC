@@ -1,6 +1,7 @@
 package me.cookie.kwrg.irc.manager;
 
 import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.render.WaypointRenderer;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -20,6 +21,9 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -66,6 +70,7 @@ public final class ChatWaypointManager {
     }
 
     public static void init() {
+        Navigator.setHeuristicWeight(IrcConfig.get().navigatorWeight);
         LevelRenderEvents.BEFORE_GIZMOS.register(ChatWaypointManager::render);
         ClientTickEvents.END_CLIENT_TICK.register(ChatWaypointManager::onTick);
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> POINTS.clear());
@@ -202,7 +207,9 @@ public final class ChatWaypointManager {
             double horizontalSq = dx * dx + dz * dz;
             boolean samePlane = Math.abs(playerPos.y() - (waypoint.pos.getY() + 0.5)) <= NEAR_PLANE;
 
-            if (!samePlane || horizontalSq > NEAR_DISTANCE_SQ) {
+            boolean seen = samePlane && horizontalSq <= NEAR_DISTANCE_SQ && seesBlock(mc, waypoint.pos);
+
+            if (!seen) {
                 waypoint.nearSince = 0L;
             } else if (waypoint.nearSince == 0L) {
                 waypoint.nearSince = now;
@@ -211,13 +218,21 @@ public final class ChatWaypointManager {
                 continue;
             }
 
-            if (samePlane && horizontalSq <= ARRIVED_DISTANCE_SQ) {
+            if (seen && horizontalSq <= ARRIVED_DISTANCE_SQ) {
                 waypoint.clearPath();
                 continue;
             }
             waypoint.arrived = false;
             waypoint.tick(mc.level, from, playerPos, now, waypoint == active);
         }
+    }
+
+    private static boolean seesBlock(Minecraft mc, BlockPos pos) {
+        Vec3 from = mc.gameRenderer.getMainCamera().position();
+        Vec3 to = Vec3.atCenterOf(pos);
+        BlockHitResult hit = mc.level.clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, mc.player));
+        if (hit.getType() == HitResult.Type.MISS) return true;
+        return hit.getBlockPos().equals(pos) || hit.getLocation().distanceToSqr(from) > from.distanceToSqr(to);
     }
 
     private static final class Plan {
@@ -281,7 +296,7 @@ public final class ChatWaypointManager {
                         + (result.complete() ? refresh(active) : RETRY_INTERVAL_MS);
                 if (!result.complete() && !main.warned && Minecraft.getInstance().level != null) {
                     main.warned = true;
-                    ChatNotifier.send("§e[Waypoint] 不能完整步行到达，已用直线补最后一段", NotificationType.INFO);
+                    ChatNotifier.send("§e[Waypoint] 不能完整步行到达", NotificationType.INFO);
                 }
             });
         }

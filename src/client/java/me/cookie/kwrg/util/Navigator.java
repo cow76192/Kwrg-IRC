@@ -14,8 +14,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-import java.util.PriorityQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -26,6 +27,13 @@ public final class Navigator {
     private static final int MAX_NODES = 20_000;
     private static final int MAX_STATES = 65_536;
     private static final Long2ObjectOpenHashMap<BlockState> STATES = new Long2ObjectOpenHashMap<>(4_096);
+    private static final int Y_RADIUS = 32;
+    private static final int WINDOW = Y_RADIUS * 2 + 1;
+    private static final double[] COEFFICIENTS = {1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 10.0};
+    private static final float FAVOR_STRENGTH = 0.3f;
+    private static final int FAVOR_LIMIT = 4_096;
+    private static final float MIN_PROGRESS = 1.0f;
+    private static final Long2FloatOpenHashMap FAVOR = new Long2FloatOpenHashMap();
     private static final int MAX_RADIUS = 128;
     private static final int MAX_FALL = 8;
     private static final double DIAGONAL = Math.sqrt(2.0);
@@ -41,6 +49,15 @@ public final class Navigator {
     private static final float TELEPORT_COST = 2.0f;
     private static final int TELEPORT_BUDGET = 64;
     private static final float GOAL_RADIUS_SQ = 6.0f;
+    private static final float MIN_HEURISTIC_WEIGHT = 0.8f;
+    private static final float MAX_HEURISTIC_WEIGHT = 2.2f;
+
+    private static float heuristicWeight = 1.0f;
+
+    public static void setHeuristicWeight(float weight) {
+        if (!Float.isFinite(weight)) return;
+        heuristicWeight = Math.min(MAX_HEURISTIC_WEIGHT, Math.max(MIN_HEURISTIC_WEIGHT, weight));
+    }
     private static final double SMOOTHING_STEP = 0.5;
     private static final int[][] DIRECTIONS = {
             {1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
@@ -111,86 +128,29 @@ public final class Navigator {
         }
         BlockPos goal = snapTarget(level, to);
 
-        Long2FloatOpenHashMap scores = new Long2FloatOpenHashMap(4_096);
-        scores.defaultReturnValue(Float.MAX_VALUE);
-        Long2ObjectOpenHashMap<BlockPos> parents = new Long2ObjectOpenHashMap<>(4_096);
-        PriorityQueue<Entry> open = new PriorityQueue<>((a, b) -> Float.compare(a.f, b.f));
-
-        scores.put(start.asLong(), 0.0f);
-        open.add(new Entry(start, 0.0f, heuristic(start, goal)));
-
-        int visited = 0;
-        int teleportBudget = TELEPORT_BUDGET;
-        BlockPos reached = null;
-        BlockPos best = start;
-        double bestDistance = start.distSqr(goal);
-
-        while (!open.isEmpty() && visited < MAX_NODES) {
-            Entry current = open.poll();
-            if (current.g > scores.get(current.pos.asLong())) continue;
-            visited++;
-
-            double distance = current.pos.distSqr(goal);
-            if (distance <= GOAL_RADIUS_SQ) {
-                reached = current.pos;
-                break;
-            }
-            if (distance < bestDistance) {
-                bestDistance = distance;
-                best = current.pos;
-            }
-
-            boolean progressed = false;
-
-            for (int[] direction : DIRECTIONS) {
-                boolean diagonal = direction[0] != 0 && direction[1] != 0;
-
-                BlockPos walk = walkNeighbour(level, current.pos, direction[0], direction[1]);
-                if (walk != null) {
-                    relax(scores, parents, open, current.pos, current.g, walk, stepCost(level, current.pos, walk, diagonal), goal, start);
-                    progressed = true;
-                } else {
-                    BlockPos jump = hop(level, current.pos, direction[0], direction[1]);
-                    if (jump != null) {
-                        relax(scores, parents, open, current.pos, current.g, jump,
-                                (float) Math.sqrt(current.pos.distSqr(jump)) + HOP_COST, goal, start);
-                        progressed = true;
-                    }
-                }
-
-                BlockPos drop = fallNeighbour(level, current.pos, direction[0], direction[1]);
-                if (drop != null) {
-                    relax(scores, parents, open, current.pos, current.g, drop, stepCost(level, current.pos, drop, diagonal), goal, start);
-                    progressed = true;
-                }
-            }
-
-            if (climbable(level, current.pos)) {
-                for (int dy = -1; dy <= 1; dy += 2) {
-                    BlockPos candidate = current.pos.above(dy);
-                    if (!(dy > 0 ? free(level, candidate) : walkable(level, candidate))) continue;
-                    relax(scores, parents, open, current.pos, current.g, candidate, CLIMB_COST, goal, start);
-                    progressed = true;
-                }
-            }
-
-            if (!progressed && teleportBudget > 0) {
-                teleportBudget--;
-                teleportEdges(level, current.pos, current.g, goal, start, scores, parents, open);
-            }
-        }
+        Search search = new Search(level, start, goal);
+        Node reached = search.run();
 
         if (reached == null) {
+            Node best = search.bestEffort();
             report("no-path " + from.toShortString() + " -> " + to.toShortString()
                     + " feet=" + blocked(level, to)
                     + " head=" + blocked(level, to.above())
                     + " ground=" + blocked(level, to.below())
                     + " dy=" + (to.getY() - start.getY())
                     + " snapped=" + goal.toShortString()
-                    + " best=" + best.toShortString());
-            return new Result(finish(smooth(trace(best, parents)), goal), false);
+                    + " best=" + best.pos().toShortString()
+                    + " nodes=" + search.visited
+                    + " edges=" + search.considered
+                    + " ms=" + search.elapsed);
+            return new Result(finish(smooth(trace(best)), goal), false);
         }
-        return new Result(finish(smooth(trace(reached, parents)), goal), true);
+        search.favor(reached);
+        List<Vec3> points = finish(smooth(trace(reached)), goal);
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[Navigator] nodes={} edges={} ms={} points={}", search.visited, search.considered, search.elapsed, points.size());
+        }
+        return new Result(points, true);
     }
 
     private static List<Vec3> finish(List<Vec3> points, BlockPos goal) {
@@ -199,6 +159,22 @@ public final class Navigator {
             points.add(target);
         }
         return points;
+    }
+
+    private static boolean clearLine(Level level, BlockPos from, BlockPos to) {
+        int dx = to.getX() - from.getX();
+        int dy = to.getY() - from.getY();
+        int dz = to.getZ() - from.getZ();
+        int steps = Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz)));
+        for (int step = 1; step < steps; step++) {
+            double ratio = (double) step / steps;
+            BlockPos cell = new BlockPos(
+                    (int) Math.floor(from.getX() + dx * ratio),
+                    (int) Math.floor(from.getY() + dy * ratio),
+                    (int) Math.floor(from.getZ() + dz * ratio));
+            if (!free(level, cell)) return false;
+        }
+        return true;
     }
 
     private static BlockPos snapTarget(Level level, BlockPos to) {
@@ -248,21 +224,6 @@ public final class Navigator {
         return null;
     }
 
-    private static void relax(Long2FloatOpenHashMap scores, Long2ObjectOpenHashMap<BlockPos> parents, PriorityQueue<Entry> open,
-                              BlockPos current, float currentG, BlockPos next, float step, BlockPos goal, BlockPos start) {
-        if (Math.abs(next.getX() - start.getX()) > MAX_RADIUS) return;
-        if (Math.abs(next.getZ() - start.getZ()) > MAX_RADIUS) return;
-        if (Math.abs(next.getY() - start.getY()) > 32) return;
-
-        float tentative = currentG + step;
-
-        long key = next.asLong();
-        if (tentative >= scores.get(key)) return;
-        scores.put(key, tentative);
-        parents.put(key, current);
-        open.add(new Entry(next, tentative, tentative + heuristic(next, goal)));
-    }
-
     private static BlockPos hop(Level level, BlockPos from, int dx, int dz) {
         BlockPos best = null;
         int bestStep = 0;
@@ -290,22 +251,6 @@ public final class Navigator {
             return null;
         }
         return best;
-    }
-
-    private static void teleportEdges(Level level, BlockPos from, float g, BlockPos goal, BlockPos start,
-                                      Long2FloatOpenHashMap scores, Long2ObjectOpenHashMap<BlockPos> parents, PriorityQueue<Entry> open) {
-        for (int[] direction : RAY_DIRECTIONS) {
-            for (int step = 1; step <= TELEPORT_RANGE; step++) {
-                BlockPos cell = from.offset(direction[0] * step, direction[1] * step, direction[2] * step);
-                if (!level.hasChunkAt(cell)) continue;
-                if (blocked(level, cell)) break;
-                if (standable(level, cell)) {
-                    relax(scores, parents, open, from, g, cell,
-                            (float) Math.sqrt(from.distSqr(cell)) + TELEPORT_COST, goal, start);
-                    break;
-                }
-            }
-        }
     }
 
     private static BlockPos landing(Level level, BlockPos column) {
@@ -361,22 +306,12 @@ public final class Navigator {
         return cost;
     }
 
-    private static float heuristic(BlockPos from, BlockPos to) {
-        return (float) Math.sqrt(from.distSqr(to));
-    }
-
-    private static List<Vec3> trace(BlockPos reached, Long2ObjectOpenHashMap<BlockPos> parents) {
-        List<BlockPos> nodes = new ArrayList<>();
-        BlockPos current = reached;
-        while (current != null) {
-            nodes.add(current);
-            current = parents.get(current.asLong());
+    private static List<Vec3> trace(Node end) {
+        List<Vec3> points = new ArrayList<>();
+        for (Node node = end; node != null; node = node.parent) {
+            points.add(new Vec3(node.x + 0.5, node.y + 0.05, node.z + 0.5));
         }
-        List<Vec3> points = new ArrayList<>(nodes.size());
-        for (int index = nodes.size() - 1; index >= 0; index--) {
-            BlockPos node = nodes.get(index);
-            points.add(new Vec3(node.getX() + 0.5, node.getY() + 0.05, node.getZ() + 0.5));
-        }
+        Collections.reverse(points);
         return points;
     }
 
@@ -429,6 +364,254 @@ public final class Navigator {
                 + (p1 * 3.0 - p0 - p2 * 3.0 + p3) * t3) * 0.5;
     }
 
-    private record Entry(BlockPos pos, float g, float f) {
+    private static final class Node {
+        private final int x;
+        private final int y;
+        private final int z;
+        private final long key;
+        private final float h;
+        private float g = Float.MAX_VALUE;
+        private float f;
+        private int heapIndex = -1;
+        private Node parent;
+        private BlockPos pos;
+
+        private Node(int x, int y, int z, float h) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.key = keyOf(x, y, z);
+            this.h = h;
+        }
+
+        private BlockPos pos() {
+            if (pos == null) pos = new BlockPos(x, y, z);
+            return pos;
+        }
+    }
+
+    private static final class Search {
+        private final Level level;
+        private final BlockPos start;
+        private final BlockPos goal;
+        private final int baseY;
+        private final float hStart;
+        private final float weight = heuristicWeight;
+        private final long startedAt = System.currentTimeMillis();
+        private final Long2ObjectOpenHashMap<Node[]> columns = new Long2ObjectOpenHashMap<>(1 << 12);
+        private final Node[] best = new Node[COEFFICIENTS.length];
+        private Node[] heap = new Node[1_024];
+        private int heapSize;
+        private int visited;
+        private int considered;
+        private int teleportBudget = TELEPORT_BUDGET;
+        private long elapsed;
+
+        private Search(Level level, BlockPos start, BlockPos goal) {
+            this.level = level;
+            this.start = start;
+            this.goal = goal;
+            this.baseY = start.getY() - Y_RADIUS;
+            this.hStart = Math.max(distance(start.getX(), start.getY(), start.getZ()), 1.0f);
+        }
+
+        private Node run() {
+            Node first = node(start.getX(), start.getY(), start.getZ());
+            if (first == null) return null;
+            first.g = 0.0f;
+            first.f = first.h * weight;
+            push(first);
+
+            Node reached = null;
+            while (heapSize > 0 && visited < MAX_NODES) {
+                Node current = pop();
+                visited++;
+                if (current.h * current.h <= GOAL_RADIUS_SQ && clearLine(level, current.pos(), goal)) {
+                    reached = current;
+                    break;
+                }
+                for (int index = 0; index < COEFFICIENTS.length; index++) {
+                    if (current.g + current.h > COEFFICIENTS[index] * hStart) continue;
+                    if (best[index] == null || current.h < best[index].h) best[index] = current;
+                }
+                expand(current);
+            }
+            elapsed = System.currentTimeMillis() - startedAt;
+            return reached;
+        }
+
+        private void expand(Node current) {
+            BlockPos here = current.pos();
+            boolean progressed = false;
+
+            for (int[] direction : DIRECTIONS) {
+                int x = current.x + direction[0];
+                int z = current.z + direction[1];
+                if (Math.abs(x - start.getX()) > MAX_RADIUS || Math.abs(z - start.getZ()) > MAX_RADIUS) continue;
+                boolean diagonal = direction[0] != 0 && direction[1] != 0;
+
+                BlockPos walk = walkNeighbour(level, here, direction[0], direction[1]);
+                if (walk != null) {
+                    relax(current, walk, stepCost(level, here, walk, diagonal));
+                    progressed = true;
+                } else {
+                    BlockPos jump = hop(level, here, direction[0], direction[1]);
+                    if (jump != null) {
+                        relax(current, jump, (float) Math.sqrt(here.distSqr(jump)) + HOP_COST);
+                        progressed = true;
+                    }
+                }
+
+                BlockPos drop = fallNeighbour(level, here, direction[0], direction[1]);
+                if (drop != null) {
+                    relax(current, drop, stepCost(level, here, drop, diagonal));
+                    progressed = true;
+                }
+            }
+
+            if (climbable(level, here)) {
+                for (int dy = -1; dy <= 1; dy += 2) {
+                    BlockPos candidate = here.above(dy);
+                    if (!(dy > 0 ? free(level, candidate) : walkable(level, candidate))) continue;
+                    relax(current, candidate, CLIMB_COST);
+                    progressed = true;
+                }
+            }
+
+            if (!progressed && teleportBudget > 0) {
+                teleportBudget--;
+                teleportEdges(current);
+            }
+        }
+
+        private void teleportEdges(Node current) {
+            BlockPos here = current.pos();
+            for (int[] direction : RAY_DIRECTIONS) {
+                for (int step = 1; step <= TELEPORT_RANGE; step++) {
+                    BlockPos cell = here.offset(direction[0] * step, direction[1] * step, direction[2] * step);
+                    if (!level.hasChunkAt(cell)) continue;
+                    if (blocked(level, cell)) break;
+                    if (standable(level, cell)) {
+                        relax(current, cell, (float) Math.sqrt(here.distSqr(cell)) + TELEPORT_COST);
+                        break;
+                    }
+                }
+            }
+        }
+
+        private void relax(Node current, BlockPos next, float step) {
+            considered++;
+            int x = next.getX();
+            int z = next.getZ();
+            if (Math.abs(x - start.getX()) > MAX_RADIUS || Math.abs(z - start.getZ()) > MAX_RADIUS) return;
+            Node node = node(x, next.getY(), z);
+            if (node == null) return;
+            float tentative = current.g + step * (1.0f - FAVOR.get(node.key) * FAVOR_STRENGTH);
+            if (tentative >= node.g) return;
+            node.g = tentative;
+            node.f = tentative + node.h * weight;
+            node.parent = current;
+            push(node);
+        }
+
+        private Node node(int x, int y, int z) {
+            int slot = y - baseY;
+            if (slot < 0 || slot >= WINDOW) return null;
+            long column = ((long) x << 32) | (z & 0xFFFFFFFFL);
+            Node[] cells = columns.get(column);
+            if (cells == null) {
+                cells = new Node[WINDOW];
+                columns.put(column, cells);
+            }
+            Node node = cells[slot];
+            if (node == null) {
+                node = new Node(x, y, z, distance(x, y, z));
+                cells[slot] = node;
+            }
+            return node;
+        }
+
+        private float distance(int x, int y, int z) {
+            double dx = x - goal.getX();
+            double dy = y - goal.getY();
+            double dz = z - goal.getZ();
+            return (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+        }
+
+        private Node bestEffort() {
+            Node fallback = null;
+            for (Node candidate : best) {
+                if (candidate == null) continue;
+                if (candidate.h <= hStart - MIN_PROGRESS) return candidate;
+                if (fallback == null || candidate.h < fallback.h) fallback = candidate;
+            }
+            return fallback == null ? node(start.getX(), start.getY(), start.getZ()) : fallback;
+        }
+
+        private void favor(Node end) {
+            for (Node node = end; node != null && node.parent != null; node = node.parent) {
+                FAVOR.put(node.key, 1.0f);
+            }
+            if (FAVOR.size() > FAVOR_LIMIT) FAVOR.clear();
+        }
+
+        private void push(Node node) {
+            if (node.heapIndex >= 0) {
+                siftUp(node);
+                return;
+            }
+            if (heapSize == heap.length) heap = Arrays.copyOf(heap, heapSize << 1);
+            node.heapIndex = heapSize;
+            heap[heapSize++] = node;
+            siftUp(node);
+        }
+
+        private Node pop() {
+            Node top = heap[0];
+            Node last = heap[--heapSize];
+            heap[heapSize] = null;
+            top.heapIndex = -1;
+            if (heapSize > 0) {
+                heap[0] = last;
+                last.heapIndex = 0;
+                siftDown(last);
+            }
+            return top;
+        }
+
+        private void siftUp(Node node) {
+            int index = node.heapIndex;
+            while (index > 0) {
+                int parentIndex = (index - 1) >> 1;
+                Node parent = heap[parentIndex];
+                if (parent.f <= node.f) break;
+                heap[index] = parent;
+                parent.heapIndex = index;
+                index = parentIndex;
+            }
+            heap[index] = node;
+            node.heapIndex = index;
+        }
+
+        private void siftDown(Node node) {
+            int index = node.heapIndex;
+            while (true) {
+                int child = (index << 1) + 1;
+                if (child >= heapSize) break;
+                int right = child + 1;
+                if (right < heapSize && heap[right].f < heap[child].f) child = right;
+                Node smaller = heap[child];
+                if (node.f <= smaller.f) break;
+                heap[index] = smaller;
+                smaller.heapIndex = index;
+                index = child;
+            }
+            heap[index] = node;
+            node.heapIndex = index;
+        }
+    }
+
+    private static long keyOf(int x, int y, int z) {
+        return ((long) x & 0x3FFFFFFL) << 38 | ((long) z & 0x3FFFFFFL) << 12 | ((long) y & 0xFFFL);
     }
 }

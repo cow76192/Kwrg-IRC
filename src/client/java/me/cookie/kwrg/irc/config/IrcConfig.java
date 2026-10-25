@@ -83,6 +83,7 @@ public class IrcConfig {
     public Map<String, HudElement.State> hudElements = new LinkedHashMap<>();
 
     public boolean disableBlur = false;
+    public float navigatorWeight = 1.0f;
     public float blurQuality = 8.0f;
     public float blurSize = 16.0f;
 
