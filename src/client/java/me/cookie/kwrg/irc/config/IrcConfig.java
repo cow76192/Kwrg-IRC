@@ -4,6 +4,8 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import me.cookie.kwrg.gui.hud.HudElement;
+import me.cookie.kwrg.gui.manager.GuiColorManager;
+import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import me.cookie.kwrg.irc.manager.RouteManager;
 import me.cookie.kwrg.irc.manager.WaypointManager;
@@ -95,7 +97,7 @@ public class IrcConfig {
 
     public String guiFont = "default";
     public String guiColor = "#11161F";
-
+    public float guiOpacity = 1.0f;
     public float guiScale = 1.0f;
 
     public boolean nickEnabled = false;
@@ -193,6 +195,8 @@ public class IrcConfig {
                 if (loaded.myCape == null) loaded.myCape = "";
 
                 if (loaded.myScale <= 0.0f || Float.isNaN(loaded.myScale)) loaded.myScale = 1.0f;
+                if (!Float.isFinite(loaded.guiOpacity)) loaded.guiOpacity = 1.0f;
+                loaded.guiOpacity = Math.clamp(loaded.guiOpacity, GuiThemeService.MIN_OPACITY, 1.0f);
                 if (loaded.capeCanvasSize < 64) loaded.capeCanvasSize = 4096;
                 if (loaded.capeAnimFps <= 0) loaded.capeAnimFps = 10;
                 if (loaded.capeRenderMaxFps <= 0) loaded.capeRenderMaxFps = 120;
@@ -210,6 +214,7 @@ public class IrcConfig {
 
                 instance = loaded;
                 currentProfileName = cleanName;
+                GuiColorManager.refresh();
                 saveSelectorMeta(cleanName);
 
                 PlayerFinderManager.reloadFromConfig();
@@ -221,6 +226,7 @@ public class IrcConfig {
             } else if (createIfMissing) {
                 instance = new IrcConfig();
                 currentProfileName = cleanName;
+                GuiColorManager.refresh();
                 WaypointManager.reloadFromConfig();
                 RouteManager.reloadFromConfig();
                 save();
@@ -236,6 +242,7 @@ public class IrcConfig {
         String cleanName = sanitizeProfileName(profileName);
         instance = new IrcConfig();
         currentProfileName = cleanName;
+        GuiColorManager.refresh();
         WaypointManager.reloadFromConfig();
         RouteManager.reloadFromConfig();
         LOGGER.info("[Kwrg] 已在内存中新建配置 [{}]（尚未保存到磁盘）", cleanName);

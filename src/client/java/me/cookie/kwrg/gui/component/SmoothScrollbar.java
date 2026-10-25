@@ -2,9 +2,10 @@ package me.cookie.kwrg.gui.component;
 
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
+import me.cookie.kwrg.gui.theme.GuiThemeService;
+import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 
 public class SmoothScrollbar {
@@ -72,7 +73,7 @@ public class SmoothScrollbar {
         this.hoverAnimation = Mth.clamp(this.hoverAnimation + (targetHover - this.hoverAnimation) * delta * 0.35f, 0.0f, 1.0f);
 
         int alpha = (int) (255 * (0.45f + this.hoverAnimation * 0.40f) * this.fadeAlpha * panelAlpha);
-        Color thumbColor = Color.ofArgb(ARGB.color(alpha, 255, 255, 255));
+        Color thumbColor = AnimationUtil.withAlpha(GuiThemeService.textStrong(), alpha);
 
         RenderUtil.drawRoundedPanel(graphics, scrollbarX, thumbY, 2, thumbH, 1.0f, thumbColor, thumbColor);
     }

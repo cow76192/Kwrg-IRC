@@ -4,6 +4,7 @@ import me.cookie.kwrg.gui.component.route.RouteButtonComponent;
 
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
+import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
@@ -85,6 +86,9 @@ public final class RegionSelectionPane {
         search.setX(x + 16);
         search.setY(y + 42);
         search.setWidth(width - 32);
+        search.setTextColor(AnimationUtil.opaqueArgb(search.isFocused()
+                ? GuiThemeService.textStrong()
+                : GuiThemeService.textBody()));
         done.bounds(x + width - 72, y + height - 32, 56, 22);
 
         List<SkyblockIsland> results = SkyblockIsland.search(search.getValue());
@@ -103,8 +107,8 @@ public final class RegionSelectionPane {
                 graphics,
                 currentX, currentY, currentW, currentH,
                 AnimationUtil.lerp(p, 5, 10),
-                AnimationUtil.lerpColor(p, originColor, Color.ofArgb(0xFF1C2734)),
-                Color.ofArgb(0x885AA5C4)
+                AnimationUtil.lerpColor(p, originColor, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.cardBg()))),
+                AnimationUtil.withAlpha(GuiThemeService.regionBorder(), 0x88)
         );
 
         float labelAlpha = 1 - Mth.clamp(p * 4, 0, 1);
@@ -113,7 +117,7 @@ public final class RegionSelectionPane {
                     RenderUtil.withOpacity(graphics, labelAlpha),
                     Component.literal("生效区域"),
                     currentX + currentW / 2, currentY + currentH / 2,
-                    0.8f, 0xFFD2DFE8
+                    0.8f, AnimationUtil.opaqueArgb(GuiThemeService.textBody())
             );
         }
 
@@ -129,9 +133,9 @@ public final class RegionSelectionPane {
         graphics.enableScissor(x, y, x + width, y + height);
 
         OwoUIGraphics content = RenderUtil.withOpacity(graphics, alpha);
-        RenderUtil.drawSmoothText(content, "生效区域 · 可多选", x + 16, y + 15, 0xFFE1F5FE);
+        RenderUtil.drawSmoothText(content, "生效区域 · 可多选", x + 16, y + 15, AnimationUtil.opaqueArgb(GuiThemeService.textStrong()));
         search.extractRenderState(content, mouseX, mouseY, partialTick);
-        RenderUtil.fillSubpixel(content, x + 16, y + 64, x + width - 16, y + 65, 0xFF80D7FF);
+        RenderUtil.fillSubpixel(content, x + 16, y + 64, x + width - 16, y + 65, AnimationUtil.opaqueArgb(GuiThemeService.accentSoft()));
 
         graphics.enableScissor(x + 12, y + 71, x + width - 12, y + 72 + listH);
         for (int i = 0; i < results.size(); i++) {
@@ -149,7 +153,7 @@ public final class RegionSelectionPane {
         }
 
         graphics.disableScissor();
-        RenderUtil.drawSmoothText(content, error.isEmpty() ? selected.contains("all") ? "所有区域均生效" : "已选 " + selected.size() + " 个区域" : error, x + 16, y + height - 24, error.isEmpty() ? 0xFF8CA7BA : 0xFFFFA8B4);
+        RenderUtil.drawSmoothText(content, error.isEmpty() ? selected.contains("all") ? "所有区域均生效" : "已选 " + selected.size() + " 个区域" : error, x + 16, y + height - 24, error.isEmpty() ? AnimationUtil.opaqueArgb(GuiThemeService.textMuted()) : AnimationUtil.opaqueArgb(GuiThemeService.danger()));
         done.draw(content, "完成", false, mouseX, mouseY);
         graphics.disableScissor();
         graphics.pose().popMatrix();

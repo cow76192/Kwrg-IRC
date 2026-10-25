@@ -1,11 +1,11 @@
 package me.cookie.kwrg.gui.component;
 
-import io.wispforest.owo.ui.base.BaseUIComponent;
 import io.wispforest.owo.ui.container.StackLayout;
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import io.wispforest.owo.ui.core.Sizing;
 import me.cookie.kwrg.gui.IrcScreen;
+import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.module.Category;
@@ -13,13 +13,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class RadialMenuComponent extends BaseUIComponent {
+public class RadialMenuComponent extends BaseGuiComponent {
 
     private static final Identifier LOGO_TEXTURE = Identifier.fromNamespaceAndPath("kwrg", "textures/gui/logo.png");
     private static final long EXPAND_DURATION = 500L;
@@ -158,6 +157,7 @@ public class RadialMenuComponent extends BaseUIComponent {
 
     @Override
     public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
+        graphics = RenderUtil.withOpacity(graphics, GuiThemeService.opacity());
         long now = System.currentTimeMillis();
 
         if (this.waitingForTertiaryToClose) {
@@ -206,8 +206,8 @@ public class RadialMenuComponent extends BaseUIComponent {
             double gapDeg = Math.toDegrees(Math.asin(30.0 / actualRingRadius));
 
             int ringAlpha = (int) (255 * 0.35f * menuAlpha);
-            Color ringPeak = AnimationUtil.withAlpha(0xFFFFFF, ringAlpha);
-            Color ringFade = AnimationUtil.withAlpha(0xFFFFFF, 0);
+            Color ringPeak = AnimationUtil.withAlpha(this.textStrong(), ringAlpha);
+            Color ringFade = AnimationUtil.withAlpha(this.textStrong(), 0);
 
             for (int i = 0; i < nodeCount; i++) {
                 double a1 = 90.0 + i * stepDeg + gapDeg;
@@ -275,7 +275,7 @@ public class RadialMenuComponent extends BaseUIComponent {
             String text = "K";
             float textW = font.width(text);
             float textH = font.lineHeight;
-            int color = ARGB.color((int) (255 * alpha), 255, 255, 255);
+            int color = AnimationUtil.argb(this.textStrong(), (int) (255 * alpha));
 
             graphics.drawText(Component.literal(text), -textW / 2.0f, -textH / 2.0f, 2.4f, color, OwoUIGraphics.TextAnchor.TOP_LEFT);
         }
