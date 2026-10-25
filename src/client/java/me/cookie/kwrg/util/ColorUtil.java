@@ -462,4 +462,13 @@ public class ColorUtil {
         return lower.contains("rainbow") || lower.contains("animate")
                 || lower.contains("flow") || lower.contains("wave") || lower.contains("scroll");
     }
+
+    public static float parseOpacityPercent(String raw) {
+        try {
+            float parsed = Float.parseFloat(raw.trim());
+            return Float.isFinite(parsed) ? parsed : Float.NaN;
+        } catch (NumberFormatException e) {
+            return Float.NaN;
+        }
+    }
 }

@@ -104,7 +104,7 @@ public class GuiStyleModule extends Module {
                 new String[]{String.valueOf(Math.round(IrcConfig.get().guiOpacity * 100.0f))},
                 new String[]{"%"},
                 values -> {
-                    float parsed = parseOpacityPercent(values[0]);
+                    float parsed = ColorUtil.parseOpacityPercent(values[0]);
                     if (!Float.isFinite(parsed)) {
                         ChatNotifier.send("§c请输入有效的数字 (例如: 80，最小 " + minOpacityPercent + ")", NotificationType.WARN);
                         return;
@@ -114,7 +114,7 @@ public class GuiStyleModule extends Module {
                     ChatNotifier.send("§aGUI 透明度: §e" + percent + "%", NotificationType.SUCCESS);
                 },
                 values -> {
-                    float parsed = parseOpacityPercent(values[0]);
+                    float parsed = ColorUtil.parseOpacityPercent(values[0]);
                     if (!Float.isFinite(parsed)) return;
                     GuiColorManager.setGuiOpacity(Math.clamp(parsed, (float) minOpacityPercent, 100.0f) / 100.0f);
                 }
@@ -192,14 +192,5 @@ public class GuiStyleModule extends Module {
 
             isUpdating[0] = false;
         } catch (NumberFormatException ignored) {}
-    }
-
-    private static float parseOpacityPercent(String raw) {
-        try {
-            float parsed = Float.parseFloat(raw.trim());
-            return Float.isFinite(parsed) ? parsed : Float.NaN;
-        } catch (NumberFormatException e) {
-            return Float.NaN;
-        }
     }
 }

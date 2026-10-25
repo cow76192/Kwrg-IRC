@@ -4,7 +4,7 @@ import io.wispforest.owo.ui.core.Color;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 
-    public class AnimationUtil {
+public class AnimationUtil {
     public static float easeSmoothDecel(float progress) {
         float p = Mth.clamp(progress, 0.0f, 1.0f);
         return 1.0f - (float) Math.pow(1.0f - p, 4.0f);
@@ -50,5 +50,12 @@ import net.minecraft.util.Mth;
         int b = Math.round(start.blue() * 255.0f + (end.blue() * 255.0f - start.blue() * 255.0f) * d);
         int a = Math.round(start.alpha() * 255.0f + (end.alpha() * 255.0f - start.alpha() * 255.0f) * d);
         return Color.ofArgb(ARGB.color(a, r, g, b));
+    }
+
+    public static int lerpRgb(int from, int to, float t) {
+        int r = Math.round(((from >> 16) & 0xFF) + (((to >> 16) & 0xFF) - ((from >> 16) & 0xFF)) * t);
+        int g = Math.round(((from >> 8) & 0xFF) + (((to >> 8) & 0xFF) - ((from >> 8) & 0xFF)) * t);
+        int b = Math.round((from & 0xFF) + ((to & 0xFF) - (from & 0xFF)) * t);
+        return (r << 16) | (g << 8) | b;
     }
 }

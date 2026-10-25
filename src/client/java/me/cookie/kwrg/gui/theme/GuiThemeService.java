@@ -137,7 +137,7 @@ public final class GuiThemeService {
 
     private static int tone(int index) {
         float progress = toneProgress();
-        return progress >= 0.999f ? toneTo[index] : lerpRgb(toneFrom[index], toneTo[index], progress);
+        return progress >= 0.999f ? toneTo[index] : AnimationUtil.lerpRgb(toneFrom[index], toneTo[index], progress);
     }
 
     private static float toneProgress() {
@@ -175,12 +175,5 @@ public final class GuiThemeService {
                 lightBackground ? ERROR_BORDER_LIGHT : ERROR_BORDER_DARK,
                 lightBackground ? TEXT_LABEL_LIGHT : TEXT_LABEL_DARK
         };
-    }
-
-    private static int lerpRgb(int from, int to, float t) {
-        int r = Math.round(((from >> 16) & 0xFF) + (((to >> 16) & 0xFF) - ((from >> 16) & 0xFF)) * t);
-        int g = Math.round(((from >> 8) & 0xFF) + (((to >> 8) & 0xFF) - ((from >> 8) & 0xFF)) * t);
-        int b = Math.round((from & 0xFF) + ((to & 0xFF) - (from & 0xFF)) * t);
-        return (r << 16) | (g << 8) | b;
     }
 }

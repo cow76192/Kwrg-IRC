@@ -98,7 +98,6 @@ public class IrcConfig {
     public String guiFont = "default";
     public String guiColor = "#11161F";
     public float guiOpacity = 1.0f;
-
     public float guiScale = 1.0f;
 
     public boolean nickEnabled = false;
