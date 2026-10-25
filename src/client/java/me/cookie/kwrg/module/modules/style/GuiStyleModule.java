@@ -17,15 +17,15 @@ import org.lwjgl.glfw.GLFW;
 
 import java.awt.Color;
 
-public class GuiColorModule extends Module {
+public class GuiStyleModule extends Module {
 
-    public GuiColorModule() {
-        super("guiColor", Category.STYLE, PanelItemComponent.ItemType.TRIGGER);
+    public GuiStyleModule() {
+        super("guiStyle", Category.STYLE, PanelItemComponent.ItemType.TRIGGER);
     }
 
     @Override
     public void onExecute() {
-        ChatNotifier.send("§6[IRC] 当前 GUI 颜色: §f" + GuiColorManager.getGuiColorStr()
+        ChatNotifier.send("§6[IRC] 当前 GUI 样式: §f" + GuiColorManager.getGuiColorStr()
                 + " §7/ 透明度: §f" + Math.round(IrcConfig.get().guiOpacity * 100.0f) + "% §7(右键打开调色盘)",
                 NotificationType.INFO);
     }
