@@ -7,6 +7,7 @@ import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import me.cookie.kwrg.irc.manager.RouteManager;
 import me.cookie.kwrg.irc.manager.WaypointManager;
+import me.cookie.kwrg.util.Navigator;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -216,6 +217,7 @@ public class IrcConfig {
                 PlayerFinderManager.reloadFromConfig();
                 WaypointManager.reloadFromConfig();
                 RouteManager.reloadFromConfig();
+                Navigator.setHeuristicWeight(instance.navigatorWeight);
 
                 LOGGER.info("[Kwrg] 已加载配置文件: {}.json", cleanName);
                 return true;
@@ -224,6 +226,7 @@ public class IrcConfig {
                 currentProfileName = cleanName;
                 WaypointManager.reloadFromConfig();
                 RouteManager.reloadFromConfig();
+                Navigator.setHeuristicWeight(instance.navigatorWeight);
                 save();
                 return true;
             }
@@ -239,6 +242,7 @@ public class IrcConfig {
         currentProfileName = cleanName;
         WaypointManager.reloadFromConfig();
         RouteManager.reloadFromConfig();
+        Navigator.setHeuristicWeight(instance.navigatorWeight);
         LOGGER.info("[Kwrg] 已在内存中新建配置 [{}]（尚未保存到磁盘）", cleanName);
     }
 
