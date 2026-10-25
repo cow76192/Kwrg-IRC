@@ -216,6 +216,7 @@ public final class Navigator {
     }
 
     private static BlockPos fallNeighbour(Level level, BlockPos pos, int dx, int dz) {
+        if (!clearCorner(level, pos, dx, dz)) return null;
         return descendTo(level, pos.offset(dx, 0, dz), MAX_FALL);
     }
 
