@@ -19,12 +19,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 public final class Navigator {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("kwrg-navigator");
     private static final int MAX_NODES = 20_000;
+    private static final int MAX_PENDING = 8;
+    private static final AtomicInteger PENDING = new AtomicInteger();
     private static final int MAX_STATES = 65_536;
     private static final Long2ObjectOpenHashMap<BlockState> STATES = new Long2ObjectOpenHashMap<>(4_096);
     private static final int Y_RADIUS = 32;
@@ -93,6 +96,12 @@ public final class Navigator {
     }
 
     public static void searchAsync(Level level, BlockPos from, BlockPos to, Consumer<Result> callback) {
+        if (PENDING.incrementAndGet() > MAX_PENDING) {
+            PENDING.decrementAndGet();
+            report("queue-full");
+            callback.accept(new Result(List.of(), false));
+            return;
+        }
         EXECUTOR.submit(() -> {
             Result result;
             try {
@@ -100,6 +109,8 @@ public final class Navigator {
             } catch (Throwable failure) {
                 report("unexpected " + failure.getClass().getSimpleName() + ": " + failure.getMessage());
                 result = new Result(List.of(), false);
+            } finally {
+                PENDING.decrementAndGet();
             }
             Result ready = result;
             Minecraft.getInstance().execute(() -> callback.accept(ready));
@@ -167,13 +178,22 @@ public final class Navigator {
         int dz = to.getZ() - from.getZ();
         int steps = Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz)));
         if (steps <= 1) return clearCorner(level, from, dx, dz);
-        for (int step = 1; step < steps; step++) {
-            double ratio = (double) step / steps;
-            BlockPos cell = new BlockPos(
-                    (int) Math.floor(from.getX() + dx * ratio),
-                    (int) Math.floor(from.getY() + dy * ratio),
-                    (int) Math.floor(from.getZ() + dz * ratio));
-            if (!free(level, cell)) return false;
+        int samples = steps * 4;
+        int lastX = from.getX();
+        int lastY = from.getY();
+        int lastZ = from.getZ();
+        for (int index = 1; index < samples; index++) {
+            double ratio = (double) index / samples;
+            int x = (int) Math.floor(from.getX() + dx * ratio);
+            int y = (int) Math.floor(from.getY() + dy * ratio);
+            int z = (int) Math.floor(from.getZ() + dz * ratio);
+            if (x != lastX || z != lastZ) {
+                if (!clearCorner(level, new BlockPos(lastX, lastY, lastZ), x - lastX, z - lastZ)) return false;
+                lastX = x;
+                lastY = y;
+                lastZ = z;
+            }
+            if (!free(level, new BlockPos(x, y, z))) return false;
         }
         return true;
     }

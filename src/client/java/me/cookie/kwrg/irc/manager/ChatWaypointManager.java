@@ -89,8 +89,8 @@ public final class ChatWaypointManager {
 
         Matcher matcher = LABELED_PATTERN.matcher(text);
         if (!matcher.find()) {
-            matcher = BARE_PATTERN.matcher(text);
-            if (!matcher.find()) return null;
+            matcher = BARE_PATTERN.matcher(text.trim());
+            if (!matcher.matches()) return null;
         }
         return blockPos(matcher.group(1), matcher.group(2), matcher.group(3));
     }
@@ -136,6 +136,8 @@ public final class ChatWaypointManager {
     public static int mark(int x, int y, int z, String label) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null) return 0;
+        if (Math.abs(x) > MAX_COORD || Math.abs(z) > MAX_COORD) return 0;
+        if (y < mc.level.getMinY() || y > mc.level.getMaxY()) return 0;
 
         BlockPos pos = new BlockPos(x, y, z);
         String key = mc.level.dimension().toString() + ":" + pos.asLong();
