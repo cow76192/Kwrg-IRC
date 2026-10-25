@@ -202,7 +202,7 @@ public final class Navigator {
 
     private static BlockPos walkNeighbour(Level level, BlockPos pos, int dx, int dz) {
         if (dx != 0 && dz != 0) {
-            if (blocked(level, pos.offset(dx, 0, 0)) || blocked(level, pos.offset(0, 0, dz))) return null;
+            if (!free(level, pos.offset(dx, 0, 0)) || !free(level, pos.offset(0, 0, dz))) return null;
         }
         BlockPos column = pos.offset(dx, 0, dz);
         for (int dy = 1; dy >= 0; dy--) {
