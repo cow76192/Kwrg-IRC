@@ -197,15 +197,19 @@ public final class ChatWaypointManager {
                 continue;
             }
 
-            if (now - waypoint.createdAt >= EXPIRY_MS) {
-                iterator.remove();
-                continue;
-            }
-
             double dx = playerPos.x() - (waypoint.pos.getX() + 0.5);
             double dz = playerPos.z() - (waypoint.pos.getZ() + 0.5);
             double horizontalSq = dx * dx + dz * dz;
             boolean samePlane = Math.abs(playerPos.y() - (waypoint.pos.getY() + 0.5)) <= NEAR_PLANE;
+
+            if (horizontalSq < waypoint.bestDistanceSq - 1.0) {
+                waypoint.bestDistanceSq = horizontalSq;
+                waypoint.expiresAt = now + EXPIRY_MS;
+            }
+            if (now >= waypoint.expiresAt) {
+                iterator.remove();
+                continue;
+            }
 
             boolean seen = samePlane && horizontalSq <= NEAR_DISTANCE_SQ && seesBlock(mc, waypoint.pos);
 
@@ -249,6 +253,8 @@ public final class ChatWaypointManager {
         private final ResourceKey<Level> dimension;
         private final BlockPos origin;
         private final long createdAt = System.currentTimeMillis();
+        private long expiresAt = createdAt + EXPIRY_MS;
+        private double bestDistanceSq = Double.MAX_VALUE;
         private final Plan main = new Plan();
         private final Plan guide = new Plan();
         private boolean arrived;
