@@ -139,7 +139,7 @@ public class TertiaryPanelComponent extends FlowLayout {
             float contentAlpha = (ease - 0.15f) / 0.85f;
 
             Color badgeBg = AnimationUtil.withAlpha(GuiThemeService.badgeBg(), (int) (255 * contentAlpha));
-            Color badgeOutline = AnimationUtil.withAlpha(GuiThemeService.badgeText(), (int) (85 * contentAlpha));
+            Color badgeOutline = AnimationUtil.withAlpha(GuiThemeService.badgeRing(), (int) (85 * contentAlpha));
             graphics.drawCircle(iconBadgeX, iconBadgeY, 32, iconBadgeRadius, badgeBg);
             graphics.drawRing(iconBadgeX, iconBadgeY, 32, iconBadgeRadius - 0.8, iconBadgeRadius, badgeOutline, badgeOutline);
 

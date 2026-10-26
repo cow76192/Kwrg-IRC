@@ -87,8 +87,8 @@ public final class RegionSelectionPane {
         search.setY(y + 42);
         search.setWidth(width - 32);
         search.setTextColor(AnimationUtil.opaqueArgb(search.isFocused()
-                ? GuiThemeService.textStrong()
-                : GuiThemeService.textBody()));
+                ? GuiThemeService.routeTitle()
+                : GuiThemeService.routeBody()));
         done.bounds(x + width - 72, y + height - 32, 56, 22);
 
         List<SkyblockIsland> results = SkyblockIsland.search(search.getValue());
@@ -107,7 +107,7 @@ public final class RegionSelectionPane {
                 graphics,
                 currentX, currentY, currentW, currentH,
                 AnimationUtil.lerp(p, 5, 10),
-                AnimationUtil.lerpColor(p, originColor, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.cardBg()))),
+                AnimationUtil.lerpColor(p, originColor, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.dialogBg()))),
                 AnimationUtil.withAlpha(GuiThemeService.regionBorder(), 0x88)
         );
 
@@ -117,7 +117,7 @@ public final class RegionSelectionPane {
                     RenderUtil.withOpacity(graphics, labelAlpha),
                     Component.literal("生效区域"),
                     currentX + currentW / 2, currentY + currentH / 2,
-                    0.8f, AnimationUtil.opaqueArgb(GuiThemeService.textBody())
+                    0.8f, AnimationUtil.opaqueArgb(GuiThemeService.routeBody())
             );
         }
 
@@ -133,7 +133,7 @@ public final class RegionSelectionPane {
         graphics.enableScissor(x, y, x + width, y + height);
 
         OwoUIGraphics content = RenderUtil.withOpacity(graphics, alpha);
-        RenderUtil.drawSmoothText(content, "生效区域 · 可多选", x + 16, y + 15, AnimationUtil.opaqueArgb(GuiThemeService.textStrong()));
+        RenderUtil.drawSmoothText(content, "生效区域 · 可多选", x + 16, y + 15, AnimationUtil.opaqueArgb(GuiThemeService.routeTitle()));
         search.extractRenderState(content, mouseX, mouseY, partialTick);
         RenderUtil.fillSubpixel(content, x + 16, y + 64, x + width - 16, y + 65, AnimationUtil.opaqueArgb(GuiThemeService.accentSoft()));
 
@@ -153,7 +153,7 @@ public final class RegionSelectionPane {
         }
 
         graphics.disableScissor();
-        RenderUtil.drawSmoothText(content, error.isEmpty() ? selected.contains("all") ? "所有区域均生效" : "已选 " + selected.size() + " 个区域" : error, x + 16, y + height - 24, error.isEmpty() ? AnimationUtil.opaqueArgb(GuiThemeService.textMuted()) : AnimationUtil.opaqueArgb(GuiThemeService.danger()));
+        RenderUtil.drawSmoothText(content, error.isEmpty() ? selected.contains("all") ? "所有区域均生效" : "已选 " + selected.size() + " 个区域" : error, x + 16, y + height - 24, error.isEmpty() ? AnimationUtil.opaqueArgb(GuiThemeService.routeMuted()) : AnimationUtil.opaqueArgb(GuiThemeService.danger()));
         done.draw(content, "完成", false, mouseX, mouseY);
         graphics.disableScissor();
         graphics.pose().popMatrix();

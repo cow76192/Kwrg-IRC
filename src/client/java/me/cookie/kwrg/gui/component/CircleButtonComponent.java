@@ -82,8 +82,8 @@ public class CircleButtonComponent extends BaseGuiComponent {
         Color solidBgFade = AnimationUtil.withAlpha(this.circleBg(), 0);
 
         int lineAlpha = (int) (255 * (0.45f + this.hoverAnimation * 0.45f) * this.visualAlpha);
-        Color borderPeakColor = AnimationUtil.withAlpha(this.textStrong(), lineAlpha);
-        Color borderFadeColor = AnimationUtil.withAlpha(this.textStrong(), 0);
+        Color borderPeakColor = AnimationUtil.withAlpha(0xFFFFFF, lineAlpha);
+        Color borderFadeColor = AnimationUtil.withAlpha(0xFFFFFF, 0);
 
         RenderUtil.drawAACircle(graphics, cx, cy, currentRadius, solidBgColor, solidBgFade);
         RenderUtil.drawAARing(graphics, cx, cy, currentRadius, borderPeakColor, borderFadeColor);

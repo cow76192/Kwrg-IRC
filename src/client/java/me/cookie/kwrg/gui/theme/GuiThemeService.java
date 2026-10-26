@@ -9,6 +9,53 @@ public final class GuiThemeService {
     private GuiThemeService() {}
 
     public static final int DEFAULT_PANEL_BG = 0x11161F;
+    private static final int DIALOG_BG = 0x1C2734;
+    private static final int LIST_ROW_BG = 0x24394B;
+
+    // 路线 / 点位集屏幕专用配色：原为固定青色系，深档逐字节等于 navigator 的原字面量
+    private static final int ROUTE_TITLE_DARK = 0xE1F5FE;
+    private static final int ROUTE_TITLE_LIGHT = 0x1B3A47;
+    private static final int ROUTE_BODY_DARK = 0xD2DFE8;
+    private static final int ROUTE_BODY_LIGHT = 0x2C4453;
+    private static final int POINT_ROW_BG = 0x192431;
+    private static final int POINT_ROW_BORDER = 0x394A5A;
+    private static final int ROUTE_FAINT_DARK = 0x81929F;
+    private static final int ROUTE_FAINT_LIGHT = 0x51697A;
+    private static final int ROUTE_LABEL_DARK = 0x819BAF;
+    private static final int ROUTE_LABEL_LIGHT = 0x4C6A80;
+    private static final int ROUTE_DIM_DARK = 0x546979;
+    private static final int ROUTE_DIM_LIGHT = 0x3A4C58;
+    private static final int ROUTE_INPUT_DARK = 0xE0ECF4;
+    private static final int ROUTE_INPUT_LIGHT = 0x22333F;
+    private static final int ROUTE_SECONDARY_DARK = 0xA9BDCD;
+    private static final int ROUTE_SECONDARY_LIGHT = 0x44606F;
+    private static final int ROUTE_ACCENT_TEXT_DARK = 0x92DFFF;
+    private static final int ROUTE_ACCENT_TEXT_LIGHT = 0x0E5A78;
+    private static final int DANGER_TEXT_DARK = 0xFFB4BC;
+    private static final int DANGER_TEXT_LIGHT = 0x9B2C3A;
+    private static final int ROUTE_MUTED_DARK = 0x8CA7BA;
+    private static final int ROUTE_MUTED_LIGHT = 0x4A6273;
+    private static final int ROUTE_BODY_ALT_DARK = 0xCFDFEA;
+    private static final int ROUTE_BODY_ALT_LIGHT = 0x2A4150;
+    private static final int ROUTE_DIMMER_DARK = 0x7893A6;
+    private static final int ROUTE_DIMMER_LIGHT = 0x4E6678;
+    private static final int ROUTE_NAME_ALT_DARK = 0xBBCDDD;
+    private static final int ROUTE_NAME_ALT_LIGHT = 0x33495A;
+    private static final int ROUTE_INACTIVE_DARK = 0x808995;
+    private static final int ROUTE_INACTIVE_LIGHT = 0x4C5661;
+    private static final int ROUTE_TITLE_ALT_DARK = 0xE0EAF1;
+    private static final int ROUTE_TITLE_ALT_LIGHT = 0x1E3542;
+    private static final int DANGER_TITLE_DARK = 0xFFCBD1;
+    private static final int DANGER_TITLE_LIGHT = 0x8E2230;
+    private static final int DIALOG_ERROR_BORDER = 0xAF6976;
+    private static final int CHIP_PRESSED_BG = 0x609CC2;
+    private static final int CHIP_ACTIVE_BG = 0x357888;
+    private static final int CHIP_HOVER_BG = 0x445B73;
+    private static final int CHIP_IDLE_BG = 0x2C3B4B;
+    private static final int CHIP_ACTIVE_BORDER = 0x69D1D8;
+    private static final int CHIP_IDLE_BORDER = 0x4FC3F7;
+    private static final int CHIP_ACTIVE_TEXT = 0xB2F5E7;
+    private static final int CHIP_IDLE_TEXT = 0xD2DFE8;
     public static final float MIN_OPACITY = 0.1f;
     private static final float DEFAULT_OPACITY = 1.0f;
     private static final long TONE_ANIM_MS = 180L;
@@ -37,7 +84,10 @@ public final class GuiThemeService {
     private static final int TOGGLE_OFF = 0x455A64;
     private static final int TOGGLE_ON = 0xB0BEC5;
     private static final int BADGE_BG = 0x1D2633;
-    private static final int BADGE_TEXT = 0xF2F6FA;
+    private static final int BADGE_RING_DARK = 0xFFFFFF;
+    private static final int BADGE_RING_LIGHT = 0x2E3742;
+    private static final int BADGE_TEXT_DARK = 0xF2F6FA;
+    private static final int BADGE_TEXT_LIGHT = 0x2E3742;
     private static final int ACCENT = 0x4FC3F7;
     private static final int TEXT_READ_ONLY_DARK = 0xB2EBF2;
     private static final int TEXT_READ_ONLY_LIGHT = 0x2C5D6B;
@@ -73,7 +123,10 @@ public final class GuiThemeService {
     private static final int TONE_ERROR_SURFACE = 14;
     private static final int TONE_ERROR_BORDER = 15;
     private static final int TONE_TEXT_LABEL = 16;
-    private static final int TONE_COUNT = 17;
+    private static final int TONE_BADGE_BG = 17;
+    private static final int TONE_BADGE_RING = 18;
+    private static final int TONE_BADGE_TEXT = 19;
+    private static final int TONE_COUNT = 20;
 
     private static volatile int[] toneFrom = new int[TONE_COUNT];
     private static volatile int[] toneTo = new int[TONE_COUNT];
@@ -91,6 +144,53 @@ public final class GuiThemeService {
     public static int panelBg() { return tone(TONE_PANEL_BG); }
     public static int panelOutline() { return tone(TONE_PANEL_OUTLINE); }
     public static int cardBg() { return tone(TONE_CARD_BG); }
+    public static int dialogBg() { return raisedFromBase(DIALOG_BG); }
+    public static int routeTitle() { return lightSurface() ? ROUTE_TITLE_LIGHT : ROUTE_TITLE_DARK; }
+    public static int routeBody() { return lightSurface() ? ROUTE_BODY_LIGHT : ROUTE_BODY_DARK; }
+    public static int routeMuted() { return lightSurface() ? ROUTE_MUTED_LIGHT : ROUTE_MUTED_DARK; }
+    public static int routeBodyAlt() { return lightSurface() ? ROUTE_BODY_ALT_LIGHT : ROUTE_BODY_ALT_DARK; }
+    public static int routeDimmer() { return lightSurface() ? ROUTE_DIMMER_LIGHT : ROUTE_DIMMER_DARK; }
+    public static int routeNameAlt() { return lightSurface() ? ROUTE_NAME_ALT_LIGHT : ROUTE_NAME_ALT_DARK; }
+    public static int routeInactive() { return lightSurface() ? ROUTE_INACTIVE_LIGHT : ROUTE_INACTIVE_DARK; }
+    public static int routeTitleAlt() { return lightSurface() ? ROUTE_TITLE_ALT_LIGHT : ROUTE_TITLE_ALT_DARK; }
+    public static int dangerTitle() { return lightSurface() ? DANGER_TITLE_LIGHT : DANGER_TITLE_DARK; }
+    public static int dialogErrorBorder() { return DIALOG_ERROR_BORDER; }
+    public static int routeFaint() { return lightSurface() ? ROUTE_FAINT_LIGHT : ROUTE_FAINT_DARK; }
+    public static int routeLabel() { return lightSurface() ? ROUTE_LABEL_LIGHT : ROUTE_LABEL_DARK; }
+    public static int routeDim() { return lightSurface() ? ROUTE_DIM_LIGHT : ROUTE_DIM_DARK; }
+    public static int routeInputText() { return lightSurface() ? ROUTE_INPUT_LIGHT : ROUTE_INPUT_DARK; }
+    public static int routeSecondary() { return lightSurface() ? ROUTE_SECONDARY_LIGHT : ROUTE_SECONDARY_DARK; }
+    public static int routeAccentText() { return lightSurface() ? ROUTE_ACCENT_TEXT_LIGHT : ROUTE_ACCENT_TEXT_DARK; }
+    public static int dangerText() { return lightSurface() ? DANGER_TEXT_LIGHT : DANGER_TEXT_DARK; }
+    public static int pointRowBg() { return raisedFromBase(POINT_ROW_BG); }
+    public static int pointRowBorder() { return raisedFromBase(POINT_ROW_BORDER); }
+    public static int chipPressedBg() { return CHIP_PRESSED_BG; }
+    public static int chipActiveBg() { return CHIP_ACTIVE_BG; }
+    public static int chipHoverBg() { return CHIP_HOVER_BG; }
+    public static int chipIdleBg() { return CHIP_IDLE_BG; }
+    public static int chipActiveBorder() { return CHIP_ACTIVE_BORDER; }
+    public static int chipIdleBorder() { return CHIP_IDLE_BORDER; }
+    public static int chipActiveText() { return CHIP_ACTIVE_TEXT; }
+    public static int chipIdleText() { return CHIP_IDLE_TEXT; }
+
+    /** 主底色偏亮时，路线屏幕的文字档改用压暗版。 */
+    private static boolean lightSurface() {
+        return ColorUtil.relativeLuminance(tone(TONE_PANEL_BG)) >= 0.179;
+    }
+    public static int listRowBg() { return raisedFromBase(LIST_ROW_BG); }
+
+    /** 以主 GUI 底色为基准反算出的抬升表面：默认主题下精确等于标定值，浅色主题下反向偏移。 */
+    private static int raisedFrom(int base, int calibrated) {
+        int sign = ColorUtil.relativeLuminance(base) >= 0.179 ? -1 : 1;
+        int r = Math.clamp(((base >> 16) & 0xFF) + sign * (((calibrated >> 16) & 0xFF) - ((DEFAULT_PANEL_BG >> 16) & 0xFF)), 0, 255);
+        int g = Math.clamp(((base >> 8) & 0xFF) + sign * (((calibrated >> 8) & 0xFF) - ((DEFAULT_PANEL_BG >> 8) & 0xFF)), 0, 255);
+        int b = Math.clamp((base & 0xFF) + sign * ((calibrated & 0xFF) - (DEFAULT_PANEL_BG & 0xFF)), 0, 255);
+        return (r << 16) | (g << 8) | b;
+    }
+
+    private static int raisedFromBase(int calibrated) {
+        return raisedFrom(tone(TONE_PANEL_BG), calibrated);
+    }
     public static int cardBorder() { return tone(TONE_CARD_BORDER); }
     public static int textStrong() { return tone(TONE_TEXT_STRONG); }
     public static int textBody() { return tone(TONE_TEXT_BODY); }
@@ -108,8 +208,9 @@ public final class GuiThemeService {
     public static int rowBorder() { return ROW_BORDER; }
     public static int toggleOff() { return TOGGLE_OFF; }
     public static int toggleOn() { return TOGGLE_ON; }
-    public static int badgeBg() { return BADGE_BG; }
-    public static int badgeText() { return BADGE_TEXT; }
+    public static int badgeBg() { return tone(TONE_BADGE_BG); }
+    public static int badgeRing() { return tone(TONE_BADGE_RING); }
+    public static int badgeText() { return tone(TONE_BADGE_TEXT); }
     public static int accent() { return ACCENT; }
     public static int textReadOnly() { return tone(TONE_TEXT_READ_ONLY); }
     public static int selectionTint() { return SELECTION_TINT; }
@@ -173,7 +274,10 @@ public final class GuiThemeService {
                 lightBackground ? ACCENT_SOFT_LIGHT : ACCENT_SOFT_DARK,
                 lightBackground ? ERROR_SURFACE_LIGHT : ERROR_SURFACE_DARK,
                 lightBackground ? ERROR_BORDER_LIGHT : ERROR_BORDER_DARK,
-                lightBackground ? TEXT_LABEL_LIGHT : TEXT_LABEL_DARK
+                lightBackground ? TEXT_LABEL_LIGHT : TEXT_LABEL_DARK,
+                raisedFrom(panelBg, BADGE_BG),
+                lightBackground ? BADGE_RING_LIGHT : BADGE_RING_DARK,
+                lightBackground ? BADGE_TEXT_LIGHT : BADGE_TEXT_DARK
         };
     }
 }
