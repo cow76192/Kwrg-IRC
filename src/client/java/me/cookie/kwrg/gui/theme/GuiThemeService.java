@@ -177,15 +177,20 @@ public final class GuiThemeService {
     public static int chipActiveText() { return lightSurface() ? CHIP_ACTIVE_TEXT_LIGHT : CHIP_ACTIVE_TEXT_DARK; }
     public static int chipIdleText() { return lightSurface() ? CHIP_IDLE_TEXT_LIGHT : CHIP_IDLE_TEXT_DARK; }
 
-    /** 主底色偏亮时，路线屏幕的文字档改用压暗版。 */
+    /** 主底色偏亮时，路线屏幕的文字档改用压暗版；判据与 toneValuesFor 同一处。 */
     private static boolean lightSurface() {
-        return ColorUtil.relativeLuminance(tone(TONE_PANEL_BG)) >= 0.179;
+        return prefersDeepPalette(tone(TONE_PANEL_BG));
+    }
+
+    /** 在面板底与派生卡片底上比较两套字色的实测对比度，取更易读的一套。 */
+    private static boolean prefersDeepPalette(int panelBg) {
+        return prefersDeepText(panelBg, ColorUtil.neighborTone(panelBg, 0.055f));
     }
     public static int listRowBg() { return raisedFromBase(LIST_ROW_BG); }
 
     /** 以主 GUI 底色为基准反算出的抬升表面：默认主题下精确等于标定值，浅色主题下反向偏移。 */
     private static int raisedFrom(int base, int calibrated) {
-        int sign = ColorUtil.relativeLuminance(base) >= 0.179 ? -1 : 1;
+        int sign = prefersDeepPalette(base) ? -1 : 1;
         int r = Math.clamp(((base >> 16) & 0xFF) + sign * (((calibrated >> 16) & 0xFF) - ((DEFAULT_PANEL_BG >> 16) & 0xFF)), 0, 255);
         int g = Math.clamp(((base >> 8) & 0xFF) + sign * (((calibrated >> 8) & 0xFF) - ((DEFAULT_PANEL_BG >> 8) & 0xFF)), 0, 255);
         int b = Math.clamp((base & 0xFF) + sign * ((calibrated & 0xFF) - (DEFAULT_PANEL_BG & 0xFF)), 0, 255);
@@ -260,7 +265,7 @@ public final class GuiThemeService {
 
     private static int[] toneValuesFor(int panelBg) {
         int cardBg = ColorUtil.neighborTone(panelBg, 0.055f);
-        boolean lightBackground = prefersDeepText(panelBg, cardBg);
+        boolean lightBackground = prefersDeepText(panelBg, cardBg);   // 与 lightSurface() 同一判据
         return new int[]{
                 panelBg,
                 ColorUtil.deriveOutline(panelBg),
