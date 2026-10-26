@@ -52,10 +52,14 @@ public final class GuiThemeService {
     private static final int CHIP_ACTIVE_BG = 0x357888;
     private static final int CHIP_HOVER_BG = 0x445B73;
     private static final int CHIP_IDLE_BG = 0x2C3B4B;
-    private static final int CHIP_ACTIVE_BORDER = 0x69D1D8;
-    private static final int CHIP_IDLE_BORDER = 0x4FC3F7;
-    private static final int CHIP_ACTIVE_TEXT = 0xB2F5E7;
-    private static final int CHIP_IDLE_TEXT = 0xD2DFE8;
+    private static final int CHIP_ACTIVE_BORDER_DARK = 0x69D1D8;
+    private static final int CHIP_ACTIVE_BORDER_LIGHT = 0x0A424C;
+    private static final int CHIP_IDLE_BORDER_DARK = 0x4FC3F7;
+    private static final int CHIP_IDLE_BORDER_LIGHT = 0x0A2434;
+    private static final int CHIP_ACTIVE_TEXT_DARK = 0xB2F5E7;
+    private static final int CHIP_ACTIVE_TEXT_LIGHT = 0x1B222B;
+    private static final int CHIP_IDLE_TEXT_DARK = 0xD2DFE8;
+    private static final int CHIP_IDLE_TEXT_LIGHT = 0x2E3742;
     public static final float MIN_OPACITY = 0.1f;
     private static final float DEFAULT_OPACITY = 1.0f;
     private static final long TONE_ANIM_MS = 180L;
@@ -168,10 +172,10 @@ public final class GuiThemeService {
     public static int chipActiveBg() { return CHIP_ACTIVE_BG; }
     public static int chipHoverBg() { return CHIP_HOVER_BG; }
     public static int chipIdleBg() { return CHIP_IDLE_BG; }
-    public static int chipActiveBorder() { return CHIP_ACTIVE_BORDER; }
-    public static int chipIdleBorder() { return CHIP_IDLE_BORDER; }
-    public static int chipActiveText() { return CHIP_ACTIVE_TEXT; }
-    public static int chipIdleText() { return CHIP_IDLE_TEXT; }
+    public static int chipActiveBorder() { return lightSurface() ? CHIP_ACTIVE_BORDER_LIGHT : CHIP_ACTIVE_BORDER_DARK; }
+    public static int chipIdleBorder() { return lightSurface() ? CHIP_IDLE_BORDER_LIGHT : CHIP_IDLE_BORDER_DARK; }
+    public static int chipActiveText() { return lightSurface() ? CHIP_ACTIVE_TEXT_LIGHT : CHIP_ACTIVE_TEXT_DARK; }
+    public static int chipIdleText() { return lightSurface() ? CHIP_IDLE_TEXT_LIGHT : CHIP_IDLE_TEXT_DARK; }
 
     /** 主底色偏亮时，路线屏幕的文字档改用压暗版。 */
     private static boolean lightSurface() {
