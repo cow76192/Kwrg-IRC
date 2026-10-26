@@ -221,7 +221,7 @@ public class SecondaryPanelComponent extends FlowLayout {
         int iconBadgeY = py + 22;
 
         Color badgeBg = AnimationUtil.withAlpha(GuiThemeService.badgeBg(), (int) (255 * panelAlpha));
-        Color badgeOutline = AnimationUtil.withAlpha(GuiThemeService.badgeText(), (int) (85 * panelAlpha));
+        Color badgeOutline = AnimationUtil.withAlpha(GuiThemeService.badgeRing(), (int) (85 * panelAlpha));
         graphics.drawCircle(iconBadgeX, iconBadgeY, 32, iconBadgeRadius, badgeBg);
         graphics.drawRing(iconBadgeX, iconBadgeY, 32, iconBadgeRadius - 0.8, iconBadgeRadius, badgeOutline, badgeOutline);
 

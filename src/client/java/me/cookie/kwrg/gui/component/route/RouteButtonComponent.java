@@ -10,7 +10,7 @@ import net.minecraft.network.chat.Component;
 /** Small route controls share the same hover, toggle and click colour transitions. */
 public final class RouteButtonComponent {
     private int x, y, width, height;
-    private Color from = AnimationUtil.withAlpha(GuiThemeService.cardBg(), 0x24);
+    private Color from = AnimationUtil.withAlpha(GuiThemeService.chipIdleBg(), 0x24);
     private Color target = from;
     private Color current = from;
     private long transitionStart;
@@ -37,8 +37,8 @@ public final class RouteButtonComponent {
 
     public void draw(OwoUIGraphics graphics, String label, boolean active, int mouseX, int mouseY) {
         long now = System.currentTimeMillis();
-        int desired = now < pressedUntil ? AnimationUtil.argb(GuiThemeService.panelOutline(), 0xCC) : active ? AnimationUtil.argb(GuiThemeService.panelOutline(), 0xB8)
-                : contains(mouseX, mouseY) ? AnimationUtil.argb(GuiThemeService.cardBorder(), 0x70) : AnimationUtil.argb(GuiThemeService.cardBg(), 0x30);
+        int desired = now < pressedUntil ? AnimationUtil.argb(GuiThemeService.chipPressedBg(), 0xCC) : active ? AnimationUtil.argb(GuiThemeService.chipActiveBg(), 0xB8)
+                : contains(mouseX, mouseY) ? AnimationUtil.argb(GuiThemeService.chipHoverBg(), 0x70) : AnimationUtil.argb(GuiThemeService.chipIdleBg(), 0x30);
         if (!initialized) {
             from = target = current = Color.ofArgb(desired);
             initialized = true;
@@ -50,8 +50,8 @@ public final class RouteButtonComponent {
         }
         current = AnimationUtil.lerpColor(AnimationUtil.easeOutCubic((now - transitionStart) / 180.0f), from, target);
         RenderUtil.drawSubpixelRoundedPanel(graphics, x, y, width, height, 5,
-                current, Color.ofArgb(active ? AnimationUtil.argb(GuiThemeService.accentSoft(), 0x88) : AnimationUtil.argb(GuiThemeService.panelOutline(), 0x35)));
+                current, Color.ofArgb(active ? AnimationUtil.argb(GuiThemeService.chipActiveBorder(), 0x88) : AnimationUtil.argb(GuiThemeService.chipIdleBorder(), 0x35)));
         RenderUtil.drawCenteredSmoothText(graphics, Component.literal(label), x + width / 2.0f,
-                y + height / 2.0f, 0.80f, active ? AnimationUtil.opaqueArgb(GuiThemeService.textStrong()) : AnimationUtil.opaqueArgb(GuiThemeService.textBody()));
+                y + height / 2.0f, 0.80f, active ? AnimationUtil.opaqueArgb(GuiThemeService.chipActiveText()) : AnimationUtil.opaqueArgb(GuiThemeService.chipIdleText()));
     }
 }

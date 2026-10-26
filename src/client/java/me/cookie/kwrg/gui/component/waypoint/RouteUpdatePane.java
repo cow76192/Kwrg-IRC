@@ -111,7 +111,7 @@ public final class RouteUpdatePane {
                 graphics,
                 currentX, currentY, currentW, currentH,
                 AnimationUtil.lerp(p, 5, 10),
-                AnimationUtil.lerpColor(p, originColor, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.cardBg()))),
+                AnimationUtil.lerpColor(p, originColor, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.dialogBg()))),
                 AnimationUtil.withAlpha(GuiThemeService.regionBorder(), 0x88)
         );
 
@@ -121,7 +121,7 @@ public final class RouteUpdatePane {
                     RenderUtil.withOpacity(graphics, labelAlpha),
                     Component.literal("更新"),
                     currentX + currentW / 2, currentY + currentH / 2,
-                    0.8f, AnimationUtil.opaqueArgb(GuiThemeService.textBody())
+                    0.8f, AnimationUtil.opaqueArgb(GuiThemeService.routeBody())
             );
         }
 
@@ -137,7 +137,7 @@ public final class RouteUpdatePane {
         graphics.enableScissor(x, y, x + width, y + height);
 
         OwoUIGraphics content = RenderUtil.withOpacity(graphics, alpha);
-        RenderUtil.drawSmoothText(content, "更新点位集 · " + (perNode ? "逐个决定" : "确认变更"), x + 16, y + 15, AnimationUtil.opaqueArgb(GuiThemeService.textStrong()));
+        RenderUtil.drawSmoothText(content, "更新点位集 · " + (perNode ? "逐个决定" : "确认变更"), x + 16, y + 15, AnimationUtil.opaqueArgb(GuiThemeService.routeTitle()));
         long deletions = issues.stream().filter(issue -> issue.kind() == WaypointRouteUpdate.Kind.DELETED).count();
 
         if (perNode) {
@@ -154,20 +154,20 @@ public final class RouteUpdatePane {
                         content,
                         RenderUtil.fitText((deleted ? "路线已删除 · " : "点位冲突 · ") + issue.local().name, width - 170, 0.85f),
                         x + 16, top + 3,
-                        deleted ? AnimationUtil.opaqueArgb(GuiThemeService.danger()) : AnimationUtil.opaqueArgb(GuiThemeService.warning())
+                        deleted ? AnimationUtil.opaqueArgb(GuiThemeService.dangerText()) : AnimationUtil.opaqueArgb(GuiThemeService.warning())
                 );
                 RenderUtil.drawSmoothText(
                         content,
                         RenderUtil.fitText("本地 " + describe(issue.local()), width - 170, 0.85f),
                         x + 16, top + 23,
-                        AnimationUtil.opaqueArgb(GuiThemeService.textMuted())
+                        AnimationUtil.opaqueArgb(GuiThemeService.routeSecondary())
                 );
                 if (!deleted) {
                     RenderUtil.drawSmoothText(
                             content,
                             RenderUtil.fitText("路线 " + describe(issue.incoming()), width - 170, 0.85f),
                             x + 16, top + 40,
-                            AnimationUtil.opaqueArgb(GuiThemeService.textMuted())
+                            AnimationUtil.opaqueArgb(GuiThemeService.routeMuted())
                     );
                 }
 
@@ -180,11 +180,11 @@ public final class RouteUpdatePane {
                     content,
                     RenderUtil.fitText(plan.targetPath().getFileName().toString(), width - 32, 0.85f),
                     x + 16, y + 50,
-                    AnimationUtil.opaqueArgb(GuiThemeService.accentSoft())
+                    AnimationUtil.opaqueArgb(GuiThemeService.routeAccentText())
             );
             RenderUtil.drawSmoothText(content, "路线删除 " + deletions + " 个节点 · 点位冲突 " + (issues.size() - deletions) + " 个", x + 16, y + 80, AnimationUtil.opaqueArgb(GuiThemeService.warning()));
-            RenderUtil.drawSmoothText(content, "另有 " + plan.additions() + " 个新增节点，将随确认结果加入", x + 16, y + 106, AnimationUtil.opaqueArgb(GuiThemeService.textMuted()));
-            RenderUtil.drawSmoothText(content, "可全部采用路线、全部保留本地，或逐个决定", x + 16, y + 132, AnimationUtil.opaqueArgb(GuiThemeService.textMuted()));
+            RenderUtil.drawSmoothText(content, "另有 " + plan.additions() + " 个新增节点，将随确认结果加入", x + 16, y + 106, AnimationUtil.opaqueArgb(GuiThemeService.routeSecondary()));
+            RenderUtil.drawSmoothText(content, "可全部采用路线、全部保留本地，或逐个决定", x + 16, y + 132, AnimationUtil.opaqueArgb(GuiThemeService.routeMuted()));
         }
 
         if (!error.isEmpty()) {

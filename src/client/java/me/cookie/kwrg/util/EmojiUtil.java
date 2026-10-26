@@ -63,8 +63,4 @@ public final class EmojiUtil {
             return map.getOrDefault(code, result.group(0));
         });
     }
-
-    static {
-        reload();
-    }
 }
