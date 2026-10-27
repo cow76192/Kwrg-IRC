@@ -10,6 +10,8 @@ import java.util.Set;
 final class WaypointCollectionStore implements PointCollectionStore {
     public String noun() { return "点位集"; }
 
+    public boolean supportsTracers() { return true; }
+
     public Path getDir() { return WaypointFiles.getDir(); }
 
     public List<Path> listFiles() { return WaypointFiles.listFiles(); }
@@ -32,16 +34,24 @@ final class WaypointCollectionStore implements PointCollectionStore {
 
     public FileOptions fileOptions(Path path) {
         var file = WaypointFiles.collection(path);
-        return file == null ? new FileOptions(false, false, false) : new FileOptions(file.visible, false, file.enabled);
+        return file == null ? new FileOptions(false, false, false) : new FileOptions(file.visible, file.showTracer, file.enabled);
     }
 
-    public boolean setFileOptions(Path path, boolean visible, boolean unused) {
+    public boolean setFileOptions(Path path, boolean visible, boolean showLine) {
         var file = WaypointFiles.collection(path);
         if (file == null) {
             return false;
         }
+        boolean previousVisible = file.visible;
+        boolean previousTracer = file.showTracer;
         file.visible = visible;
-        return WaypointFiles.save(path);
+        file.showTracer = showLine;
+        if (WaypointFiles.save(path)) {
+            return true;
+        }
+        file.visible = previousVisible;
+        file.showTracer = previousTracer;
+        return false;
     }
 
     public void addEmpty(int position) { WaypointFiles.addEmpty(); }

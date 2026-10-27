@@ -86,9 +86,11 @@ public final class WaypointRenderer {
         this.tracerStart = cameraPosition.add(origin.x(), origin.y(), origin.z());
     }
 
-    public void waypoint(BlockPos pos, int color, boolean showBeam) {
-        Vec3 base = projectionBase(pos);
-        drawTracer(projectionOffset.add(base.add(0, 0.5, 0).scale(projectionScale(base))), color);
+    public void waypoint(BlockPos pos, int color, boolean showBeam, boolean showTracer) {
+        if (showTracer) {
+            Vec3 base = projectionBase(pos);
+            drawTracer(projectionOffset.add(base.add(0, 0.5, 0).scale(projectionScale(base))), color);
+        }
         if (showBeam) beam(pos, color);
     }
 

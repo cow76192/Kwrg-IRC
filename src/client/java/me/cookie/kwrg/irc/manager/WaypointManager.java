@@ -160,7 +160,7 @@ public final class WaypointManager {
                 if (!entry.visible || !entry.valid()) continue;
                 BlockPos pos = entry.blockPos();
                 Gizmos.cuboid(pos, BLOCK_STYLE).setAlwaysOnTop();
-                renderer.waypoint(pos, TEXT_COLOR, false);
+                renderer.waypoint(pos, TEXT_COLOR, false, file.showTracer);
                 if (entry.name != null && !entry.name.isBlank() && !EMPTY_NAME.equals(entry.name)) {
                     Gizmos.billboardTextOverBlock(entry.name, pos, 0, TEXT_COLOR, 1.0f);
                 }

@@ -13,6 +13,8 @@ public interface PointCollectionStore {
 
     default boolean supportsLines() { return false; }
 
+    default boolean supportsTracers() { return false; }
+
     Path getDir();
 
     List<Path> listFiles();

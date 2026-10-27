@@ -558,7 +558,7 @@ public abstract class PointCollectionScreen {
             }
 
             RenderUtil.drawSmoothText(owo, RenderUtil.fitText(editor ? store.currentFileName() : label("路线管理"), panelW - (editor ? 205 : 235), 0.85f), panelX + (editor ? 68 : 16), panelY + 17, AnimationUtil.opaqueArgb(GuiThemeService.routeTitle()));
-            RenderUtil.drawSmoothText(owo, editor ? "直接编辑名称 / X / Y / Z · 修改自动保存" : store.supportsLines() ? label("选择路线文件 · 独立设置显示与连线") : "多点位集同时启用 · 独立显示与区域 · 灰色路线仅可导入", panelX + 16, panelY + 45, AnimationUtil.opaqueArgb(GuiThemeService.routeMuted()));
+            RenderUtil.drawSmoothText(owo, editor ? "直接编辑名称 / X / Y / Z · 修改自动保存" : store.supportsLines() ? label("选择路线文件 · 独立设置显示与连线") : "多点位集同时启用 · 独立设置显示 / 准星连线 / 区域", panelX + 16, panelY + 45, AnimationUtil.opaqueArgb(GuiThemeService.routeMuted()));
             RenderUtil.fillSubpixel(owo, panelX + 12, panelY + 61, panelX + panelW - 12, panelY + 62, AnimationUtil.argb(GuiThemeService.accent(), 0x30));
 
             graphics.enableScissor(contentX, contentY, contentX + contentW, contentY + contentH);
@@ -957,7 +957,7 @@ public abstract class PointCollectionScreen {
                 } else if (!store.protectedFile(row.path) && row.rename.contains(click.x(), click.y())) {
                     row.rename.press();
                     startRouteNaming(row.path, row.rename);
-                } else if (row.visible.contains(click.x(), click.y()) || store.supportsLines() && row.line.contains(click.x(), click.y())) {
+                } else if (row.visible.contains(click.x(), click.y()) || (store.supportsLines() || store.supportsTracers()) && row.line.contains(click.x(), click.y())) {
                     boolean toggleVisible = row.visible.contains(click.x(), click.y());
                     (toggleVisible ? row.visible : row.line).press();
                     var options = row.options;
@@ -1537,6 +1537,11 @@ public abstract class PointCollectionScreen {
                 visible.bounds(x + width - 68, y + 11, 58, 22);
                 region.bounds(x + width - 132, y + 11, 58, 22);
                 rename.bounds(x + width - 196, y + 11, 58, 22);
+                if (store.supportsTracers()) {
+                    visible.bounds(x + width - 132, y + 11, 58, 22);
+                    region.bounds(x + width - 196, y + 11, 58, 22);
+                    rename.bounds(x + width - 260, y + 11, 58, 22);
+                }
             }
 
             importButton.bounds(x + width - 68, y + 11, 58, 22);
@@ -1554,7 +1559,7 @@ public abstract class PointCollectionScreen {
 
             surface.draw(graphics, "", active, mouseX, mouseY);
             String name = store.protectedFile(path) ? "默认点位 (default.json)" : path.getFileName().toString();
-            RenderUtil.drawSmoothText(graphics, RenderUtil.fitText((active ? "● " : "") + name, width - (external ? 86 : 218), 0.85f), x + 10, y + 11, external ? AnimationUtil.opaqueArgb(GuiThemeService.routeInactive()) : active ? AnimationUtil.opaqueArgb(GuiThemeService.routeAccentText()) : AnimationUtil.opaqueArgb(GuiThemeService.routeTitleAlt()));
+            RenderUtil.drawSmoothText(graphics, RenderUtil.fitText((active ? "● " : "") + name, width - (external ? 86 : store.supportsTracers() ? 282 : 218), 0.85f), x + 10, y + 11, external ? AnimationUtil.opaqueArgb(GuiThemeService.routeInactive()) : active ? AnimationUtil.opaqueArgb(GuiThemeService.routeAccentText()) : AnimationUtil.opaqueArgb(GuiThemeService.routeTitleAlt()));
 
             String hint = external ? "来自 routes · 导入为独立点位集"
                     : active ? store.supportsLines() ? "当前路线 · 右键编辑" : "已激活 · 右键编辑"
@@ -1570,9 +1575,10 @@ public abstract class PointCollectionScreen {
             }
 
             visible.draw(graphics, options.visible() ? "显示 开" : "显示 关", options.visible(), mouseX, mouseY);
-            if (store.supportsLines()) {
+            if (store.supportsLines() || store.supportsTracers()) {
                 line.draw(graphics, options.showLine() ? "连线 开" : "连线 关", options.showLine(), mouseX, mouseY);
-            } else {
+            }
+            if (!store.supportsLines()) {
                 if (hiddenButton != region) {
                     region.draw(graphics, "生效区域", false, mouseX, mouseY);
                 }
