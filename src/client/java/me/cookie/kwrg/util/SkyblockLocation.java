@@ -34,7 +34,8 @@ public final class SkyblockLocation {
         api.createHandler(ClientboundLocationPacket.class, packet -> Minecraft.getInstance().execute(() -> {
             String previousServer = server;
             String previousIsland = island;
-            server = packet.getServerName();
+            String name = packet.getServerName();
+            server = name == null ? "" : name;
             boolean skyblock = packet.getServerType().map(type -> type.name().equals("SKYBLOCK")).orElse(false);
             island = skyblock ? packet.getMode().orElse("") : "";
             if (!server.equals(previousServer) || !island.equals(previousIsland)) {
