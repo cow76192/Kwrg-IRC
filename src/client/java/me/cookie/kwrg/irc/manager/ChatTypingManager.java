@@ -9,6 +9,8 @@ import java.util.concurrent.TimeUnit;
 
 public class ChatTypingManager {
 
+    private static final long TYPING_REFRESH_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(10);
+
     private static final ScheduledExecutorService EXECUTOR = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "Chat-Typing-Watcher");
         t.setDaemon(true);
@@ -18,6 +20,7 @@ public class ChatTypingManager {
     private static ScheduledFuture<?> stopTask = null;
     private static volatile boolean isTyping = false;
     private static String lastText = "";
+    private static long lastTypingSentNanos;
 
     public static synchronized void onTextChanged(String newText) {
         String currentText = newText != null ? newText : "";
@@ -32,8 +35,11 @@ public class ChatTypingManager {
             return;
         }
 
-        if (!isTyping) {
+        // Refresh only while editing, before the receiver's 25-second fallback expires.
+        long now = System.nanoTime();
+        if (!isTyping || now - lastTypingSentNanos >= TYPING_REFRESH_INTERVAL_NANOS) {
             isTyping = true;
+            lastTypingSentNanos = now;
             IrcClient.sendTypingStatus(true);
         }
 
