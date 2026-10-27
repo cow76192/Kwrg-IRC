@@ -1,5 +1,11 @@
 # Kwrg IRC
 
+![Minecraft](https://img.shields.io/badge/Minecraft-26.1.2-62B47A?style=flat-square)
+![Fabric](https://img.shields.io/badge/Loader-Fabric-DBB98F?style=flat-square)
+![Java](https://img.shields.io/badge/Java-25-EA923E?style=flat-square)
+[![License: MIT](https://img.shields.io/badge/License-MIT-4C9BD6?style=flat-square)](./LICENSE)
+[![Java source lines: 28,650](https://img.shields.io/badge/Code%20lines-28%2C650-8B7EC8?style=flat-square)](./src "Total lines in src/**/*.java, including comments and blank lines")
+
 A Fabric client mod for Hypixel SkyBlock, with built-in IRC chat, waypoint and route management, and a customizable GUI and HUD.
 
 [中文](./README.md) · [Source](https://github.com/cow76192/Kwrg-IRC)
