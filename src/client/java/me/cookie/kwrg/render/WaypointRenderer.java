@@ -12,6 +12,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Axis;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.BlockPos;
@@ -86,13 +87,38 @@ public final class WaypointRenderer {
     }
 
     public void waypoint(BlockPos pos, int color, boolean showBeam) {
-        Vec3 base = Vec3.atBottomCenterOf(pos).subtract(projectionOrigin);
-        Vec3 target = base.add(0, 0.5, 0);
-        double distance = Math.max(base.length(), target.length());
-        // Uniform camera-relative scaling preserves the perspective projection,
-        // while keeping distant markers in front of the world's far clipping plane.
-        double scale = Math.min(1.0, OVERLAY_DISTANCE / Math.max(1.0, distance));
-        Vec3 projectedTarget = projectionOffset.add(target.scale(scale));
+        Vec3 base = projectionBase(pos);
+        drawTracer(projectionOffset.add(base.add(0, 0.5, 0).scale(projectionScale(base))), color);
+        if (showBeam) beam(pos, color);
+    }
+
+    public void beam(BlockPos pos, int color) {
+        Vec3 base = projectionBase(pos);
+        double distance = projectionDistance(base);
+        double scale = projectionScale(base);
+        float radius = (float) Math.max(1.0, distance / 96.0);
+        beams.add(new Beam(projectionOffset.add(base.scale(scale)), (float) scale, radius, color));
+    }
+
+    private Vec3 projectionBase(BlockPos pos) {
+        return Vec3.atBottomCenterOf(pos).subtract(projectionOrigin);
+    }
+
+    private double projectionDistance(Vec3 base) {
+        return Math.max(base.length(), base.add(0, 0.5, 0).length());
+    }
+
+    private double projectionScale(Vec3 base) {
+        return Math.min(1.0, OVERLAY_DISTANCE / Math.max(1.0, projectionDistance(base)));
+    }
+
+    public void path(List<Vec3> points, int color) {
+        for (int index = 0; index + 1 < points.size(); index++) {
+            tracers.line(points.get(index), points.get(index + 1), color);
+        }
+    }
+
+    private void drawTracer(Vec3 projectedTarget, int color) {
         Vector3f viewTarget = viewMatrix.transformPosition(
                 new Vector3f((float) projectedTarget.x(), (float) projectedTarget.y(), (float) projectedTarget.z()));
         Vector4f clip = projectionMatrix.transform(new Vector4f(viewTarget, 1));
@@ -114,10 +140,6 @@ public final class WaypointRenderer {
             Vector3f edge = inverseViewProjection.transformProject(
                     new Vector3f(x / extent * 0.96f, y / extent * 0.96f, 0));
             tracers.line(tracerStart, cameraPosition.add(edge.x(), edge.y(), edge.z()), color);
-        }
-        if (showBeam) {
-            float radius = (float) Math.max(1.0, distance / 96.0);
-            beams.add(new Beam(projectionOffset.add(base.scale(scale)), (float) scale, radius, color));
         }
     }
 

@@ -169,7 +169,7 @@ public final class RoutePointComponent {
             EditBox input = field(field);
             focusProgress[field] = AnimationUtil.lerp(step, focusProgress[field], input.isFocused() ? 1 : 0);
             Color line = AnimationUtil.lerpColor(focusProgress[field], Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.routeDim())), Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.accentSoft())));
-            RenderUtil.drawSmoothText(owo, Component.literal(field == 0 ? entry.temporary ? "名称 · 临时" : "名称" : "XYZ".substring(field - 1, field)), input.getX(), y + 5, 0.62f, AnimationUtil.opaqueArgb(GuiThemeService.routeLabel()));
+            RenderUtil.drawSmoothText(owo, Component.literal(field == 0 ? "名称" : "XYZ".substring(field - 1, field)), input.getX(), y + 5, 0.62f, AnimationUtil.opaqueArgb(GuiThemeService.routeLabel()));
             RenderUtil.fillSubpixel(owo, input.getX(), y + 32, input.getX() + input.getWidth(), y + 32.8f, line.argb());
             input.setTextColor(field == 0 ? (entry.visible ? AnimationUtil.opaqueArgb(GuiThemeService.routeInputText()) : AnimationUtil.opaqueArgb(GuiThemeService.routeFaint())) : valid ? AnimationUtil.opaqueArgb(GuiThemeService.textBody()) : AnimationUtil.opaqueArgb(GuiThemeService.dangerText()));
             // EditBox does not apply its widget alpha to text; use the row's fading graphics.

@@ -12,8 +12,10 @@ import me.cookie.kwrg.gui.IrcScreen;
 import me.cookie.kwrg.gui.hud.HudEditorScreen;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.manager.ChatWaypointManager;
 import me.cookie.kwrg.irc.manager.RouteEditor;
 import me.cookie.kwrg.irc.manager.RouteManager;
+import me.cookie.kwrg.irc.manager.WaypointManager;
 import me.cookie.kwrg.module.modules.debug.ClearIndexCacheModule;
 import me.cookie.kwrg.module.modules.functions.GlowColorModule;
 import me.cookie.kwrg.module.modules.functions.HideArmorModule;
@@ -24,10 +26,13 @@ import me.cookie.kwrg.module.modules.style.NameStyleModule;
 import me.cookie.kwrg.module.modules.style.RankModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.SkyblockItemHelper;
+import me.cookie.kwrg.util.SkyblockLocation;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
+import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandBuildContext;
 
+import static me.cookie.kwrg.irc.manager.ChatWaypointManager.MAX_COORD;
 import static me.cookie.kwrg.module.modules.config.LoadModule.*;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.argument;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal;
@@ -217,6 +222,32 @@ public class IrcCommand {
                                 }))
                         .executes(context -> {
                             me.cookie.kwrg.module.modules.config.ShareModule.openShareGui();
+                            return 1;
+                        }))
+                .then(literal("waypoint")
+                        .then(literal("chat")
+                                .then(argument("x", IntegerArgumentType.integer(-MAX_COORD, MAX_COORD))
+                                        .then(argument("y", IntegerArgumentType.integer(-MAX_COORD, MAX_COORD))
+                                                .then(argument("z", IntegerArgumentType.integer(-MAX_COORD, MAX_COORD))
+                                                        .then(argument("label", StringArgumentType.greedyString())
+                                                                .executes(context -> ChatWaypointManager.mark(
+                                                                        IntegerArgumentType.getInteger(context, "x"),
+                                                                        IntegerArgumentType.getInteger(context, "y"),
+                                                                        IntegerArgumentType.getInteger(context, "z"),
+                                                                        StringArgumentType.getString(context, "label")))))))))
+                .then(literal("coords")
+                        .executes(context -> {
+                            Minecraft mc = Minecraft.getInstance();
+                            if (mc.player == null) {
+                                IrcMessageHandler.printMessage("§c[IRC] 当前不在世界中");
+                                return 0;
+                            }
+                            var pos = mc.player.blockPosition();
+                            String coords = WaypointManager.formatCoordMessage(pos.getX(), pos.getY(), pos.getZ());
+                            String island = SkyblockLocation.island().replaceAll("[^A-Za-z0-9_]", "");
+                            String server = SkyblockLocation.server().replaceAll("[^A-Za-z0-9_]", "");
+                            String location = island.isEmpty() ? server : server.isEmpty() ? island : island + " @ " + server;
+                            IrcClient.sendMessage(location.isEmpty() ? coords : coords + " | " + location);
                             return 1;
                         }))
                 .then(literal("rank")

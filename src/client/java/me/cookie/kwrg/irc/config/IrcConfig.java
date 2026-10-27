@@ -9,6 +9,7 @@ import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import me.cookie.kwrg.irc.manager.RouteManager;
 import me.cookie.kwrg.irc.manager.WaypointManager;
+import me.cookie.kwrg.util.Navigator;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,6 +86,7 @@ public class IrcConfig {
     public Map<String, HudElement.State> hudElements = new LinkedHashMap<>();
 
     public boolean disableBlur = false;
+    public float navigatorWeight = 1.0f;
     public float blurQuality = 8.0f;
     public float blurSize = 16.0f;
 
@@ -220,6 +222,7 @@ public class IrcConfig {
                 PlayerFinderManager.reloadFromConfig();
                 WaypointManager.reloadFromConfig();
                 RouteManager.reloadFromConfig();
+                Navigator.setHeuristicWeight(instance.navigatorWeight);
 
                 LOGGER.info("[Kwrg] 已加载配置文件: {}.json", cleanName);
                 return true;
@@ -229,6 +232,7 @@ public class IrcConfig {
                 GuiColorManager.refresh();
                 WaypointManager.reloadFromConfig();
                 RouteManager.reloadFromConfig();
+                Navigator.setHeuristicWeight(instance.navigatorWeight);
                 save();
                 return true;
             }
@@ -245,6 +249,7 @@ public class IrcConfig {
         GuiColorManager.refresh();
         WaypointManager.reloadFromConfig();
         RouteManager.reloadFromConfig();
+        Navigator.setHeuristicWeight(instance.navigatorWeight);
         LOGGER.info("[Kwrg] 已在内存中新建配置 [{}]（尚未保存到磁盘）", cleanName);
     }
 

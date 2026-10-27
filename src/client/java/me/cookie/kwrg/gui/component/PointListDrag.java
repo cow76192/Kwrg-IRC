@@ -4,7 +4,7 @@ package me.cookie.kwrg.gui.component;
  * Long-press capture shared by point editors; coordinates are in screen pixels.
  */
 public final class PointListDrag<T> {
-    public static final long HOLD_MS = 250;
+    public static final long HOLD_MS = 50;
     private T item;
     private int originalIndex;
     private long pressedAt;

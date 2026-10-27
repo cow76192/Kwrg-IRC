@@ -1,7 +1,6 @@
 package me.cookie.kwrg.util;
 
-import me.cookie.kwrg.irc.manager.WaypointManager;
-
+import me.cookie.kwrg.irc.manager.ChatWaypointManager;
 import net.hypixel.modapi.HypixelModAPI;
 import net.hypixel.modapi.packet.impl.clientbound.event.ClientboundLocationPacket;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -25,16 +24,23 @@ public final class SkyblockLocation {
         return island;
     }
 
+    public static String server() {
+        return server;
+    }
+
     public static void init() {
         var api = HypixelModAPI.getInstance();
         api.subscribeToEventPacket(ClientboundLocationPacket.class);
         api.createHandler(ClientboundLocationPacket.class, packet -> Minecraft.getInstance().execute(() -> {
-            if (!server.equals(packet.getServerName())) {
-                WaypointManager.clearTemporary();
-            }
-            server = packet.getServerName();
+            String previousServer = server;
+            String previousIsland = island;
+            String name = packet.getServerName();
+            server = name == null ? "" : name;
             boolean skyblock = packet.getServerType().map(type -> type.name().equals("SKYBLOCK")).orElse(false);
             island = skyblock ? packet.getMode().orElse("") : "";
+            if (!server.equals(previousServer) || !island.equals(previousIsland)) {
+                ChatWaypointManager.clear();
+            }
         }));
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> reset());
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> reset());

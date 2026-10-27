@@ -833,7 +833,7 @@ public abstract class PointCollectionScreen {
                 previousEntries.addAll(store.entries());
                 store.addEmpty(points.size() + 1);
 
-                PointEntry added = store.entries().stream().filter(entry -> !entry.temporary && !previousEntries.contains(entry)).findFirst().orElse(null);
+                PointEntry added = store.entries().stream().filter(entry -> !previousEntries.contains(entry)).findFirst().orElse(null);
                 if (added == null) {
                     return;
                 }

@@ -212,12 +212,20 @@ public class ChatNotifier {
         return new String[]{title, subtitle};
     }
 
-    public record AnimatedSegment(String text, String styleConfig, boolean isRaw) {}
+    public record AnimatedSegment(String text, String styleConfig, boolean isRaw, Style overrideStyle) {
+        public AnimatedSegment(String text, String styleConfig, boolean isRaw) {
+            this(text, styleConfig, isRaw, null);
+        }
+    }
 
     private static Component buildSegment(AnimatedSegment segment) {
         String safeText = me.cookie.kwrg.irc.manager.NickManager.protectText(segment.text());
-        if (!segment.isRaw()) return ColorUtil.applyStyle(safeText, segment.styleConfig());
+        if (!segment.isRaw()) {
+            Component styled = ColorUtil.applyStyle(safeText, segment.styleConfig());
+            return segment.overrideStyle() == null ? styled : styled.copy().setStyle(segment.overrideStyle());
+        }
         MutableComponent part = Component.literal(safeText);
+        if (segment.overrideStyle() != null) part.setStyle(segment.overrideStyle());
         return part;
     }
 
@@ -255,10 +263,6 @@ public class ChatNotifier {
                 ACTIVE_ANIMATIONS.clear();
             }
         }
-    }
-
-    public static boolean hasActiveAnimations() {
-        return !ACTIVE_ANIMATIONS.isEmpty();
     }
 
     public static Component getAnimatedFrame(net.minecraft.client.multiplayer.chat.GuiMessage msg) {
