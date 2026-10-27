@@ -29,6 +29,7 @@ import java.util.List;
 /** Frame-local waypoint overlays, independent of chunk distance and world fog. */
 public final class WaypointRenderer {
     private static final Matrix4f WORLD_PROJECTION = new Matrix4f();
+    // The vanilla line vertex shader shrinks view-space coordinates by this factor.
     private static final float LINE_VIEW_SHRINK = 1.0f - 1.0f / 256.0f;
     private static final double OVERLAY_DISTANCE = 64.0;
     private static final float BEAM_HEIGHT = 2048.0f;
@@ -66,15 +67,21 @@ public final class WaypointRenderer {
         this.context = context;
         this.cameraPosition = context.levelState().cameraRenderState.pos;
         this.animationTime = animationTime;
+        // Camera rotation is applied globally by LevelRenderer; the callback pose
+        // stack contains only local transforms. Both are needed for view-space tests.
         this.viewMatrix = new Matrix4f().scaling(LINE_VIEW_SHRINK)
                 .mul(context.levelState().cameraRenderState.viewRotationMatrix)
                 .mul(context.poseStack().last().pose());
+        // GameRenderer adds walking/hurt bobbing to the uploaded projection, rather
+        // than cameraRenderState.projectionMatrix or the callback pose stack.
         this.projectionMatrix = new Matrix4f(WORLD_PROJECTION);
         this.inverseViewProjection = new Matrix4f(projectionMatrix).mul(viewMatrix).invert();
         Matrix4f inverseView = new Matrix4f(viewMatrix).invert();
         Vector3f eye = inverseView.transformPosition(new Vector3f());
         this.projectionOffset = new Vec3(eye.x(), eye.y(), eye.z());
         this.projectionOrigin = cameraPosition.add(projectionOffset);
+        // Unproject the crosshair using the exact matrices used by the line shader.
+        // Keep it far enough from the eye to survive vanilla's near-plane clipping.
         Vector3f origin = inverseViewProjection.transformProject(new Vector3f(0, 0, 0.9f));
         this.tracerStart = cameraPosition.add(origin.x(), origin.y(), origin.z());
     }
@@ -119,10 +126,13 @@ public final class WaypointRenderer {
                 && Math.abs(clip.x()) <= clip.w() && Math.abs(clip.y()) <= clip.w()) {
             tracers.line(tracerStart, cameraPosition.add(projectedTarget), color);
         } else if (viewTarget.lengthSquared() > 1.0E-12f) {
+            // Do not divide by a negative W: that would reverse the direction of
+            // targets behind the camera. Point to the corresponding screen edge.
             float x = clip.x();
             float y = clip.y();
             float extent = Math.max(Math.abs(x), Math.abs(y));
             if (extent < 1.0E-6f) {
+                // Directly behind has no unique left/right direction; use the bottom edge.
                 x = 0;
                 y = -1;
                 extent = 1;
