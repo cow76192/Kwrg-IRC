@@ -461,6 +461,7 @@ public final class WaypointFiles {
         Collection result = new Collection(file.name);
         result.enabled = file.enabled;
         result.visible = file.visible;
+        result.showTracer = file.showTracer;
         result.regions.clear();
         result.regions.addAll(file.regions);
         result.migratedProfiles.addAll(file.migratedProfiles);
@@ -496,6 +497,7 @@ public final class WaypointFiles {
         Collection file = new Collection(root.has("name") ? root.get("name").getAsString() : stem(path));
         file.enabled = !root.has("enabled") || root.get("enabled").getAsBoolean();
         file.visible = !root.has("visible") || root.get("visible").getAsBoolean();
+        file.showTracer = !root.has("showTracer") || root.get("showTracer").getAsBoolean();
         if (root.has("regions")) {
             file.regions.clear();
             for (JsonElement region : root.getAsJsonArray("regions")) {
@@ -601,6 +603,7 @@ public final class WaypointFiles {
         root.addProperty("name", file.name);
         root.addProperty("enabled", file.enabled);
         root.addProperty("visible", file.visible);
+        root.addProperty("showTracer", file.showTracer);
         root.add("regions", GSON.toJsonTree(file.regions));
         if (!file.migratedProfiles.isEmpty()) {
             root.add("migratedProfiles", GSON.toJsonTree(file.migratedProfiles));
@@ -625,6 +628,7 @@ public final class WaypointFiles {
         private transient Object diskKey;
         public String name;
         public boolean enabled = true, visible = true;
+        public boolean showTracer = true;
         public final Set<String> regions = new LinkedHashSet<>(Set.of("all"));
         public final List<PointEntry> points = new ArrayList<>();
         private final Set<String> migratedProfiles = new LinkedHashSet<>();
