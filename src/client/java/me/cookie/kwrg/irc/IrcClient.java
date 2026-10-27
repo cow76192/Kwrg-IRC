@@ -142,6 +142,7 @@ public class IrcClient {
                 sendChannelSync(IrcConfig.get().currentChannel, IrcConfig.get().channelEnabled, IrcConfig.get().savedChannels);
                 queryOnline();
                 startHeartbeat();
+                sendImportantPlayersSync();
                 listenLoop();
             } catch (Exception e) {
                 LOGGER.warn("[IRC] 连接尝试失败 (isSilent={}): {}", isSilent, e.getMessage());
@@ -561,6 +562,45 @@ public class IrcClient {
                 }
             }
         });
+    }
+
+    public static void sendImportantPlayersSync() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getUser() == null) return;
+
+        JsonObject json = new JsonObject();
+        json.addProperty("type", "important_players_sync");
+        json.addProperty("senderId", currentSenderId());
+        json.addProperty("username", mc.getUser().getName());
+
+        JsonArray array = new JsonArray();
+        List<String> list = IrcConfig.get().importantPlayers;
+        if (list != null) {
+            for (String p : list) {
+                if (p != null && !p.isBlank()) {
+                    array.add(p.trim());
+                }
+            }
+        }
+        json.add("players", array);
+        json.add("importantPlayers", array);
+
+        sendRaw(GSON.toJson(json));
+    }
+
+    public static void sendTypingStatus(boolean isTyping) {
+        if (!isRunning) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getUser() == null) return;
+
+        JsonObject json = new JsonObject();
+        json.addProperty("type", "typing");
+        json.addProperty("senderId", currentSenderId());
+        json.addProperty("username", mc.getUser().getName());
+        json.addProperty("typing", isTyping);
+        json.addProperty("action", isTyping ? "start" : "stop");
+
+        sendRaw(GSON.toJson(json));
     }
 
     private static JsonObject capeUploadJson(String hash, String fileName, String base64Data) {

@@ -21,7 +21,12 @@ import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class DynamicIslandRenderer {
 
@@ -29,7 +34,7 @@ public class DynamicIslandRenderer {
     private static final Style ISLAND_STYLE = Style.EMPTY.withFont(ISLAND_FONT);
 
     private static final float BASE_HEIGHT = 20.0f;
-    private static final float EXPANDED_HEIGHT = 36.0f;
+    private static final float EXTRA_ROW_HEIGHT = 16.0f; // 每一行额外内容的高度
     private static final float CORNER_RADIUS = 10.0f;
 
     private static final float WIDTH_ANIM_DURATION = 0.85f;
@@ -44,6 +49,91 @@ public class DynamicIslandRenderer {
     private static final float SLIDE_IN_DISTANCE = 7.0f;
 
     private static final Component WARN_COMPONENT = Component.literal("⚠ Server Lagging (Low TPS)").setStyle(ISLAND_STYLE);
+
+    private static final Map<String, String> CUSTOM_NOTICES = Collections.synchronizedMap(new LinkedHashMap<>());
+
+    /**
+     * 添加或更新自定义消息
+     * @param key 消息标识符
+     * @param text 消息内容
+     */
+    public static void setCustomNotice(String key, String text) {
+        if (key == null) return;
+        if (text == null || text.isBlank()) {
+            CUSTOM_NOTICES.remove(key);
+        } else {
+            CUSTOM_NOTICES.put(key, text);
+        }
+    }
+
+    /**
+     * 添加自定义消息
+     */
+    public static void addCustomNotice(String key, String text) {
+        setCustomNotice(key, text);
+    }
+
+    /**
+     * 根据 key 移除指定的自定义消息
+     */
+    public static void removeCustomNotice(String key) {
+        if (key != null) {
+            CUSTOM_NOTICES.remove(key);
+        }
+    }
+
+    public static void clearCustomNotices() {
+        CUSTOM_NOTICES.clear();
+    }
+
+    public static Map<String, String> getCustomNotices() {
+        synchronized (CUSTOM_NOTICES) {
+            return Collections.unmodifiableMap(new LinkedHashMap<>(CUSTOM_NOTICES));
+        }
+    }
+
+    public static boolean hasCustomNotice(String key) {
+        return key != null && CUSTOM_NOTICES.containsKey(key);
+    }
+
+    private static class IslandNoticeEntry {
+        final Component component;
+        final int color;
+        final boolean isWarning;
+
+        IslandNoticeEntry(Component component, int color, boolean isWarning) {
+            this.component = component;
+            this.color = color;
+            this.isWarning = isWarning;
+        }
+    }
+
+    private static List<IslandNoticeEntry> getActiveExtraLines(boolean isLowTps) {
+        List<IslandNoticeEntry> lines = new ArrayList<>();
+
+        synchronized (CUSTOM_NOTICES) {
+            for (Map.Entry<String, String> entry : CUSTOM_NOTICES.entrySet()) {
+                String text = entry.getValue();
+                if (text != null && !text.isEmpty()) {
+                    Component comp = Component.literal(text).setStyle(ISLAND_STYLE);
+                    lines.add(new IslandNoticeEntry(comp, 0xFFECEFF1, false));
+                }
+            }
+        }
+
+        if (isLowTps) {
+            lines.add(new IslandNoticeEntry(WARN_COMPONENT, 0xFFFF5F3C, true));
+        }
+
+        return lines;
+    }
+
+    private static boolean checkIsLowTps(Minecraft mc, IrcConfig config) {
+        float tps = TpsTracker.getTps();
+        if (tps < 15.5f) isLaggingState = true;
+        else if (tps > 16.5f) isLaggingState = false;
+        return config.islandShowTps && isLaggingState && mc.level != null && tabProgress <= 0.01f;
+    }
 
     private static float currentAlpha = 0.0f;
     private static float startAlpha = 0.0f;
@@ -309,7 +399,8 @@ public class DynamicIslandRenderer {
     private static boolean shouldIslandShow(IrcConfig config) {
         boolean hasAnyOption = (config.islandShowFps || config.islandShowPing || config.islandShowServerPing
                 || config.islandShowTps || config.islandShowRam || config.islandShowGpu || config.islandShowCpu);
-        boolean islandWanted = (DynamicIslandRenderer.isEnabled() || editorPreview) && (hasAnyOption || editorPreview);
+        boolean hasCustomNotices = !CUSTOM_NOTICES.isEmpty();
+        boolean islandWanted = (DynamicIslandRenderer.isEnabled() || editorPreview) && (hasAnyOption || hasCustomNotices || editorPreview);
         boolean tabWanted = config.dynamicTab && tabProgress > 0.005f;
 
         return islandWanted || tabWanted;
@@ -357,11 +448,29 @@ public class DynamicIslandRenderer {
 
         updateTabShift(screenW, screenH);
 
-        float warnEase = Mth.clamp((currentIslandHeight - BASE_HEIGHT) / (EXPANDED_HEIGHT - BASE_HEIGHT), 0.0f, 1.0f);
-        float warnTextW = mc.font != null ? mc.font.width(WARN_COMPONENT) : 0.0f;
+        // 动态计算多行文本所需的最大宽度
+        boolean isLowTps = checkIsLowTps(mc, config);
+        List<IslandNoticeEntry> activeLines = getActiveExtraLines(isLowTps);
+
+        float maxExtraTextW = 0.0f;
+        if (mc.font != null) {
+            for (IslandNoticeEntry entry : activeLines) {
+                float w = mc.font.width(entry.component);
+                if (w > maxExtraTextW) {
+                    maxExtraTextW = w;
+                }
+            }
+        }
 
         float normalTargetWidth = computeContentWidth() + SIDE_PAD * 2.0f;
-        float pillW = Math.max(38.0f, Mth.lerp(warnEase, normalTargetWidth, Math.max(normalTargetWidth, warnTextW + 18.0f)));
+        float expandedTargetWidth = maxExtraTextW > 0.0f ? Math.max(normalTargetWidth, maxExtraTextW + 18.0f) : normalTargetWidth;
+
+        float extraHeight = Math.max(0.0f, currentIslandHeight - BASE_HEIGHT);
+        float expandRatio = targetIslandHeight > BASE_HEIGHT
+                ? Mth.clamp(extraHeight / (targetIslandHeight - BASE_HEIGHT), 0.0f, 1.0f)
+                : (extraHeight > 0.0f ? Mth.clamp(extraHeight / EXTRA_ROW_HEIGHT, 0.0f, 1.0f) : 0.0f);
+
+        float pillW = Math.max(38.0f, Mth.lerp(expandRatio, normalTargetWidth, expandedTargetWidth));
         float pillH = currentIslandHeight;
 
         boolean islandOn = DynamicIslandRenderer.isEnabled();
@@ -390,9 +499,11 @@ public class DynamicIslandRenderer {
         float expectedTargetAlpha = shouldShow ? (openEase * effectiveOpacity) : 0.0f;
         updateAlphaAnimation(expectedTargetAlpha, dt);
 
-        int borderR = (int) Mth.lerp(warnEase, 84f, 255f);
-        int borderG = (int) Mth.lerp(warnEase, 152f, 100f);
-        int borderB = (int) Mth.lerp(warnEase, 178f, 90f);
+        // 仅在存在 TPS 告警时使边框变红警戒，普通自定义通知保持科技蓝色
+        float lowTpsRatio = isLowTps ? expandRatio : 0.0f;
+        int borderR = (int) Mth.lerp(lowTpsRatio, 84f, 255f);
+        int borderG = (int) Mth.lerp(lowTpsRatio, 152f, 100f);
+        int borderB = (int) Mth.lerp(lowTpsRatio, 178f, 90f);
 
         int bgR = 17;
         int bgG = 22;
@@ -720,7 +831,7 @@ public class DynamicIslandRenderer {
         }
 
         Component pingComp = Component.literal(pingStr).setStyle(ISLAND_STYLE);
-        float pingTargetW = font.width(pingComp) + 6.0f; // 动态根据文字宽度自动伸缩槽位大小
+        float pingTargetW = font.width(pingComp) + 6.0f;
 
         SLOT_FPS.update(shouldShow && config.islandShowFps, dt);
         SLOT_PING.update(pingSlotEnabled, pingTargetW, dt);
@@ -747,7 +858,6 @@ public class DynamicIslandRenderer {
         Component ramComp = Component.literal(ramText).setStyle(ISLAND_STYLE);
         Component gpuComp = Component.literal(gpuStr).setStyle(ISLAND_STYLE);
         Component cpuComp = Component.literal(cpuStr).setStyle(ISLAND_STYLE);
-        Component warnComp = WARN_COMPONENT;
 
         Component[] comps = { fpsComp, pingComp, tpsComp, ramComp, gpuComp, cpuComp };
 
@@ -761,11 +871,11 @@ public class DynamicIslandRenderer {
 
         float dynamicContentW = computeContentWidth();
 
-        if (tps < 15.5f) isLaggingState = true;
-        else if (tps > 16.5f) isLaggingState = false;
-        boolean isLowTps = config.islandShowTps && isLaggingState && mc.level != null && tabProgress <= 0.01f;
+        // 动态计算目标高度（多行扩展内容）
+        boolean isLowTps = checkIsLowTps(mc, config);
+        List<IslandNoticeEntry> activeLines = getActiveExtraLines(isLowTps);
 
-        float targetH = isLowTps ? EXPANDED_HEIGHT : BASE_HEIGHT;
+        float targetH = BASE_HEIGHT + activeLines.size() * EXTRA_ROW_HEIGHT;
         if (Math.abs(targetH - targetIslandHeight) > 0.1f) {
             startIslandHeight = currentIslandHeight;
             targetIslandHeight = targetH;
@@ -778,7 +888,10 @@ public class DynamicIslandRenderer {
             currentIslandHeight = targetIslandHeight;
         }
 
-        float warnEase = Mth.clamp((currentIslandHeight - BASE_HEIGHT) / (EXPANDED_HEIGHT - BASE_HEIGHT), 0.0f, 1.0f);
+        float extraHeight = Math.max(0.0f, currentIslandHeight - BASE_HEIGHT);
+        float expandRatio = targetIslandHeight > BASE_HEIGHT
+                ? Mth.clamp(extraHeight / (targetIslandHeight - BASE_HEIGHT), 0.0f, 1.0f)
+                : (extraHeight > 0.0f ? Mth.clamp(extraHeight / EXTRA_ROW_HEIGHT, 0.0f, 1.0f) : 0.0f);
 
         updateRenderRect(tabEase, dt, config);
 
@@ -806,6 +919,7 @@ public class DynamicIslandRenderer {
 
         float islandContentAlpha = currentAlpha * (1.0f - tabEase);
         if (islandPillVisible && islandContentAlpha > 0.02f) {
+            // 第一行：渲染主要性能槽位
             float row1Y = curRenderY + (BASE_HEIGHT - fontH) / 2.0f;
             float curX = cx - dynamicContentW / 2.0f;
 
@@ -847,17 +961,33 @@ public class DynamicIslandRenderer {
                 }
             }
 
-            if (warnEase > 0.02f) {
-                float secondRowY = curRenderY + BASE_HEIGHT + (EXPANDED_HEIGHT - BASE_HEIGHT - fontH) / 2.0f;
-                float slideY = Mth.lerp(warnEase, -5.0f, 0.0f);
+            // 绘制扩展行：自定义文本在前，WARN_COMPONENT（若有）始终在最后一行
+            if (!activeLines.isEmpty() && currentIslandHeight > BASE_HEIGHT + 1.0f) {
+                float slideY = Mth.lerp(expandRatio, -4.0f, 0.0f);
 
-                int warnAlpha = (int) (255 * islandContentAlpha * warnEase);
-                int warnColor = ARGB.color(warnAlpha, 255, 95, 60);
+                for (int i = 0; i < activeLines.size(); i++) {
+                    IslandNoticeEntry entry = activeLines.get(i);
 
-                float actualW = font.width(warnComp);
-                float warnX = cx - actualW / 2.0f;
+                    float rowBaseY = BASE_HEIGHT + i * EXTRA_ROW_HEIGHT;
+                    float rowProgress = Mth.clamp((currentIslandHeight - rowBaseY) / EXTRA_ROW_HEIGHT, 0.0f, 1.0f);
+                    if (rowProgress <= 0.01f) continue;
 
-                RenderUtil.drawFluidSubpixelText(graphics, warnComp, warnX, secondRowY + slideY, warnColor);
+                    float lineCenterY = curRenderY + rowBaseY + (EXTRA_ROW_HEIGHT - fontH) / 2.0f;
+                    float textW = font.width(entry.component);
+                    float lineX = cx - textW / 2.0f;
+
+                    int alpha = (int) (255 * islandContentAlpha * rowProgress);
+                    if (alpha <= 2) continue;
+
+                    int color;
+                    if (entry.isWarning) {
+                        color = ARGB.color(alpha, 255, 95, 60);
+                    } else {
+                        color = (entry.color & 0x00FFFFFF) | (alpha << 24);
+                    }
+
+                    RenderUtil.drawFluidSubpixelText(graphics, entry.component, lineX, lineCenterY + slideY, color);
+                }
             }
         }
 
