@@ -304,7 +304,7 @@ public final class ChatWaypointManager {
                         + (result.complete() ? refresh(active) : RETRY_INTERVAL_MS);
                 if (!result.complete() && !main.warned && Minecraft.getInstance().level != null) {
                     main.warned = true;
-                    ChatNotifier.send("§e[Waypoint] 不能完整步行到达", NotificationType.INFO);
+                    ChatNotifier.send(result.truncated() ? "§e[Waypoint] 未确认可达（搜索空间未穷尽）" : "§e[Waypoint] 不能完整步行到达", NotificationType.INFO);
                 }
             });
         }

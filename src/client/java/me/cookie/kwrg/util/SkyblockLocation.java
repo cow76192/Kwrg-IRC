@@ -24,16 +24,22 @@ public final class SkyblockLocation {
         return island;
     }
 
+    public static String server() {
+        return server;
+    }
+
     public static void init() {
         var api = HypixelModAPI.getInstance();
         api.subscribeToEventPacket(ClientboundLocationPacket.class);
         api.createHandler(ClientboundLocationPacket.class, packet -> Minecraft.getInstance().execute(() -> {
-            if (!server.equals(packet.getServerName())) {
-                ChatWaypointManager.clear();
-            }
+            String previousServer = server;
+            String previousIsland = island;
             server = packet.getServerName();
             boolean skyblock = packet.getServerType().map(type -> type.name().equals("SKYBLOCK")).orElse(false);
             island = skyblock ? packet.getMode().orElse("") : "";
+            if (!server.equals(previousServer) || !island.equals(previousIsland)) {
+                ChatWaypointManager.clear();
+            }
         }));
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> reset());
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> reset());

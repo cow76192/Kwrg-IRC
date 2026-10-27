@@ -25,8 +25,10 @@ import me.cookie.kwrg.module.modules.style.NameStyleModule;
 import me.cookie.kwrg.module.modules.style.RankModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.SkyblockItemHelper;
+import me.cookie.kwrg.util.SkyblockLocation;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
+import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandBuildContext;
 
 import static me.cookie.kwrg.irc.manager.ChatWaypointManager.MAX_COORD;
@@ -232,6 +234,21 @@ public class IrcCommand {
                                                                         IntegerArgumentType.getInteger(context, "y"),
                                                                         IntegerArgumentType.getInteger(context, "z"),
                                                                         StringArgumentType.getString(context, "label")))))))))
+                .then(literal("coords")
+                        .executes(context -> {
+                            Minecraft mc = Minecraft.getInstance();
+                            if (mc.player == null) {
+                                IrcMessageHandler.printMessage("§c[IRC] 当前不在世界中");
+                                return 0;
+                            }
+                            var pos = mc.player.blockPosition();
+                            String coords = "x: " + pos.getX() + " y: " + pos.getY() + " z: " + pos.getZ();
+                            String island = SkyblockLocation.island();
+                            String server = SkyblockLocation.server();
+                            String world = island.isEmpty() ? server : server.isEmpty() ? island : island + " @ " + server;
+                            IrcClient.sendMessage(world.isEmpty() ? coords : coords + " | " + world);
+                            return 1;
+                        }))
                 .then(literal("rank")
                         .then(argument("name", StringArgumentType.greedyString())
                                 .executes(context -> RankModule.setRank(StringArgumentType.getString(context, "name"))))

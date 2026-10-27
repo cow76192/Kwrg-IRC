@@ -49,8 +49,9 @@ public final class Navigator {
     private static final int MAX_HOP = 8;
     private static final int MAX_JUMP_UP = 1;
     private static final int TELEPORT_RANGE = 61;
-    private static final float TELEPORT_COST = 2.0f;
-    private static final int TELEPORT_BUDGET = 64;
+    private static final float TELEPORT_COST = 12.0f;
+    private static final float TELEPORT_FACTOR = 1.6f;
+    private static final int TELEPORT_BUDGET = 128;
     private static final float GOAL_RADIUS_SQ = 6.0f;
     private static final float MIN_HEURISTIC_WEIGHT = 0.8f;
     private static final float MAX_HEURISTIC_WEIGHT = 2.2f;
@@ -69,16 +70,21 @@ public final class Navigator {
     private static final int[][] RAY_DIRECTIONS = buildRayDirections();
 
     private static int[][] buildRayDirections() {
-        List<int[]> list = new ArrayList<>(26);
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = -1; dy <= 1; dy++) {
-                for (int dz = -1; dz <= 1; dz++) {
+        List<int[]> list = new ArrayList<>(98);
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dy = -2; dy <= 2; dy++) {
+                for (int dz = -2; dz <= 2; dz++) {
                     if (dx == 0 && dy == 0 && dz == 0) continue;
+                    if (greatestCommonDivisor(Math.abs(dx), greatestCommonDivisor(Math.abs(dy), Math.abs(dz))) != 1) continue;
                     list.add(new int[]{dx, dy, dz});
                 }
             }
         }
         return list.toArray(new int[0][]);
+    }
+
+    private static int greatestCommonDivisor(int a, int b) {
+        return b == 0 ? a : greatestCommonDivisor(b, a % b);
     }
 
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor(r -> {
@@ -92,14 +98,14 @@ public final class Navigator {
     private Navigator() {
     }
 
-    public record Result(List<Vec3> points, boolean complete) {
+    public record Result(List<Vec3> points, boolean complete, boolean truncated) {
     }
 
     public static void searchAsync(Level level, BlockPos from, BlockPos to, Consumer<Result> callback) {
         if (PENDING.incrementAndGet() > MAX_PENDING) {
             PENDING.decrementAndGet();
             report("queue-full");
-            callback.accept(new Result(List.of(), false));
+            callback.accept(new Result(List.of(), false, true));
             return;
         }
         EXECUTOR.submit(() -> {
@@ -108,7 +114,7 @@ public final class Navigator {
                 result = attempt(level, from, to);
             } catch (Throwable failure) {
                 report("unexpected " + failure.getClass().getSimpleName() + ": " + failure.getMessage());
-                result = new Result(List.of(), false);
+                result = new Result(List.of(), false, true);
             } finally {
                 PENDING.decrementAndGet();
             }
@@ -125,19 +131,39 @@ public final class Navigator {
                 report((tries == 0 ? "" : "retry ") + e.getClass().getSimpleName() + ": " + e.getMessage());
             }
         }
-        return new Result(List.of(), false);
+        return new Result(List.of(), false, true);
     }
 
     private static Result search(Level level, BlockPos from, BlockPos to) {
         STATES.clear();
-        if (!level.hasChunkAt(from) || !level.hasChunkAt(to)) return new Result(List.of(), false);
+        if (!level.hasChunkAt(from) || !level.hasChunkAt(to)) return new Result(List.of(), false, true);
 
         BlockPos start = surface(level, from);
         if (start == null) {
             report("no-start");
-            return new Result(List.of(), false);
+            return new Result(List.of(), false, true);
         }
         BlockPos goal = snapTarget(level, to);
+        if (Math.abs(goal.getX() - start.getX()) > MAX_RADIUS || Math.abs(goal.getZ() - start.getZ()) > MAX_RADIUS) {
+            report("out-of-radius " + goal.toShortString());
+            return new Result(List.of(), false, true);
+        }
+
+        if (standable(level, start) && standable(level, goal) && clearWalkLine(level, start, goal)) {
+            List<Vec3> straight = new ArrayList<>(2);
+            straight.add(new Vec3(start.getX() + 0.5, start.getY() + 0.05, start.getZ() + 0.5));
+            straight.add(new Vec3(goal.getX() + 0.5, goal.getY() + 0.05, goal.getZ() + 0.5));
+            return new Result(finish(level, straight, goal, true), true, false);
+        }
+
+        if (grounded(level, start) && grounded(level, goal)
+                && start.distSqr(goal) <= (double) TELEPORT_RANGE * TELEPORT_RANGE
+                && teleportLine(level, start, goal)) {
+            List<Vec3> line = new ArrayList<>(2);
+            line.add(new Vec3(start.getX() + 0.5, start.getY() + 0.05, start.getZ() + 0.5));
+            line.add(new Vec3(goal.getX() + 0.5, goal.getY() + 0.05, goal.getZ() + 0.5));
+            return new Result(finish(level, line, goal, true), true, false);
+        }
 
         Search search = new Search(level, start, goal);
         Node reached = search.run();
@@ -154,22 +180,78 @@ public final class Navigator {
                     + " nodes=" + search.visited
                     + " edges=" + search.considered
                     + " ms=" + search.elapsed);
-            return new Result(finish(smooth(trace(best)), goal), false);
+            Traced traced = trace(best);
+            return new Result(finish(level, smooth(traced.points(), traced.jump()), goal, false), false, search.truncated);
         }
         search.favor(reached);
-        List<Vec3> points = finish(smooth(trace(reached)), goal);
+        Traced traced = trace(reached);
+        List<Vec3> points = finish(level, smooth(traced.points(), traced.jump()), goal, true);
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("[Navigator] nodes={} edges={} ms={} points={}", search.visited, search.considered, search.elapsed, points.size());
         }
-        return new Result(points, true);
+        return new Result(points, true, false);
     }
 
-    private static List<Vec3> finish(List<Vec3> points, BlockPos goal) {
+    private static List<Vec3> finish(Level level, List<Vec3> points, BlockPos goal, boolean complete) {
+        if (points.isEmpty()) return points;
         Vec3 target = new Vec3(goal.getX() + 0.5, goal.getY() + 0.05, goal.getZ() + 0.5);
-        if (points.isEmpty() || points.get(points.size() - 1).distanceToSqr(target) > 1.0) {
-            points.add(target);
-        }
+        Vec3 last = points.get(points.size() - 1);
+        if (last.distanceToSqr(target) <= 1.0) return points;
+        if (complete || clearLine(level, BlockPos.containing(last), goal)) points.add(target);
         return points;
+    }
+
+    private static boolean clearWalkLine(Level level, BlockPos from, BlockPos to) {
+        int dx = to.getX() - from.getX();
+        int dy = to.getY() - from.getY();
+        int dz = to.getZ() - from.getZ();
+        int steps = Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz)));
+        if (steps == 0) return true;
+        int samples = steps * 4;
+        int lastX = from.getX();
+        int lastY = from.getY();
+        int lastZ = from.getZ();
+        for (int index = 1; index < samples; index++) {
+            double ratio = (double) index / samples;
+            int x = (int) Math.floor(from.getX() + dx * ratio);
+            int y = (int) Math.floor(from.getY() + dy * ratio);
+            int z = (int) Math.floor(from.getZ() + dz * ratio);
+            if (x != lastX || z != lastZ) {
+                if (!clearCorner(level, new BlockPos(lastX, lastY, lastZ), x - lastX, z - lastZ)) return false;
+                lastX = x;
+                lastZ = z;
+            }
+            lastY = y;
+            if (!standable(level, new BlockPos(x, y, z))) return false;
+        }
+        return true;
+    }
+
+    private static boolean teleportLine(Level level, BlockPos from, BlockPos to) {
+        int dx = to.getX() - from.getX();
+        int dy = to.getY() - from.getY();
+        int dz = to.getZ() - from.getZ();
+        int steps = Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz)));
+        if (steps == 0) return true;
+        int samples = steps * 4;
+        int lastX = from.getX();
+        int lastY = from.getY();
+        int lastZ = from.getZ();
+        for (int index = 1; index < samples; index++) {
+            double ratio = (double) index / samples;
+            int x = (int) Math.floor(from.getX() + dx * ratio);
+            int y = (int) Math.floor(from.getY() + dy * ratio);
+            int z = (int) Math.floor(from.getZ() + dz * ratio);
+            if (x != lastX || z != lastZ) {
+                if (!clearCorner(level, new BlockPos(lastX, lastY, lastZ), x - lastX, z - lastZ)) return false;
+                lastX = x;
+                lastZ = z;
+            }
+            lastY = y;
+            BlockPos cell = new BlockPos(x, y, z);
+            if (blocked(level, cell) || blocked(level, cell.above())) return false;
+        }
+        return true;
     }
 
     private static boolean clearLine(Level level, BlockPos from, BlockPos to) {
@@ -295,6 +377,10 @@ public final class Navigator {
         return blocked(level, pos.below()) || fluid(level, pos) || fluid(level, pos.below());
     }
 
+    private static boolean grounded(Level level, BlockPos pos) {
+        return free(level, pos) && blocked(level, pos.below());
+    }
+
     private static boolean climbNode(Level level, BlockPos pos) {
         return free(level, pos) && climbable(level, pos);
     }
@@ -331,13 +417,21 @@ public final class Navigator {
         return cost;
     }
 
-    private static List<Vec3> trace(Node end) {
+    private record Traced(List<Vec3> points, boolean[] jump) {
+    }
+
+    private static Traced trace(Node end) {
         List<Vec3> points = new ArrayList<>();
+        List<Boolean> jumps = new ArrayList<>();
         for (Node node = end; node != null; node = node.parent) {
             points.add(new Vec3(node.x + 0.5, node.y + 0.05, node.z + 0.5));
+            jumps.add(node.teleport);
         }
         Collections.reverse(points);
-        return points;
+        Collections.reverse(jumps);
+        boolean[] jump = new boolean[jumps.size()];
+        for (int index = 0; index < jump.length; index++) jump[index] = jumps.get(index);
+        return new Traced(points, jump);
     }
 
     private static BlockState stateAt(Level level, BlockPos pos) {
@@ -356,14 +450,22 @@ public final class Navigator {
         LOGGER.warn("[Navigator] path search failed: {}", reason);
     }
 
-    private static List<Vec3> smooth(List<Vec3> points) {
+    private static boolean jumpAt(boolean[] jump, int index) {
+        return index >= 0 && index < jump.length && jump[index];
+    }
+
+    private static List<Vec3> smooth(List<Vec3> points, boolean[] jump) {
         if (points.size() < 2) return points;
         List<Vec3> result = new ArrayList<>(points.size() * 2);
         result.add(points.getFirst());
         for (int index = 0; index < points.size() - 1; index++) {
-            Vec3 p0 = points.get(Math.max(0, index - 1));
             Vec3 p1 = points.get(index);
             Vec3 p2 = points.get(index + 1);
+            if (jumpAt(jump, index) || jumpAt(jump, index + 1) || jumpAt(jump, index + 2)) {
+                result.add(p2);
+                continue;
+            }
+            Vec3 p0 = points.get(Math.max(0, index - 1));
             Vec3 p3 = points.get(Math.min(points.size() - 1, index + 2));
             int steps = Math.max(1, (int) (p1.distanceTo(p2) / SMOOTHING_STEP));
             for (int step = 1; step <= steps; step++) {
@@ -399,6 +501,7 @@ public final class Navigator {
         private float f;
         private int heapIndex = -1;
         private Node parent;
+        private boolean teleport;
         private BlockPos pos;
 
         private Node(int x, int y, int z, float h) {
@@ -430,6 +533,7 @@ public final class Navigator {
         private int visited;
         private int considered;
         private int teleportBudget = TELEPORT_BUDGET;
+        private boolean truncated;
         private long elapsed;
 
         private Search(Level level, BlockPos start, BlockPos goal) {
@@ -461,13 +565,13 @@ public final class Navigator {
                 }
                 expand(current);
             }
+            truncated = reached == null && heapSize > 0;
             elapsed = System.currentTimeMillis() - startedAt;
             return reached;
         }
 
         private void expand(Node current) {
             BlockPos here = current.pos();
-            boolean progressed = false;
 
             for (int[] direction : DIRECTIONS) {
                 int x = current.x + direction[0];
@@ -478,19 +582,16 @@ public final class Navigator {
                 BlockPos walk = walkNeighbour(level, here, direction[0], direction[1]);
                 if (walk != null) {
                     relax(current, walk, stepCost(level, here, walk, diagonal));
-                    progressed = true;
                 } else {
                     BlockPos jump = hop(level, here, direction[0], direction[1]);
                     if (jump != null) {
                         relax(current, jump, (float) Math.sqrt(here.distSqr(jump)) + HOP_COST);
-                        progressed = true;
                     }
                 }
 
                 BlockPos drop = fallNeighbour(level, here, direction[0], direction[1]);
                 if (drop != null) {
                     relax(current, drop, stepCost(level, here, drop, diagonal));
-                    progressed = true;
                 }
             }
 
@@ -499,11 +600,10 @@ public final class Navigator {
                     BlockPos candidate = here.above(dy);
                     if (!(dy > 0 ? free(level, candidate) : walkable(level, candidate))) continue;
                     relax(current, candidate, CLIMB_COST);
-                    progressed = true;
                 }
             }
 
-            if (!progressed && teleportBudget > 0) {
+            if (teleportBudget > 0 && grounded(level, here)) {
                 teleportBudget--;
                 teleportEdges(current);
             }
@@ -511,20 +611,34 @@ public final class Navigator {
 
         private void teleportEdges(Node current) {
             BlockPos here = current.pos();
+            if (!grounded(level, here)) return;
             for (int[] direction : RAY_DIRECTIONS) {
+                double length = Math.sqrt(direction[0] * direction[0] + direction[1] * direction[1] + direction[2] * direction[2]);
+                BlockPos previous = here;
                 for (int step = 1; step <= TELEPORT_RANGE; step++) {
-                    BlockPos cell = here.offset(direction[0] * step, direction[1] * step, direction[2] * step);
-                    if (!level.hasChunkAt(cell)) continue;
-                    if (blocked(level, cell)) break;
-                    if (standable(level, cell)) {
-                        relax(current, cell, (float) Math.sqrt(here.distSqr(cell)) + TELEPORT_COST);
+                    double ratio = step / length;
+                    BlockPos cell = here.offset((int) Math.round(direction[0] * ratio), (int) Math.round(direction[1] * ratio), (int) Math.round(direction[2] * ratio));
+                    if (cell.equals(previous)) continue;
+                    if (!level.hasChunkAt(cell)) {
+                        previous = cell;
+                        continue;
+                    }
+                    if (blocked(level, cell) || blocked(level, cell.above())) break;
+                    if (!clearCorner(level, previous, cell.getX() - previous.getX(), cell.getZ() - previous.getZ())) break;
+                    if (grounded(level, cell)) {
+                        relax(current, cell, (float) (Math.sqrt(here.distSqr(cell)) * TELEPORT_FACTOR + TELEPORT_COST), true);
                         break;
                     }
+                    previous = cell;
                 }
             }
         }
 
         private void relax(Node current, BlockPos next, float step) {
+            relax(current, next, step, false);
+        }
+
+        private void relax(Node current, BlockPos next, float step, boolean teleport) {
             considered++;
             int x = next.getX();
             int z = next.getZ();
@@ -536,6 +650,7 @@ public final class Navigator {
             node.g = tentative;
             node.f = tentative + node.h * weight;
             node.parent = current;
+            node.teleport = teleport;
             push(node);
         }
 
