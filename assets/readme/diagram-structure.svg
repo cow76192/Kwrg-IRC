@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="744" viewBox="0 0 1200 744" role="img" aria-labelledby="t d">
+<title id="t">Kwrg 客户端结构图</title>
+<desc id="d">从上到下：被改写的原版界面、34 个 mixin 注入点、36 个模块、客户端表面层；最下方是并行的 IRC 链路与本地文件。</desc>
+<rect width="1200" height="744" rx="28" fill="#0A0E14"/>
+<rect x="0.75" y="0.75" width="1198.5" height="742.5" rx="27.25" fill="none" stroke="#26384A" stroke-width="1.5"/>
+<text x="40" y="52" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="15" letter-spacing="3" fill="#78909C">SYSTEM MAP</text>
+<text x="1160" y="52" text-anchor="end" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" letter-spacing="1.6" fill="#78909C">34 INJECTION POINTS · 36 MODULES · 23 MESSAGE TYPES</text>
+<rect x="40" y="76" width="1120" height="88" rx="18" fill="#11161F" stroke="#26384A" stroke-width="1.4"/>
+<text x="64" y="108" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" letter-spacing="2" fill="#4FC3F7">VANILLA SURFACE  ·  WHAT GETS REWRITTEN</text>
+<rect x="64" y="124" width="59" height="28" rx="14.0" fill="#1C2734" stroke="#26384A" stroke-width="1.2"/><text x="93.5" y="140" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" fill="#78909C">CHAT</text>
+<rect x="133" y="124" width="93" height="28" rx="14.0" fill="#1C2734" stroke="#26384A" stroke-width="1.2"/><text x="179.5" y="140" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" fill="#78909C">TAB LIST</text>
+<rect x="236" y="124" width="109" height="28" rx="14.0" fill="#1C2734" stroke="#26384A" stroke-width="1.2"/><text x="290.5" y="140" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" fill="#78909C">SCOREBOARD</text>
+<rect x="355" y="124" width="93" height="28" rx="14.0" fill="#1C2734" stroke="#26384A" stroke-width="1.2"/><text x="401.5" y="140" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" fill="#78909C">ENTITIES</text>
+<rect x="458" y="124" width="51" height="28" rx="14.0" fill="#1C2734" stroke="#26384A" stroke-width="1.2"/><text x="483.5" y="140" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" fill="#78909C">HUD</text>
+<rect x="519" y="124" width="142" height="28" rx="14.0" fill="#1C2734" stroke="#26384A" stroke-width="1.2"/><text x="590.0" y="140" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" fill="#78909C">RESOURCE PACKS</text>
+<path d="M600 164 V182" stroke="#26384A" stroke-width="1.6" fill="none"/>
+<path d="M594 181 L600 190 L606 181" stroke="#26384A" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+<rect x="40" y="192" width="1120" height="112" rx="18" fill="#11161F" stroke="#26384A" stroke-width="1.4"/>
+<text x="64" y="224" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" letter-spacing="2" fill="#4FC3F7">MECHANISM</text>
+<text x="1136" y="224" text-anchor="end" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#78909C">34 @Mixin + 4 accessor</text>
+<text x="64" y="262" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="17" fill="#ECEFF1">Font · ChatComponent · Gui · PlayerTabOverlay · Scoreboard · AvatarRenderState · PackRepository · Connection</text>
+<text x="64" y="290" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="16" fill="#78909C">+ 6 @Pseudo mixins reach into Skyblocker ×4 and SkyHanni ×2 as optional soft interop</text>
+<path d="M600 304 V322" stroke="#26384A" stroke-width="1.6" fill="none"/>
+<path d="M594 321 L600 330 L606 321" stroke="#26384A" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+<rect x="40" y="332" width="1120" height="112" rx="18" fill="#11161F" stroke="#26384A" stroke-width="1.4"/>
+<text x="64" y="364" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" letter-spacing="2" fill="#4FC3F7">MODULES</text>
+<text x="1136" y="364" text-anchor="end" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#78909C">36 registered</text>
+<rect x="64" y="380" width="93" height="28" rx="14.0" fill="#1C2734" stroke="#26384A" stroke-width="1.2"/><text x="110.5" y="396" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" fill="#78909C">STYLE 11</text>
+<rect x="167" y="380" width="126" height="28" rx="14.0" fill="#1C2734" stroke="#26384A" stroke-width="1.2"/><text x="230.0" y="396" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" fill="#78909C">FUNCTIONS 12</text>
+<rect x="303" y="380" width="93" height="28" rx="14.0" fill="#1C2734" stroke="#26384A" stroke-width="1.2"/><text x="349.5" y="396" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" fill="#78909C">DEBUG 10</text>
+<rect x="406" y="380" width="93" height="28" rx="14.0" fill="#1C2734" stroke="#26384A" stroke-width="1.2"/><text x="452.5" y="396" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" fill="#78909C">CONFIG 2</text>
+<rect x="509" y="380" width="76" height="28" rx="14.0" fill="#1C2734" stroke="#26384A" stroke-width="1.2"/><text x="547.0" y="396" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" fill="#78909C">PLAY 1</text>
+<text x="64" y="430" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="16" fill="#78909C">one row in the radial menu; right-click opens a third-level settings panel</text>
+<path d="M600 444 V462" stroke="#26384A" stroke-width="1.6" fill="none"/>
+<path d="M594 461 L600 470 L606 461" stroke="#26384A" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+<rect x="40" y="472" width="1120" height="112" rx="18" fill="#11161F" stroke="#26384A" stroke-width="1.4"/>
+<text x="64" y="504" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" letter-spacing="2" fill="#4FC3F7">CLIENT SURFACES</text>
+<rect x="64" y="520" width="101" height="28" rx="14.0" fill="#1C2734" stroke="#4FC3F7" stroke-width="1.2"/><text x="114.5" y="536" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" fill="#ECEFF1">CLICK GUI</text>
+<rect x="175" y="520" width="192" height="28" rx="14.0" fill="#1C2734" stroke="#4FC3F7" stroke-width="1.2"/><text x="271.0" y="536" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" fill="#ECEFF1">HUD / DYNAMIC ISLAND</text>
+<rect x="377" y="520" width="126" height="28" rx="14.0" fill="#1C2734" stroke="#4FC3F7" stroke-width="1.2"/><text x="440.0" y="536" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" fill="#ECEFF1">WORLD GIZMOS</text>
+<rect x="513" y="520" width="134" height="28" rx="14.0" fill="#1C2734" stroke="#4FC3F7" stroke-width="1.2"/><text x="580.0" y="536" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" fill="#ECEFF1">NOTIFICATIONS</text>
+<text x="64" y="570" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="16" fill="#78909C">owo-lib screen with its own anti-aliased geometry pipeline · gizmos, beams and lines drawn past vanilla fog</text>
+<rect x="40" y="600" width="540" height="108" rx="18" fill="#11161F" stroke="#26384A" stroke-width="1.4"/>
+<text x="64" y="632" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" letter-spacing="2" fill="#4FC3F7">OVER THE WIRE</text>
+<text x="556" y="632" text-anchor="end" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#78909C">TCP · newline JSON</text>
+<text x="64" y="666" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="19" font-weight="700" fill="#ECEFF1">IRC client ⇄ server</text>
+<text x="64" y="692" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif" font-size="14" fill="#78909C">12 managers · heartbeat · reconnect · 23 message types</text>
+<rect x="620" y="600" width="540" height="108" rx="18" fill="#11161F" stroke="#26384A" stroke-width="1.4"/>
+<text x="644" y="632" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13" letter-spacing="2" fill="#4FC3F7">ON DISK</text>
+<text x="1136" y="632" text-anchor="end" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12" fill="#78909C">kwrg/</text>
+<text x="644" y="666" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="14" fill="#ECEFF1">config.json · &lt;profile&gt;.json</text>
+<text x="644" y="692" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="14" fill="#78909C">routes/ · wayPoints/ · font/ · capes/</text>
+</svg>
