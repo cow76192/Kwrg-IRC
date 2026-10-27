@@ -1,24 +1,29 @@
 package me.cookie.kwrg.irc;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.google.gson.JsonElement;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.manager.HideArmorManager;
 import me.cookie.kwrg.irc.manager.IrcGlowManager;
 import me.cookie.kwrg.module.modules.style.ChatModule;
+import me.cookie.kwrg.render.DynamicIslandRenderer;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.*;
 import net.minecraft.world.entity.EquipmentSlot;
 
-import java.util.Objects;
-import java.util.EnumSet;
-import java.util.Locale;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.*;
 
 public class IrcMessageHandler {
+    private static final ScheduledExecutorService TYPING_TIMEOUT_EXECUTOR = Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "IRC-Typing-Timeout");
+        t.setDaemon(true);
+        return t;
+    });
+    private static final Map<String, ScheduledFuture<?>> TYPING_TIMEOUT_TASKS = new ConcurrentHashMap<>();
 
     public static String extractFirstColor(String text) {
         if (text == null || text.isEmpty()) return "§7";
@@ -85,6 +90,23 @@ public class IrcMessageHandler {
             String senderId = obj.has("senderId") ? obj.get("senderId").getAsString() : "";
             String type = obj.has("type") ? obj.get("type").getAsString() : "chat";
             Minecraft mc = Minecraft.getInstance();
+
+            if ("typing".equalsIgnoreCase(type) || "player_typing".equalsIgnoreCase(type)) {
+                String user = obj.has("username") ? obj.get("username").getAsString() : "";
+                if (user.isBlank() || user.equalsIgnoreCase(mc.getUser().getName())) {
+                    return;
+                }
+
+                boolean isTyping = false;
+                if (obj.has("typing")) {
+                    isTyping = obj.get("typing").getAsBoolean();
+                } else if (obj.has("action")) {
+                    isTyping = "start".equalsIgnoreCase(obj.get("action").getAsString());
+                }
+
+                handlePlayerTyping(user, isTyping);
+                return;
+            }
 
             if ("function_sync".equalsIgnoreCase(type)) {
                 String function = obj.has("function") ? obj.get("function").getAsString() : "";
@@ -295,6 +317,28 @@ public class IrcMessageHandler {
             displayFormattedMessage(channel, rank, nameStyle, username, chatStyle, content, prefix, suffix);
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    private static void handlePlayerTyping(String username, boolean isTyping) {
+        String noticeKey = "typing_" + username.toLowerCase(Locale.ROOT);
+
+        ScheduledFuture<?> oldTask = TYPING_TIMEOUT_TASKS.remove(noticeKey);
+        if (oldTask != null && !oldTask.isDone()) {
+            oldTask.cancel(false);
+        }
+
+        if (isTyping) {
+            DynamicIslandRenderer.setCustomNotice(noticeKey, "§b" + username + " §7正在输入...");
+
+            ScheduledFuture<?> timeoutTask = TYPING_TIMEOUT_EXECUTOR.schedule(() -> {
+                DynamicIslandRenderer.removeCustomNotice(noticeKey);
+                TYPING_TIMEOUT_TASKS.remove(noticeKey);
+            }, 25, TimeUnit.SECONDS);
+
+            TYPING_TIMEOUT_TASKS.put(noticeKey, timeoutTask);
+        } else {
+            DynamicIslandRenderer.removeCustomNotice(noticeKey);
         }
     }
 

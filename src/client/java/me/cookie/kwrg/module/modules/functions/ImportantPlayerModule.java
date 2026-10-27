@@ -132,11 +132,13 @@ public class ImportantPlayerModule extends Module {
         if (removed) {
             IrcConfig.save();
             PlayerFinderManager.onImportantPlayerChanged(player, false);
+            IrcClient.sendImportantPlayersSync();
             ChatNotifier.send("§e[IRC] 已将玩家 §f" + player + " §e从关注名单中移除。", NotificationType.INFO);
         } else {
             config.importantPlayers.add(player);
             IrcConfig.save();
             PlayerFinderManager.onImportantPlayerChanged(player, true);
+            IrcClient.sendImportantPlayersSync();
             ChatNotifier.send("§a[IRC] 已将玩家 §f" + player + " §a添加到关注名单!", NotificationType.INFO);
         }
     }
@@ -147,11 +149,13 @@ public class ImportantPlayerModule extends Module {
         if (removed) {
             IrcConfig.save();
             PlayerFinderManager.onImportantPlayerChanged(player, false);
+            IrcClient.sendImportantPlayersSync();
             ChatNotifier.sendInChatScreen("§e[IRC] 已将玩家 §f" + player + " §e从关注名单中移除。");
         } else {
             config.importantPlayers.add(player);
             IrcConfig.save();
             PlayerFinderManager.onImportantPlayerChanged(player, true);
+            IrcClient.sendImportantPlayersSync();
             ChatNotifier.sendInChatScreen("§a[IRC] 已将玩家 §f" + player + " §a添加到关注名单!");
         }
         return 1;

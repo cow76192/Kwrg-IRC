@@ -28,7 +28,6 @@ public abstract class ClientPacketListenerMixin {
     @ModifyVariable(method = "sendChat", at = @At("HEAD"), ordinal = 0, argsOnly = true)
     private String kwrg$appendPublicChatSuffix(String message) {
         if (IrcClient.isIrcChatActive) return message;
-
         String processed = EmojiUtil.replaceShortcodes(message);
         processed = ChatNotifier.expandCoordsShortcut(processed);
         return ChatSuffixModule.applyPublicSuffixSafely(processed);
@@ -51,7 +50,6 @@ public abstract class ClientPacketListenerMixin {
             return;
         }
 
-        // 保留你的 message 逻辑
         if (lower.startsWith("chat ") || lower.startsWith("msg ") || lower.startsWith("message ")) {
             String sub = lower.substring(5).trim();
             if (sub.equals("irc")) {
