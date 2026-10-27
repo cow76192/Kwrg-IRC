@@ -15,6 +15,7 @@ import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.manager.ChatWaypointManager;
 import me.cookie.kwrg.irc.manager.RouteEditor;
 import me.cookie.kwrg.irc.manager.RouteManager;
+import me.cookie.kwrg.irc.manager.WaypointManager;
 import me.cookie.kwrg.module.modules.debug.ClearIndexCacheModule;
 import me.cookie.kwrg.module.modules.functions.GlowColorModule;
 import me.cookie.kwrg.module.modules.functions.HideArmorModule;
@@ -242,11 +243,11 @@ public class IrcCommand {
                                 return 0;
                             }
                             var pos = mc.player.blockPosition();
-                            String coords = "x: " + pos.getX() + " y: " + pos.getY() + " z: " + pos.getZ();
-                            String island = SkyblockLocation.island();
-                            String server = SkyblockLocation.server();
-                            String world = island.isEmpty() ? server : server.isEmpty() ? island : island + " @ " + server;
-                            IrcClient.sendMessage(world.isEmpty() ? coords : coords + " | " + world);
+                            String coords = WaypointManager.formatCoordMessage(pos.getX(), pos.getY(), pos.getZ());
+                            String island = SkyblockLocation.island().replaceAll("[^A-Za-z0-9_]", "");
+                            String server = SkyblockLocation.server().replaceAll("[^A-Za-z0-9_]", "");
+                            String location = island.isEmpty() ? server : server.isEmpty() ? island : island + " @ " + server;
+                            IrcClient.sendMessage(location.isEmpty() ? coords : coords + " | " + location);
                             return 1;
                         }))
                 .then(literal("rank")
