@@ -51,7 +51,7 @@ public class ModuleManager {
         register(new DynamicTabModule());
         register(new DynamicScoreboardModule());
         register(new FontModule());
-        register(new GuiColorModule());
+        register(new GuiStyleModule());
         register(new GuiScaleModule());
         register(new HudEditorModule());
         // --- PLAY 模块 ---

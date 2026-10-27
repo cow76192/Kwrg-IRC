@@ -1,10 +1,10 @@
 package me.cookie.kwrg.gui.component;
 
-import io.wispforest.owo.ui.base.BaseUIComponent;
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.CursorStyle;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import io.wispforest.owo.ui.core.Sizing;
+import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import net.minecraft.client.Minecraft;
@@ -17,9 +17,8 @@ import net.minecraft.util.Mth;
 import java.util.Locale;
 import java.util.function.Consumer;
 
-public class CircleButtonComponent extends BaseUIComponent {
+public class CircleButtonComponent extends BaseGuiComponent {
 
-    private static final int BG_COLOR_RGB = 0x161D26;
     private static final double BASE_RADIUS = 26.0;
     private static final int BASE_IMG_SIZE = 32;
 
@@ -64,6 +63,7 @@ public class CircleButtonComponent extends BaseUIComponent {
     @Override
     public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
         if (this.visualAlpha <= 0.01f) return;
+        graphics = RenderUtil.withOpacity(graphics, GuiThemeService.opacity());
 
         float targetHover = this.hovered ? 1.0f : 0.0f;
         this.hoverAnimation = Mth.clamp(this.hoverAnimation + (targetHover - this.hoverAnimation) * delta * 0.35f, 0.0f, 1.0f);
@@ -78,8 +78,8 @@ public class CircleButtonComponent extends BaseUIComponent {
         double currentRadius = (BASE_RADIUS + this.hoverAnimation * 1.5) * (1.0 - this.clickFeedback * 0.12);
 
         int bgAlpha = (int) (255 * this.visualAlpha);
-        Color solidBgColor = AnimationUtil.withAlpha(BG_COLOR_RGB, bgAlpha);
-        Color solidBgFade = AnimationUtil.withAlpha(BG_COLOR_RGB, 0);
+        Color solidBgColor = AnimationUtil.withAlpha(this.circleBg(), bgAlpha);
+        Color solidBgFade = AnimationUtil.withAlpha(this.circleBg(), 0);
 
         int lineAlpha = (int) (255 * (0.45f + this.hoverAnimation * 0.45f) * this.visualAlpha);
         Color borderPeakColor = AnimationUtil.withAlpha(0xFFFFFF, lineAlpha);
@@ -106,7 +106,7 @@ public class CircleButtonComponent extends BaseUIComponent {
             float titleScale = 0.85f;
             float textW = font.width(this.title) * titleScale;
             float textH = font.lineHeight * titleScale;
-            int textColor = AnimationUtil.withAlpha(this.hovered ? 0xFFFFFF : 0x90A4AE, (int) (255 * this.visualAlpha)).argb();
+            int textColor = AnimationUtil.withAlpha(this.hovered ? this.textStrong() : this.paneBorder(), (int) (255 * this.visualAlpha)).argb();
 
             RenderUtil.drawSmoothText(graphics, Component.literal(this.title), -textW / 2.0f, -textH / 2.0f, titleScale, textColor);
         }

@@ -6,6 +6,8 @@ import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.manager.GuiColorManager;
 import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.gui.theme.GuiThemeService;
+import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -15,15 +17,17 @@ import org.lwjgl.glfw.GLFW;
 
 import java.awt.Color;
 
-public class GuiColorModule extends Module {
+public class GuiStyleModule extends Module {
 
-    public GuiColorModule() {
-        super("guiColor", Category.STYLE, PanelItemComponent.ItemType.TRIGGER);
+    public GuiStyleModule() {
+        super("guiStyle", Category.STYLE, PanelItemComponent.ItemType.TRIGGER);
     }
 
     @Override
     public void onExecute() {
-        ChatNotifier.sendInChatScreen("§6[IRC] 当前 GUI 颜色: §f" + GuiColorManager.getGuiColorStr() + " §7(右键打开调色盘)");
+        ChatNotifier.send("§6[IRC] 当前 GUI 样式: §f" + GuiColorManager.getGuiColorStr()
+                + " §7/ 透明度: §f" + Math.round(IrcConfig.get().guiOpacity * 100.0f) + "% §7(右键打开调色盘)",
+                NotificationType.INFO);
     }
 
     @Override
@@ -92,6 +96,29 @@ public class GuiColorModule extends Module {
         settingHolder[0] = colorSetting;
 
         panel.child(colorSetting);
+
+        int minOpacityPercent = Math.round(GuiThemeService.MIN_OPACITY * 100);
+
+        panel.child(new SlotInputPaneComponent(
+                "GUI 透明度",
+                new String[]{String.valueOf(Math.round(IrcConfig.get().guiOpacity * 100.0f))},
+                new String[]{"%"},
+                values -> {
+                    float parsed = ColorUtil.parseOpacityPercent(values[0]);
+                    if (!Float.isFinite(parsed)) {
+                        ChatNotifier.send("§c请输入有效的数字 (例如: 80，最小 " + minOpacityPercent + ")", NotificationType.WARN);
+                        return;
+                    }
+                    int percent = Math.round(Math.clamp(parsed, (float) minOpacityPercent, 100.0f));
+                    GuiColorManager.setGuiOpacity(percent / 100.0f);
+                    ChatNotifier.send("§aGUI 透明度: §e" + percent + "%", NotificationType.SUCCESS);
+                },
+                values -> {
+                    float parsed = ColorUtil.parseOpacityPercent(values[0]);
+                    if (!Float.isFinite(parsed)) return;
+                    GuiColorManager.setGuiOpacity(Math.clamp(parsed, (float) minOpacityPercent, 100.0f) / 100.0f);
+                }
+        ).bounds(new int[][]{{minOpacityPercent, 100}}).dragStep(2).precision(0).dragSensitivity(6.0));
 
         TextInfoPaneComponent resetPane = new TextInfoPaneComponent(
                 "重置默认",
