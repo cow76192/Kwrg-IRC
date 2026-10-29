@@ -4,6 +4,7 @@ import me.cookie.kwrg.gui.notification.NotificationManager;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
+import me.cookie.kwrg.render.InventoryHudRenderer;
 import me.cookie.kwrg.render.ScoreboardIslandRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
@@ -18,6 +19,7 @@ public final class HudElementRegistry {
     public static final String ISLAND = "dynamicIsland";
     public static final String NOTIFICATIONS = "notifications";
     public static final String SCOREBOARD = "scoreboard";
+    public static final String INVENTORY = "inventoryHud";
 
     private static final Map<String, HudElement> ELEMENTS = new LinkedHashMap<>();
     private static final Map<String, ResetAnimation> RESET_ANIMATIONS = new LinkedHashMap<>();
@@ -41,6 +43,8 @@ public final class HudElementRegistry {
         HudElement.State islandDefault = HudElement.State.topCenter();
         islandDefault.enabled = false;
         islandDefault.opacity = 0.2f;
+
+
 
         register(new HudElement(ISLAND, "灵动岛", islandDefault)
                 .enabled(() -> state(ISLAND).enabled, value -> {
@@ -70,6 +74,23 @@ public final class HudElementRegistry {
                 })
                 .bounds(ScoreboardIslandRenderer::getIslandBounds)
                 .preview(ScoreboardIslandRenderer::setEditorPreview));
+
+        HudElement.State inventoryDefault = new HudElement.State();
+        inventoryDefault.anchorX = HudElement.Anchor.LEFT;
+        inventoryDefault.anchorY = HudElement.Anchor.TOP;
+        inventoryDefault.marginX = 10.0f;
+        inventoryDefault.marginY = 10.0f;
+        inventoryDefault.enabled = false;
+        inventoryDefault.opacity = 0.75f;
+        inventoryDefault.padding = 6;
+
+        register(new HudElement(INVENTORY, "背包显示", inventoryDefault)
+                .enabled(() -> state(INVENTORY).enabled, value -> {
+                    state(INVENTORY).enabled = value;
+                    IrcConfig.save();
+                })
+                .bounds(InventoryHudRenderer::getIslandBounds)
+                .preview(InventoryHudRenderer::setEditorPreview));
     }
 
     private HudElementRegistry() {

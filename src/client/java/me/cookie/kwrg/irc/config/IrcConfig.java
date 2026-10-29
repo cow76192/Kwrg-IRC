@@ -114,6 +114,17 @@ public class IrcConfig {
     public boolean chatSuffixFollowMessageStyle = false;
     public boolean chatSuffixPublicChat = false;
 
+    public boolean inventoryHudFollowGlobal = false;
+    public float inventoryHudOpacity = 0.75f;
+    public float inventoryHudSlotOpacity = 0.65f;
+    public float inventoryHudScale = 1.0f;
+    public boolean inventoryHudShowHotbar = false;
+    public boolean inventoryHudShowSlotBg = true;
+    public boolean inventoryHudFollowTheme = true;
+    public boolean inventoryHudHideEmpty = false;
+    public int inventoryHudSlotSpacing = 2;
+    public float inventoryHudCornerRadius = 10.0f;
+
     private static IrcConfig instance = new IrcConfig();
     private static String currentProfileName = "default";
 
