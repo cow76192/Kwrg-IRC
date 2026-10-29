@@ -26,7 +26,9 @@ The current source targets the following environment:
 2. Place the Kwrg mod JAR and the matching Fabric API JAR in your game's `mods/` folder.
 3. Install the matching version of owo-lib. The build also includes owo-sentinel, which can guide installation if owo-lib is missing.
 4. Launch the game and enter a world. Press **Right Shift** or run `/irc gui` to open the interface.
+5. ENJOY your GAME
 
+The mod relies on Skyblocker to load the item repo, and is compatible with SkyHanni.
 Hypixel Mod API is bundled with the mod and does not need to be installed separately. Configuration, routes, waypoints, and other local files are stored in the `kwrg/` folder inside your game directory.
 
 ## Features
@@ -36,22 +38,25 @@ Hypixel Mod API is bundled with the mod and does not need to be installed separa
 - Public lobby and custom channels, with controls for listening channels and the current message destination.
 - Custom tags, name and message styles, and notification sounds.
 - Online player list, alerts for followed players, and typing indicators.
+- Send totem effects to other players.
 - Emoji shortcodes such as `:skull:` and `:joy:`.
-- Sharing of configuration profiles, styles, and channel invitations.
+- Sharing of configuration profiles, styles, and private channel invitations.
 
 IRC uses the project's own service and a JSON protocol over TCP. Chat and player appearance synchronization require a connection to that service.
 
 ### Waypoints and routes
 
+- Separate waypoint and route editing screens.
 - Manage multiple waypoint sets and choose which SkyBlock islands they appear on.
 - Create and edit routes, with nodes and connecting lines displayed in the world.
 - Built-in Kuudra pearl route.
-- Detect coordinates in chat and use a message button to display a temporary waypoint and navigation path.
+- Detect coordinates in chat and use a message button to display a temporary waypoint and automatic pathfinding.
 - Enable quick editing, then **Alt + left-click a block** to add a route node.
 
 ### Interface and HUD
 
 - Radial menu, module settings panels, custom theme colors, opacity, and GUI scaling.
+- Customizable background blur for the main interface.
 - Dynamic Island HUD showing FPS, latency, TPS, memory usage, and hardware metrics.
 - Custom Tab overlay and scoreboard styling.
 - HUD layout editor with dragging, snapping, and position reset.
@@ -65,6 +70,14 @@ IRC uses the project's own service and a JSON protocol over TCP. Chat and player
 - Player tracking, automatic party tracking, and on-screen radar.
 
 Appearance settings such as capes and model scaling can be synchronized over IRC with other players using the mod. Nickname and rank overrides affect only your local display.
+
+### DEBUG
+- Connect to and disconnect from IRC, and measure the current latency.
+- Toggle GUI background blur, and adjust blur quality and radius.
+- Limit the GUI frame rate to reduce resource usage while the interface is open.
+- Tune the pathfinding heuristic weight, trading search speed against path quality.
+- Tune the anti-aliasing strength of the Dynamic Island.
+- Clear the item index cache, reload the item repository, or clear the cape cache.
 
 ## Common commands
 
