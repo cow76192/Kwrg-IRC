@@ -44,8 +44,8 @@ public class ScoreboardIslandRenderer {
     private static float smoothY = 0.0f;
 
     private static long lastUpdateTime = -1L;
-    private static long lastRenderActiveTime = 0L;
     private static boolean editorPreview = false;
+    private static boolean scoreboardRenderedThisFrame = false;
     private static boolean skyHanniActiveThisFrame = false;
     private static boolean isScissorActive = false;
 
@@ -63,7 +63,10 @@ public class ScoreboardIslandRenderer {
 
     public static void markSkyHanniActive() {
         skyHanniActiveThisFrame = true;
-        lastRenderActiveTime = System.currentTimeMillis();
+    }
+
+    public static void markScoreboardRendered() {
+        scoreboardRenderedThisFrame = true;
     }
 
     public static boolean isSkyHanniActive() {
@@ -72,6 +75,7 @@ public class ScoreboardIslandRenderer {
 
     public static void resetFrameState() {
         skyHanniActiveThisFrame = false;
+        scoreboardRenderedThisFrame = false;
     }
 
     public static float getSmoothX() { return smoothX; }
@@ -104,8 +108,6 @@ public class ScoreboardIslandRenderer {
     }
 
     public static void updateTargetBounds(float rawContentW, float rawContentH) {
-        lastRenderActiveTime = System.currentTimeMillis();
-
         HudElement.State state = HudElementRegistry.state(HudElementRegistry.SCOREBOARD);
         int pad = state.padding;
 
@@ -201,12 +203,7 @@ public class ScoreboardIslandRenderer {
     }
 
     public static void renderPreviewIfEmpty(GuiGraphicsExtractor extractor) {
-        if (!editorPreview || !isEnabled()) return;
-
-        long now = System.currentTimeMillis();
-        if ((now - lastRenderActiveTime) < 200L) {
-            return;
-        }
+        if (!editorPreview || !isEnabled() || scoreboardRenderedThisFrame) return;
 
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
@@ -225,7 +222,7 @@ public class ScoreboardIslandRenderer {
 
         float maxW = font.width(title);
         for (Component c : sampleLines) maxW = Math.max(maxW, font.width(c));
-        float totalH = (sampleLines.length + 1) * 9.0f;
+        float totalH = 10.0f + sampleLines.length * 9.0f;
 
         updateTargetBounds(maxW, totalH);
         updateAnimation();
