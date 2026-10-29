@@ -1,11 +1,9 @@
 package me.cookie.kwrg.mixin.skyhanni;
 
 import io.wispforest.owo.ui.core.OwoUIGraphics;
-import me.cookie.kwrg.gui.hud.HudEditorScreen;
 import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.render.ScoreboardIslandRenderer;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Pseudo;
@@ -42,12 +40,6 @@ public abstract class SkyHanniScoreboardDirectRenderMixin {
     @Inject(method = "onGuiRenderOverlay", at = @At("HEAD"), cancellable = true)
     private void kwrg$onDirectRenderOverlay(CallbackInfo ci) {
         if (!ScoreboardIslandRenderer.isEnabled()) return;
-
-        Minecraft mc = Minecraft.getInstance();
-
-        if (mc.screen instanceof HudEditorScreen) {
-            return;
-        }
 
         try {
             Class<?> csClass = this.getClass();
@@ -107,6 +99,7 @@ public abstract class SkyHanniScoreboardDirectRenderMixin {
                     }
                 }
             }
+            if (kwrg$renderMethod == null) return;
 
             Object config = null;
             if (kwrg$getConfigMethod == null) {
@@ -182,7 +175,6 @@ public abstract class SkyHanniScoreboardDirectRenderMixin {
             float scaledH = rawH * scale;
 
             ScoreboardIslandRenderer.updateTargetBounds(scaledW, scaledH);
-            ScoreboardIslandRenderer.markSkyHanniActive();
             ScoreboardIslandRenderer.updateAnimation();
 
             ScoreboardIslandRenderer.renderScoreboardBackground(OwoUIGraphics.of(actualExtractor));
@@ -198,9 +190,7 @@ public abstract class SkyHanniScoreboardDirectRenderMixin {
                 if (Math.abs(scale - 1.0f) > 0.001f) {
                     actualExtractor.pose().scale(scale, scale);
                 }
-                if (kwrg$renderMethod != null) {
-                    kwrg$renderMethod.invoke(renderable, 0, 0);
-                }
+                kwrg$renderMethod.invoke(renderable, 0, 0);
             } finally {
                 actualExtractor.pose().popMatrix();
                 if (scissored) {
@@ -208,6 +198,8 @@ public abstract class SkyHanniScoreboardDirectRenderMixin {
                 }
             }
 
+            ScoreboardIslandRenderer.markSkyHanniActive();
+            ScoreboardIslandRenderer.markScoreboardRendered();
             ci.cancel();
         } catch (Throwable ignored) {
         }

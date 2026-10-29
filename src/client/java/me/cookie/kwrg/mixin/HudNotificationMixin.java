@@ -76,7 +76,5 @@ public abstract class HudNotificationMixin {
         if (!(this.minecraft.screen instanceof me.cookie.kwrg.gui.IrcScreen)) {
             me.cookie.kwrg.render.DynamicIslandRenderer.render(graphics, delta);
         }
-
-        ScoreboardIslandRenderer.renderPreviewIfEmpty(graphics);
     }
 }
