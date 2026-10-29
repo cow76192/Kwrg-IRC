@@ -56,7 +56,6 @@ public class SliderPaneComponent extends BaseGuiComponent {
     private float hoverProgress = 0.0f;
     private float activeProgress = 0.0f;
     private long lastFrameTimeMs = -1L;
-    private int lastMouseX = 0;
 
     public SliderPaneComponent() {
         this.sizing(Sizing.fill(100), Sizing.fixed(COMPONENT_HEIGHT));
@@ -201,8 +200,6 @@ public class SliderPaneComponent extends BaseGuiComponent {
 
     @Override
     public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
-        this.lastMouseX = mouseX;
-
         long now = System.currentTimeMillis();
         float dt = lastFrameTimeMs < 0L ? 0.016f : Math.min(0.1f, (now - lastFrameTimeMs) / 1000.0f);
         lastFrameTimeMs = now;
@@ -405,6 +402,13 @@ public class SliderPaneComponent extends BaseGuiComponent {
     @Override
     public boolean onMouseUp(MouseButtonEvent click) {
         if (this.dragging && click.button() == 0) {
+            double globalX = resolveGlobalMouseX(click.x());
+            float trackX = this.x + PADDING_X;
+            float trackW = Math.max(10.0f, this.width - PADDING_X * 2.0f);
+            if (this.isDraggingMotion || Math.abs(globalX - this.mouseDownX) >= DRAG_THRESHOLD_PX) {
+                this.isDraggingMotion = true;
+                applyDragAt(globalX, trackX, trackW);
+            }
             this.dragging = false;
             this.isDraggingMotion = false;
             triggerDelayedSave();
@@ -466,7 +470,15 @@ public class SliderPaneComponent extends BaseGuiComponent {
     }
 
     private double resolveGlobalMouseX(double eventX) {
-        if (this.lastMouseX > 0) return this.lastMouseX;
+        Minecraft mc = Minecraft.getInstance();
+        var window = mc.getWindow();
+        if (window != null && window.getScreenWidth() > 0) {
+            double liveGlobalX = mc.mouseHandler.xpos() * (double) window.getGuiScaledWidth() / (double) window.getScreenWidth();
+            double localCandidate = this.x + eventX;
+            return Math.abs(localCandidate - liveGlobalX) <= Math.abs(eventX - liveGlobalX)
+                    ? localCandidate
+                    : eventX;
+        }
         return eventX <= this.width ? this.x + eventX : eventX;
     }
 }
