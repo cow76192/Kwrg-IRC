@@ -344,8 +344,8 @@ public class HudEditorScreen extends Screen {
         float[] bounds = element.bounds();
         if (bounds == null || bounds[2] <= 0.0f || bounds[3] <= 0.0f) return;
 
-        float left = bounds[0];
-        float top = bounds[1];
+        float left = HudElement.Anchor.resolveX(state.anchorX, state.marginX, state.offsetX, bounds[2], this.width);
+        float top = HudElement.Anchor.resolveY(state.anchorY, state.marginY, state.offsetY, bounds[3], this.height);
         float right = left + bounds[2];
         float bottom = top + bounds[3];
 
