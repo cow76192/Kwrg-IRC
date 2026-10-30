@@ -33,6 +33,7 @@
 		"cape.CapeLayerMixin",
 		"cape.WingsLayerMixin",
 		"cape.AvatarRenderStateMixin",
+		"cape.PictureInPictureOpacityMixin",
 		"accessor.FontManagerAccessor",
 		"accessor.FontSetAccessor",
 		"accessor.MinecraftAccessor",
