@@ -1,9 +1,10 @@
 package me.cookie.kwrg.mixin;
 
 import me.cookie.kwrg.gui.notification.NotificationManager;
-import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.IrcMessageHandler;
+import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
+import me.cookie.kwrg.render.InventoryHudRenderer;
 import me.cookie.kwrg.render.PlayerFinderRadarRenderer;
 import me.cookie.kwrg.render.ScoreboardIslandRenderer;
 import net.minecraft.client.DeltaTracker;
@@ -45,6 +46,7 @@ public abstract class HudNotificationMixin {
         me.cookie.kwrg.render.DynamicIslandRenderer.beginTabShiftFrame();
         me.cookie.kwrg.render.DynamicIslandRenderer.updateAnimationState();
         ScoreboardIslandRenderer.resetFrameState();
+        InventoryHudRenderer.resetFrameState();
     }
 
     @Inject(method = "extractRenderState", at = @At("TAIL"))
@@ -61,6 +63,7 @@ public abstract class HudNotificationMixin {
 
         NotificationManager.render(graphics, mouseX, mouseY, delta);
         PlayerFinderRadarRenderer.render(graphics, delta);
+        InventoryHudRenderer.render(graphics, delta);
 
         if (this.minecraft.level != null && !this.minecraft.options.keyPlayerList.isDown() && DynamicIslandRenderer.isTabAnimating()) {
             if (me.cookie.kwrg.render.DynamicIslandRenderer.wasSkyHanniActive()) {
@@ -76,7 +79,5 @@ public abstract class HudNotificationMixin {
         if (!(this.minecraft.screen instanceof me.cookie.kwrg.gui.IrcScreen)) {
             me.cookie.kwrg.render.DynamicIslandRenderer.render(graphics, delta);
         }
-
-        ScoreboardIslandRenderer.renderPreviewIfEmpty(graphics);
     }
 }

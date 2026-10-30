@@ -8,6 +8,8 @@ import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
+import me.cookie.kwrg.render.InventoryHudRenderer;
+import me.cookie.kwrg.render.ScoreboardIslandRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
@@ -94,6 +96,9 @@ public class HudEditorScreen extends Screen {
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
 
         DynamicIslandRenderer.updateAnimationState();
+        // All HUD providers have finished; use sample content only if none drew a scoreboard.
+        ScoreboardIslandRenderer.renderPreviewIfEmpty(graphics);
+        InventoryHudRenderer.renderPreviewIfEmpty(graphics);
         OwoUIGraphics owo = OwoUIGraphics.of(graphics);
 
         List<HudElement> elements = HudElementRegistry.all();
@@ -339,8 +344,8 @@ public class HudEditorScreen extends Screen {
         float[] bounds = element.bounds();
         if (bounds == null || bounds[2] <= 0.0f || bounds[3] <= 0.0f) return;
 
-        float left = bounds[0];
-        float top = bounds[1];
+        float left = HudElement.Anchor.resolveX(state.anchorX, state.marginX, state.offsetX, bounds[2], this.width);
+        float top = HudElement.Anchor.resolveY(state.anchorY, state.marginY, state.offsetY, bounds[3], this.height);
         float right = left + bounds[2];
         float bottom = top + bounds[3];
 
