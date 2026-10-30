@@ -5,6 +5,7 @@ import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import me.cookie.kwrg.render.InventoryHudRenderer;
+import me.cookie.kwrg.render.PlayerDollHudRenderer;
 import me.cookie.kwrg.render.ScoreboardIslandRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
@@ -20,6 +21,7 @@ public final class HudElementRegistry {
     public static final String NOTIFICATIONS = "notifications";
     public static final String SCOREBOARD = "scoreboard";
     public static final String INVENTORY = "inventoryHud";
+    public static final String PLAYER_DOLL = "playerDollHud";
 
     private static final Map<String, HudElement> ELEMENTS = new LinkedHashMap<>();
     private static final Map<String, ResetAnimation> RESET_ANIMATIONS = new LinkedHashMap<>();
@@ -91,6 +93,22 @@ public final class HudElementRegistry {
                 })
                 .bounds(InventoryHudRenderer::getIslandBounds)
                 .preview(InventoryHudRenderer::setEditorPreview));
+
+        HudElement.State playerDollDefault = new HudElement.State();
+        playerDollDefault.anchorX = HudElement.Anchor.LEFT;
+        playerDollDefault.anchorY = HudElement.Anchor.BOTTOM;
+        playerDollDefault.marginX = 18.0f;
+        playerDollDefault.marginY = 22.0f;
+        playerDollDefault.enabled = false;
+        playerDollDefault.opacity = 1.0f;
+
+        register(new HudElement(PLAYER_DOLL, "玩家模型", playerDollDefault)
+                .enabled(() -> state(PLAYER_DOLL).enabled, value -> {
+                    state(PLAYER_DOLL).enabled = value;
+                    IrcConfig.save();
+                })
+                .bounds(PlayerDollHudRenderer::getDollBounds)
+                .preview(PlayerDollHudRenderer::setEditorPreview));
     }
 
     private HudElementRegistry() {

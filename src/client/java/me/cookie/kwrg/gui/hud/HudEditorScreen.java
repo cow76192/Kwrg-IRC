@@ -9,6 +9,7 @@ import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import me.cookie.kwrg.render.InventoryHudRenderer;
+import me.cookie.kwrg.render.PlayerDollHudRenderer;
 import me.cookie.kwrg.render.ScoreboardIslandRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -99,6 +100,7 @@ public class HudEditorScreen extends Screen {
         // All HUD providers have finished; use sample content only if none drew a scoreboard.
         ScoreboardIslandRenderer.renderPreviewIfEmpty(graphics);
         InventoryHudRenderer.renderPreviewIfEmpty(graphics);
+        PlayerDollHudRenderer.renderPreviewIfEmpty(graphics);
         OwoUIGraphics owo = OwoUIGraphics.of(graphics);
 
         List<HudElement> elements = HudElementRegistry.all();
@@ -278,6 +280,8 @@ public class HudEditorScreen extends Screen {
         return switch (elementId) {
             case HudElementRegistry.ISLAND -> "dynamicIsland";
             case HudElementRegistry.SCOREBOARD -> "dynamicScoreboard";
+            case HudElementRegistry.INVENTORY -> "inventoryHud";
+            case HudElementRegistry.PLAYER_DOLL -> "playerDollHud";
             default -> null;
         };
     }

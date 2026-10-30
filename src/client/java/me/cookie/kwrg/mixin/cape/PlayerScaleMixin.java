@@ -2,6 +2,7 @@ package me.cookie.kwrg.mixin.cape;
 
 import me.cookie.kwrg.duck.KwrgAvatarState;
 import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
+import me.cookie.kwrg.render.PlayerDollHudRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
@@ -22,13 +23,19 @@ public abstract class PlayerScaleMixin {
             Minecraft mc = Minecraft.getInstance();
 
             if (player == mc.player && PlayerCustomizationManager.inInventoryRendering) {
+                // 强制无阴影，且保持 1.0 倍大小（不乘 getPlayerScale）
+                state.shadowRadius = 0.0f;
+                state.shadowPieces.clear();
+
                 if (state instanceof KwrgAvatarState avatarState) {
                     RenderType capeType = PlayerCustomizationManager.getPlayerCapeRenderType(player);
                     avatarState.kwrg$setCustomCape(capeType);
-                    // 【修正】：方法名对齐为 kwrg$setCustomElytra
                     avatarState.kwrg$setCustomElytra(PlayerCustomizationManager.getPlayerElytraTexture(player));
                 }
                 PlayerCustomizationManager.markLocalRenderState(state);
+                if (PlayerDollHudRenderer.isExtractingHudDoll()) {
+                    PlayerDollHudRenderer.markHudDollRenderState(state);
+                }
                 return;
             }
 
@@ -46,7 +53,6 @@ public abstract class PlayerScaleMixin {
             if (state instanceof KwrgAvatarState avatarState) {
                 RenderType capeType = PlayerCustomizationManager.getPlayerCapeRenderType(player);
                 avatarState.kwrg$setCustomCape(capeType);
-                // 【修正】：方法名对齐为 kwrg$setCustomElytra
                 avatarState.kwrg$setCustomElytra(PlayerCustomizationManager.getPlayerElytraTexture(player));
             }
 
