@@ -30,7 +30,7 @@ public abstract class VanillaScoreboardMixin {
     @Unique private static float kwrg$currentMaxX = -Float.MAX_VALUE;
     @Unique private static float kwrg$currentMaxY = -Float.MAX_VALUE;
 
-    @Unique private final List<Runnable> kwrg$scoreboardText = new ArrayList<>();
+    @Unique private List<Runnable> kwrg$scoreboardText;
     @Unique private boolean kwrg$collectingScoreboard = false;
     @Unique private static final Pattern kwrg$scoreNumber = Pattern.compile("^[0-9,.-]+$");
 
@@ -70,6 +70,10 @@ public abstract class VanillaScoreboardMixin {
         kwrg$currentMaxX = -Float.MAX_VALUE;
         kwrg$currentMaxY = -Float.MAX_VALUE;
 
+        // Do not rely on the mixin field initializer being injected into Gui's constructor.
+        if (kwrg$scoreboardText == null) {
+            kwrg$scoreboardText = new ArrayList<>();
+        }
         kwrg$scoreboardText.clear();
         kwrg$collectingScoreboard = true;
         try {

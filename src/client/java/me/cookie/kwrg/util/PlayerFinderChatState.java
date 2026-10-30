@@ -25,6 +25,7 @@ public final class PlayerFinderChatState {
     private static final List<String> collectedPartyLines = new ArrayList<>();
 
     // 战斗场景状态机
+    private static final long COMBAT_START_TIMEOUT_MS = 40000L;
     private static volatile boolean waitingForStart = false;
     private static volatile long prepareCombatTimestamp = 0L;
     private static volatile boolean inSmallCombatScene = false;
@@ -141,22 +142,24 @@ public final class PlayerFinderChatState {
                 RouteEditor.setEnabled(false);
             }
             ChatWaypointManager.clear();
-            waitingForStart = false;
+            // The entry announcement can arrive before the transfer into the combat server.
+            // Preserve the pending start without extending its original timeout.
+            if (waitingForStart && System.currentTimeMillis() - prepareCombatTimestamp > COMBAT_START_TIMEOUT_MS) {
+                waitingForStart = false;
+            }
             synchronized (PARTY_LOCK) {
                 expectingPartyList = false;
                 silentPartyFetch = false;
                 insidePartyList = false;
                 collectedPartyLines.clear();
             }
-            if (inSmallCombatScene) {
-                setInSmallCombatScene(false);
-            }
+            setInSmallCombatScene(false);
             return false;
         }
 
         if (lower.contains("starting in 1 second")) {
             long now = System.currentTimeMillis();
-            if (waitingForStart && (now - prepareCombatTimestamp <= 40000L)) {
+            if (waitingForStart && (now - prepareCombatTimestamp <= COMBAT_START_TIMEOUT_MS)) {
                 setInSmallCombatScene(true);
             }
             waitingForStart = false;
