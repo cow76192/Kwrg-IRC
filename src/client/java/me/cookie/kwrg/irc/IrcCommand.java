@@ -25,6 +25,7 @@ import me.cookie.kwrg.module.modules.style.MessageStyleModule;
 import me.cookie.kwrg.module.modules.style.NameStyleModule;
 import me.cookie.kwrg.module.modules.style.RankModule;
 import me.cookie.kwrg.util.ChatNotifier;
+import me.cookie.kwrg.util.EmojiUtil;
 import me.cookie.kwrg.util.SkyblockItemHelper;
 import me.cookie.kwrg.util.SkyblockLocation;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -198,8 +199,9 @@ public class IrcCommand {
         dispatcher.register(literal("icall")
                 .then(argument("message", StringArgumentType.greedyString())
                         .executes(context -> {
-                            String message = StringArgumentType.getString(context, "message");
-                            IrcClient.sendMessageToPublic(message);
+                            String processed = StringArgumentType.getString(context, "message");
+                            processed = EmojiUtil.replaceShortcodes(processed);
+                            IrcClient.sendMessageToPublic(processed);
                             return 1;
                         })
                 )
