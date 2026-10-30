@@ -125,6 +125,10 @@ public class IrcConfig {
     public int inventoryHudSlotSpacing = 2;
     public float inventoryHudCornerRadius = 10.0f;
 
+    public boolean playerDollFollowGlobal = false;
+    public float playerDollOpacity = 1.0f;
+    public float playerDollScale = 1.0f;
+
     private static IrcConfig instance = new IrcConfig();
     private static String currentProfileName = "default";
 
