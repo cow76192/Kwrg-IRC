@@ -23,7 +23,6 @@ public class ModuleManager {
         register(new DisableBlurModule());
         register(new GuiFpsModule());
         register(new NavigatorWeightModule());
-        register(new NavigatorModule());
         register(new DynamicIslandAAValve());
         register(new ClearCapeCacheModule());
         // --- CONFIG 模块 ---
@@ -42,6 +41,7 @@ public class ModuleManager {
         register(new CustomCapeModule());
         register(new NickModule());
         register(new ChatSuffixModule());
+        register(new NavigatorModule());
 
         // --- STYLE 模块 ---
         register(new RankModule());

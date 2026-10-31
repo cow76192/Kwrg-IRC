@@ -1,4 +1,4 @@
-package me.cookie.kwrg.module.modules.debug;
+package me.cookie.kwrg.module.modules.functions;
 
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
@@ -19,7 +19,7 @@ import java.util.function.Consumer;
 public class NavigatorModule extends Module {
 
     public NavigatorModule() {
-        super("navigator", Category.DEBUG, PanelItemComponent.ItemType.TRIGGER);
+        super("navigator", Category.FUNCTIONS, PanelItemComponent.ItemType.TRIGGER);
     }
 
     @Override
