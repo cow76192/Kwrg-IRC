@@ -176,14 +176,20 @@ public final class HudElementRegistry {
             return;
         }
 
-        float baseX = HudElement.Anchor.resolveX(defaults.anchorX, defaults.marginX, 0.0f, bounds[2], window.getGuiScaledWidth());
-        float baseY = HudElement.Anchor.resolveY(defaults.anchorY, defaults.marginY, 0.0f, bounds[3], window.getGuiScaledHeight());
+        float previousScale = resolveScale(id);
+        applyDefaults(current, defaults);
+        current.sanitize();
+
+        // Bounds still describe the previous frame. Rebase the animation using the size
+        // that the renderer will use after resetting, including any inherited global scale.
+        float scaleRatio = resolveScale(id) / previousScale;
+        float resetWidth = bounds[2] * scaleRatio;
+        float resetHeight = bounds[3] * scaleRatio;
+        float baseX = HudElement.Anchor.resolveX(current.anchorX, current.marginX, 0.0f, resetWidth, window.getGuiScaledWidth());
+        float baseY = HudElement.Anchor.resolveY(current.anchorY, current.marginY, 0.0f, resetHeight, window.getGuiScaledHeight());
 
         float fromX = bounds[0] - baseX;
         float fromY = bounds[1] - baseY;
-
-        applyDefaults(current, defaults);
-        current.sanitize();
 
         RESET_ANIMATIONS.put(id, new ResetAnimation(fromX, fromY, System.currentTimeMillis()));
         IrcConfig.save();
