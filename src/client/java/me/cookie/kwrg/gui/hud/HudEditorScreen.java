@@ -4,6 +4,7 @@ import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import me.cookie.kwrg.gui.IrcScreen;
 import me.cookie.kwrg.gui.util.AnimationUtil;
+import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.module.Category;
@@ -25,12 +26,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 public class HudEditorScreen extends Screen {
 
     private static final float GRAB_PADDING = 10.0f;
     private static final float SNAP_DISTANCE = 6.0f;
     private static final float SCALE_STEP = 0.05f;
+    private static final float FEEDBACK_OPEN_MS = 160.0f;
+    private static final float FEEDBACK_CLOSE_MS = 200.0f;
     private static final int HINT_BAR_HEIGHT = 44;
     private static final int LIST_WIDTH = 168;
     private static final int LIST_ROW_HEIGHT = 22;
@@ -56,6 +60,14 @@ public class HudEditorScreen extends Screen {
     private double dragStartMouseY = 0.0;
     private float dragStartOffsetX = 0.0f;
     private float dragStartOffsetY = 0.0f;
+    private List<String> scrollFeedback = List.of();
+    private String scrollFeedbackId;
+    private float scrollFeedbackProgress;
+    private long scrollFeedbackFrameMs;
+    private float scrollFeedbackX;
+    private float scrollFeedbackY;
+    private float scrollFeedbackOriginX;
+    private float scrollFeedbackOriginY;
 
     public HudEditorScreen(String initialSelectionId) {
         super(Component.literal("HUD 布局编辑器"));
@@ -114,6 +126,7 @@ public class HudEditorScreen extends Screen {
 
         drawElementList(owo, elements, mouseX, mouseY);
         drawHints(owo);
+        drawScrollFeedback(owo, mouseX, mouseY);
     }
 
     private void drawElementOutline(OwoUIGraphics owo, HudElement element, int mouseX, int mouseY) {
@@ -132,11 +145,7 @@ public class HudEditorScreen extends Screen {
         RenderUtil.drawSubpixelRoundedPanel(owo, bounds[0] - 3.0f, bounds[1] - 3.0f, bounds[2] + 6.0f, bounds[3] + 6.0f,
                 13.0f, selected ? 2.0f : 1.4f, fill, outline);
 
-        HudElement.State state = HudElementRegistry.state(element.id());
-        String scaleText = Math.abs(state.scale - 1.0f) > 0.005f
-                ? String.format(Locale.ROOT, " (%.2fx)", state.scale)
-                : "";
-        String label = element.displayName() + scaleText + (hidden ? " (已隐藏)" : "");
+        String label = element.displayName() + (hidden ? " (已隐藏)" : "");
         RenderUtil.drawFluidSubpixelText(owo, Component.literal(label), bounds[0], Math.max(2.0f, bounds[1] - 13.0f),
                 ARGB.color(selected ? 0xFF : 0xB0, 0xE1, 0xF5, 0xFE));
     }
@@ -249,7 +258,85 @@ public class HudEditorScreen extends Screen {
         return element.displayName()
                 + "   锚点 X: " + HudElement.Anchor.labelX(state.anchorX) + "  Y: " + HudElement.Anchor.labelY(state.anchorY)
                 + "   偏移 X: " + Math.round(state.offsetX) + "  Y: " + Math.round(state.offsetY)
-                + "   缩放: " + String.format(Locale.ROOT, "%.2fx", state.scale);
+                + "   " + describeScale(element);
+    }
+
+    private String describeScale(HudElement element) {
+        if (!element.supportsScale()) return "不支持缩放";
+        if (element.followsGlobal()) return "此元素沿用全局 HUD 配置，如需修改请使用 Shift+鼠标滚轮";
+        return "缩放: " + String.format(Locale.ROOT, "%.2fx", HudElementRegistry.resolveScale(element.id()));
+    }
+
+    private void showScrollFeedback(HudElement element, String... lines) {
+        if (!Objects.equals(scrollFeedbackId, element.id())) {
+            scrollFeedbackProgress = 0.0f;
+            scrollFeedbackFrameMs = System.currentTimeMillis();
+        }
+        scrollFeedbackId = element.id();
+        scrollFeedback = List.of(lines);
+    }
+
+    private void drawScrollFeedback(OwoUIGraphics owo, int mouseX, int mouseY) {
+        if (scrollFeedback.isEmpty()) return;
+
+        long now = System.currentTimeMillis();
+        float elapsedMs = Math.max(0L, now - scrollFeedbackFrameMs);
+        scrollFeedbackFrameMs = now;
+        HudElement hovered = hitTestList(mouseX, mouseY);
+        boolean overList = hovered != null;
+        if (hovered == null) hovered = hitTest(mouseX, mouseY);
+        boolean visible = hovered != null && Objects.equals(hovered.id(), scrollFeedbackId)
+                && Objects.equals(selectedId, scrollFeedbackId);
+        scrollFeedbackProgress = Mth.clamp(scrollFeedbackProgress
+                + (visible ? elapsedMs / FEEDBACK_OPEN_MS : -elapsedMs / FEEDBACK_CLOSE_MS), 0.0f, 1.0f);
+        if (!visible && scrollFeedbackProgress <= 0.0f) {
+            scrollFeedback = List.of();
+            scrollFeedbackId = null;
+            return;
+        }
+
+        int textWidth = 0;
+        for (String line : scrollFeedback) {
+            textWidth = Math.max(textWidth, font.width(FontManagerHelper.apply(line)));
+        }
+        float panelW = Math.min(this.width - 8.0f, textWidth + 16.0f);
+        float panelH = scrollFeedback.size() * 13.0f + 12.0f;
+        if (visible) {
+            float[] bounds = hovered.bounds();
+            if (overList) {
+                int row = HudElementRegistry.all().indexOf(hovered);
+                bounds = new float[]{this.width - LIST_WIDTH, LIST_TOP + LIST_HEADER_HEIGHT + row * LIST_ROW_HEIGHT,
+                        LIST_WIDTH - 12, LIST_ROW_HEIGHT};
+            }
+            // Use the cursor's relative position in the source element to choose the opening direction.
+            float relativeX = Mth.clamp((mouseX - bounds[0]) / Math.max(1.0f, bounds[2]), 0.0f, 1.0f);
+            float relativeY = Mth.clamp((mouseY - bounds[1]) / Math.max(1.0f, bounds[3]), 0.0f, 1.0f);
+            scrollFeedbackOriginX = bounds[0] + relativeX * bounds[2];
+            scrollFeedbackOriginY = bounds[1] + relativeY * bounds[3];
+            float targetX = relativeX >= 0.5f ? mouseX + 12.0f : mouseX - panelW - 12.0f;
+            float targetY = relativeY >= 0.5f ? mouseY + 16.0f : mouseY - panelH - 16.0f;
+            scrollFeedbackX = Math.max(4.0f, Math.min(targetX, this.width - panelW - 4.0f));
+            scrollFeedbackY = Math.max(4.0f, Math.min(targetY, this.height - HINT_BAR_HEIGHT - panelH - 4.0f));
+        }
+        float x = scrollFeedbackX;
+        float y = scrollFeedbackY;
+        float appearance = AnimationUtil.easeOutCubic(scrollFeedbackProgress);
+        // Retain the last source position during closing so the popup retracts toward its HUD origin.
+        owo.pose().pushMatrix();
+        owo.pose().translate(scrollFeedbackOriginX, scrollFeedbackOriginY);
+        owo.pose().scale(Math.max(0.001f, appearance), Math.max(0.001f, appearance));
+        owo.pose().translate(-scrollFeedbackOriginX, -scrollFeedbackOriginY);
+        OwoUIGraphics animated = RenderUtil.withOpacity(owo, appearance);
+        try {
+            RenderUtil.drawSubpixelRoundedPanel(animated, x, y, panelW, panelH, 6.0f,
+                Color.ofArgb(0xF0101620), Color.ofArgb(0x804FC3F7));
+            for (int i = 0; i < scrollFeedback.size(); i++) {
+                String line = RenderUtil.fitText(scrollFeedback.get(i), Math.max(1, (int) panelW - 16), 1.0f);
+                RenderUtil.drawFluidSubpixelText(animated, Component.literal(line), x + 8.0f, y + 7.0f + i * 13.0f, 0xFFE1F5FE);
+            }
+        } finally {
+            owo.pose().popMatrix();
+        }
     }
 
     private static boolean isInside(double mouseX, double mouseY, float x, float y, float w, float h) {
@@ -298,20 +385,37 @@ public class HudEditorScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (Math.abs(scrollY) > 1e-4) {
-            HudElement target = hitTest(mouseX, mouseY);
+            HudElement target = hitTestList(mouseX, mouseY);
             if (target == null) {
-                target = hitTestList(mouseX, mouseY);
+                target = hitTest(mouseX, mouseY);
             }
 
             if (target != null) {
                 selectedId = target.id();
+                if (!target.supportsScale()) {
+                    showScrollFeedback(target, "不支持缩放");
+                    return true;
+                }
+
                 HudElement.State state = HudElementRegistry.state(target.id());
+                if (target.followsGlobal()) {
+                    long handle = Minecraft.getInstance().getWindow().handle();
+                    boolean shift = GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
+                            || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
+                    if (!shift) {
+                        showScrollFeedback(target, "此元素沿用全局 HUD 配置，", "如需修改请使用 Shift+鼠标滚轮");
+                        return true;
+                    }
+                    state.scale = HudElementRegistry.resolveScale(target.id());
+                    target.setFollowGlobal(false);
+                }
 
                 float delta = (scrollY > 0 ? 1.0f : -1.0f) * SCALE_STEP;
                 float newScale = Math.round((state.scale + delta) * 100.0f) / 100.0f;
                 state.scale = Mth.clamp(newScale, HudElement.State.MIN_SCALE, HudElement.State.MAX_SCALE);
                 state.sanitize();
 
+                showScrollFeedback(target, describeScale(target));
                 IrcConfig.saveDelayed(400);
                 return true;
             }

@@ -46,7 +46,8 @@ public final class HudElementRegistry {
         islandDefault.enabled = false;
         islandDefault.opacity = 0.2f;
 
-        register(new HudElement(ISLAND, "灵动岛", islandDefault)
+        // The top status bar and expanded Tab panel share this element and do not support scaling.
+        register(new HudElement(ISLAND, "灵动岛", islandDefault, false)
                 .enabled(() -> state(ISLAND).enabled, value -> {
                     state(ISLAND).enabled = value;
                     IrcConfig.save();
@@ -54,7 +55,7 @@ public final class HudElementRegistry {
                 .bounds(DynamicIslandRenderer::getIslandBounds)
                 .preview(DynamicIslandRenderer::setEditorPreview));
 
-        register(new HudElement(NOTIFICATIONS, "通知堆叠", HudElement.State.bottomRight(16.0f, 20.0f))
+        register(new HudElement(NOTIFICATIONS, "通知堆叠", HudElement.State.bottomRight(16.0f, 20.0f), false)
                 .enabled(() -> state(NOTIFICATIONS).enabled, value -> {
                     state(NOTIFICATIONS).enabled = value;
                     IrcConfig.save();
@@ -85,6 +86,8 @@ public final class HudElementRegistry {
         inventoryDefault.padding = 6;
 
         register(new HudElement(INVENTORY, "背包显示", inventoryDefault)
+                .followGlobal(() -> IrcConfig.get().inventoryHudFollowGlobal,
+                        value -> IrcConfig.get().inventoryHudFollowGlobal = value)
                 .enabled(() -> state(INVENTORY).enabled, value -> {
                     state(INVENTORY).enabled = value;
                     IrcConfig.save();
@@ -101,6 +104,8 @@ public final class HudElementRegistry {
         playerDollDefault.opacity = 1.0f;
 
         register(new HudElement(PLAYER_DOLL, "玩家模型", playerDollDefault)
+                .followGlobal(() -> IrcConfig.get().playerDollFollowGlobal,
+                        value -> IrcConfig.get().playerDollFollowGlobal = value)
                 .enabled(() -> state(PLAYER_DOLL).enabled, value -> {
                     state(PLAYER_DOLL).enabled = value;
                     IrcConfig.save();
@@ -141,6 +146,13 @@ public final class HudElementRegistry {
     }
 
     public static float resolveScale(String id) {
+        HudElement element = get(id);
+        if (element != null && !element.supportsScale()) return 1.0f;
+        if (element != null && element.followsGlobal()) {
+            float scale = IrcConfig.get().guiScale;
+            return Mth.clamp(Float.isFinite(scale) ? scale : 1.0f,
+                    HudElement.State.MIN_SCALE, HudElement.State.MAX_SCALE);
+        }
         return state(id).scale;
     }
 

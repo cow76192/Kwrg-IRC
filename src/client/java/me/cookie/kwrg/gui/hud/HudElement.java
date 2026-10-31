@@ -155,16 +155,24 @@ public class HudElement {
     private final String id;
     private final String displayName;
     private final State defaultState;
+    private final boolean supportsScale;
 
     private Supplier<Boolean> enabledGetter = () -> true;
     private Consumer<Boolean> enabledSetter = value -> { };
     private Supplier<float[]> boundsGetter = () -> new float[]{0.0f, 0.0f, 0.0f, 0.0f};
     private Consumer<Boolean> previewSetter = value -> { };
+    private Supplier<Boolean> followGlobalGetter = () -> false;
+    private Consumer<Boolean> followGlobalSetter = value -> { };
 
     public HudElement(String id, String displayName, State defaultState) {
+        this(id, displayName, defaultState, true);
+    }
+
+    public HudElement(String id, String displayName, State defaultState, boolean supportsScale) {
         this.id = id;
         this.displayName = displayName;
         this.defaultState = defaultState;
+        this.supportsScale = supportsScale;
     }
 
     public HudElement enabled(Supplier<Boolean> getter, Consumer<Boolean> setter) {
@@ -183,6 +191,20 @@ public class HudElement {
         return this;
     }
 
+    public HudElement followGlobal(Supplier<Boolean> getter, Consumer<Boolean> setter) {
+        this.followGlobalGetter = getter;
+        this.followGlobalSetter = setter;
+        return this;
+    }
+
+    public boolean followsGlobal() {
+        return followGlobalGetter.get();
+    }
+
+    public void setFollowGlobal(boolean enabled) {
+        followGlobalSetter.accept(enabled);
+    }
+
     public String id() {
         return id;
     }
@@ -193,6 +215,10 @@ public class HudElement {
 
     public State defaultState() {
         return defaultState.copy();
+    }
+
+    public boolean supportsScale() {
+        return supportsScale;
     }
 
     public boolean isEnabled() {

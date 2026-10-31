@@ -91,9 +91,7 @@ public final class PlayerDollHudRenderer {
         IrcConfig config = IrcConfig.get();
         boolean followGlobal = config.playerDollFollowGlobal;
 
-        // 直接使用 HudElement.State 的 scale
-        float rawScale = followGlobal ? config.guiScale : state.scale;
-        float scale = Mth.clamp(Float.isFinite(rawScale) ? rawScale : 1.0f, HudElement.State.MIN_SCALE, HudElement.State.MAX_SCALE);
+        float scale = HudElementRegistry.resolveScale(HudElementRegistry.PLAYER_DOLL);
 
         float baseOpacity = followGlobal
                 ? Mth.clamp(GuiThemeService.opacity(), 0.05f, 1.0f)
