@@ -70,7 +70,7 @@ public final class ChatWaypointManager {
     }
 
     public static void init() {
-        Navigator.setHeuristicWeight(IrcConfig.get().navigatorWeight);
+        IrcConfig.applyNavigatorSettings();
         LevelRenderEvents.BEFORE_GIZMOS.register(ChatWaypointManager::render);
         ClientTickEvents.END_CLIENT_TICK.register(ChatWaypointManager::onTick);
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> POINTS.clear());
