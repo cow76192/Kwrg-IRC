@@ -86,7 +86,14 @@ public class IrcConfig {
     public Map<String, HudElement.State> hudElements = new LinkedHashMap<>();
 
     public boolean disableBlur = false;
+
+    // 自动寻路
     public float navigatorWeight = 1.0f;
+    public boolean navigatorAotv = true;
+    public boolean navigatorSwim = true;
+    public boolean navigatorLadder = true;
+    public boolean navigatorJump = true;
+
     public float blurQuality = 8.0f;
     public float blurSize = 16.0f;
 
@@ -165,6 +172,20 @@ public class IrcConfig {
         String selected = "default";
     }
 
+    /**
+     * 把当前配置里的寻路参数同步给 {@link Navigator}。
+     * 加载配置、新建配置以及修改寻路设置后都需要调用一次。
+     */
+    public static void applyNavigatorSettings() {
+        IrcConfig config = instance;
+        Navigator.setHeuristicWeight(config.navigatorWeight);
+        Navigator.setMovement(new Navigator.Movement(
+                config.navigatorAotv,
+                config.navigatorSwim,
+                config.navigatorLadder,
+                config.navigatorJump));
+    }
+
     public static void load() {
         try {
             Path metaPath = getMetaPath();
@@ -237,7 +258,7 @@ public class IrcConfig {
                 PlayerFinderManager.reloadFromConfig();
                 WaypointManager.reloadFromConfig();
                 RouteManager.reloadFromConfig();
-                Navigator.setHeuristicWeight(instance.navigatorWeight);
+                applyNavigatorSettings();
 
                 LOGGER.info("[Kwrg] 已加载配置文件: {}.json", cleanName);
                 return true;
@@ -247,7 +268,7 @@ public class IrcConfig {
                 GuiColorManager.refresh();
                 WaypointManager.reloadFromConfig();
                 RouteManager.reloadFromConfig();
-                Navigator.setHeuristicWeight(instance.navigatorWeight);
+                applyNavigatorSettings();
                 save();
                 return true;
             }
@@ -264,7 +285,7 @@ public class IrcConfig {
         GuiColorManager.refresh();
         WaypointManager.reloadFromConfig();
         RouteManager.reloadFromConfig();
-        Navigator.setHeuristicWeight(instance.navigatorWeight);
+        applyNavigatorSettings();
         LOGGER.info("[Kwrg] 已在内存中新建配置 [{}]（尚未保存到磁盘）", cleanName);
     }
 

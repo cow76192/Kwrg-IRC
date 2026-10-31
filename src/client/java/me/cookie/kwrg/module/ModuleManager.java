@@ -41,6 +41,7 @@ public class ModuleManager {
         register(new CustomCapeModule());
         register(new NickModule());
         register(new ChatSuffixModule());
+        register(new NavigatorModule());
 
         // --- STYLE 模块 ---
         register(new RankModule());
