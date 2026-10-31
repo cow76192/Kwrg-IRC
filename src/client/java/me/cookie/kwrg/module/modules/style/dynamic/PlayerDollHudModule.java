@@ -84,19 +84,23 @@ public class PlayerDollHudModule extends Module {
         panel.child(opacitySlider);
 
         SliderPaneComponent scaleSlider = new SliderPaneComponent("HUD 显示大小")
-                .range(0.5f, 2.0f)
+                .range(HudElement.State.MIN_SCALE, HudElement.State.MAX_SCALE)
                 .defaultValue(DEFAULT_SCALE)
                 .step(0.05f)
-                .getter(() -> IrcConfig.get().playerDollScale)
+                .getter(() -> HudElementRegistry.state(HudElementRegistry.PLAYER_DOLL).scale)
                 .setter(val -> {
+                    HudElement.State state = HudElementRegistry.state(HudElementRegistry.PLAYER_DOLL);
+                    state.scale = val;
+                    state.sanitize();
+
                     IrcConfig config = IrcConfig.get();
-                    config.playerDollScale = val;
                     if (config.playerDollFollowGlobal) {
                         config.playerDollFollowGlobal = false;
                         followGlobalToggle.setToggled(false);
                     }
                 })
                 .formatter(val -> String.format("%.2fx", val));
+
         panel.child(scaleSlider);
 
         panel.child(TextInfoPaneComponent.header("布局管理"));

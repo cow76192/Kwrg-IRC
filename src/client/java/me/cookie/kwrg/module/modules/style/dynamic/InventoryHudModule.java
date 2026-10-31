@@ -108,13 +108,16 @@ public class InventoryHudModule extends Module {
         panel.child(TextInfoPaneComponent.header("尺寸与样式 (右键滑块可重置)"));
 
         SliderPaneComponent scaleSlider = new SliderPaneComponent("缩放大小")
-                .range(0.5f, 2.0f)
+                .range(HudElement.State.MIN_SCALE, HudElement.State.MAX_SCALE)
                 .defaultValue(DEFAULT_SCALE)
                 .step(0.05f)
-                .getter(() -> IrcConfig.get().inventoryHudScale)
+                .getter(() -> HudElementRegistry.state(HudElementRegistry.INVENTORY).scale)
                 .setter(val -> {
+                    HudElement.State state = HudElementRegistry.state(HudElementRegistry.INVENTORY);
+                    state.scale = val;
+                    state.sanitize();
+
                     IrcConfig config = IrcConfig.get();
-                    config.inventoryHudScale = val;
                     if (config.inventoryHudFollowGlobal) {
                         config.inventoryHudFollowGlobal = false;
                         followGlobalToggle.setToggled(false);

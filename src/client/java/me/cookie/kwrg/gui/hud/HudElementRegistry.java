@@ -46,9 +46,8 @@ public final class HudElementRegistry {
         islandDefault.enabled = false;
         islandDefault.opacity = 0.2f;
 
-
-
-        register(new HudElement(ISLAND, "灵动岛", islandDefault)
+        // The top status bar and expanded Tab panel share this element and do not support scaling.
+        register(new HudElement(ISLAND, "灵动岛", islandDefault, false)
                 .enabled(() -> state(ISLAND).enabled, value -> {
                     state(ISLAND).enabled = value;
                     IrcConfig.save();
@@ -56,7 +55,7 @@ public final class HudElementRegistry {
                 .bounds(DynamicIslandRenderer::getIslandBounds)
                 .preview(DynamicIslandRenderer::setEditorPreview));
 
-        register(new HudElement(NOTIFICATIONS, "通知堆叠", HudElement.State.bottomRight(16.0f, 20.0f))
+        register(new HudElement(NOTIFICATIONS, "通知堆叠", HudElement.State.bottomRight(16.0f, 20.0f), false)
                 .enabled(() -> state(NOTIFICATIONS).enabled, value -> {
                     state(NOTIFICATIONS).enabled = value;
                     IrcConfig.save();
@@ -87,6 +86,8 @@ public final class HudElementRegistry {
         inventoryDefault.padding = 6;
 
         register(new HudElement(INVENTORY, "背包显示", inventoryDefault)
+                .followGlobal(() -> IrcConfig.get().inventoryHudFollowGlobal,
+                        value -> IrcConfig.get().inventoryHudFollowGlobal = value)
                 .enabled(() -> state(INVENTORY).enabled, value -> {
                     state(INVENTORY).enabled = value;
                     IrcConfig.save();
@@ -103,6 +104,8 @@ public final class HudElementRegistry {
         playerDollDefault.opacity = 1.0f;
 
         register(new HudElement(PLAYER_DOLL, "玩家模型", playerDollDefault)
+                .followGlobal(() -> IrcConfig.get().playerDollFollowGlobal,
+                        value -> IrcConfig.get().playerDollFollowGlobal = value)
                 .enabled(() -> state(PLAYER_DOLL).enabled, value -> {
                     state(PLAYER_DOLL).enabled = value;
                     IrcConfig.save();
@@ -142,6 +145,17 @@ public final class HudElementRegistry {
         return state;
     }
 
+    public static float resolveScale(String id) {
+        HudElement element = get(id);
+        if (element != null && !element.supportsScale()) return 1.0f;
+        if (element != null && element.followsGlobal()) {
+            float scale = IrcConfig.get().guiScale;
+            return Mth.clamp(Float.isFinite(scale) ? scale : 1.0f,
+                    HudElement.State.MIN_SCALE, HudElement.State.MAX_SCALE);
+        }
+        return state(id).scale;
+    }
+
     public static boolean isEnabled(String id) {
         HudElement element = ELEMENTS.get(id);
         return element != null && element.isEnabled();
@@ -162,14 +176,20 @@ public final class HudElementRegistry {
             return;
         }
 
-        float baseX = HudElement.Anchor.resolveX(defaults.anchorX, defaults.marginX, 0.0f, bounds[2], window.getGuiScaledWidth());
-        float baseY = HudElement.Anchor.resolveY(defaults.anchorY, defaults.marginY, 0.0f, bounds[3], window.getGuiScaledHeight());
+        float previousScale = resolveScale(id);
+        applyDefaults(current, defaults);
+        current.sanitize();
+
+        // Bounds still describe the previous frame. Rebase the animation using the size
+        // that the renderer will use after resetting, including any inherited global scale.
+        float scaleRatio = resolveScale(id) / previousScale;
+        float resetWidth = bounds[2] * scaleRatio;
+        float resetHeight = bounds[3] * scaleRatio;
+        float baseX = HudElement.Anchor.resolveX(current.anchorX, current.marginX, 0.0f, resetWidth, window.getGuiScaledWidth());
+        float baseY = HudElement.Anchor.resolveY(current.anchorY, current.marginY, 0.0f, resetHeight, window.getGuiScaledHeight());
 
         float fromX = bounds[0] - baseX;
         float fromY = bounds[1] - baseY;
-
-        applyDefaults(current, defaults);
-        current.sanitize();
 
         RESET_ANIMATIONS.put(id, new ResetAnimation(fromX, fromY, System.currentTimeMillis()));
         IrcConfig.save();
@@ -182,6 +202,7 @@ public final class HudElementRegistry {
         current.marginY = defaults.marginY;
         current.offsetX = 0.0f;
         current.offsetY = 0.0f;
+        current.scale = defaults.scale;
     }
 
     public static void resetAll() {

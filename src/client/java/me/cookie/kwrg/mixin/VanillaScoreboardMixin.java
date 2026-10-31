@@ -88,13 +88,19 @@ public abstract class VanillaScoreboardMixin {
             ScoreboardIslandRenderer.renderScoreboardBackground(OwoUIGraphics.of(graphics));
 
             HudElement.State state = HudElementRegistry.state(HudElementRegistry.SCOREBOARD);
-            float shiftX = ScoreboardIslandRenderer.getSmoothX() + state.padding - kwrg$currentMinX;
-            float shiftY = ScoreboardIslandRenderer.getSmoothY() + state.padding - kwrg$currentMinY;
+            float scale = ScoreboardIslandRenderer.getScale();
 
             boolean scissored = ScoreboardIslandRenderer.beginScissor(graphics);
             graphics.pose().pushMatrix();
             try {
-                graphics.pose().translate(shiftX, shiftY);
+                graphics.pose().translate(ScoreboardIslandRenderer.getSmoothX(), ScoreboardIslandRenderer.getSmoothY());
+
+                if (Math.abs(scale - 1.0f) > 0.001f) {
+                    graphics.pose().scale(scale, scale);
+                }
+
+                graphics.pose().translate(state.padding - kwrg$currentMinX, state.padding - kwrg$currentMinY);
+
                 for (Runnable drawText : kwrg$scoreboardText) drawText.run();
             } finally {
                 graphics.pose().popMatrix();

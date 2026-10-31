@@ -69,9 +69,7 @@ public final class InventoryHudRenderer {
         boolean followGlobal = config.inventoryHudFollowGlobal;
 
         // 解析缩放比例与内边距
-        float rawScale = followGlobal ? config.guiScale : config.inventoryHudScale;
-        float scale = Mth.clamp(Float.isFinite(rawScale) ? rawScale : 1.0f, 0.5f, 2.0f);
-
+        float scale = HudElementRegistry.resolveScale(HudElementRegistry.INVENTORY);
         int padding = followGlobal
                 ? Mth.clamp(HudElementRegistry.state(HudElementRegistry.ISLAND).padding, 2, 20)
                 : Mth.clamp(state.padding, 2, 20);

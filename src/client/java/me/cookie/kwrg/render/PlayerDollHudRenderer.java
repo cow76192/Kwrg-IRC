@@ -91,8 +91,7 @@ public final class PlayerDollHudRenderer {
         IrcConfig config = IrcConfig.get();
         boolean followGlobal = config.playerDollFollowGlobal;
 
-        float rawScale = followGlobal ? config.guiScale : config.playerDollScale;
-        float scale = Mth.clamp(Float.isFinite(rawScale) ? rawScale : 1.0f, 0.5f, 2.0f);
+        float scale = HudElementRegistry.resolveScale(HudElementRegistry.PLAYER_DOLL);
 
         float baseOpacity = followGlobal
                 ? Mth.clamp(GuiThemeService.opacity(), 0.05f, 1.0f)

@@ -78,33 +78,43 @@ public class ScoreboardIslandRenderer {
         scoreboardRenderedThisFrame = false;
     }
 
+    public static float getScale() {
+        HudElement.State state = HudElementRegistry.state(HudElementRegistry.SCOREBOARD);
+        return Mth.clamp(Float.isFinite(state.scale) ? state.scale : 1.0f, HudElement.State.MIN_SCALE, HudElement.State.MAX_SCALE);
+    }
+
     public static float getSmoothX() { return smoothX; }
     public static float getSmoothY() { return smoothY; }
     public static float getSmoothW() { return smoothW; }
     public static float getSmoothH() { return smoothH; }
 
+    public static float getScaledW() { return smoothW * getScale(); }
+    public static float getScaledH() { return smoothH * getScale(); }
+
     public static float[] getIslandBounds() {
-        return new float[]{smoothX, smoothY, smoothW, smoothH};
+        return new float[]{smoothX, smoothY, getScaledW(), getScaledH()};
     }
 
-    public static float resolveScoreboardX(float width) {
+    public static float resolveScoreboardX(float unscaledWidth) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.getWindow() == null) return 0.0f;
 
         HudElement.State state = HudElementRegistry.state(HudElementRegistry.SCOREBOARD);
+        float scaledW = unscaledWidth * getScale();
         return HudElement.Anchor.resolveX(state.anchorX, state.marginX,
                 HudElementRegistry.resolveOffsetX(HudElementRegistry.SCOREBOARD),
-                width, mc.getWindow().getGuiScaledWidth());
+                scaledW, mc.getWindow().getGuiScaledWidth());
     }
 
-    public static float resolveScoreboardY(float height) {
+    public static float resolveScoreboardY(float unscaledHeight) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.getWindow() == null) return 0.0f;
 
         HudElement.State state = HudElementRegistry.state(HudElementRegistry.SCOREBOARD);
+        float scaledH = unscaledHeight * getScale();
         return HudElement.Anchor.resolveY(state.anchorY, state.marginY,
                 HudElementRegistry.resolveOffsetY(HudElementRegistry.SCOREBOARD),
-                height, mc.getWindow().getGuiScaledHeight());
+                scaledH, mc.getWindow().getGuiScaledHeight());
     }
 
     public static void updateTargetBounds(float rawContentW, float rawContentH) {
@@ -165,9 +175,14 @@ public class ScoreboardIslandRenderer {
         float opacity = Mth.clamp(state.opacity, 0.0f, 1.0f);
         if (opacity <= 0.005f) return;
 
+        float scale = getScale();
+        float scaledW = smoothW * scale;
+        float scaledH = smoothH * scale;
+        float radius = CORNER_RADIUS * scale;
+
         if (state.shadow) {
-            RenderUtil.drawSoftDropShadow(graphics, smoothX, smoothY, smoothW, smoothH, CORNER_RADIUS,
-                    SHADOW_BLUR, SHADOW_OFFSET_Y, SHADOW_BASE_ALPHA, opacity);
+            RenderUtil.drawSoftDropShadow(graphics, smoothX, smoothY, scaledW, scaledH, radius,
+                    SHADOW_BLUR * scale, SHADOW_OFFSET_Y * scale, SHADOW_BASE_ALPHA, opacity);
         }
 
         int bgAlpha = (int) (0xE6 * opacity);
@@ -176,7 +191,7 @@ public class ScoreboardIslandRenderer {
         Color bgColor = Color.ofArgb(ARGB.color(bgAlpha, 17, 22, 31));
         Color borderColor = Color.ofArgb(ARGB.color(borderAlpha, 79, 195, 247));
 
-        RenderUtil.drawSubpixelRoundedPanel(graphics, smoothX, smoothY, smoothW, smoothH, CORNER_RADIUS, 1.0f, bgColor, borderColor);
+        RenderUtil.drawSubpixelRoundedPanel(graphics, smoothX, smoothY, scaledW, scaledH, radius, 1.0f, bgColor, borderColor);
     }
 
     public static boolean beginScissor(GuiGraphicsExtractor extractor) {
@@ -184,8 +199,8 @@ public class ScoreboardIslandRenderer {
 
         int sX1 = (int) Math.floor(smoothX);
         int sY1 = (int) Math.floor(smoothY);
-        int sX2 = (int) Math.ceil(smoothX + smoothW);
-        int sY2 = (int) Math.ceil(smoothY + smoothH);
+        int sX2 = (int) Math.ceil(smoothX + getScaledW());
+        int sY2 = (int) Math.ceil(smoothY + getScaledH());
 
         if (sX2 > sX1 && sY2 > sY1) {
             extractor.enableScissor(sX1, sY1, sX2, sY2);
@@ -230,13 +245,19 @@ public class ScoreboardIslandRenderer {
         OwoUIGraphics graphics = OwoUIGraphics.of(extractor);
         renderScoreboardBackground(graphics);
 
+        float scale = getScale();
         boolean scissored = beginScissor(extractor);
+        extractor.pose().pushMatrix();
         try {
-            HudElement.State state = HudElementRegistry.state(HudElementRegistry.SCOREBOARD);
-            float textX = smoothX + state.padding;
-            float textY = smoothY + state.padding;
+            // 将矩阵原点平移到 (smoothX, smoothY) 并应用缩放，内部文本在局部坐标系绘制
+            extractor.pose().translate(smoothX, smoothY);
+            extractor.pose().scale(scale, scale);
 
-            float titleX = smoothX + (smoothW - font.width(title)) / 2.0f;
+            HudElement.State state = HudElementRegistry.state(HudElementRegistry.SCOREBOARD);
+            float textX = state.padding;
+            float textY = state.padding;
+
+            float titleX = (smoothW - font.width(title)) / 2.0f;
             RenderUtil.drawFluidSubpixelText(graphics, title, titleX, textY, 0xFFFFFFFF);
             textY += 10.0f;
 
@@ -245,6 +266,7 @@ public class ScoreboardIslandRenderer {
                 textY += 9.0f;
             }
         } finally {
+            extractor.pose().popMatrix();
             if (scissored) {
                 endScissor(extractor);
             }

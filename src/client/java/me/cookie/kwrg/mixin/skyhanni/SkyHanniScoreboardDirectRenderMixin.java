@@ -32,7 +32,6 @@ public abstract class SkyHanniScoreboardDirectRenderMixin {
 
     @Unique private static Method kwrg$getConfigMethod;
     @Unique private static Method kwrg$getPositionMethod;
-    @Unique private static Method kwrg$getEffectiveScaleMethod;
 
     @Unique private static Object kwrg$dcuInstance;
     @Unique private static Method kwrg$dcuGetContextMethod;
@@ -124,7 +123,6 @@ public abstract class SkyHanniScoreboardDirectRenderMixin {
                 } catch (Throwable ignored) {}
             }
 
-            float scale = 1.0f;
             Object position = null;
             if (config != null) {
                 if (kwrg$getPositionMethod == null) {
@@ -138,21 +136,6 @@ public abstract class SkyHanniScoreboardDirectRenderMixin {
                 }
                 if (kwrg$getPositionMethod != null) {
                     position = kwrg$getPositionMethod.invoke(config);
-                }
-
-                if (position != null) {
-                    if (kwrg$getEffectiveScaleMethod == null) {
-                        for (Method m : position.getClass().getMethods()) {
-                            if (m.getName().startsWith("getEffectiveScale") && m.getParameterCount() == 0) {
-                                m.setAccessible(true);
-                                kwrg$getEffectiveScaleMethod = m;
-                                break;
-                            }
-                        }
-                    }
-                    if (kwrg$getEffectiveScaleMethod != null) {
-                        scale = ((Number) kwrg$getEffectiveScaleMethod.invoke(position)).floatValue();
-                    }
                 }
             }
 
@@ -171,25 +154,24 @@ public abstract class SkyHanniScoreboardDirectRenderMixin {
                 } catch (Throwable ignored) {}
             }
 
-            float scaledW = rawW * scale;
-            float scaledH = rawH * scale;
-
-            ScoreboardIslandRenderer.updateTargetBounds(scaledW, scaledH);
+            ScoreboardIslandRenderer.updateTargetBounds(rawW, rawH);
             ScoreboardIslandRenderer.updateAnimation();
 
             ScoreboardIslandRenderer.renderScoreboardBackground(OwoUIGraphics.of(actualExtractor));
 
             HudElement.State state = HudElementRegistry.state(HudElementRegistry.SCOREBOARD);
             int pad = state.padding;
+            float scale = ScoreboardIslandRenderer.getScale();
 
             boolean scissored = ScoreboardIslandRenderer.beginScissor(actualExtractor);
 
             actualExtractor.pose().pushMatrix();
             try {
-                actualExtractor.pose().translate(ScoreboardIslandRenderer.getSmoothX() + pad, ScoreboardIslandRenderer.getSmoothY() + pad);
+                actualExtractor.pose().translate(ScoreboardIslandRenderer.getSmoothX(), ScoreboardIslandRenderer.getSmoothY());
                 if (Math.abs(scale - 1.0f) > 0.001f) {
                     actualExtractor.pose().scale(scale, scale);
                 }
+                actualExtractor.pose().translate(pad, pad);
                 kwrg$renderMethod.invoke(renderable, 0, 0);
             } finally {
                 actualExtractor.pose().popMatrix();
