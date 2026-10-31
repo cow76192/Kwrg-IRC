@@ -117,7 +117,6 @@ public class IrcConfig {
     public boolean inventoryHudFollowGlobal = false;
     public float inventoryHudOpacity = 0.75f;
     public float inventoryHudSlotOpacity = 0.65f;
-    public float inventoryHudScale = 1.0f;
     public boolean inventoryHudShowHotbar = false;
     public boolean inventoryHudShowSlotBg = true;
     public boolean inventoryHudFollowTheme = true;
@@ -127,7 +126,6 @@ public class IrcConfig {
 
     public boolean playerDollFollowGlobal = false;
     public float playerDollOpacity = 1.0f;
-    public float playerDollScale = 1.0f;
 
     private static IrcConfig instance = new IrcConfig();
     private static String currentProfileName = "default";

@@ -23,12 +23,14 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class HudEditorScreen extends Screen {
 
     private static final float GRAB_PADDING = 10.0f;
     private static final float SNAP_DISTANCE = 6.0f;
+    private static final float SCALE_STEP = 0.05f;
     private static final int HINT_BAR_HEIGHT = 44;
     private static final int LIST_WIDTH = 168;
     private static final int LIST_ROW_HEIGHT = 22;
@@ -64,6 +66,7 @@ public class HudEditorScreen extends Screen {
         Minecraft mc = Minecraft.getInstance();
         mc.execute(() -> mc.setScreen(new HudEditorScreen(elementId)));
     }
+
     @Override
     protected void init() {
         HudElementRegistry.setEditorPreview(true);
@@ -77,6 +80,7 @@ public class HudEditorScreen extends Screen {
         }
         lastFrameTime = System.currentTimeMillis();
     }
+
     @Override
     public void removed() {
         HudElementRegistry.setEditorPreview(false);
@@ -128,7 +132,11 @@ public class HudEditorScreen extends Screen {
         RenderUtil.drawSubpixelRoundedPanel(owo, bounds[0] - 3.0f, bounds[1] - 3.0f, bounds[2] + 6.0f, bounds[3] + 6.0f,
                 13.0f, selected ? 2.0f : 1.4f, fill, outline);
 
-        String label = element.displayName() + (hidden ? " (已隐藏)" : "");
+        HudElement.State state = HudElementRegistry.state(element.id());
+        String scaleText = Math.abs(state.scale - 1.0f) > 0.005f
+                ? String.format(Locale.ROOT, " (%.2fx)", state.scale)
+                : "";
+        String label = element.displayName() + scaleText + (hidden ? " (已隐藏)" : "");
         RenderUtil.drawFluidSubpixelText(owo, Component.literal(label), bounds[0], Math.max(2.0f, bounds[1] - 13.0f),
                 ARGB.color(selected ? 0xFF : 0xB0, 0xE1, 0xF5, 0xFE));
     }
@@ -213,7 +221,7 @@ public class HudEditorScreen extends Screen {
             rowY += LIST_ROW_HEIGHT;
         }
 
-        RenderUtil.drawFluidSubpixelText(owo, Component.literal("点击选中 · 拖动移动"), left + 10, listBottom + 3, 0xFF78909C);
+        RenderUtil.drawFluidSubpixelText(owo, Component.literal("点击选中 · 拖动移动 · 滚轮缩放"), left + 10, listBottom + 3, 0xFF78909C);
     }
 
     private float applyEase(float current, float target) {
@@ -229,7 +237,7 @@ public class HudEditorScreen extends Screen {
         owo.fill(0, barTop, this.width, this.height, 0xB40A0E14);
 
         HudElement selected = HudElementRegistry.get(selectedId);
-        String controls = "拖动元素调整位置  ·  按住 Ctrl 关闭磁吸  ·  方向键微调(Shift x10)  ·  R 重置当前  ·  A 重置全部  ·  [ ] 切换  ·  ESC 保存退出";
+        String controls = "拖动元素调整位置  ·  悬停滚轮缩放大小  ·  按住 Ctrl 关闭磁吸  ·  方向键微调(Shift x10)  ·  R 重置当前  ·  A 重置全部  ·  ESC 保存退出";
         String state = selected == null ? "未选中元素" : describeState(selected);
 
         RenderUtil.drawFluidSubpixelText(owo, Component.literal(controls), 12.0f, barTop + 8.0f, 0xFFECEFF1);
@@ -240,7 +248,8 @@ public class HudEditorScreen extends Screen {
         HudElement.State state = HudElementRegistry.state(element.id());
         return element.displayName()
                 + "   锚点 X: " + HudElement.Anchor.labelX(state.anchorX) + "  Y: " + HudElement.Anchor.labelY(state.anchorY)
-                + "   偏移 X: " + Math.round(state.offsetX) + "  Y: " + Math.round(state.offsetY);
+                + "   偏移 X: " + Math.round(state.offsetX) + "  Y: " + Math.round(state.offsetY)
+                + "   缩放: " + String.format(Locale.ROOT, "%.2fx", state.scale);
     }
 
     private static boolean isInside(double mouseX, double mouseY, float x, float y, float w, float h) {
@@ -284,6 +293,30 @@ public class HudEditorScreen extends Screen {
             case HudElementRegistry.PLAYER_DOLL -> "playerDollHud";
             default -> null;
         };
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (Math.abs(scrollY) > 1e-4) {
+            HudElement target = hitTest(mouseX, mouseY);
+            if (target == null) {
+                target = hitTestList(mouseX, mouseY);
+            }
+
+            if (target != null) {
+                selectedId = target.id();
+                HudElement.State state = HudElementRegistry.state(target.id());
+
+                float delta = (scrollY > 0 ? 1.0f : -1.0f) * SCALE_STEP;
+                float newScale = Math.round((state.scale + delta) * 100.0f) / 100.0f;
+                state.scale = Mth.clamp(newScale, HudElement.State.MIN_SCALE, HudElement.State.MAX_SCALE);
+                state.sanitize();
+
+                IrcConfig.saveDelayed(400);
+                return true;
+            }
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     @Override

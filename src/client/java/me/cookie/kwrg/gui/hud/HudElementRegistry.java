@@ -46,8 +46,6 @@ public final class HudElementRegistry {
         islandDefault.enabled = false;
         islandDefault.opacity = 0.2f;
 
-
-
         register(new HudElement(ISLAND, "灵动岛", islandDefault)
                 .enabled(() -> state(ISLAND).enabled, value -> {
                     state(ISLAND).enabled = value;
@@ -142,6 +140,10 @@ public final class HudElementRegistry {
         return state;
     }
 
+    public static float resolveScale(String id) {
+        return state(id).scale;
+    }
+
     public static boolean isEnabled(String id) {
         HudElement element = ELEMENTS.get(id);
         return element != null && element.isEnabled();
@@ -182,6 +184,7 @@ public final class HudElementRegistry {
         current.marginY = defaults.marginY;
         current.offsetX = 0.0f;
         current.offsetY = 0.0f;
+        current.scale = defaults.scale;
     }
 
     public static void resetAll() {

@@ -167,6 +167,8 @@ public final class ConfigMigrator {
         moveIntoElement(jsonObj, "scoreboardOpacity", "scoreboard", "opacity");
         moveIntoElement(jsonObj, "scoreboardPadding", "scoreboard", "padding");
 
+        moveIntoElement(jsonObj, "inventoryHudScale", "inventoryHud", "scale");
+        moveIntoElement(jsonObj, "playerDollScale", "playerDollHud", "scale");
         if (hadLegacyShadow) {
             writeElementPrimitive(jsonObj, "scoreboard", "shadow", legacyShadow);
             notifyMigration("isShadowEnabled", "hudElements.scoreboard.shadow", legacyShadow);

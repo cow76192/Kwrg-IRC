@@ -74,12 +74,16 @@ public class HudElement {
 
     public static class State {
 
+        public static final float MIN_SCALE = 0.5f;
+        public static final float MAX_SCALE = 2.0f;
+
         public String anchorX = Anchor.CENTER;
         public String anchorY = Anchor.TOP;
         public float marginX = Anchor.DEFAULT_MARGIN;
         public float marginY = Anchor.DEFAULT_MARGIN;
         public float offsetX = 0.0f;
         public float offsetY = 0.0f;
+        public float scale = 1.0f;
         public boolean enabled = true;
         public float opacity = 1.0f;
         public boolean shadow = true;
@@ -123,6 +127,9 @@ public class HudElement {
             offsetX = Mth.clamp(offsetX, -4000.0f, 4000.0f);
             offsetY = Mth.clamp(offsetY, -4000.0f, 4000.0f);
 
+            if (!Float.isFinite(scale) || scale <= 0.0f) scale = 1.0f;
+            scale = Mth.clamp(scale, MIN_SCALE, MAX_SCALE);
+
             if (!Float.isFinite(opacity)) opacity = 1.0f;
             opacity = Mth.clamp(opacity, 0.0f, 1.0f);
             padding = Mth.clamp(padding, 0, 64);
@@ -136,6 +143,7 @@ public class HudElement {
             copy.marginY = this.marginY;
             copy.offsetX = this.offsetX;
             copy.offsetY = this.offsetY;
+            copy.scale = this.scale;
             copy.enabled = this.enabled;
             copy.opacity = this.opacity;
             copy.shadow = this.shadow;
