@@ -242,7 +242,7 @@ public final class Navigator {
         Vec3 target = center(goal);
         Vec3 last = points.get(points.size() - 1);
         if (last.distanceToSqr(target) <= 1.0) return points;
-        if (complete || clearLine(level, BlockPos.containing(last.x, last.y, last.z), goal)) points.add(target);
+        if (complete || clearApproachLine(level, BlockPos.containing(last.x, last.y, last.z), goal)) points.add(target);
         return points;
     }
 
@@ -274,6 +274,14 @@ public final class Navigator {
 
     private static boolean clearWalkLine(Level level, BlockPos from, BlockPos to) {
         return sampleLine(level, from, to, cell -> standable(level, cell));
+    }
+
+    /**
+     * 最后一段能否直接走到：开启跳跃时只要求沿途不挡路（允许跨一格空隙），
+     * 关闭跳跃时要求沿途每格都有落脚点，避免把一格沟当成可以走过去的直线。
+     */
+    private static boolean clearApproachLine(Level level, BlockPos from, BlockPos to) {
+        return movement.jump() ? clearLine(level, from, to) : clearWalkLine(level, from, to);
     }
 
     private static boolean teleportLine(Level level, BlockPos from, BlockPos to) {
@@ -409,7 +417,9 @@ public final class Navigator {
 
     private static boolean standable(Level level, int x, int y, int z) {
         if (!free(level, x, y, z)) return false;
-        return blocked(level, x, y - 1, z) || fluid(level, x, y, z) || fluid(level, x, y - 1, z);
+        // 关闭游泳时水面不算落脚点，否则"水是障碍"会反过来当成支撑，路径仍会贴着水面走。
+        return solid(level, x, y - 1, z)
+                || (movement.swim() && (fluid(level, x, y, z) || fluid(level, x, y - 1, z)));
     }
 
     private static boolean grounded(Level level, BlockPos pos) {
@@ -417,7 +427,7 @@ public final class Navigator {
     }
 
     private static boolean grounded(Level level, int x, int y, int z) {
-        return free(level, x, y, z) && blocked(level, x, y - 1, z);
+        return free(level, x, y, z) && solid(level, x, y - 1, z);
     }
 
     private static boolean climbNode(Level level, int x, int y, int z) {
@@ -453,6 +463,12 @@ public final class Navigator {
         BlockState state = stateAt(level, x, y, z);
         // 关闭游泳时把水面与水下视为障碍，路径不会主动进入或穿过水域。
         if (!movement.swim() && !state.getFluidState().isEmpty()) return true;
+        return solid(level, x, y, z);
+    }
+
+    /** 实体碰撞：流体、打开的门与栅栏门都不算，用来区分"挡路"和"能踩"。 */
+    private static boolean solid(Level level, int x, int y, int z) {
+        BlockState state = stateAt(level, x, y, z);
         if (state.getBlock() instanceof DoorBlock) return !state.getValue(DoorBlock.OPEN);
         if (state.getBlock() instanceof FenceGateBlock) return !state.getValue(FenceGateBlock.OPEN);
         return state.blocksMotion();
@@ -617,7 +633,7 @@ public final class Navigator {
             while (heapSize > 0 && visited < MAX_NODES) {
                 Node current = pop();
                 visited++;
-                if (current.h * current.h <= GOAL_RADIUS_SQ && clearLine(level, current.pos(), goal)) {
+                if (current.h * current.h <= GOAL_RADIUS_SQ && clearApproachLine(level, current.pos(), goal)) {
                     reached = current;
                     break;
                 }

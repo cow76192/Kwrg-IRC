@@ -86,11 +86,14 @@ public class IrcConfig {
     public Map<String, HudElement.State> hudElements = new LinkedHashMap<>();
 
     public boolean disableBlur = false;
+
+    // 自动寻路
     public float navigatorWeight = 1.0f;
     public boolean navigatorAotv = true;
     public boolean navigatorSwim = true;
     public boolean navigatorLadder = true;
     public boolean navigatorJump = true;
+
     public float blurQuality = 8.0f;
     public float blurSize = 16.0f;
 

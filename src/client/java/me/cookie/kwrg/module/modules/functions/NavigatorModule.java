@@ -12,10 +12,6 @@ import me.cookie.kwrg.util.ChatNotifier;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
-/**
- * 自动寻路的移动方式配置：AOTV 传送、游泳、梯子、跳跃。
- * 修改立即生效，正在显示的引导路径会在下一次刷新时按新设置重新计算。
- */
 public class NavigatorModule extends Module {
 
     public NavigatorModule() {
