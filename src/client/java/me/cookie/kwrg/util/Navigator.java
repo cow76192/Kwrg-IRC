@@ -63,6 +63,30 @@ public final class Navigator {
         if (!Float.isFinite(weight)) return;
         heuristicWeight = Math.min(MAX_HEURISTIC_WEIGHT, Math.max(MIN_HEURISTIC_WEIGHT, weight));
     }
+
+    /**
+     * 自动寻路允许使用的移动方式。这里的取值只在生成路径时生效，不影响已生成的路径。
+     *
+     * @param aotv   AOTV / Etherwarp 式的远距离传送
+     * @param swim   进入水面、沿水面与水下行走
+     * @param ladder 攀爬梯子、藤蔓、脚手架等可攀爬方块
+     * @param jump   跳跃（跨沟的 hop 以及上一格台阶）
+     */
+    public record Movement(boolean aotv, boolean swim, boolean ladder, boolean jump) {
+
+        public static final Movement ALL = new Movement(true, true, true, true);
+    }
+
+    private static volatile Movement movement = Movement.ALL;
+
+    public static void setMovement(Movement options) {
+        movement = options == null ? Movement.ALL : options;
+    }
+
+    public static Movement getMovement() {
+        return movement;
+    }
+
     private static final double SMOOTHING_STEP = 0.5;
     private static final int[][] DIRECTIONS = {
             {1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
@@ -177,7 +201,7 @@ public final class Navigator {
         }
 
         boolean direct = (standable(level, start) && standable(level, goal) && clearWalkLine(level, start, goal))
-                || (grounded(level, start) && grounded(level, goal)
+                || (movement.aotv() && grounded(level, start) && grounded(level, goal)
                 && start.distSqr(goal) <= (double) TELEPORT_RANGE * TELEPORT_RANGE
                 && teleportLine(level, start, goal));
         if (direct) return new Result(List.of(center(start), center(goal)), true, false);
@@ -307,14 +331,24 @@ public final class Navigator {
 
     private static BlockPos surface(Level level, BlockPos from) {
         for (int dy = 0; dy <= 2; dy++) {
-            if (walkable(level, from.getX(), from.getY() + dy, from.getZ())) return from.above(dy);
+            if (walkableStart(level, from.getX(), from.getY() + dy, from.getZ())) return from.above(dy);
         }
         return descendTo(level, from.getX(), from.getY(), from.getZ(), MAX_FALL);
     }
 
+    /**
+     * 起点定位不跟随移动方式开关：即使关掉了梯子或游泳，玩家站在梯子/水里时也应从原地出发。
+     */
+    private static boolean walkableStart(Level level, int x, int y, int z) {
+        return standable(level, x, y, z)
+                || (free(level, x, y, z) && climbable(level, x, y, z))
+                || fluid(level, x, y, z);
+    }
+
     private static BlockPos walkNeighbour(Level level, int x, int y, int z, int dx, int dz) {
         if (!clearCorner(level, x, y, z, dx, dz)) return null;
-        for (int dy = 1; dy >= 0; dy--) {
+        int highest = movement.jump() ? 1 : 0;
+        for (int dy = highest; dy >= 0; dy--) {
             if (walkable(level, x + dx, y + dy, z + dz)) return new BlockPos(x + dx, y + dy, z + dz);
         }
         return null;
@@ -387,7 +421,7 @@ public final class Navigator {
     }
 
     private static boolean climbNode(Level level, int x, int y, int z) {
-        return free(level, x, y, z) && climbable(level, x, y, z);
+        return movement.ladder() && free(level, x, y, z) && climbable(level, x, y, z);
     }
 
     private static boolean free(Level level, BlockPos pos) {
@@ -417,6 +451,8 @@ public final class Navigator {
 
     private static boolean blocked(Level level, int x, int y, int z) {
         BlockState state = stateAt(level, x, y, z);
+        // 关闭游泳时把水面与水下视为障碍，路径不会主动进入或穿过水域。
+        if (!movement.swim() && !state.getFluidState().isEmpty()) return true;
         if (state.getBlock() instanceof DoorBlock) return !state.getValue(DoorBlock.OPEN);
         if (state.getBlock() instanceof FenceGateBlock) return !state.getValue(FenceGateBlock.OPEN);
         return state.blocksMotion();
@@ -608,7 +644,7 @@ public final class Navigator {
                 BlockPos walk = walkNeighbour(level, current.x, current.y, current.z, direction[0], direction[1]);
                 if (walk != null) {
                     relax(current, walk, stepCost(level, current.x, current.y, current.z, walk, diagonal));
-                } else {
+                } else if (movement.jump()) {
                     BlockPos jump = hop(level, current.x, current.y, current.z, direction[0], direction[1]);
                     if (jump != null) {
                         relax(current, jump, (float) Math.sqrt(here.distSqr(jump)));
@@ -621,7 +657,7 @@ public final class Navigator {
                 }
             }
 
-            if (climbable(level, here)) {
+            if (movement.ladder() && climbable(level, here)) {
                 for (int dy = -1; dy <= 1; dy += 2) {
                     BlockPos candidate = here.above(dy);
                     if (!(dy > 0 ? free(level, current.x, current.y + dy, current.z) : walkable(level, current.x, current.y + dy, current.z))) continue;
@@ -629,7 +665,7 @@ public final class Navigator {
                 }
             }
 
-            if (teleportBudget > 0 && grounded(level, here)) {
+            if (movement.aotv() && teleportBudget > 0 && grounded(level, here)) {
                 teleportBudget--;
                 teleportEdges(current);
             }

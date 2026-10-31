@@ -23,6 +23,7 @@ public class ModuleManager {
         register(new DisableBlurModule());
         register(new GuiFpsModule());
         register(new NavigatorWeightModule());
+        register(new NavigatorModule());
         register(new DynamicIslandAAValve());
         register(new ClearCapeCacheModule());
         // --- CONFIG 模块 ---
