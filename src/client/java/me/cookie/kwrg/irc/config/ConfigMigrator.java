@@ -5,6 +5,8 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
+import me.cookie.kwrg.gui.hud.HudElement;
+import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.ChatFormatting;
@@ -167,8 +169,8 @@ public final class ConfigMigrator {
         moveIntoElement(jsonObj, "scoreboardOpacity", "scoreboard", "opacity");
         moveIntoElement(jsonObj, "scoreboardPadding", "scoreboard", "padding");
 
-        moveIntoElement(jsonObj, "inventoryHudScale", "inventoryHud", "scale");
-        moveIntoElement(jsonObj, "playerDollScale", "playerDollHud", "scale");
+        migrateElementScale(jsonObj, "inventoryHudScale", HudElementRegistry.INVENTORY);
+        migrateElementScale(jsonObj, "playerDollScale", HudElementRegistry.PLAYER_DOLL);
         if (hadLegacyShadow) {
             writeElementPrimitive(jsonObj, "scoreboard", "shadow", legacyShadow);
             notifyMigration("isShadowEnabled", "hudElements.scoreboard.shadow", legacyShadow);
@@ -195,6 +197,23 @@ public final class ConfigMigrator {
         if (legacy == null || !legacy.isJsonPrimitive()) return;
         writeElementPrimitive(jsonObj, elementId, stateKey, legacy);
         notifyMigration(legacyKey, "hudElements." + elementId + "." + stateKey, legacy);
+    }
+
+    private static void migrateElementScale(JsonObject jsonObj, String legacyKey, String elementId) {
+        JsonElement legacy = jsonObj.get(legacyKey);
+        if (legacy != null && legacy.isJsonPrimitive()) {
+            JsonObject hud = hudObject(jsonObj);
+            if (!hud.has(elementId) || !hud.get(elementId).isJsonObject()) {
+                HudElement element = HudElementRegistry.get(elementId);
+                if (element != null) {
+                    JsonObject defaults = BACKUP_GSON.toJsonTree(element.defaultState()).getAsJsonObject();
+                    defaults.add("scale", legacy);
+                    hud.add(elementId, defaults);
+                    jsonObj.add("hudElements", hud);
+                }
+            }
+        }
+        moveIntoElement(jsonObj, legacyKey, elementId, "scale");
     }
 
     private static void writeElementPrimitive(JsonObject jsonObj, String elementId, String stateKey, JsonElement value) {
