@@ -197,6 +197,11 @@ public final class RenderUtil {
 
     public static void drawSubpixelRoundedPanel(OwoUIGraphics graphics, float x, float y, float width, float height,
                                                 float radius, float strokeWidth, Color bgColor, Color borderColor) {
+        drawSubpixelRoundedPanel(graphics, x, y, width, height, radius, strokeWidth, 48, bgColor, borderColor);
+    }
+
+     public static void drawSubpixelRoundedPanel(OwoUIGraphics graphics, float x, float y, float width, float height,
+                                                float radius, float strokeWidth, int arcSegments, Color bgColor, Color borderColor) {
         if (graphics == null || width <= 0.0f || height <= 0.0f) return;
 
         boolean hasBg = bgColor != null && (bgColor.argb() & 0xFF000000) != 0;
@@ -209,7 +214,7 @@ public final class RenderUtil {
         graphics.pose().pushMatrix();
         graphics.pose().translate(x, y);
 
-        final int segments = 48;
+        final int segments = Math.max(1, arcSegments);
         final float stroke = Math.max(0.5f, strokeWidth);
         final float aa = 0.35f;
 
