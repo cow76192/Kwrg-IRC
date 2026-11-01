@@ -23,6 +23,7 @@ public final class InventoryHudRenderer {
     private static final float SLOT_SIZE = 18.0f;
     private static final float HOTBAR_GAP = 4.0f;
     private static final float SLOT_RADIUS = 4.5f;
+    private static final int SLOT_ARC_SEGMENTS = 12;
     private static final float FADE_SPEED = 6.0f;
 
     private static final float[] ISLAND_BOUNDS = new float[]{0.0f, 0.0f, 0.0f, 0.0f};
@@ -210,6 +211,18 @@ public final class InventoryHudRenderer {
         int slotBorderRgb = followTheme ? GuiThemeService.cardBorder() : 0x394A5A;
         int accentRgb = GuiThemeService.accent();
 
+        boolean drawSlotBg = config.inventoryHudShowSlotBg && slotOpacity > 0.005f;
+        Color emptySlotFill = drawSlotBg ? AnimationUtil.withAlpha(slotBgRgb, Math.round(slotOpacity * 155.0f)) : null;
+        Color occupiedSlotFill = drawSlotBg ? AnimationUtil.withAlpha(slotOccupiedRgb, Math.round(slotOpacity * 210.0f)) : null;
+        Color occupiedSlotOutline = drawSlotBg ? AnimationUtil.withAlpha(slotBorderRgb, Math.round(slotOpacity * 140.0f)) : null;
+        Color selectedSlotOutline = showHotbar
+                ? AnimationUtil.withAlpha(accentRgb, Math.round(contentAlpha * (drawSlotBg ? 225.0f : 210.0f))) : null;
+        Color selectedSlotFill = showHotbar && !drawSlotBg
+                ? AnimationUtil.withAlpha(accentRgb, Math.round(contentAlpha * 36.0f)) : null;
+        Color previewFill = usePreviewItems ? AnimationUtil.withAlpha(accentRgb, Math.round(contentAlpha * 70.0f)) : null;
+        Color previewBorder = usePreviewItems ? AnimationUtil.withAlpha(accentRgb, Math.round(contentAlpha * 150.0f)) : null;
+        int previewTextColor = AnimationUtil.argb(0xFFFFFF, Math.round(contentAlpha * 220.0f));
+
         int totalRows = showHotbar ? (MAIN_ROWS + 1) : MAIN_ROWS;
         for (int row = 0; row < totalRows; row++) {
             boolean isHotbarRow = (row == MAIN_ROWS);
@@ -223,30 +236,21 @@ public final class InventoryHudRenderer {
                 boolean occupied = !stack.isEmpty();
                 boolean isSelectedHotbar = isHotbarRow && col == selectedHotbarSlot;
 
-                if (config.inventoryHudShowSlotBg && slotOpacity > 0.005f) {
-                    int cellRgb = occupied ? slotOccupiedRgb : slotBgRgb;
-                    int cellAlpha = Math.round(slotOpacity * (occupied ? 210.0f : 155.0f));
-                    Color cellFill = AnimationUtil.withAlpha(cellRgb, cellAlpha);
-
-                    Color cellOutline = null;
-                    if (isSelectedHotbar) {
-                        cellOutline = AnimationUtil.withAlpha(accentRgb, Math.round(contentAlpha * 225.0f));
-                    } else if (occupied) {
-                        cellOutline = AnimationUtil.withAlpha(slotBorderRgb, Math.round(slotOpacity * 140.0f));
-                    }
+                if (drawSlotBg) {
+                    Color cellFill = occupied ? occupiedSlotFill : emptySlotFill;
+                    Color cellOutline = isSelectedHotbar ? selectedSlotOutline : (occupied ? occupiedSlotOutline : null);
 
                     RenderUtil.drawSubpixelRoundedPanel(
                             owo, slotX, rowY, SLOT_SIZE, SLOT_SIZE,
-                            SLOT_RADIUS, isSelectedHotbar ? 1.3f : 0.8f,
+                            SLOT_RADIUS, isSelectedHotbar ? 1.3f : 0.8f, SLOT_ARC_SEGMENTS,
                             cellFill, cellOutline
                     );
                 } else if (isSelectedHotbar) {
-                    Color cellOutline = AnimationUtil.withAlpha(accentRgb, Math.round(contentAlpha * 210.0f));
                     RenderUtil.drawSubpixelRoundedPanel(
                             owo, slotX, rowY, SLOT_SIZE, SLOT_SIZE,
-                            SLOT_RADIUS, 1.2f,
-                            AnimationUtil.withAlpha(accentRgb, Math.round(contentAlpha * 36.0f)),
-                            cellOutline
+                            SLOT_RADIUS, 1.2f, SLOT_ARC_SEGMENTS,
+                            selectedSlotFill,
+                            selectedSlotOutline
                     );
                 }
 
@@ -256,7 +260,8 @@ public final class InventoryHudRenderer {
                     graphics.item(stack, itemX, itemY);
                     graphics.itemDecorations(mc.font, stack, itemX, itemY);
                 } else if (usePreviewItems && isPreviewSlot(slotIndex)) {
-                    drawFallbackPreviewBadge(owo, slotX, rowY, slotIndex, accentRgb, contentAlpha);
+                    drawFallbackPreviewBadge(owo, slotX, rowY, slotIndex,
+                            previewFill, previewBorder, previewTextColor);
                 }
             }
         }
@@ -297,12 +302,11 @@ public final class InventoryHudRenderer {
                 || slotIndex == 17 || slotIndex == 18 || slotIndex == 22 || slotIndex == 27 || slotIndex == 0;
     }
 
-    private static void drawFallbackPreviewBadge(OwoUIGraphics owo, float slotX, float slotY, int slotIndex, int accentRgb, float alpha) {
-        Color dotFill = AnimationUtil.withAlpha(accentRgb, Math.round(alpha * 70.0f));
-        Color dotBorder = AnimationUtil.withAlpha(accentRgb, Math.round(alpha * 150.0f));
-        RenderUtil.drawSubpixelRoundedPanel(owo, slotX + 3.0f, slotY + 3.0f, SLOT_SIZE - 6.0f, SLOT_SIZE - 6.0f, 3.0f, 0.8f, dotFill, dotBorder);
+    private static void drawFallbackPreviewBadge(OwoUIGraphics owo, float slotX, float slotY, int slotIndex,
+                                                 Color dotFill, Color dotBorder, int textColor) {
+        RenderUtil.drawSubpixelRoundedPanel(owo, slotX + 3.0f, slotY + 3.0f, SLOT_SIZE - 6.0f, SLOT_SIZE - 6.0f, 3.0f, 0.8f, SLOT_ARC_SEGMENTS, dotFill, dotBorder);
         if (slotIndex == 11 || slotIndex == 13 || slotIndex == 18) {
-            RenderUtil.drawFluidSubpixelText(owo, Component.literal("64"), slotX + 5.5f, slotY + 8.5f, AnimationUtil.argb(0xFFFFFF, Math.round(alpha * 220.0f)));
+            RenderUtil.drawFluidSubpixelText(owo, Component.literal("64"), slotX + 5.5f, slotY + 8.5f, textColor);
         }
     }
 }
