@@ -1,5 +1,7 @@
 # Kwrg IRC
 
+![Kwrg IRC banner](./docs/banner.png)
+
 ![Minecraft](https://img.shields.io/badge/Minecraft-26.1.2-62B47A?style=flat-square)
 ![Fabric](https://img.shields.io/badge/Loader-Fabric-DBB98F?style=flat-square)
 ![Java](https://img.shields.io/badge/Java-25-EA923E?style=flat-square)
