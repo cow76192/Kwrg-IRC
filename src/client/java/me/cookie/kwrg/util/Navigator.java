@@ -69,10 +69,11 @@ public final class Navigator {
         public static final Movement ALL = new Movement(true, true, true, true);
     }
 
-    private static volatile Movement movement = Movement.ALL;
+    private static volatile Movement configuredMovement = Movement.ALL;
+    private static volatile Movement activeMovement = Movement.ALL;
 
     public static void setMovement(Movement options) {
-        movement = options == null ? Movement.ALL : options;
+        configuredMovement = options == null ? Movement.ALL : options;
     }
 
     private static final double SMOOTHING_STEP = 0.5;
@@ -158,14 +159,18 @@ public final class Navigator {
                 PENDING.decrementAndGet();
             }
             Result ready = result;
-            Minecraft.getInstance().execute(() -> callback.accept(ready));
+            Movement snapshot = activeMovement;
+            Minecraft.getInstance().execute(() -> callback.accept(configuredMovement.equals(snapshot)
+                    ? ready : new Result(List.of(), false, true)));
         });
     }
 
     private static Result attempt(Level level, BlockPos from, BlockPos to) {
         for (int tries = 0; tries < 2; tries++) {
+            Movement snapshot = configuredMovement;
             try {
-                return search(level, from, to);
+                Result result = search(level, from, to, snapshot);
+                if (configuredMovement.equals(snapshot)) return result;
             } catch (RuntimeException e) {
                 report((tries == 0 ? "" : "retry ") + e.getClass().getSimpleName() + ": " + e.getMessage());
             }
@@ -173,7 +178,8 @@ public final class Navigator {
         return new Result(List.of(), false, true);
     }
 
-    private static Result search(Level level, BlockPos from, BlockPos to) {
+    private static Result search(Level level, BlockPos from, BlockPos to, Movement snapshot) {
+        activeMovement = snapshot;
         STATES.clear();
         if (!level.hasChunkAt(from) || !level.hasChunkAt(to)) return new Result(List.of(), false, true);
 
@@ -190,7 +196,7 @@ public final class Navigator {
 
         boolean direct = (standable(level, start) && standable(level, goal)
                 && riseAllowed(start, goal) && clearWalkLine(level, start, goal))
-                || (movement.aotv() && grounded(level, start) && grounded(level, goal)
+                || (activeMovement.aotv() && grounded(level, start) && grounded(level, goal)
                 && start.distSqr(goal) <= (double) TELEPORT_RANGE * TELEPORT_RANGE
                 && teleportLine(level, start, goal));
         if (direct) return new Result(List.of(center(start), center(goal)), true, false);
@@ -266,11 +272,11 @@ public final class Navigator {
     }
 
     private static boolean clearApproachLine(Level level, BlockPos from, BlockPos to) {
-        return riseAllowed(from, to) && (movement.jump() ? clearLine(level, from, to) : clearWalkLine(level, from, to));
+        return riseAllowed(from, to) && (activeMovement.jump() ? clearLine(level, from, to) : clearWalkLine(level, from, to));
     }
 
     private static boolean riseAllowed(BlockPos from, BlockPos to) {
-        return to.getY() - from.getY() <= (movement.jump() ? MAX_JUMP_UP : 0);
+        return to.getY() - from.getY() <= (activeMovement.jump() ? MAX_JUMP_UP : 0);
     }
 
     private static boolean teleportLine(Level level, BlockPos from, BlockPos to) {
@@ -320,7 +326,7 @@ public final class Navigator {
 
     private static BlockPos walkNeighbour(Level level, int x, int y, int z, int dx, int dz) {
         if (!clearCorner(level, x, y, z, dx, dz)) return null;
-        int highest = movement.jump() ? 1 : 0;
+        int highest = activeMovement.jump() ? 1 : 0;
         for (int dy = highest; dy >= 0; dy--) {
             if (walkable(level, x + dx, y + dy, z + dz)) return new BlockPos(x + dx, y + dy, z + dz);
         }
@@ -383,7 +389,7 @@ public final class Navigator {
     private static boolean standable(Level level, int x, int y, int z) {
         if (!free(level, x, y, z)) return false;
         return solid(level, x, y - 1, z)
-                || (movement.swim() && (fluid(level, x, y, z) || fluid(level, x, y - 1, z)));
+                || (activeMovement.swim() && (fluid(level, x, y, z) || fluid(level, x, y - 1, z)));
     }
 
     private static boolean grounded(Level level, BlockPos pos) {
@@ -395,7 +401,7 @@ public final class Navigator {
     }
 
     private static boolean climbNode(Level level, int x, int y, int z) {
-        return movement.ladder() && free(level, x, y, z) && climbable(level, x, y, z);
+        return activeMovement.ladder() && free(level, x, y, z) && climbable(level, x, y, z);
     }
 
     private static boolean free(Level level, BlockPos pos) {
@@ -425,7 +431,7 @@ public final class Navigator {
 
     private static boolean blocked(Level level, int x, int y, int z) {
         BlockState state = stateAt(level, x, y, z);
-        if (!movement.swim() && !state.getFluidState().isEmpty()) return true;
+        if (!activeMovement.swim() && !state.getFluidState().isEmpty()) return true;
         return solid(level, x, y, z);
     }
 
@@ -622,7 +628,7 @@ public final class Navigator {
                 BlockPos walk = walkNeighbour(level, current.x, current.y, current.z, direction[0], direction[1]);
                 if (walk != null) {
                     relax(current, walk, stepCost(level, current.x, current.y, current.z, walk, diagonal));
-                } else if (movement.jump()) {
+                } else if (activeMovement.jump()) {
                     BlockPos jump = hop(level, current.x, current.y, current.z, direction[0], direction[1]);
                     if (jump != null) {
                         relax(current, jump, (float) Math.sqrt(here.distSqr(jump)));
@@ -635,7 +641,7 @@ public final class Navigator {
                 }
             }
 
-            if (movement.ladder() && climbable(level, here)) {
+            if (activeMovement.ladder() && climbable(level, here)) {
                 for (int dy = -1; dy <= 1; dy += 2) {
                     BlockPos candidate = here.above(dy);
                     if (!(dy > 0 ? free(level, current.x, current.y + dy, current.z) : walkable(level, current.x, current.y + dy, current.z))) continue;
@@ -643,7 +649,7 @@ public final class Navigator {
                 }
             }
 
-            if (movement.aotv() && teleportBudget > 0 && grounded(level, here)) {
+            if (activeMovement.aotv() && teleportBudget > 0 && grounded(level, here)) {
                 teleportBudget--;
                 teleportEdges(current);
             }
