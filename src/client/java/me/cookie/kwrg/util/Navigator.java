@@ -200,7 +200,8 @@ public final class Navigator {
             return new Result(List.of(), false, true);
         }
 
-        boolean direct = (standable(level, start) && standable(level, goal) && clearWalkLine(level, start, goal))
+        boolean direct = (standable(level, start) && standable(level, goal)
+                && riseAllowed(start, goal) && clearWalkLine(level, start, goal))
                 || (movement.aotv() && grounded(level, start) && grounded(level, goal)
                 && start.distSqr(goal) <= (double) TELEPORT_RANGE * TELEPORT_RANGE
                 && teleportLine(level, start, goal));
@@ -256,7 +257,7 @@ public final class Navigator {
         int lastX = from.getX();
         int lastY = from.getY();
         int lastZ = from.getZ();
-        for (int index = 1; index < samples; index++) {
+        for (int index = 1; index <= samples; index++) {
             double ratio = (double) index / samples;
             int x = (int) Math.floor(from.getX() + dx * ratio);
             int y = (int) Math.floor(from.getY() + dy * ratio);
@@ -281,7 +282,11 @@ public final class Navigator {
      * 关闭跳跃时要求沿途每格都有落脚点，避免把一格沟当成可以走过去的直线。
      */
     private static boolean clearApproachLine(Level level, BlockPos from, BlockPos to) {
-        return movement.jump() ? clearLine(level, from, to) : clearWalkLine(level, from, to);
+        return riseAllowed(from, to) && (movement.jump() ? clearLine(level, from, to) : clearWalkLine(level, from, to));
+    }
+
+    private static boolean riseAllowed(BlockPos from, BlockPos to) {
+        return to.getY() - from.getY() <= (movement.jump() ? MAX_JUMP_UP : 0);
     }
 
     private static boolean teleportLine(Level level, BlockPos from, BlockPos to) {
