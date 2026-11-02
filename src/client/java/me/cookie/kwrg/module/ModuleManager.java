@@ -58,6 +58,9 @@ public class ModuleManager {
         register(new PlayerDollHudModule());
         // --- PLAY 模块 ---
         register(new PlayModule());
+
+        // --- CHEAT 模块 ---
+//        register(new test());
     }
 
     public static void register(Module module) {
