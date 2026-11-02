@@ -87,7 +87,6 @@ public class IrcConfig {
 
     public boolean disableBlur = false;
 
-    // 自动寻路
     public float navigatorWeight = 1.0f;
     public boolean navigatorAotv = true;
     public boolean navigatorSwim = true;
@@ -172,10 +171,6 @@ public class IrcConfig {
         String selected = "default";
     }
 
-    /**
-     * 把当前配置里的寻路参数同步给 {@link Navigator}。
-     * 加载配置、新建配置以及修改寻路设置后都需要调用一次。
-     */
     public static void applyNavigatorSettings() {
         IrcConfig config = instance;
         Navigator.setHeuristicWeight(config.navigatorWeight);

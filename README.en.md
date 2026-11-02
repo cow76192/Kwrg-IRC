@@ -51,6 +51,7 @@ IRC uses the project's own service and a JSON protocol over TCP. Chat and player
 - Create and edit routes, with nodes and connecting lines displayed in the world.
 - Built-in Kuudra pearl route.
 - Detect coordinates in chat and use a message button to display a temporary waypoint and automatic pathfinding.
+- Choose which movement types auto-pathing may use: AOTV teleports, swimming, ladders, and jumping.
 - Enable quick editing, then **Alt + left-click a block** to add a route node.
 
 ### Interface and HUD
@@ -76,7 +77,6 @@ Appearance settings such as capes and model scaling can be synchronized over IRC
 - Toggle GUI background blur, and adjust blur quality and radius.
 - Limit the GUI frame rate to reduce resource usage while the interface is open.
 - Tune the pathfinding heuristic weight, trading search speed against path quality.
-- Choose which movement types auto-pathing may use: AOTV teleports, swimming, ladders, and jumping.
 - Tune the anti-aliasing strength of the Dynamic Island.
 - Clear the item index cache, reload the item repository, or clear the cape cache.
 

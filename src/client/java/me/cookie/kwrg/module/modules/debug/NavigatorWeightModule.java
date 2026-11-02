@@ -9,7 +9,6 @@ import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
-import me.cookie.kwrg.util.Navigator;
 import net.minecraft.util.Mth;
 
 import java.util.Locale;
@@ -57,7 +56,7 @@ public class NavigatorWeightModule extends Module {
         IrcConfig config = IrcConfig.get();
         config.navigatorWeight = weight;
         IrcConfig.save();
-        Navigator.setHeuristicWeight(weight);
+        IrcConfig.applyNavigatorSettings();
         if (notify) ChatNotifier.send("§a寻路启发式权重: §e" + format(weight), NotificationType.SUCCESS);
     }
 }

@@ -64,14 +64,6 @@ public final class Navigator {
         heuristicWeight = Math.min(MAX_HEURISTIC_WEIGHT, Math.max(MIN_HEURISTIC_WEIGHT, weight));
     }
 
-    /**
-     * 自动寻路允许使用的移动方式。这里的取值只在生成路径时生效，不影响已生成的路径。
-     *
-     * @param aotv   AOTV / Etherwarp 式的远距离传送
-     * @param swim   进入水面、沿水面与水下行走
-     * @param ladder 攀爬梯子、藤蔓、脚手架等可攀爬方块
-     * @param jump   跳跃（跨沟的 hop 以及上一格台阶）
-     */
     public record Movement(boolean aotv, boolean swim, boolean ladder, boolean jump) {
 
         public static final Movement ALL = new Movement(true, true, true, true);
@@ -81,10 +73,6 @@ public final class Navigator {
 
     public static void setMovement(Movement options) {
         movement = options == null ? Movement.ALL : options;
-    }
-
-    public static Movement getMovement() {
-        return movement;
     }
 
     private static final double SMOOTHING_STEP = 0.5;
@@ -277,10 +265,6 @@ public final class Navigator {
         return sampleLine(level, from, to, cell -> standable(level, cell));
     }
 
-    /**
-     * 最后一段能否直接走到：开启跳跃时只要求沿途不挡路（允许跨一格空隙），
-     * 关闭跳跃时要求沿途每格都有落脚点，避免把一格沟当成可以走过去的直线。
-     */
     private static boolean clearApproachLine(Level level, BlockPos from, BlockPos to) {
         return riseAllowed(from, to) && (movement.jump() ? clearLine(level, from, to) : clearWalkLine(level, from, to));
     }
@@ -349,9 +333,6 @@ public final class Navigator {
         return descendTo(level, from.getX(), from.getY(), from.getZ(), MAX_FALL);
     }
 
-    /**
-     * 起点定位不跟随移动方式开关：即使关掉了梯子或游泳，玩家站在梯子/水里时也应从原地出发。
-     */
     private static boolean walkableStart(Level level, int x, int y, int z) {
         return standable(level, x, y, z)
                 || (free(level, x, y, z) && climbable(level, x, y, z))
@@ -422,7 +403,6 @@ public final class Navigator {
 
     private static boolean standable(Level level, int x, int y, int z) {
         if (!free(level, x, y, z)) return false;
-        // 关闭游泳时水面不算落脚点，否则"水是障碍"会反过来当成支撑，路径仍会贴着水面走。
         return solid(level, x, y - 1, z)
                 || (movement.swim() && (fluid(level, x, y, z) || fluid(level, x, y - 1, z)));
     }
@@ -466,12 +446,10 @@ public final class Navigator {
 
     private static boolean blocked(Level level, int x, int y, int z) {
         BlockState state = stateAt(level, x, y, z);
-        // 关闭游泳时把水面与水下视为障碍，路径不会主动进入或穿过水域。
         if (!movement.swim() && !state.getFluidState().isEmpty()) return true;
         return solid(level, x, y, z);
     }
 
-    /** 实体碰撞：流体、打开的门与栅栏门都不算，用来区分"挡路"和"能踩"。 */
     private static boolean solid(Level level, int x, int y, int z) {
         BlockState state = stateAt(level, x, y, z);
         if (state.getBlock() instanceof DoorBlock) return !state.getValue(DoorBlock.OPEN);

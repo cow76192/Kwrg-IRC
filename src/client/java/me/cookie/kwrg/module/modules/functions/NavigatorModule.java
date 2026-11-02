@@ -21,10 +21,10 @@ public class NavigatorModule extends Module {
     @Override
     public void onExecute() {
         IrcConfig config = IrcConfig.get();
-        ChatNotifier.sendInChatScreen("§6[IRC] 寻路移动方式: §fAOTV " + state(config.navigatorAotv)
-                + " §7| §f游泳 " + state(config.navigatorSwim)
-                + " §7| §f梯子 " + state(config.navigatorLadder)
-                + " §7| §f跳跃 " + state(config.navigatorJump) + " §7(右键配置)");
+        ChatNotifier.sendInChatScreen("§6[IRC] 寻路移动方式: §fAOTV " + enabledText(config.navigatorAotv)
+                + " §7| §f游泳 " + enabledText(config.navigatorSwim)
+                + " §7| §f梯子 " + enabledText(config.navigatorLadder)
+                + " §7| §f跳跃 " + enabledText(config.navigatorJump) + " §7(右键配置)");
     }
 
     @Override
@@ -60,7 +60,7 @@ public class NavigatorModule extends Module {
         );
     }
 
-    private static String state(boolean enabled) {
+    private static String enabledText(boolean enabled) {
         return enabled ? "§a开" : "§c关";
     }
 }
