@@ -115,7 +115,7 @@ public class PlayModule extends Module {
             IrcClient.sendPlayEffect(targetPlayer, itemId);
             ChatNotifier.send("§a[IRC] 已向玩家 §f" + targetPlayer + " §a发送动画效果 (§e" + itemId + "§a)！", NotificationType.SUCCESS);
             return 1;
-        } catch (Throwable t) {
+        } catch (RuntimeException t) {
             ChatNotifier.send("§c[IRC] 发送动画效果失败: " + t.getMessage(), NotificationType.ERR);
             t.printStackTrace();
             return 0;

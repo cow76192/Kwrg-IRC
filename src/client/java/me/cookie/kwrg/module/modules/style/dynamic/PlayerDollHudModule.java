@@ -29,11 +29,10 @@ public class PlayerDollHudModule extends Module {
 
     @Override
     public void onExecute() {
-        HudElement.State state = HudElementRegistry.state(HudElementRegistry.PLAYER_DOLL);
-        state.enabled = !state.enabled;
-        IrcConfig.saveDelayed(400L);
+        boolean enabled = !HudElementRegistry.isEnabled(HudElementRegistry.PLAYER_DOLL);
+        HudElementRegistry.get(HudElementRegistry.PLAYER_DOLL).setEnabled(enabled);
 
-        if (state.enabled) {
+        if (enabled) {
             ChatNotifier.send("§a[HUD] 玩家模型显示已开启", NotificationType.SUCCESS);
         } else {
             ChatNotifier.send("§e[HUD] 玩家模型显示已关闭", NotificationType.INFO);
@@ -72,13 +71,9 @@ public class PlayerDollHudModule extends Module {
                 .step(0.01f)
                 .getter(() -> IrcConfig.get().playerDollOpacity)
                 .setter(val -> {
-                    IrcConfig config = IrcConfig.get();
-                    config.playerDollOpacity = val;
+                    IrcConfig.get().playerDollOpacity = val;
                     HudElementRegistry.state(HudElementRegistry.PLAYER_DOLL).opacity = val;
-                    if (config.playerDollFollowGlobal) {
-                        config.playerDollFollowGlobal = false;
-                        followGlobalToggle.setToggled(false);
-                    }
+                    clearFollowGlobal(followGlobalToggle);
                 })
                 .formatter(val -> Math.round(val * 100.0f) + "%");
         panel.child(opacitySlider);
@@ -93,11 +88,7 @@ public class PlayerDollHudModule extends Module {
                     state.scale = val;
                     state.sanitize();
 
-                    IrcConfig config = IrcConfig.get();
-                    if (config.playerDollFollowGlobal) {
-                        config.playerDollFollowGlobal = false;
-                        followGlobalToggle.setToggled(false);
-                    }
+                    clearFollowGlobal(followGlobalToggle);
                 })
                 .formatter(val -> String.format("%.2fx", val));
 
@@ -123,5 +114,11 @@ public class PlayerDollHudModule extends Module {
                 },
                 null
         ));
+    }
+
+    private static void clearFollowGlobal(PanelItemComponent followGlobalToggle) {
+        if (!IrcConfig.get().playerDollFollowGlobal) return;
+        HudElementRegistry.get(HudElementRegistry.PLAYER_DOLL).setFollowGlobal(false);
+        followGlobalToggle.setToggled(false);
     }
 }

@@ -40,8 +40,8 @@ public class IrcClient {
     private static BufferedReader reader;
     private static volatile boolean isRunning = false;
 
-    public static boolean isIrcChatActive = false;
-    public static boolean isIrcConnect = false;
+    public static volatile boolean isIrcChatActive = false;
+    public static volatile boolean isIrcConnect = false;
 
     private static final int MAX_RECONNECT_ATTEMPTS = 3;
     private static final AtomicInteger reconnectAttempts = new AtomicInteger(0);
@@ -49,6 +49,7 @@ public class IrcClient {
     private static final AtomicBoolean isConnecting = new AtomicBoolean(false);
 
     private static final Object SEND_LOCK = new Object();
+    private static ExecutorService sendExecutor;
 
     private static ScheduledExecutorService heartbeatExecutor;
     private static final ScheduledExecutorService reconnectExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -165,8 +166,13 @@ public class IrcClient {
         });
 
         heartbeatExecutor.scheduleAtFixedRate(() -> {
-            if (isRunning && socket != null && !socket.isClosed()) {
-                sendPing(null);
+            try {
+                Socket current = socket;
+                if (isRunning && current != null && !current.isClosed()) {
+                    sendPing(null);
+                }
+            } catch (Exception e) {
+                LOGGER.warn("[IRC] 心跳发送异常: {}", e.getMessage());
             }
         }, 0, 15, TimeUnit.SECONDS);
     }
@@ -267,13 +273,26 @@ public class IrcClient {
     }
 
     private static void sendRaw(String jsonStr) {
-        CompletableFuture.runAsync(() -> {
+        sendExecutor().execute(() -> {
             synchronized (SEND_LOCK) {
                 if (writer != null && isRunning) {
                     writer.println(jsonStr);
                 }
             }
         });
+    }
+
+    private static ExecutorService sendExecutor() {
+        synchronized (SEND_LOCK) {
+            if (sendExecutor == null || sendExecutor.isShutdown()) {
+                sendExecutor = Executors.newSingleThreadExecutor(r -> {
+                    Thread t = new Thread(r, "IRC-Send-Thread");
+                    t.setDaemon(true);
+                    return t;
+                });
+            }
+            return sendExecutor;
+        }
     }
 
     public static void sendMessage(String content) {
@@ -689,5 +708,11 @@ public class IrcClient {
         writer = null;
         reader = null;
         socket = null;
+        synchronized (SEND_LOCK) {
+            if (sendExecutor != null && !sendExecutor.isShutdown()) {
+                sendExecutor.shutdownNow();
+            }
+            sendExecutor = null;
+        }
     }
 }

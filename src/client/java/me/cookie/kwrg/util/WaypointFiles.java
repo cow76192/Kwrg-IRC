@@ -242,8 +242,10 @@ public final class WaypointFiles {
         if (isDefault(current) && file.points.size() >= WaypointManager.MAX_WAYPOINTS) {
             return;
         }
-        file.points.add(new PointEntry("", "", "", ""));
-        saveCurrent();
+        PointEntry entry = new PointEntry("", "", "", "");
+        file.points.add(entry);
+        if (saveCurrent()) return;
+        file.points.remove(entry);
     }
 
     public static boolean deleteAt(int index) {

@@ -533,7 +533,7 @@ public final class Navigator {
             this.x = x;
             this.y = y;
             this.z = z;
-            this.key = keyOf(x, y, z);
+            this.key = BlockPos.asLong(x, y, z);
             this.h = h;
         }
 
@@ -773,7 +773,4 @@ public final class Navigator {
         }
     }
 
-    private static long keyOf(int x, int y, int z) {
-        return ((long) x & 0x3FFFFFFL) << 38 | ((long) z & 0x3FFFFFFL) << 12 | ((long) y & 0xFFFL);
-    }
 }

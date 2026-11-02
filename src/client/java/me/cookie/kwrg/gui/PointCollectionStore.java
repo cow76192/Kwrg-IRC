@@ -49,23 +49,6 @@ public interface PointCollectionStore {
 
     default boolean moveEntry(int from, int to) { return false; }
 
-    default void updateName(int index, String name) { entries().get(index).name = name; }
-
-    default void updateCoordinate(int index, int axis, String value) {
-        PointEntry entry = entries().get(index);
-        switch (axis) {
-            case 0 -> entry.x = value;
-            case 1 -> entry.y = value;
-            case 2 -> entry.z = value;
-            default -> throw new IllegalArgumentException("axis");
-        }
-    }
-
-    default void setEntryVisible(int index, boolean visible) {
-        entries().get(index).visible = visible;
-        saveCurrent();
-    }
-
     default boolean externalFile(Path path) { return false; }
 
     default boolean protectedFile(Path path) { return false; }

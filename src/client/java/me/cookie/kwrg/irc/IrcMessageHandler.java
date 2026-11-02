@@ -26,6 +26,25 @@ public class IrcMessageHandler {
     });
     private static final Map<String, ScheduledFuture<?>> TYPING_TIMEOUT_TASKS = new ConcurrentHashMap<>();
 
+    private static String optStr(JsonObject obj, String key, String fallback) {
+        return obj.has(key) ? obj.get(key).getAsString() : fallback;
+    }
+
+    private static boolean optBool(JsonObject obj, String key, boolean fallback) {
+        return obj.has(key) ? obj.get(key).getAsBoolean() : fallback;
+    }
+
+    private static String safe(String value) {
+        if (value == null) return "";
+        String clean = value.replaceAll("[^A-Za-z0-9_]", "");
+        return clean.length() > 32 ? clean.substring(0, 32) : clean;
+    }
+
+    private static String noFormatting(String value) {
+        if (value == null) return "";
+        return value.replace("\u00A7", "");
+    }
+
     public static String extractFirstColor(String text) {
         if (text == null || text.isEmpty()) return "§7";
 
@@ -88,12 +107,12 @@ public class IrcMessageHandler {
     public static void handleIncomingJson(String jsonStr) {
         try {
             JsonObject obj = JsonParser.parseString(jsonStr).getAsJsonObject();
-            String senderId = obj.has("senderId") ? obj.get("senderId").getAsString() : "";
-            String type = obj.has("type") ? obj.get("type").getAsString() : "chat";
+            String senderId = optStr(obj, "senderId", "");
+            String type = optStr(obj, "type", "chat");
             Minecraft mc = Minecraft.getInstance();
 
             if ("typing".equalsIgnoreCase(type) || "player_typing".equalsIgnoreCase(type)) {
-                String user = obj.has("username") ? obj.get("username").getAsString() : "";
+                String user = optStr(obj, "username", "");
                 if (user.isBlank() || user.equalsIgnoreCase(mc.getUser().getName())) {
                     return;
                 }
@@ -110,11 +129,11 @@ public class IrcMessageHandler {
             }
 
             if ("function_sync".equalsIgnoreCase(type)) {
-                String function = obj.has("function") ? obj.get("function").getAsString() : "";
-                String user = obj.has("username") ? obj.get("username").getAsString() : "";
+                String function = optStr(obj, "function", "");
+                String user = optStr(obj, "username", "");
                 if ("hideArmor".equalsIgnoreCase(function)) {
                     if (!obj.has("parts")) {
-                        boolean enabled = !obj.has("enabled") || obj.get("enabled").getAsBoolean();
+                        boolean enabled = optBool(obj, "enabled", true);
                         HideArmorManager.setRemotePlayerHideArmor(user, enabled);
                         return;
                     }
@@ -142,7 +161,7 @@ public class IrcMessageHandler {
                         case "hidearmorlegs" -> EquipmentSlot.LEGS;
                         default -> EquipmentSlot.FEET;
                     };
-                    boolean enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
+                    boolean enabled = optBool(obj, "enabled", false);
                     HideArmorManager.setRemotePlayerHideArmor(user, slot, enabled);
                 } else if ("modelScale".equalsIgnoreCase(function)) {
                     float scale = obj.has("scale") ? obj.get("scale").getAsFloat() : 1.0f;
@@ -152,25 +171,25 @@ public class IrcMessageHandler {
             }
 
             if ("player_join".equalsIgnoreCase(type)) {
-                String user = obj.has("username") ? obj.get("username").getAsString() : "Unknown";
-                String rank = obj.has("rank") ? obj.get("rank").getAsString() : "";
+                String user = optStr(obj, "username", "Unknown");
+                String rank = optStr(obj, "rank", "");
                 String formattedRank = formatRankWithBrackets(rank);
                 IrcClient.sendHideArmorSync();
                 me.cookie.kwrg.irc.manager.IrcGlowManager.addPlayer(user);
-                IrcMessageHandler.printMessage("§e[IRC] " + (formattedRank.isEmpty() ? "" : formattedRank + " ") + "§f" + user + " §a加入了 IRC!");
+                IrcMessageHandler.printMessage("§e[IRC] " + (formattedRank.isEmpty() ? "" : formattedRank + " ") + "§f" + safe(user) + " §a加入了 IRC!");
                 return;
             }
 
             if ("player_leave".equalsIgnoreCase(type)) {
-                String user = obj.has("username") ? obj.get("username").getAsString() : "Unknown";
-                String senderUuid = obj.has("senderId") ? obj.get("senderId").getAsString() : "";
+                String user = optStr(obj, "username", "Unknown");
+                String senderUuid = optStr(obj, "senderId", "");
 
                 HideArmorManager.setRemotePlayerHideArmor(user, false);
                 me.cookie.kwrg.irc.manager.PlayerCustomizationManager.setRemotePlayerScale(user, 1.0f);
                 me.cookie.kwrg.irc.manager.IrcGlowManager.removePlayer(user);
                 me.cookie.kwrg.irc.manager.IrcCapeManager.handlePlayerLeave(senderUuid, user);
 
-                IrcMessageHandler.printMessage("§7[IRC] 玩家 §f" + user + " §7退出了 IRC");
+                IrcMessageHandler.printMessage("§7[IRC] 玩家 §f" + safe(user) + " §7退出了 IRC");
                 return;
             }
 
@@ -196,17 +215,17 @@ public class IrcMessageHandler {
 
 
             if ("cape_check_result".equalsIgnoreCase(type)) {
-                String hash = obj.has("hash") ? obj.get("hash").getAsString() : "";
-                boolean exists = obj.has("exists") && obj.get("exists").getAsBoolean();
+                String hash = optStr(obj, "hash", "");
+                boolean exists = optBool(obj, "exists", false);
                 me.cookie.kwrg.irc.manager.IrcCapeManager.handleCheckResult(hash, exists);
                 return;
             }
 
             if ("cape_sync".equalsIgnoreCase(type)) {
-                String senderUuid = obj.has("senderId") ? obj.get("senderId").getAsString() : "";
-                String username = obj.has("username") ? obj.get("username").getAsString() : "";
-                String hash = obj.has("hash") ? obj.get("hash").getAsString() : "";
-                String fileName = obj.has("fileName") ? obj.get("fileName").getAsString() : "";
+                String senderUuid = optStr(obj, "senderId", "");
+                String username = optStr(obj, "username", "");
+                String hash = optStr(obj, "hash", "");
+                String fileName = optStr(obj, "fileName", "");
 
                 if (username.isBlank() || username.equalsIgnoreCase(mc.getUser().getName())) {
                     return;
@@ -216,20 +235,20 @@ public class IrcMessageHandler {
                 return;
             }
             if ("cape_data".equalsIgnoreCase(type)) {
-                String hash = obj.has("hash") ? obj.get("hash").getAsString() : "";
-                String fileName = obj.has("fileName") ? obj.get("fileName").getAsString() : "";
-                String data = obj.has("data") ? obj.get("data").getAsString() : "";
+                String hash = optStr(obj, "hash", "");
+                String fileName = optStr(obj, "fileName", "");
+                String data = optStr(obj, "data", "");
                 me.cookie.kwrg.irc.manager.IrcCapeManager.handleIncomingCapeData(hash, fileName, data);
                 return;
             }
 
             if ("share".equalsIgnoreCase(type) || "invite".equalsIgnoreCase(type)) {
-                String target = obj.has("target") ? obj.get("target").getAsString() : "";
+                String target = optStr(obj, "target", "");
                 String currentName = mc.getUser().getName();
 
                 if (target.equalsIgnoreCase(currentName)) {
-                    String sender = obj.has("username") ? obj.get("username").getAsString() : "某玩家";
-                    String shareType = obj.has("shareType") ? obj.get("shareType").getAsString() : "custom";
+                    String sender = optStr(obj, "username", "某玩家");
+                    String shareType = optStr(obj, "shareType", "custom");
 
                     String rawData = "";
                     if (obj.has("data")) {
@@ -280,24 +299,24 @@ public class IrcMessageHandler {
             }
 
             if (obj.has("type") && "play".equalsIgnoreCase(obj.get("type").getAsString())) {
-                String target = obj.has("target") ? obj.get("target").getAsString() : "";
+                String target = optStr(obj, "target", "");
                 String currentName = mc.getUser().getName();
 
                 if (target.equalsIgnoreCase(currentName) || target.equalsIgnoreCase("@all")) {
-                    String sender = obj.has("username") ? obj.get("username").getAsString() : "Unknown";
-                    String item = obj.has("item") ? obj.get("item").getAsString() : "minecraft:totem_of_undying";
+                    String sender = optStr(obj, "username", "Unknown");
+                    String item = optStr(obj, "item", "minecraft:totem_of_undying");
                     triggerTotemEffect(sender, item);
                 }
                 return;
             }
 
             if (obj.has("type") && "play_fail".equalsIgnoreCase(obj.get("type").getAsString())) {
-                String target = obj.has("target") ? obj.get("target").getAsString() : "";
+                String target = optStr(obj, "target", "");
                 String currentName = mc.getUser().getName();
                 if (target.equalsIgnoreCase(currentName)) {
-                    String receiver = obj.has("username") ? obj.get("username").getAsString() : "对方";
-                    String reason = obj.has("reason") ? obj.get("reason").getAsString() : "未知错误";
-                    IrcMessageHandler.printMessage("§c[IRC] 玩家 §f" + receiver + " §c播放失败: §e" + reason);
+                    String receiver = optStr(obj, "username", "对方");
+                    String reason = optStr(obj, "reason", "未知错误");
+                    IrcMessageHandler.printMessage("§c[IRC] 玩家 §f" + safe(receiver) + " §c播放失败: §e" + noFormatting(reason));
                 }
                 return;
             }
@@ -306,14 +325,18 @@ public class IrcMessageHandler {
                 return;
             }
 
-            String username = obj.has("username") ? obj.get("username").getAsString() : "Unknown";
-            String rank = obj.has("rank") ? obj.get("rank").getAsString() : "";
-            String nameStyle = obj.has("namestyle") ? obj.get("namestyle").getAsString() : "";
-            String chatStyle = obj.has("chatstyle") ? obj.get("chatstyle").getAsString() : "";
-            String content = obj.has("content") ? obj.get("content").getAsString() : "";
-            String channel = obj.has("channel") ? obj.get("channel").getAsString() : "";
-            String prefix = obj.has("prefix") ? obj.get("prefix").getAsString() : "";
-            String suffix = obj.has("suffix") ? obj.get("suffix").getAsString() : "";
+            if (!"chat".equals(type)) {
+                return;
+            }
+
+            String username = optStr(obj, "username", "Unknown");
+            String rank = optStr(obj, "rank", "");
+            String nameStyle = optStr(obj, "namestyle", "");
+            String chatStyle = optStr(obj, "chatstyle", "");
+            String content = optStr(obj, "content", "");
+            String channel = optStr(obj, "channel", "");
+            String prefix = optStr(obj, "prefix", "");
+            String suffix = optStr(obj, "suffix", "");
 
             displayFormattedMessage(channel, rank, nameStyle, username, chatStyle, content, prefix, suffix);
         } catch (Exception e) {
@@ -352,6 +375,7 @@ public class IrcMessageHandler {
             if (cleanChannel.startsWith("#")) {
                 cleanChannel = cleanChannel.substring(1);
             }
+            cleanChannel = noFormatting(cleanChannel);
             segments.add(new ChatNotifier.AnimatedSegment("§b#" + cleanChannel + "§r", "", true));
         }
 

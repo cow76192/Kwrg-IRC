@@ -7,8 +7,11 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.scores.DisplaySlot;
 
+import java.util.regex.Pattern;
+
 /** Server-authoritative island detection, using the same location mode as SkyHanni. */
 public final class SkyblockLocation {
+    private static final Pattern SIDEBAR_FORMATTING_PATTERN = Pattern.compile("§.");
     private static String island = "";
     private static String server = "";
     private SkyblockLocation() {}
@@ -17,7 +20,7 @@ public final class SkyblockLocation {
         var level = Minecraft.getInstance().level;
         if (level != null && (island.equals("dynamic") || island.equals("garden"))) {
             var objective = level.getScoreboard().getDisplayObjective(DisplaySlot.SIDEBAR);
-            if (objective != null && objective.getDisplayName().getString().replaceAll("§.", "").strip().endsWith("GUEST")) {
+            if (objective != null && SIDEBAR_FORMATTING_PATTERN.matcher(objective.getDisplayName().getString()).replaceAll("").strip().endsWith("GUEST")) {
                 return island + "_guest";
             }
         }

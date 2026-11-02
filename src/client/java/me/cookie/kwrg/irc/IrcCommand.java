@@ -79,6 +79,28 @@ public class IrcCommand {
         return builder.buildFuture();
     };
 
+    private static final String[] HELP_LINES = new String[]{
+            "§6===== [Kwrg IRC 帮助] =====",
+            "§e/ci §7或 §e/chat irc §7- 切换 IRC 聊天频道",
+            "§e/ic <消息> §7- 快捷发送一条 IRC 消息",
+            "§e/irc r <称号> §7- 设置称号 (如 /irc r &6VIP&b+)",
+            "§e/irc ns <样式> §7- 设置名字样式 (支持彩虹、渐变、CSS)",
+            "§e/irc ms <样式> §7- 设置消息样式 (支持彩虹、渐变、CSS)",
+            "§e/irc important/imp [玩家名] §7- 添加/移除关注玩家 (不区分大小写)",
+            "§e/irc config/cfg load/create <配置名> §7- 加载/新建配置",
+            "§e/irc config/cfg save §7- 保存当前配置至文件(只有新建的配置文件才需要保存)",
+            "§e/irc play/p <玩家名> <物品ID> §7- 向指定玩家发送 Totem 动画效果",
+            "§e/irc online §7- 查看当前 IRC 在线玩家列表",
+            "§e/irc routeEdit [true/false] §7- 切换或指定快速编辑状态，开启后 Alt＋左键方块添加节点",
+            "§e/route show §7- 查看当前路线节点（索引从 1 开始）",
+            "§e/route add <节点名> [<x> <y> <z>] §7- 在末尾添加节点，省略坐标时使用当前位置",
+            "§e/route ins/insert <节点名> <前索引> <后索引> §7- 在相邻节点间插入当前位置",
+            "§e/route del/delete <索引> §7- 删除指定节点",
+            "§e/irc hudeditor §7或 §e/irc hud §7- 打开 HUD 布局编辑器",
+            "§e/irc functions §7- 查看功能列表",
+            "§e/irc debug  §7- 查看调试选项"
+    };
+
     public static void register() {
         ClientCommandRegistrationCallback.EVENT.register(IrcCommand::registerCommands);
     }
@@ -92,6 +114,71 @@ public class IrcCommand {
                 .then(argument("enabled", BoolArgumentType.bool())
                         .executes(context -> HideArmorModule.setHideArmor(BoolArgumentType.getBool(context, "enabled"))))
                 .executes(context -> HideArmorModule.showHideArmor());
+    }
+
+    private static LiteralArgumentBuilder<FabricClientCommandSource> rankAlias(String alias) {
+        return literal(alias)
+                .then(argument("name", StringArgumentType.greedyString())
+                        .executes(context -> RankModule.setRank(StringArgumentType.getString(context, "name"))))
+                .executes(context -> RankModule.showRank());
+    }
+
+    private static LiteralArgumentBuilder<FabricClientCommandSource> nameStyleAlias(String alias) {
+        return literal(alias)
+                .then(argument("style", StringArgumentType.greedyString())
+                        .suggests(STYLE_SUGGESTIONS)
+                        .executes(context -> NameStyleModule.setNameStyle(StringArgumentType.getString(context, "style"))))
+                .executes(context -> NameStyleModule.showNameStyle());
+    }
+
+    private static LiteralArgumentBuilder<FabricClientCommandSource> messageStyleAlias(String alias) {
+        return literal(alias)
+                .then(argument("style", StringArgumentType.greedyString())
+                        .suggests(STYLE_SUGGESTIONS)
+                        .executes(context -> MessageStyleModule.setChatStyle(StringArgumentType.getString(context, "style"))))
+                .executes(context -> MessageStyleModule.showChatStyle());
+    }
+
+    private static LiteralArgumentBuilder<FabricClientCommandSource> playAlias(String alias) {
+        return literal(alias)
+                .then(argument("player", StringArgumentType.string())
+                        .then(argument("item", StringArgumentType.greedyString())
+                                .suggests(ITEM_SUGGESTIONS)
+                                .executes(context -> PlayModule.handlePlayCommand(
+                                        StringArgumentType.getString(context, "player"),
+                                        StringArgumentType.getString(context, "item")
+                                ))));
+    }
+
+    private static LiteralArgumentBuilder<FabricClientCommandSource> importantAlias(String alias) {
+        return literal(alias)
+                .then(argument("player", StringArgumentType.string())
+                        .executes(context -> ImportantPlayerModule.toggleImportant(StringArgumentType.getString(context, "player"))))
+                .executes(context -> ImportantPlayerModule.listImportant());
+    }
+
+    private static LiteralArgumentBuilder<FabricClientCommandSource> configAlias(String alias) {
+        return literal(alias)
+                .then(literal("load")
+                        .then(argument("name", StringArgumentType.string())
+                                .suggests(CONFIG_SUGGESTIONS)
+                                .executes(context -> loadConfig(StringArgumentType.getString(context, "name")))))
+                .then(literal("create")
+                        .then(argument("name", StringArgumentType.string())
+                                .executes(context -> createConfig(StringArgumentType.getString(context, "name")))))
+                .then(literal("save")
+                        .executes(context -> saveConfig()))
+                .executes(context -> showCurrentConfig());
+    }
+
+    private static LiteralArgumentBuilder<FabricClientCommandSource> functionsAlias(String alias) {
+        return literal(alias)
+                .then(hideArmorNode())
+                .then(literal("glowColor")
+                        .then(argument("color", StringArgumentType.greedyString())
+                                .suggests(STYLE_SUGGESTIONS)
+                                .executes(context -> GlowColorModule.setGlowColor(StringArgumentType.getString(context, "color"))))
+                        .executes(context -> GlowColorModule.showGlowColor()));
     }
 
     private static void registerCommands(CommandDispatcher<FabricClientCommandSource> dispatcher, CommandBuildContext buildContext) {
@@ -252,80 +339,18 @@ public class IrcCommand {
                             IrcClient.sendMessage(location.isEmpty() ? coords : coords + " | " + location);
                             return 1;
                         }))
-                .then(literal("rank")
-                        .then(argument("name", StringArgumentType.greedyString())
-                                .executes(context -> RankModule.setRank(StringArgumentType.getString(context, "name"))))
-                        .executes(context -> RankModule.showRank()))
-                .then(literal("r")
-                        .then(argument("name", StringArgumentType.greedyString())
-                                .executes(context -> RankModule.setRank(StringArgumentType.getString(context, "name"))))
-                        .executes(context -> RankModule.showRank()))
-                .then(literal("nameStyle")
-                        .then(argument("style", StringArgumentType.greedyString())
-                                .suggests(STYLE_SUGGESTIONS)
-                                .executes(context -> NameStyleModule.setNameStyle(StringArgumentType.getString(context, "style"))))
-                        .executes(context -> NameStyleModule.showNameStyle()))
-                .then(literal("ns")
-                        .then(argument("style", StringArgumentType.greedyString())
-                                .suggests(STYLE_SUGGESTIONS)
-                                .executes(context -> NameStyleModule.setNameStyle(StringArgumentType.getString(context, "style"))))
-                        .executes(context -> NameStyleModule.showNameStyle()))
-                .then(literal("messageStyle")
-                        .then(argument("style", StringArgumentType.greedyString())
-                                .suggests(STYLE_SUGGESTIONS)
-                                .executes(context -> MessageStyleModule.setChatStyle(StringArgumentType.getString(context, "style"))))
-                        .executes(context -> MessageStyleModule.showChatStyle()))
-                .then(literal("ms")
-                        .then(argument("style", StringArgumentType.greedyString())
-                                .suggests(STYLE_SUGGESTIONS)
-                                .executes(context -> MessageStyleModule.setChatStyle(StringArgumentType.getString(context, "style"))))
-                        .executes(context -> MessageStyleModule.showChatStyle()))
-                .then(literal("play")
-                        .then(argument("player", StringArgumentType.string())
-                                .then(argument("item", StringArgumentType.greedyString())
-                                        .suggests(ITEM_SUGGESTIONS)
-                                        .executes(context -> PlayModule.handlePlayCommand(
-                                                StringArgumentType.getString(context, "player"),
-                                                StringArgumentType.getString(context, "item")
-                                        )))))
-                .then(literal("p")
-                        .then(argument("player", StringArgumentType.string())
-                                .then(argument("item", StringArgumentType.greedyString())
-                                        .suggests(ITEM_SUGGESTIONS)
-                                        .executes(context -> PlayModule.handlePlayCommand(
-                                                StringArgumentType.getString(context, "player"),
-                                                StringArgumentType.getString(context, "item")
-                                        )))))
-                .then(literal("important")
-                        .then(argument("player", StringArgumentType.string())
-                                .executes(context -> ImportantPlayerModule.toggleImportant(StringArgumentType.getString(context, "player"))))
-                        .executes(context -> ImportantPlayerModule.listImportant()))
-                .then(literal("imp")
-                        .then(argument("player", StringArgumentType.string())
-                                .executes(context -> ImportantPlayerModule.toggleImportant(StringArgumentType.getString(context, "player"))))
-                        .executes(context -> ImportantPlayerModule.listImportant()))
-                .then(literal("config")
-                        .then(literal("load")
-                                .then(argument("name", StringArgumentType.string())
-                                        .suggests(CONFIG_SUGGESTIONS)
-                                        .executes(context -> loadConfig(StringArgumentType.getString(context, "name")))))
-                        .then(literal("create")
-                                .then(argument("name", StringArgumentType.string())
-                                        .executes(context -> createConfig(StringArgumentType.getString(context, "name")))))
-                        .then(literal("save")
-                                .executes(context -> saveConfig()))
-                        .executes(context -> showCurrentConfig()))
-                .then(literal("cfg")
-                        .then(literal("load")
-                                .then(argument("name", StringArgumentType.string())
-                                        .suggests(CONFIG_SUGGESTIONS)
-                                        .executes(context -> loadConfig(StringArgumentType.getString(context, "name")))))
-                        .then(literal("create")
-                                .then(argument("name", StringArgumentType.string())
-                                        .executes(context -> createConfig(StringArgumentType.getString(context, "name")))))
-                        .then(literal("save")
-                                .executes(context -> saveConfig()))
-                        .executes(context -> showCurrentConfig()))
+                .then(rankAlias("rank"))
+                .then(rankAlias("r"))
+                .then(nameStyleAlias("nameStyle"))
+                .then(nameStyleAlias("ns"))
+                .then(messageStyleAlias("messageStyle"))
+                .then(messageStyleAlias("ms"))
+                .then(playAlias("play"))
+                .then(playAlias("p"))
+                .then(importantAlias("important"))
+                .then(importantAlias("imp"))
+                .then(configAlias("config"))
+                .then(configAlias("cfg"))
                 .then(literal("online")
                         .executes(context -> {
                             IrcClient.queryOnline();
@@ -365,20 +390,8 @@ public class IrcCommand {
                                     me.cookie.kwrg.module.modules.debug.PingModule.executePing(true);
                                     return 1;
                                 })))
-                .then(literal("functions")
-                        .then(hideArmorNode())
-                        .then(literal("glowColor")
-                                .then(argument("color", StringArgumentType.greedyString())
-                                        .suggests(STYLE_SUGGESTIONS)
-                                        .executes(context -> GlowColorModule.setGlowColor(StringArgumentType.getString(context, "color"))))
-                                .executes(context -> GlowColorModule.showGlowColor())))
-                .then(literal("func")
-                        .then(hideArmorNode())
-                        .then(literal("glowColor")
-                                .then(argument("color", StringArgumentType.greedyString())
-                                        .suggests(STYLE_SUGGESTIONS)
-                                        .executes(context -> GlowColorModule.setGlowColor(StringArgumentType.getString(context, "color"))))
-                                .executes(context -> GlowColorModule.showGlowColor())))
+                .then(functionsAlias("functions"))
+                .then(functionsAlias("func"))
                 .then(literal("gui").executes(ctx -> {
                     IrcScreen.showGui();
                     return 1;
@@ -469,24 +482,8 @@ public class IrcCommand {
     }
 
     private static void sendHelp() {
-        IrcMessageHandler.printMessage("§6===== [Kwrg IRC 帮助] =====");
-        IrcMessageHandler.printMessage("§e/ci §7或 §e/chat irc §7- 切换 IRC 聊天频道");
-        IrcMessageHandler.printMessage("§e/ic <消息> §7- 快捷发送一条 IRC 消息");
-        IrcMessageHandler.printMessage("§e/irc r <称号> §7- 设置称号 (如 /irc r &6VIP&b+)");
-        IrcMessageHandler.printMessage("§e/irc ns <样式> §7- 设置名字样式 (支持彩虹、渐变、CSS)");
-        IrcMessageHandler.printMessage("§e/irc ms <样式> §7- 设置消息样式 (支持彩虹、渐变、CSS)");
-        IrcMessageHandler.printMessage("§e/irc important/imp [玩家名] §7- 添加/移除关注玩家 (不区分大小写)");
-        IrcMessageHandler.printMessage("§e/irc config/cfg load/create <配置名> §7- 加载/新建配置");
-        IrcMessageHandler.printMessage("§e/irc config/cfg save §7- 保存当前配置至文件(只有新建的配置文件才需要保存)");
-        IrcMessageHandler.printMessage("§e/irc play/p <玩家名> <物品ID> §7- 向指定玩家发送 Totem 动画效果");
-        IrcMessageHandler.printMessage("§e/irc online §7- 查看当前 IRC 在线玩家列表");
-        IrcMessageHandler.printMessage("§e/irc routeEdit [true/false] §7- 切换或指定快速编辑状态，开启后 Alt＋左键方块添加节点");
-        IrcMessageHandler.printMessage("§e/route show §7- 查看当前路线节点（索引从 1 开始）");
-        IrcMessageHandler.printMessage("§e/route add <节点名> [<x> <y> <z>] §7- 在末尾添加节点，省略坐标时使用当前位置");
-        IrcMessageHandler.printMessage("§e/route ins/insert <节点名> <前索引> <后索引> §7- 在相邻节点间插入当前位置");
-        IrcMessageHandler.printMessage("§e/route del/delete <索引> §7- 删除指定节点");
-        IrcMessageHandler.printMessage("§e/irc hudeditor §7或 §e/irc hud §7- 打开 HUD 布局编辑器");
-        IrcMessageHandler.printMessage("§e/irc functions §7- 查看功能列表");
-        IrcMessageHandler.printMessage("§e/irc debug  §7- 查看调试选项");
+        for (String line : HELP_LINES) {
+            IrcMessageHandler.printMessage(line);
+        }
     }
 }

@@ -116,7 +116,7 @@ public final class PlayerFinderChatState {
 
     public static boolean processSystemChat(String message) {
         if (message == null) return false;
-        String clean = message.replaceAll("§[0-9a-fk-or]", "").trim();
+        String clean = ChatNotifier.LOWERCASE_FORMATTING_PATTERN.matcher(message).replaceAll("").trim();
         if (clean.isEmpty()) return false;
 
         boolean shouldCancelPacket = false;

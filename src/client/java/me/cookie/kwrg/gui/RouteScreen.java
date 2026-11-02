@@ -30,7 +30,7 @@ public final class RouteScreen extends PointCollectionScreen {
             var panel = host.getActiveTertiaryPanel();
             float x = Float.isNaN(virtualX) ? (panel == null ? cx : panel.x() + panel.width() / 2.0f) : virtualX;
             float y = Float.isNaN(virtualY) ? (panel == null ? cy : panel.y() + panel.height() / 2.0f) : virtualY;
-            host.openRouteOverlay(cx + (x - cx) * host.getAnimatedScale(), cy + (y - cy) * host.getAnimatedScale(), component);
+            host.openRouteOverlay(host.toScreenX(x), host.toScreenY(y), component);
         });
     }
 

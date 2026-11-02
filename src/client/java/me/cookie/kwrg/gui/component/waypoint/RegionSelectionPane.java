@@ -100,37 +100,11 @@ public final class RegionSelectionPane {
         }
 
         float p = progress();
-        float currentX = AnimationUtil.lerp(p, origin.x(), x), currentY = AnimationUtil.lerp(p, origin.y(), y);
-        float currentW = AnimationUtil.lerp(p, origin.width(), width), currentH = AnimationUtil.lerp(p, origin.height(), height);
 
-        RenderUtil.drawSubpixelRoundedPanel(
-                graphics,
-                currentX, currentY, currentW, currentH,
-                AnimationUtil.lerp(p, 5, 10),
-                AnimationUtil.lerpColor(p, originColor, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.dialogBg()))),
-                AnimationUtil.withAlpha(GuiThemeService.regionBorder(), 0x88)
-        );
-
-        float labelAlpha = 1 - Mth.clamp(p * 4, 0, 1);
-        if (labelAlpha > 0.005f) {
-            RenderUtil.drawCenteredSmoothText(
-                    RenderUtil.withOpacity(graphics, labelAlpha),
-                    Component.literal("生效区域"),
-                    currentX + currentW / 2, currentY + currentH / 2,
-                    0.8f, AnimationUtil.opaqueArgb(GuiThemeService.routeBody())
-            );
-        }
-
-        float alpha = Mth.clamp((p - 0.2f) / 0.8f, 0, 1);
+        float alpha = beginMorphContent(graphics, p, origin, originColor, x, y, width, height, "生效区域");
         if (alpha <= 0.005f) {
             return;
         }
-
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(currentX, currentY);
-        graphics.pose().scale(currentW / width, currentH / height);
-        graphics.pose().translate(-x, -y);
-        graphics.enableScissor(x, y, x + width, y + height);
 
         OwoUIGraphics content = RenderUtil.withOpacity(graphics, alpha);
         RenderUtil.drawSmoothText(content, "生效区域 · 可多选", x + 16, y + 15, AnimationUtil.opaqueArgb(GuiThemeService.routeTitle()));
@@ -157,6 +131,42 @@ public final class RegionSelectionPane {
         done.draw(content, "完成", false, mouseX, mouseY);
         graphics.disableScissor();
         graphics.pose().popMatrix();
+    }
+
+    private static float beginMorphContent(OwoUIGraphics graphics, float p, RouteButtonComponent.Bounds origin, Color originColor,
+                                           int x, int y, int width, int height, String label) {
+        float currentX = AnimationUtil.lerp(p, origin.x(), x), currentY = AnimationUtil.lerp(p, origin.y(), y);
+        float currentW = AnimationUtil.lerp(p, origin.width(), width), currentH = AnimationUtil.lerp(p, origin.height(), height);
+
+        RenderUtil.drawSubpixelRoundedPanel(
+                graphics,
+                currentX, currentY, currentW, currentH,
+                AnimationUtil.lerp(p, 5, 10),
+                AnimationUtil.lerpColor(p, originColor, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.dialogBg()))),
+                AnimationUtil.withAlpha(GuiThemeService.regionBorder(), 0x88)
+        );
+
+        float labelAlpha = 1 - Mth.clamp(p * 4, 0, 1);
+        if (labelAlpha > 0.005f) {
+            RenderUtil.drawCenteredSmoothText(
+                    RenderUtil.withOpacity(graphics, labelAlpha),
+                    Component.literal(label),
+                    currentX + currentW / 2, currentY + currentH / 2,
+                    0.8f, AnimationUtil.opaqueArgb(GuiThemeService.routeBody())
+            );
+        }
+
+        float alpha = Mth.clamp((p - 0.2f) / 0.8f, 0, 1);
+        if (alpha <= 0.005f) {
+            return 0f;
+        }
+
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(currentX, currentY);
+        graphics.pose().scale(currentW / width, currentH / height);
+        graphics.pose().translate(-x, -y);
+        graphics.enableScissor(x, y, x + width, y + height);
+        return alpha;
     }
 
     public void mouseClicked(MouseButtonEvent click, boolean doubled) {

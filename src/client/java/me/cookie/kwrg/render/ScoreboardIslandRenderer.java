@@ -16,6 +16,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 
+import java.lang.reflect.Method;
+
 public class ScoreboardIslandRenderer {
 
     private static final FontDescription SCOREBOARD_FONT = new FontDescription.Resource(Identifier.fromNamespaceAndPath("kwrg", "island"));
@@ -71,6 +73,22 @@ public class ScoreboardIslandRenderer {
 
     public static boolean isSkyHanniActive() {
         return skyHanniActiveThisFrame;
+    }
+
+    private static Method hideVanillaScoreboardMethod = null;
+    private static boolean hideVanillaScoreboardResolved = false;
+
+    public static boolean isHideVanillaScoreboardEnabled() {
+        try {
+            if (!hideVanillaScoreboardResolved) {
+                hideVanillaScoreboardResolved = true;
+                Class<?> cs = Class.forName("at.hannibal2.skyhanni.features.gui.customscoreboard.CustomScoreboard");
+                hideVanillaScoreboardMethod = cs.getMethod("isHideVanillaScoreboardEnabled");
+            }
+            return hideVanillaScoreboardMethod != null && (boolean) hideVanillaScoreboardMethod.invoke(null);
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     public static void resetFrameState() {

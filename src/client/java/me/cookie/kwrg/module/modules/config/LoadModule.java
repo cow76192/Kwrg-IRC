@@ -15,6 +15,7 @@ import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
+import me.cookie.kwrg.util.SafePaths;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 
@@ -190,7 +191,11 @@ public class LoadModule extends Module {
 
                             btn.dismiss(() -> {
                                 try {
-                                    Path filePath = IrcConfig.getKwrgDir().resolve(profileName + ".json");
+                                    Path filePath = SafePaths.resolveInside(IrcConfig.getKwrgDir(), profileName + ".json");
+                                    if (filePath == null) {
+                                        ChatNotifier.send("§c[IRC] 删除文件失败: 配置文件名非法", NotificationType.ERR);
+                                        return;
+                                    }
                                     Files.deleteIfExists(filePath);
                                     ChatNotifier.send("§e[IRC] 已删除配置文件: §f" + profileName + ".json", NotificationType.SUCCESS);
 
@@ -206,7 +211,11 @@ public class LoadModule extends Module {
                             });
                         } else {
                             try {
-                                Path filePath = IrcConfig.getKwrgDir().resolve(profileName + ".json");
+                                Path filePath = SafePaths.resolveInside(IrcConfig.getKwrgDir(), profileName + ".json");
+                                if (filePath == null) {
+                                    ChatNotifier.send("§c[IRC] 读取文件失败: 配置文件名非法", NotificationType.ERR);
+                                    return;
+                                }
                                 String jsonContent = Files.exists(filePath) ? Files.readString(filePath) : "";
                                 if (!jsonContent.isEmpty()) {
                                     com.google.gson.JsonObject jsonObject = com.google.gson.JsonParser.parseString(jsonContent).getAsJsonObject();

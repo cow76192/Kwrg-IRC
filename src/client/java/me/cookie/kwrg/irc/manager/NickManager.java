@@ -2,6 +2,7 @@ package me.cookie.kwrg.irc.manager;
 
 import com.mojang.authlib.GameProfile;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
@@ -137,7 +138,7 @@ public class NickManager {
 
     public static boolean isHypixelRankContent(String content) {
         if (content == null || content.isBlank()) return false;
-        String clean = content.replaceAll("§[0-9a-fk-orA-FK-OR]", "").trim().toUpperCase(Locale.ROOT);
+        String clean = ChatNotifier.FORMATTING_PATTERN.matcher(content).replaceAll("").trim().toUpperCase(Locale.ROOT);
         return clean.equals("VIP") || clean.equals("VIP+")
                 || clean.equals("MVP") || clean.equals("MVP+") || clean.equals("MVP++")
                 || clean.equals("ADMIN") || clean.equals("OWNER") || clean.equals("YOUTUBE")

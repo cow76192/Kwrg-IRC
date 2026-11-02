@@ -53,9 +53,7 @@ public class SmoothScrollbar {
         this.lastTrackY = trackY;
         this.lastTrackH = trackH;
 
-        int minThumbH = 20;
-        int maxThumbH = Math.max(minThumbH, trackH - 12);
-        int thumbH = Mth.clamp((int) ((float) trackH / Math.max(1, this.totalContentHeight) * trackH), minThumbH, maxThumbH);
+        int thumbH = (int) ScrollbarDrag.thumbHeight(trackH, this.totalContentHeight + 10, 20);
 
         int availableTravel = trackH - thumbH;
         int thumbY = trackY;

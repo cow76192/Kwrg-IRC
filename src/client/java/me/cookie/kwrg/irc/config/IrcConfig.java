@@ -10,6 +10,7 @@ import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import me.cookie.kwrg.irc.manager.RouteManager;
 import me.cookie.kwrg.irc.manager.WaypointManager;
 import me.cookie.kwrg.util.Navigator;
+import me.cookie.kwrg.util.SafePaths;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -147,7 +148,9 @@ public class IrcConfig {
     }
 
     private static Path getProfilePath(String profileName) {
-        return getKwrgDir().resolve(profileName + ".json");
+        Path kwrgDir = getKwrgDir();
+        Path profilePath = SafePaths.resolveInside(kwrgDir, profileName + ".json");
+        return profilePath != null ? profilePath : kwrgDir.resolve("default.json");
     }
 
     private static String sanitizeProfileName(String name) {

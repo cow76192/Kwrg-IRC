@@ -37,9 +37,15 @@ public class ServerPackManager {
 
         Minecraft mc = Minecraft.getInstance();
         Path kwrgDir = mc.getResourcePackDirectory().resolve("kwrg");
-        String versionHash = (hash == null || hash.isBlank()) ? "default" : hash.toLowerCase();
-        String newPackFileName = "server_" + versionHash + ".zip";
-        Path targetZip = kwrgDir.resolve(newPackFileName);
+        String rawHash = (hash == null || hash.isBlank()) ? "default" : hash.toLowerCase();
+        String safeHash = (rawHash == null || rawHash.isBlank()) ? "default" : SafePaths.sanitizeFileName(rawHash, 120);
+        Path targetZip = SafePaths.resolveUnder(kwrgDir, "server_" + safeHash, ".zip");
+        if (targetZip == null) {
+            LOGGER.error("[Kwrg] 材质包文件名非法，已放弃本次下载: server_{}.zip", safeHash);
+            packetSender.accept(new ServerboundResourcePackPacket(id, ServerboundResourcePackPacket.Action.SUCCESSFULLY_LOADED));
+            return;
+        }
+        String newPackFileName = targetZip.getFileName().toString();
         String expectedPackId = "file/" + newPackFileName;
 
         boolean fileExists = Files.exists(targetZip) && targetZip.toFile().length() > 0;
@@ -58,13 +64,13 @@ public class ServerPackManager {
             return;
         }
 
-        LOGGER.info("[Kwrg] 正在下载服务器新材质包: URL={}, Hash={}", url, versionHash);
+        LOGGER.info("[Kwrg] 正在下载服务器新材质包: URL={}, Hash={}", url, safeHash);
         ChatNotifier.sendInChatScreen("§e[Kwrg] 检测到服务器材质包更新，正在下载...");
 
         CompletableFuture.runAsync(() -> {
             try {
                 Files.createDirectories(kwrgDir);
-                Path tempFile = kwrgDir.resolve("server_" + versionHash + ".zip.tmp");
+                Path tempFile = targetZip.resolveSibling(targetZip.getFileName() + ".tmp");
 
                 HttpRequest request = HttpRequest.newBuilder()
                         .uri(URI.create(url))

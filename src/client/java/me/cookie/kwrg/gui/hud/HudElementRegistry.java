@@ -48,18 +48,13 @@ public final class HudElementRegistry {
 
         // The top status bar and expanded Tab panel share this element and do not support scaling.
         register(new HudElement(ISLAND, "灵动岛", islandDefault, false)
-                .enabled(() -> state(ISLAND).enabled, value -> {
-                    state(ISLAND).enabled = value;
-                    IrcConfig.save();
-                })
+                .enabled(() -> state(ISLAND).enabled, value -> applyEnabled(ISLAND, value))
                 .bounds(DynamicIslandRenderer::getIslandBounds)
-                .preview(DynamicIslandRenderer::setEditorPreview));
+                .preview(DynamicIslandRenderer::setEditorPreview)
+                .configModule("dynamicIsland"));
 
         register(new HudElement(NOTIFICATIONS, "通知堆叠", HudElement.State.bottomRight(16.0f, 20.0f), false)
-                .enabled(() -> state(NOTIFICATIONS).enabled, value -> {
-                    state(NOTIFICATIONS).enabled = value;
-                    IrcConfig.save();
-                })
+                .enabled(() -> state(NOTIFICATIONS).enabled, value -> applyEnabled(NOTIFICATIONS, value))
                 .bounds(NotificationManager::getGroupBounds)
                 .preview(NotificationManager::setEditorPreview));
 
@@ -69,12 +64,10 @@ public final class HudElementRegistry {
         scoreboardDefault.padding = 6;
 
         register(new HudElement(SCOREBOARD, "DynamicScoreboard", scoreboardDefault)
-                .enabled(() -> state(SCOREBOARD).enabled, value -> {
-                    state(SCOREBOARD).enabled = value;
-                    IrcConfig.save();
-                })
+                .enabled(() -> state(SCOREBOARD).enabled, value -> applyEnabled(SCOREBOARD, value))
                 .bounds(ScoreboardIslandRenderer::getIslandBounds)
-                .preview(ScoreboardIslandRenderer::setEditorPreview));
+                .preview(ScoreboardIslandRenderer::setEditorPreview)
+                .configModule("dynamicScoreboard"));
 
         HudElement.State inventoryDefault = new HudElement.State();
         inventoryDefault.anchorX = HudElement.Anchor.LEFT;
@@ -88,12 +81,10 @@ public final class HudElementRegistry {
         register(new HudElement(INVENTORY, "背包显示", inventoryDefault)
                 .followGlobal(() -> IrcConfig.get().inventoryHudFollowGlobal,
                         value -> IrcConfig.get().inventoryHudFollowGlobal = value)
-                .enabled(() -> state(INVENTORY).enabled, value -> {
-                    state(INVENTORY).enabled = value;
-                    IrcConfig.save();
-                })
+                .enabled(() -> state(INVENTORY).enabled, value -> applyEnabled(INVENTORY, value))
                 .bounds(InventoryHudRenderer::getIslandBounds)
-                .preview(InventoryHudRenderer::setEditorPreview));
+                .preview(InventoryHudRenderer::setEditorPreview)
+                .configModule("inventoryHud"));
 
         HudElement.State playerDollDefault = new HudElement.State();
         playerDollDefault.anchorX = HudElement.Anchor.LEFT;
@@ -106,12 +97,10 @@ public final class HudElementRegistry {
         register(new HudElement(PLAYER_DOLL, "玩家模型", playerDollDefault)
                 .followGlobal(() -> IrcConfig.get().playerDollFollowGlobal,
                         value -> IrcConfig.get().playerDollFollowGlobal = value)
-                .enabled(() -> state(PLAYER_DOLL).enabled, value -> {
-                    state(PLAYER_DOLL).enabled = value;
-                    IrcConfig.save();
-                })
+                .enabled(() -> state(PLAYER_DOLL).enabled, value -> applyEnabled(PLAYER_DOLL, value))
                 .bounds(PlayerDollHudRenderer::getDollBounds)
-                .preview(PlayerDollHudRenderer::setEditorPreview));
+                .preview(PlayerDollHudRenderer::setEditorPreview)
+                .configModule("playerDollHud"));
     }
 
     private HudElementRegistry() {
@@ -203,6 +192,11 @@ public final class HudElementRegistry {
         current.offsetX = 0.0f;
         current.offsetY = 0.0f;
         current.scale = defaults.scale;
+    }
+
+    private static void applyEnabled(String id, boolean value) {
+        state(id).enabled = value;
+        IrcConfig.save();
     }
 
     public static void resetAll() {

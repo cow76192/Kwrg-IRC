@@ -163,6 +163,7 @@ public class HudElement {
     private Consumer<Boolean> previewSetter = value -> { };
     private Supplier<Boolean> followGlobalGetter = () -> false;
     private Consumer<Boolean> followGlobalSetter = value -> { };
+    private String configModule;
 
     public HudElement(String id, String displayName, State defaultState) {
         this(id, displayName, defaultState, true);
@@ -197,6 +198,11 @@ public class HudElement {
         return this;
     }
 
+    public HudElement configModule(String module) {
+        this.configModule = module;
+        return this;
+    }
+
     public boolean followsGlobal() {
         return followGlobalGetter.get();
     }
@@ -219,6 +225,10 @@ public class HudElement {
 
     public boolean supportsScale() {
         return supportsScale;
+    }
+
+    public String configModule() {
+        return configModule;
     }
 
     public boolean isEnabled() {

@@ -357,23 +357,11 @@ public class SlotInputPaneComponent extends BasePaneComponent {
             graphics.pose().popMatrix();
         }
 
-        float slotLineWidth = this.slotCount == 1 ? (this.decimalPrecision > 0 ? 38.0f : 32.0f) : (this.decimalPrecision > 0 ? 30.0f : 26.0f);
-        float slotGap = 8.0f;
-        float rightEdge = halfW - 8.0f;
-
-        float[] slotOccupiedW = new float[this.slotCount];
-        float totalSlotsW = 0.0f;
-        for (int i = 0; i < this.slotCount; i++) {
-            float suffixW = (this.styledSlotSuffixes[i] != null && !this.slotSuffixes[i].isEmpty())
-                    ? (font.width(this.styledSlotSuffixes[i]) * textScale + 2.0f) : 0.0f;
-            slotOccupiedW[i] = slotLineWidth + suffixW;
-            totalSlotsW += slotOccupiedW[i];
-        }
-        if (this.slotCount > 1) {
-            totalSlotsW += slotGap * (this.slotCount - 1);
-        }
-
-        float startX = rightEdge - totalSlotsW;
+        SlotLayout layout = this.slotLayout(font, textScale, halfW - 8.0f);
+        float slotLineWidth = layout.lineWidth();
+        float slotGap = layout.gap();
+        float[] slotOccupiedW = layout.occupiedWidths();
+        float startX = layout.startX();
         boolean blink = (System.currentTimeMillis() - this.lastActionTime < 300) || (System.currentTimeMillis() % 1000 < 500);
 
         if (this.leftEditable) {
@@ -486,6 +474,27 @@ public class SlotInputPaneComponent extends BasePaneComponent {
         }
     }
 
+    private record SlotLayout(float lineWidth, float gap, float startX, float[] occupiedWidths) {}
+
+    private SlotLayout slotLayout(Font font, float textScale, float rightEdge) {
+        float slotLineWidth = this.slotCount == 1 ? (this.decimalPrecision > 0 ? 38.0f : 32.0f) : (this.decimalPrecision > 0 ? 30.0f : 26.0f);
+        float slotGap = 8.0f;
+
+        float[] slotOccupiedW = new float[this.slotCount];
+        float totalSlotsW = 0.0f;
+        for (int i = 0; i < this.slotCount; i++) {
+            float suffixW = (this.styledSlotSuffixes[i] != null && !this.slotSuffixes[i].isEmpty())
+                    ? (font.width(this.styledSlotSuffixes[i]) * textScale + 2.0f) : 0.0f;
+            slotOccupiedW[i] = slotLineWidth + suffixW;
+            totalSlotsW += slotOccupiedW[i];
+        }
+        if (this.slotCount > 1) {
+            totalSlotsW += slotGap * (this.slotCount - 1);
+        }
+
+        return new SlotLayout(slotLineWidth, slotGap, rightEdge - totalSlotsW, slotOccupiedW);
+    }
+
     @Override
     public boolean onMouseDrag(MouseButtonEvent click, double deltaX, double deltaY) {
         if (click.button() == 0 && this.activeSlot >= 0 && this.activeSlot < this.slotCount) {
@@ -588,23 +597,11 @@ public class SlotInputPaneComponent extends BasePaneComponent {
             double localX = click.x() >= this.x() ? (click.x() - this.x()) : click.x();
 
             var font = Minecraft.getInstance().font;
-            float textScale = DEFAULT_TEXT_SCALE;
-            float slotLineWidth = this.slotCount == 1 ? (this.decimalPrecision > 0 ? 38.0f : 32.0f) : (this.decimalPrecision > 0 ? 30.0f : 26.0f);
-            float slotGap = 8.0f;
-            float rightEdge = this.width() - 8.0f;
-
-            float[] slotOccupiedW = new float[this.slotCount];
-            float totalSlotsW = 0.0f;
-            for (int i = 0; i < this.slotCount; i++) {
-                float suffixW = (this.styledSlotSuffixes[i] != null && !this.slotSuffixes[i].isEmpty())
-                        ? (font.width(this.styledSlotSuffixes[i]) * textScale + 2.0f) : 0.0f;
-                slotOccupiedW[i] = slotLineWidth + suffixW;
-                totalSlotsW += slotOccupiedW[i];
-            }
-            if (this.slotCount > 1) {
-                totalSlotsW += slotGap * (this.slotCount - 1);
-            }
-            float startX = rightEdge - totalSlotsW;
+            SlotLayout layout = this.slotLayout(font, DEFAULT_TEXT_SCALE, this.width() - 8.0f);
+            float slotLineWidth = layout.lineWidth();
+            float slotGap = layout.gap();
+            float[] slotOccupiedW = layout.occupiedWidths();
+            float startX = layout.startX();
 
             if (this.leftEditable && localX < startX - 4.0f) {
                 this.leftFocused = true;

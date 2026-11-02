@@ -35,11 +35,10 @@ public class InventoryHudModule extends Module {
 
     @Override
     public void onExecute() {
-        HudElement.State state = HudElementRegistry.state(HudElementRegistry.INVENTORY);
-        state.enabled = !state.enabled;
-        IrcConfig.saveDelayed(400L);
+        boolean enabled = !HudElementRegistry.isEnabled(HudElementRegistry.INVENTORY);
+        HudElementRegistry.get(HudElementRegistry.INVENTORY).setEnabled(enabled);
 
-        if (state.enabled) {
+        if (enabled) {
             ChatNotifier.send("§a[HUD] 背包显示已开启", NotificationType.SUCCESS);
         } else {
             ChatNotifier.send("§e[HUD] 背包显示已关闭", NotificationType.INFO);
@@ -78,13 +77,9 @@ public class InventoryHudModule extends Module {
                 .step(0.01f)
                 .getter(() -> IrcConfig.get().inventoryHudOpacity)
                 .setter(val -> {
-                    IrcConfig config = IrcConfig.get();
-                    config.inventoryHudOpacity = val;
+                    IrcConfig.get().inventoryHudOpacity = val;
                     HudElementRegistry.state(HudElementRegistry.INVENTORY).opacity = val;
-                    if (config.inventoryHudFollowGlobal) {
-                        config.inventoryHudFollowGlobal = false;
-                        followGlobalToggle.setToggled(false);
-                    }
+                    clearFollowGlobal(followGlobalToggle);
                 })
                 .formatter(val -> Math.round(val * 100.0f) + "%");
         panel.child(opacitySlider);
@@ -95,12 +90,8 @@ public class InventoryHudModule extends Module {
                 .step(0.01f)
                 .getter(() -> IrcConfig.get().inventoryHudSlotOpacity)
                 .setter(val -> {
-                    IrcConfig config = IrcConfig.get();
-                    config.inventoryHudSlotOpacity = val;
-                    if (config.inventoryHudFollowGlobal) {
-                        config.inventoryHudFollowGlobal = false;
-                        followGlobalToggle.setToggled(false);
-                    }
+                    IrcConfig.get().inventoryHudSlotOpacity = val;
+                    clearFollowGlobal(followGlobalToggle);
                 })
                 .formatter(val -> Math.round(val * 100.0f) + "%");
         panel.child(slotOpacitySlider);
@@ -117,11 +108,7 @@ public class InventoryHudModule extends Module {
                     state.scale = val;
                     state.sanitize();
 
-                    IrcConfig config = IrcConfig.get();
-                    if (config.inventoryHudFollowGlobal) {
-                        config.inventoryHudFollowGlobal = false;
-                        followGlobalToggle.setToggled(false);
-                    }
+                    clearFollowGlobal(followGlobalToggle);
                 })
                 .formatter(val -> String.format("%.2fx", val));
 
@@ -131,10 +118,7 @@ public class InventoryHudModule extends Module {
                 () -> HudElementRegistry.state(HudElementRegistry.INVENTORY).padding,
                 val -> {
                     HudElementRegistry.state(HudElementRegistry.INVENTORY).padding = val;
-                    if (IrcConfig.get().inventoryHudFollowGlobal) {
-                        IrcConfig.get().inventoryHudFollowGlobal = false;
-                        followGlobalToggle.setToggled(false);
-                    }
+                    clearFollowGlobal(followGlobalToggle);
                 },
                 val -> val + " px"
         );
@@ -239,5 +223,11 @@ public class InventoryHudModule extends Module {
                 },
                 null
         ));
+    }
+
+    private static void clearFollowGlobal(PanelItemComponent followGlobalToggle) {
+        if (!IrcConfig.get().inventoryHudFollowGlobal) return;
+        HudElementRegistry.get(HudElementRegistry.INVENTORY).setFollowGlobal(false);
+        followGlobalToggle.setToggled(false);
     }
 }

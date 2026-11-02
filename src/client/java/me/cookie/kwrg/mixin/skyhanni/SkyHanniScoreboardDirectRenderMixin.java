@@ -36,7 +36,7 @@ public abstract class SkyHanniScoreboardDirectRenderMixin {
     @Unique private static Object kwrg$dcuInstance;
     @Unique private static Method kwrg$dcuGetContextMethod;
 
-    @Inject(method = "onGuiRenderOverlay", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "onGuiRenderOverlay", at = @At("HEAD"), cancellable = true, require = 0)
     private void kwrg$onDirectRenderOverlay(CallbackInfo ci) {
         if (!ScoreboardIslandRenderer.isEnabled()) return;
 

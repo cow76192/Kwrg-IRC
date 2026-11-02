@@ -17,6 +17,7 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 public class ImportantPlayerModule extends Module {
 
@@ -125,6 +126,15 @@ public class ImportantPlayerModule extends Module {
     }
 
     private static void toggleImportantWithGui(String player) {
+        applyImportantToggle(player, message -> ChatNotifier.send(message, NotificationType.INFO));
+    }
+
+    public static int toggleImportant(String player) {
+        applyImportantToggle(player, ChatNotifier::sendInChatScreen);
+        return 1;
+    }
+
+    private static void applyImportantToggle(String player, Consumer<String> feedback) {
         IrcConfig config = IrcConfig.get();
         if (config.importantPlayers == null) config.importantPlayers = new ArrayList<>();
 
@@ -133,32 +143,14 @@ public class ImportantPlayerModule extends Module {
             IrcConfig.save();
             PlayerFinderManager.onImportantPlayerChanged(player, false);
             IrcClient.sendImportantPlayersSync();
-            ChatNotifier.send("§e[IRC] 已将玩家 §f" + player + " §e从关注名单中移除。", NotificationType.INFO);
+            feedback.accept("§e[IRC] 已将玩家 §f" + player + " §e从关注名单中移除。");
         } else {
             config.importantPlayers.add(player);
             IrcConfig.save();
             PlayerFinderManager.onImportantPlayerChanged(player, true);
             IrcClient.sendImportantPlayersSync();
-            ChatNotifier.send("§a[IRC] 已将玩家 §f" + player + " §a添加到关注名单!", NotificationType.INFO);
+            feedback.accept("§a[IRC] 已将玩家 §f" + player + " §a添加到关注名单!");
         }
-    }
-
-    public static int toggleImportant(String player) {
-        IrcConfig config = IrcConfig.get();
-        boolean removed = config.importantPlayers.removeIf(p -> p.equalsIgnoreCase(player));
-        if (removed) {
-            IrcConfig.save();
-            PlayerFinderManager.onImportantPlayerChanged(player, false);
-            IrcClient.sendImportantPlayersSync();
-            ChatNotifier.sendInChatScreen("§e[IRC] 已将玩家 §f" + player + " §e从关注名单中移除。");
-        } else {
-            config.importantPlayers.add(player);
-            IrcConfig.save();
-            PlayerFinderManager.onImportantPlayerChanged(player, true);
-            IrcClient.sendImportantPlayersSync();
-            ChatNotifier.sendInChatScreen("§a[IRC] 已将玩家 §f" + player + " §a添加到关注名单!");
-        }
-        return 1;
     }
 
     public static int listImportant() {

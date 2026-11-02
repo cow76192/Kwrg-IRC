@@ -110,8 +110,6 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
             public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
                 graphics.disableScissor();
                 super.draw(graphics, mouseX, mouseY, partialTicks, delta);
-                var window = Minecraft.getInstance().getWindow();
-                graphics.enableScissor(0, 0, window.getGuiScaledWidth(), window.getGuiScaledHeight());
             }
         });
     }
@@ -247,6 +245,16 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
         double cy = this.height / 2.0;
         return cy + (screenY - cy) / scale;
+    }
+
+    public float toScreenX(float virtualX) {
+        float cx = this.width / 2.0f;
+        return cx + (virtualX - cx) * getAnimatedScale();
+    }
+
+    public float toScreenY(float virtualY) {
+        float cy = this.height / 2.0f;
+        return cy + (virtualY - cy) * getAnimatedScale();
     }
 
     @Override

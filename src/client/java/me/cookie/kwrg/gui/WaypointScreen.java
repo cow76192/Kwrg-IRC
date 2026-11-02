@@ -25,7 +25,7 @@ public final class WaypointScreen extends PointCollectionScreen {
             float cx = host.width / 2f, cy = host.height / 2f;
             float x = source == null ? cx : source.x() + source.width() / 2f;
             float y = source == null ? cy : source.y() + source.height() / 2f;
-            host.openWaypointOverlay(cx + (x - cx) * host.getAnimatedScale(), cy + (y - cy) * host.getAnimatedScale(), source);
+            host.openWaypointOverlay(host.toScreenX(x), host.toScreenY(y), source);
         });
     }
 }

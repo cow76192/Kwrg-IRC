@@ -56,7 +56,6 @@ public final class ChatWaypointManager {
     private static final Pattern BARE_PATTERN = Pattern.compile(
             "(?<![\\d.\\-])(" + NUMBER + ")\\s+(" + NUMBER + ")\\s+(" + NUMBER + ")(?![\\d.])"
     );
-    private static final Pattern FORMATTING_PATTERN = Pattern.compile("§[0-9a-fk-orA-FK-OR]");
     private static final Pattern UNSAFE_PATTERN = Pattern.compile("[^A-Za-z0-9_\\[\\]+ ]");
 
     private static final GizmoStyle BLOCK_STYLE = GizmoStyle.strokeAndFill(0xFF1E2836, 1.0f, 0x8011161F);
@@ -84,7 +83,7 @@ public final class ChatWaypointManager {
     private static int[] parse(String message) {
         if (message == null || message.isEmpty()) return null;
 
-        String text = FORMATTING_PATTERN.matcher(message).replaceAll("");
+        String text = ChatNotifier.FORMATTING_PATTERN.matcher(message).replaceAll("");
         if (text.length() > MAX_MESSAGE_LENGTH) return null;
 
         Matcher matcher = LABELED_PATTERN.matcher(text);
@@ -128,7 +127,7 @@ public final class ChatWaypointManager {
         String formatted = IrcMessageHandler.formatRankWithBrackets(rank);
         String raw = username == null ? "" : username;
         String name = formatted.isEmpty() ? raw : formatted + " " + raw;
-        String clean = UNSAFE_PATTERN.matcher(FORMATTING_PATTERN.matcher(name).replaceAll("")).replaceAll("").trim();
+        String clean = UNSAFE_PATTERN.matcher(ChatNotifier.FORMATTING_PATTERN.matcher(name).replaceAll("")).replaceAll("").trim();
         if (clean.isEmpty()) return "Unknown";
         return clean.length() > WaypointManager.MAX_NAME_LENGTH ? clean.substring(0, WaypointManager.MAX_NAME_LENGTH) : clean;
     }

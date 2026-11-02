@@ -7,6 +7,7 @@ import com.mojang.blaze3d.textures.GpuSampler;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.mixin.accessor.NativeImageAccessor;
+import me.cookie.kwrg.util.SafePaths;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
@@ -140,7 +141,8 @@ public class PlayerCustomizationManager {
     public static void requestCapePreview(String fileName) {
         if (fileName == null || fileName.isBlank()) return;
 
-        Path file = getCapeDir().resolve(fileName);
+        Path file = resolveCapeFile(fileName);
+        if (file == null) return;
         long modified;
         try {
             modified = Files.getLastModifiedTime(file).toMillis();
@@ -283,6 +285,19 @@ public class PlayerCustomizationManager {
     public static boolean isLocalRenderState(Object state) { return state != null && state == localRenderState; }
 
     public static Path getCapeDir() { return IrcConfig.getKwrgDir().resolve("capes"); }
+
+    private static Path resolveCapeFile(String value) {
+        if (value == null || value.isBlank()) return null;
+        Path base = getCapeDir();
+        String name = value;
+        int slash = name.lastIndexOf('/');
+        if (slash >= 0) {
+            if (!"cache".equals(name.substring(0, slash))) return null;
+            base = base.resolve("cache");
+            name = name.substring(slash + 1);
+        }
+        return SafePaths.resolveInside(base, name);
+    }
 
     public static List<String> getAvailableCapes() {
         Path dir = getCapeDir();
@@ -501,8 +516,8 @@ public class PlayerCustomizationManager {
             List<NativeImage> frames = new ArrayList<>();
             NativeImage activeImage = null;
             try {
-                Path file = getCapeDir().resolve(value);
-                if (!Files.exists(file) || token != CURRENT_LOAD_TOKEN.get()) {
+                Path file = resolveCapeFile(value);
+                if (file == null || !Files.exists(file) || token != CURRENT_LOAD_TOKEN.get()) {
                     cleanupLoading(token);
                     return;
                 }

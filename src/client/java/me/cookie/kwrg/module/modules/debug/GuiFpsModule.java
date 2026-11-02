@@ -49,7 +49,6 @@ public class GuiFpsModule extends Module {
         panel.child(new TextInputPaneComponent("", null)
                 .asButton("120 FPS", () -> {
                     saveConfig(120);
-                    IrcConfig.save();
                     NotificationManager.send("GUI FPS 限制已设为 120");
                 }));
 
@@ -64,7 +63,7 @@ public class GuiFpsModule extends Module {
                 int customFps = Integer.parseInt(input.trim());
                 if (customFps < 0) customFps = 0;
                 if (customFps > 1000) customFps = 1000;
-                config.guiFpsLimit = customFps;
+                saveConfig(customFps);
                 NotificationManager.send("GUI FPS 限制已更新为: " + (customFps == 0 ? "无限制" : customFps + " FPS"));
             } catch (NumberFormatException e) {
                 NotificationManager.send("§c请输入合法的整数数字！");

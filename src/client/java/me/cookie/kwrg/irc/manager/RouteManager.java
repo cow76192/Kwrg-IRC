@@ -349,20 +349,27 @@ public final class RouteManager {
 
     public static void setEntryVisible(int index, boolean value) {
         if (index < 0 || index >= ENTRIES.size()) return;
-        ENTRIES.get(index).visible = value;
-        saveCurrent();
+        Entry entry = ENTRIES.get(index);
+        boolean previous = entry.visible;
+        entry.visible = value;
+        if (saveCurrent()) return;
+        entry.visible = previous;
     }
 
     public static void setVisible(boolean value) {
         if (currentFile == null) return;
+        boolean previous = visible;
         visible = value;
-        saveCurrent();
+        if (saveCurrent()) return;
+        visible = previous;
     }
 
     public static void setShowLine(boolean value) {
         if (currentFile == null) return;
+        boolean previous = showLine;
         showLine = value;
-        saveCurrent();
+        if (saveCurrent()) return;
+        showLine = previous;
     }
 
     public static boolean importFile(Path path) {
@@ -497,12 +504,20 @@ public final class RouteManager {
     public static boolean update(int index, String name, String x, String y, String z) {
         if (index < 0 || index >= ENTRIES.size()) return false;
         Entry entry = ENTRIES.get(index);
+        String previousName = entry.name;
+        String previousX = entry.x;
+        String previousY = entry.y;
+        String previousZ = entry.z;
         entry.name = name != null ? name : "";
         entry.x = x != null ? x : "";
         entry.y = y != null ? y : "";
         entry.z = z != null ? z : "";
-        saveCurrent();
-        return true;
+        if (saveCurrent()) return true;
+        entry.name = previousName;
+        entry.x = previousX;
+        entry.y = previousY;
+        entry.z = previousZ;
+        return false;
     }
 
     public static boolean deleteAt(int index) {
@@ -597,19 +612,6 @@ public final class RouteManager {
             cursor = end + 1;
         }
         return result;
-    }
-
-    private static String formatTxt() {
-        StringBuilder builder = new StringBuilder("{");
-        for (Entry entry : ENTRIES) {
-            builder.append('[')
-                    .append(field(entry.name)).append(',')
-                    .append(field(entry.x)).append(',')
-                    .append(field(entry.y)).append(',')
-                    .append(field(entry.z)).append(']');
-        }
-        builder.append('}');
-        return builder.toString();
     }
 
     private static List<Entry> parseJson(String text) {
@@ -818,10 +820,6 @@ public final class RouteManager {
 
     private static String value(String text) {
         return text == null || text.isBlank() ? "?" : text;
-    }
-
-    private static String field(String text) {
-        return text == null ? "" : text.replace(",", " ").replace("[", "").replace("]", "").trim();
     }
 
     public static final class Entry extends PointEntry {

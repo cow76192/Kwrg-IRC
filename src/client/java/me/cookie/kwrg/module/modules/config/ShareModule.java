@@ -438,6 +438,12 @@ public class ShareModule extends Module {
                         }
                     }
 
+                    String nameError = LoadModule.validateProfileName(name);
+                    if (nameError != null) {
+                        ChatNotifier.send("§c[Share] " + nameError, NotificationType.ERR);
+                        return;
+                    }
+
                     IrcConfig.getKwrgDir().toFile().mkdirs();
                     Files.writeString(IrcConfig.getKwrgDir().resolve(name + ".json"), GSON.toJson(imported));
                     IrcConfig.loadProfile(name, false);

@@ -67,33 +67,12 @@ public class DynamicIslandRenderer {
     }
 
     /**
-     * 添加自定义消息
-     */
-    public static void addCustomNotice(String key, String text) {
-        setCustomNotice(key, text);
-    }
-
-    /**
      * 根据 key 移除指定的自定义消息
      */
     public static void removeCustomNotice(String key) {
         if (key != null) {
             CUSTOM_NOTICES.remove(key);
         }
-    }
-
-    public static void clearCustomNotices() {
-        CUSTOM_NOTICES.clear();
-    }
-
-    public static Map<String, String> getCustomNotices() {
-        synchronized (CUSTOM_NOTICES) {
-            return Collections.unmodifiableMap(new LinkedHashMap<>(CUSTOM_NOTICES));
-        }
-    }
-
-    public static boolean hasCustomNotice(String key) {
-        return key != null && CUSTOM_NOTICES.containsKey(key);
     }
 
     private static class IslandNoticeEntry {
@@ -183,8 +162,6 @@ public class DynamicIslandRenderer {
     private static float tabTargetShiftY = 0.0f;
     private static boolean editorPreview = false;
 
-    public static GuiGraphicsExtractor getCurrentExtractor() { return currentFrameExtractor; }
-
     public static float resolveIslandCenterX(float width) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.getWindow() == null) return width / 2.0f;
@@ -272,11 +249,6 @@ public class DynamicIslandRenderer {
         editorPreview = enabled;
     }
 
-    public static float easeOutQuint(float progress) {
-        float p = Mth.clamp(progress, 0.0f, 1.0f);
-        return 1.0f - (float) Math.pow(1.0f - p, 5.0f);
-    }
-
     private static void updateAlphaAnimation(float target, float dt) {
         if (Math.abs(target - targetAlpha) > 0.001f) {
             startAlpha = currentAlpha;
@@ -286,7 +258,7 @@ public class DynamicIslandRenderer {
 
         if (alphaAnimTimer < 1.0f) {
             alphaAnimTimer = Math.min(1.0f, alphaAnimTimer + dt / ALPHA_ANIM_DURATION);
-            float ease = easeOutQuint(alphaAnimTimer);
+            float ease = AnimationUtil.easeOutQuint(alphaAnimTimer);
             currentAlpha = Mth.lerp(ease, startAlpha, targetAlpha);
         } else {
             currentAlpha = targetAlpha;
@@ -295,18 +267,6 @@ public class DynamicIslandRenderer {
 
     public static boolean isShadowEnabled() {
         return HudElementRegistry.state(HudElementRegistry.ISLAND).shadow;
-    }
-
-    public static float getShadowBlur() {
-        return shadowBlur;
-    }
-
-    public static float getShadowOffsetY() {
-        return shadowOffsetY;
-    }
-
-    public static int getShadowBaseAlpha() {
-        return shadowBaseAlpha;
     }
 
     public static void setSkyHanniInstance(Object instance) {
@@ -753,7 +713,6 @@ public class DynamicIslandRenderer {
         if (now - lastIslandThrottleTime >= minIntervalMs) {
             lastIslandThrottleTime = now;
             updateAnimationState();
-            HardwareMetricsTracker.onRenderFrame(mc);
         }
 
         OwoUIGraphics graphics = OwoUIGraphics.of(extractor);
@@ -762,20 +721,6 @@ public class DynamicIslandRenderer {
         float dt = (nowTime - lastFrameTime) / 1000.0f;
         lastFrameTime = nowTime;
         dt = Mth.clamp(dt, 0.001f, 0.15f);
-
-        if (tabWidthTimer < 1.0f) {
-            tabWidthTimer = Math.min(1.0f, tabWidthTimer + dt / 0.35f);
-            smoothTabW = Mth.lerp(AnimationUtil.easeSmoothDecel(tabWidthTimer), startTabW, targetTabW);
-        } else {
-            smoothTabW = targetTabW;
-        }
-
-        if (tabHeightTimer < 1.0f) {
-            tabHeightTimer = Math.min(1.0f, tabHeightTimer + dt / 0.35f);
-            smoothTabH = Mth.lerp(AnimationUtil.easeSmoothDecel(tabHeightTimer), startTabH, targetTabH);
-        } else {
-            smoothTabH = targetTabH;
-        }
 
         float tabEase = currentTabEase;
         boolean shouldShow = shouldIslandShow(config);
@@ -892,8 +837,6 @@ public class DynamicIslandRenderer {
         float expandRatio = targetIslandHeight > BASE_HEIGHT
                 ? Mth.clamp(extraHeight / (targetIslandHeight - BASE_HEIGHT), 0.0f, 1.0f)
                 : (extraHeight > 0.0f ? Mth.clamp(extraHeight / EXTRA_ROW_HEIGHT, 0.0f, 1.0f) : 0.0f);
-
-        updateRenderRect(tabEase, dt, config);
 
         float cx = curRenderX + curRenderW / 2.0f;
         boolean islandPillVisible = tabProgress <= 0.005f && (DynamicIslandRenderer.isEnabled() || editorPreview);

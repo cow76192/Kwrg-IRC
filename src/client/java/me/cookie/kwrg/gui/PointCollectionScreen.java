@@ -28,6 +28,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import org.lwjgl.glfw.GLFW;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -239,7 +240,7 @@ public abstract class PointCollectionScreen {
                 row = new FileRow(path);
             }
 
-            row.options = store.fileOptions(path);
+            row.options = row.refreshOptions();
             if (store.externalFile(path)) {
                 row.externalAction = store.externalActionLabel(path);
             }
@@ -612,6 +613,31 @@ public abstract class PointCollectionScreen {
         graphics.pose().popMatrix();
     }
 
+    private record DialogMorph(float x, float y, float width, float height) {}
+
+    private static DialogMorph morphFrom(float progress, RouteButtonComponent.Bounds origin, int x, int y, int width, int height) {
+        return new DialogMorph(
+                AnimationUtil.lerp(progress, origin.x(), x),
+                AnimationUtil.lerp(progress, origin.y(), y),
+                AnimationUtil.lerp(progress, origin.width(), width),
+                AnimationUtil.lerp(progress, origin.height(), height));
+    }
+
+    private static void pushMorphMatrix(GuiGraphicsExtractor graphics, DialogMorph morph, int x, int y, int width, int height) {
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(morph.x(), morph.y());
+        graphics.pose().scale(morph.width() / width, morph.height() / height);
+        graphics.pose().translate(-x, -y);
+    }
+
+    private static float dialogLabelAlpha(float progress) {
+        return 1 - Mth.clamp(progress * 4, 0, 1);
+    }
+
+    private static float dialogContentAlpha(float progress) {
+        return Mth.clamp((progress - 0.2f) / 0.8f, 0, 1);
+    }
+
     private void renderSaveRecovery(OwoUIGraphics graphics, int mouseX, int mouseY) {
         int width = Math.min(430, panelW - 24), height = 142;
         int x = panelX + (panelW - width) / 2, y = panelY + (panelH - height) / 2;
@@ -622,15 +648,11 @@ public abstract class PointCollectionScreen {
         continueEditingButton.bounds(x + 36 + buttonW * 2, y + 102, buttonW, 26);
 
         float progress = AnimationUtil.easeOutCubic((System.currentTimeMillis() - saveFailureAt) / (float) ANIMATION_MS);
-        var origin = (pageTarget > 0 ? backButton : closeButton).bounds();
-        float currentX = AnimationUtil.lerp(progress, origin.x(), x), currentY = AnimationUtil.lerp(progress, origin.y(), y);
-        float currentW = AnimationUtil.lerp(progress, origin.width(), width), currentH = AnimationUtil.lerp(progress, origin.height(), height);
+        DialogMorph morph = morphFrom(progress, (pageTarget > 0 ? backButton : closeButton).bounds(), x, y, width, height);
+        float currentX = morph.x(), currentY = morph.y(), currentW = morph.width(), currentH = morph.height();
 
         RenderUtil.drawSubpixelRoundedPanel(graphics, currentX, currentY, currentW, currentH, 8, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.dialogBg())), AnimationUtil.withAlpha(GuiThemeService.dialogErrorBorder(), 0xAA));
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(currentX, currentY);
-        graphics.pose().scale(currentW / width, currentH / height);
-        graphics.pose().translate(-x, -y);
+        pushMorphMatrix(graphics, morph, x, y, width, height);
         graphics = RenderUtil.withOpacity(graphics, progress);
 
         RenderUtil.drawSmoothText(graphics, "修改尚未保存", x + 16, y + 16, AnimationUtil.opaqueArgb(GuiThemeService.warning()));
@@ -1347,16 +1369,14 @@ public abstract class PointCollectionScreen {
 
         float progress = namingProgress();
 
-        float currentX = AnimationUtil.lerp(progress, namingOrigin.x(), x);
-        float currentY = AnimationUtil.lerp(progress, namingOrigin.y(), y);
-        float currentW = AnimationUtil.lerp(progress, namingOrigin.width(), dialogW);
-        float currentH = AnimationUtil.lerp(progress, namingOrigin.height(), 152);
+        DialogMorph morph = morphFrom(progress, namingOrigin, x, y, dialogW, 152);
+        float currentX = morph.x(), currentY = morph.y(), currentW = morph.width(), currentH = morph.height();
         RenderUtil.drawSubpixelRoundedPanel(owo, currentX, currentY, currentW, currentH,
                 AnimationUtil.lerp(progress, 5, 10),
                 AnimationUtil.lerpColor(progress, namingOriginColor, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.dialogBg()))),
                 AnimationUtil.withAlpha(GuiThemeService.regionBorder(), 0x88));
 
-        float labelAlpha = 1 - Mth.clamp(progress * 4, 0, 1);
+        float labelAlpha = dialogLabelAlpha(progress);
 
         if (labelAlpha > 0.005f) {
             RenderUtil.drawCenteredSmoothText(RenderUtil.withOpacity(owo, labelAlpha),
@@ -1364,15 +1384,12 @@ public abstract class PointCollectionScreen {
                     currentX + currentW / 2, currentY + currentH / 2, 0.80f, AnimationUtil.opaqueArgb(GuiThemeService.routeBody()));
         }
 
-        float contentAlpha = Mth.clamp((progress - 0.2f) / 0.8f, 0, 1);
+        float contentAlpha = dialogContentAlpha(progress);
         if (contentAlpha <= 0.005f) {
             return;
         }
 
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(currentX, currentY);
-        graphics.pose().scale(currentW / dialogW, currentH / 152);
-        graphics.pose().translate(-x, -y);
+        pushMorphMatrix(graphics, morph, x, y, dialogW, 152);
         graphics.enableScissor(x, y, x + dialogW, y + 152);
 
         OwoUIGraphics content = RenderUtil.withOpacity(owo, contentAlpha);
@@ -1397,30 +1414,25 @@ public abstract class PointCollectionScreen {
 
         float progress = deleteProgress();
 
-        float currentX = AnimationUtil.lerp(progress, deleteOrigin.x(), x);
-        float currentY = AnimationUtil.lerp(progress, deleteOrigin.y(), y);
-        float currentW = AnimationUtil.lerp(progress, deleteOrigin.width(), dialogW);
-        float currentH = AnimationUtil.lerp(progress, deleteOrigin.height(), 112);
+        DialogMorph morph = morphFrom(progress, deleteOrigin, x, y, dialogW, 112);
+        float currentX = morph.x(), currentY = morph.y(), currentW = morph.width(), currentH = morph.height();
 
         RenderUtil.drawSubpixelRoundedPanel(graphics, currentX, currentY, currentW, currentH,
                 AnimationUtil.lerp(progress, 5, 10),
                 AnimationUtil.lerpColor(progress, deleteOriginColor, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.dialogBg()))), AnimationUtil.withAlpha(GuiThemeService.dialogErrorBorder(), 0xAA));
-        float labelAlpha = 1 - Mth.clamp(progress * 4, 0, 1);
+        float labelAlpha = dialogLabelAlpha(progress);
 
         if (labelAlpha > 0.005f) {
             RenderUtil.drawCenteredSmoothText(RenderUtil.withOpacity(graphics, labelAlpha),
                     Component.literal("×"), currentX + currentW / 2, currentY + currentH / 2, 0.80f, AnimationUtil.opaqueArgb(GuiThemeService.routeBody()));
         }
 
-        float contentAlpha = Mth.clamp((progress - 0.2f) / 0.8f, 0, 1);
+        float contentAlpha = dialogContentAlpha(progress);
         if (contentAlpha <= 0.005f) {
             return;
         }
 
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(currentX, currentY);
-        graphics.pose().scale(currentW / dialogW, currentH / 112);
-        graphics.pose().translate(-x, -y);
+        pushMorphMatrix(graphics, morph, x, y, dialogW, 112);
         graphics.enableScissor(x, y, x + dialogW, y + 112);
 
         OwoUIGraphics content = RenderUtil.withOpacity(graphics, contentAlpha);
@@ -1506,6 +1518,8 @@ public abstract class PointCollectionScreen {
     private final class FileRow {
         private final Path path;
         private PointCollectionStore.FileOptions options;
+        private long optionsModified = Long.MIN_VALUE;
+        private long optionsSize = -1L;
 
         private final RouteButtonComponent surface = new RouteButtonComponent();
         private final RouteButtonComponent visible = new RouteButtonComponent();
@@ -1521,6 +1535,28 @@ public abstract class PointCollectionScreen {
         private FileRow(Path path) {
             this.path = path;
             this.options = store.fileOptions(path);
+        }
+
+        private PointCollectionStore.FileOptions refreshOptions() {
+            long modified;
+            long size;
+
+            try {
+                modified = Files.getLastModifiedTime(path).toMillis();
+                size = Files.size(path);
+            } catch (IOException e) {
+                optionsModified = Long.MIN_VALUE;
+                optionsSize = -1L;
+                return store.fileOptions(path);
+            }
+
+            if (options != null && optionsModified == modified && optionsSize == size) {
+                return options;
+            }
+
+            optionsModified = modified;
+            optionsSize = size;
+            return store.fileOptions(path);
         }
 
         private void layout(int x, int y, int width) {

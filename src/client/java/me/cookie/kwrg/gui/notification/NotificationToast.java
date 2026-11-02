@@ -2,6 +2,7 @@ package me.cookie.kwrg.gui.notification;
 
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
+import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
@@ -215,7 +216,7 @@ public class NotificationToast {
         RenderUtil.drawRoundedPanel(graphics, -halfW, -halfH, cardWidth, cardHeight, 8.0f, bgColor, borderColor);
 
         int iconBadgeCX = -halfW + 14;
-        Color badgeBg = AnimationUtil.withAlpha(0x1D2633, (int) (255 * alpha));
+        Color badgeBg = AnimationUtil.withAlpha(GuiThemeService.badgeBg(), (int) (255 * alpha));
         graphics.drawCircle(iconBadgeCX, 0, 16, 7.5, badgeBg);
         graphics.drawRing(iconBadgeCX, 0, 16, 6.5, 7.5, borderColor, borderColor);
 

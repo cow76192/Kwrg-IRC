@@ -233,14 +233,6 @@ public class HudEditorScreen extends Screen {
         RenderUtil.drawFluidSubpixelText(owo, Component.literal("点击选中 · 拖动移动 · 滚轮缩放"), left + 10, listBottom + 3, 0xFF78909C);
     }
 
-    private float applyEase(float current, float target) {
-        if (target >= 1.0f) {
-            return (float) AnimationUtil.easeOutCubic(current);
-        } else {
-            return 1.0f - (float) AnimationUtil.easeOutCubic(1.0f - current);
-        }
-    }
-
     private void drawHints(OwoUIGraphics owo) {
         int barTop = this.height - HINT_BAR_HEIGHT;
         owo.fill(0, barTop, this.width, this.height, 0xB40A0E14);
@@ -372,16 +364,6 @@ public class HudEditorScreen extends Screen {
         return null;
     }
 
-    private static String configModuleFor(String elementId) {
-        return switch (elementId) {
-            case HudElementRegistry.ISLAND -> "dynamicIsland";
-            case HudElementRegistry.SCOREBOARD -> "dynamicScoreboard";
-            case HudElementRegistry.INVENTORY -> "inventoryHud";
-            case HudElementRegistry.PLAYER_DOLL -> "playerDollHud";
-            default -> null;
-        };
-    }
-
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (Math.abs(scrollY) > 1e-4) {
@@ -428,7 +410,7 @@ public class HudEditorScreen extends Screen {
         if (click.button() == 1) {
             HudElement hit = hitTest(click.x(), click.y());
             if (hit != null) {
-                String module = configModuleFor(hit.id());
+                String module = hit.configModule();
                 if (module != null) {
                     IrcScreen.openDirectToModule(Category.STYLE.getName(), module);
                     return true;

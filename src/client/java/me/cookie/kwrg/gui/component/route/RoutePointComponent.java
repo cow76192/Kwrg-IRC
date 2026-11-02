@@ -194,8 +194,10 @@ public final class RoutePointComponent {
 
         if (visibleButton.contains(click.x(), click.y())) {
             visibleButton.press();
-            entry.visible = !entry.visible;
+            boolean previous = entry.visible;
+            entry.visible = !previous;
             if (!store.saveCurrent()) {
+                entry.visible = previous;
                 onChanged.run();
             }
         } else if (deleteButton.contains(click.x(), click.y())) {

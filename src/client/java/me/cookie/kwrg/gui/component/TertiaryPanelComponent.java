@@ -21,6 +21,9 @@ public class TertiaryPanelComponent extends FlowLayout {
     public static final int PANEL_HEIGHT = 315;
 
     private final String itemTitle;
+    private final String initialChar;
+    private final Component initialCharComponent;
+    private final Component titleComponent;
     private final SmoothScrollbar scrollbar = new SmoothScrollbar();
 
     private float originCenterX = 0.0f;
@@ -35,6 +38,9 @@ public class TertiaryPanelComponent extends FlowLayout {
     public TertiaryPanelComponent(String itemTitle) {
         super(Sizing.fixed(PANEL_WIDTH), Sizing.fixed(PANEL_HEIGHT), Algorithm.VERTICAL);
         this.itemTitle = itemTitle;
+        this.initialChar = itemTitle.isEmpty() ? "•" : itemTitle.substring(0, 1).toUpperCase();
+        this.initialCharComponent = Component.literal(this.initialChar);
+        this.titleComponent = Component.literal(this.itemTitle);
 
         this.positioning(Positioning.relative(50, 50));
         this.padding(Insets.of(52, 10, 10, 10));
@@ -89,7 +95,6 @@ public class TertiaryPanelComponent extends FlowLayout {
         config.glowColor = colorStr;
         IrcConfig.save();
 
-        System.out.println("[KWRG Config] 实时更新 glowColor -> " + colorStr);
         return 1;
     }
 
@@ -143,14 +148,13 @@ public class TertiaryPanelComponent extends FlowLayout {
             graphics.drawCircle(iconBadgeX, iconBadgeY, 32, iconBadgeRadius, badgeBg);
             graphics.drawRing(iconBadgeX, iconBadgeY, 32, iconBadgeRadius - 0.8, iconBadgeRadius, badgeOutline, badgeOutline);
 
-            String initialChar = this.itemTitle.isEmpty() ? "•" : this.itemTitle.substring(0, 1).toUpperCase();
             var font = Minecraft.getInstance().font;
-            float initialW = font.width(initialChar);
+            float initialW = font.width(this.initialChar);
             int badgeTextColor = AnimationUtil.withAlpha(GuiThemeService.badgeText(), (int) (255 * contentAlpha)).argb();
-            RenderUtil.drawSmoothText(graphics, Component.literal(initialChar), iconBadgeX - initialW / 2.0f, iconBadgeY - 4.5f, 1.0f, badgeTextColor);
+            RenderUtil.drawSmoothText(graphics, this.initialCharComponent, iconBadgeX - initialW / 2.0f, iconBadgeY - 4.5f, 1.0f, badgeTextColor);
 
             int headerTextColor = AnimationUtil.withAlpha(GuiThemeService.textStrong(), (int) (255 * contentAlpha)).argb();
-            RenderUtil.drawSmoothText(graphics, Component.literal(this.itemTitle), iconBadgeX + 18, iconBadgeY - 4.5f, 1.0f, headerTextColor);
+            RenderUtil.drawSmoothText(graphics, this.titleComponent, iconBadgeX + 18, iconBadgeY - 4.5f, 1.0f, headerTextColor);
 
             graphics.fill(px + 12, py + headerHeight, px + width - 12, py + headerHeight + 1, AnimationUtil.argb(GuiThemeService.textStrong(), (int) (45 * contentAlpha)));
         }

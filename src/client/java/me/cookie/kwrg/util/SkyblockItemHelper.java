@@ -31,6 +31,7 @@ public class SkyblockItemHelper {
 
     private static final Map<String, ItemStack> ITEM_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, JsonObject> RAW_ITEM_INDEX = new ConcurrentHashMap<>();
+    private static final Map<String, JsonObject> NORMALIZED_ITEM_INDEX = new ConcurrentHashMap<>();
     private static final Set<String> KNOWN_IDS = ConcurrentHashMap.newKeySet();
 
     private static final List<String> PET_TIER_PRIORITY = List.of("COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC");
@@ -65,18 +66,15 @@ public class SkyblockItemHelper {
         return createFallbackStack(sbId);
     }
 
+    private static String normalizeId(String id) {
+        return id.replace("_", "").replace(";", "");
+    }
+
     private static ItemStack loadFromItemRepo(String sbId) {
         JsonObject obj = RAW_ITEM_INDEX.get(sbId);
 
         if (obj == null) {
-            String query = sbId.replace("_", "").replace(";", "");
-            for (Map.Entry<String, JsonObject> entry : RAW_ITEM_INDEX.entrySet()) {
-                if (entry.getKey().replace("_", "").replace(";", "").equalsIgnoreCase(query)) {
-                    obj = entry.getValue();
-                    sbId = entry.getKey();
-                    break;
-                }
-            }
+            obj = NORMALIZED_ITEM_INDEX.get(normalizeId(sbId));
         }
 
         if (obj == null) {
@@ -117,6 +115,7 @@ public class SkyblockItemHelper {
         }
 
         RAW_ITEM_INDEX.clear();
+        NORMALIZED_ITEM_INDEX.clear();
         KNOWN_IDS.clear();
         ITEM_CACHE.clear();
 
@@ -125,6 +124,11 @@ public class SkyblockItemHelper {
         int petsCount = indexPetsJson(repoDir.resolve("pets.min.json"));
         int enchantmentsCount = indexEnchantmentsJson(repoDir.resolve("enchantments.min.json"));
         int runesCount = indexRunesJson(repoDir.resolve("runes.min.json"));
+
+        NORMALIZED_ITEM_INDEX.clear();
+        for (Map.Entry<String, JsonObject> entry : RAW_ITEM_INDEX.entrySet()) {
+            NORMALIZED_ITEM_INDEX.putIfAbsent(normalizeId(entry.getKey()), entry.getValue());
+        }
 
         int totalCount = itemsCount + attributesCount + petsCount + enchantmentsCount + runesCount;
         if (totalCount > 0) {
@@ -447,6 +451,7 @@ public class SkyblockItemHelper {
     public static void invalidateCache() {
         ITEM_CACHE.clear();
         RAW_ITEM_INDEX.clear();
+        NORMALIZED_ITEM_INDEX.clear();
         KNOWN_IDS.clear();
         isIndexed = false;
         ChatNotifier.send("§e[Kwrg] 已清空 skyblock-repo-cache", NotificationType.SUCCESS);

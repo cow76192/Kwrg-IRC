@@ -2,6 +2,7 @@ package me.cookie.kwrg.irc.manager;
 
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.util.SafePaths;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 
@@ -161,6 +162,7 @@ public class IrcCapeManager {
 
     private static void applyCapeForPlayer(Player player, CapeMeta meta) {
         String cacheFileName = resolveCacheFileName(meta.hash(), meta.fileName());
+        if (cacheFileName == null) return;
         Path cachedFile = getCacheDir().resolve(cacheFileName);
 
         if (Files.exists(cachedFile)) {
@@ -188,6 +190,7 @@ public class IrcCapeManager {
             try {
                 byte[] bytes = Base64.getDecoder().decode(base64Data);
                 String cacheFileName = resolveCacheFileName(lowerHash, fileName);
+                if (cacheFileName == null) return;
                 Path targetPath = getCacheDir().resolve(cacheFileName);
                 Files.write(targetPath, bytes);
 
@@ -222,6 +225,8 @@ public class IrcCapeManager {
     }
 
     private static String resolveCacheFileName(String hash, String originalName) {
+        if (hash == null || hash.length() < 1 || hash.length() > 128 || !SafePaths.isHexId(hash, hash.length())) return null;
+
         StringBuilder suffix = new StringBuilder();
 
         int frames = PlayerCustomizationManager.getCapeFrameCount(originalName);

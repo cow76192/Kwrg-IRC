@@ -105,23 +105,38 @@ public final class WaypointManager {
         List<String> keys = new ArrayList<>(SAVED_WAYPOINTS.keySet());
         if (editIndex >= 0 && editIndex < keys.size()) {
             IrcConfig.WaypointEntry entry = SAVED_WAYPOINTS.get(keys.get(editIndex));
+            String previousName = entry.name;
+            double previousX = entry.x;
+            double previousY = entry.y;
+            double previousZ = entry.z;
             entry.name = cleanName;
             entry.x = x;
             entry.y = y;
             entry.z = z;
-        } else {
-            if (SAVED_WAYPOINTS.size() >= MAX_WAYPOINTS) return false;
-            SAVED_WAYPOINTS.put(UUID.randomUUID().toString(), new IrcConfig.WaypointEntry(cleanName, x, y, z));
+            if (WaypointFiles.saveDefault(SAVED_WAYPOINTS)) return true;
+            entry.name = previousName;
+            entry.x = previousX;
+            entry.y = previousY;
+            entry.z = previousZ;
+            return false;
         }
-
-        return WaypointFiles.saveDefault(SAVED_WAYPOINTS);
+        if (SAVED_WAYPOINTS.size() >= MAX_WAYPOINTS) return false;
+        String key = UUID.randomUUID().toString();
+        SAVED_WAYPOINTS.put(key, new IrcConfig.WaypointEntry(cleanName, x, y, z));
+        if (WaypointFiles.saveDefault(SAVED_WAYPOINTS)) return true;
+        SAVED_WAYPOINTS.remove(key);
+        return false;
     }
 
     public static boolean removeAt(int index) {
         List<String> keys = new ArrayList<>(SAVED_WAYPOINTS.keySet());
         if (index < 0 || index >= keys.size()) return false;
+        Map<String, IrcConfig.WaypointEntry> previous = new LinkedHashMap<>(SAVED_WAYPOINTS);
         SAVED_WAYPOINTS.remove(keys.get(index));
-        return WaypointFiles.saveDefault(SAVED_WAYPOINTS);
+        if (WaypointFiles.saveDefault(SAVED_WAYPOINTS)) return true;
+        SAVED_WAYPOINTS.clear();
+        SAVED_WAYPOINTS.putAll(previous);
+        return false;
     }
 
     public static boolean toggleAt(int index) {
@@ -129,8 +144,11 @@ public final class WaypointManager {
         if (index < 0 || index >= keys.size()) return false;
         IrcConfig.WaypointEntry entry = SAVED_WAYPOINTS.get(keys.get(index));
         if (entry == null) return false;
+        boolean previous = entry.enabled;
         entry.enabled = !entry.enabled;
-        return WaypointFiles.saveDefault(SAVED_WAYPOINTS);
+        if (WaypointFiles.saveDefault(SAVED_WAYPOINTS)) return true;
+        entry.enabled = previous;
+        return false;
     }
 
     public static String formatCoordMessage(double x, double y, double z) {

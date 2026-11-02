@@ -43,17 +43,7 @@ public class CustomCapeModule extends Module {
                 values -> {
                     try {
                         int v = Integer.parseInt(values[0].trim());
-                        int closest;
-                        if (v <= 64) {
-                            closest = 64;
-                        } else if (v >= 8192) {
-                            closest = 8192;
-                        } else {
-                            int lower = Integer.highestOneBit(v);
-                            int upper = lower << 1;
-                            closest = (v - lower <= upper - v) ? lower : upper;
-                        }
-                        closest = Math.max(64, Math.min(8192, closest));
+                        int closest = nearestPowerOfTwo(v, 64, 8192);
 
                         IrcConfig.get().capeCanvasSize = closest;
                         IrcConfig.save();
@@ -63,7 +53,7 @@ public class CustomCapeModule extends Module {
                         renderCapeUI(panel);
                     } catch (NumberFormatException e) {
                         ChatNotifier.send("§c[Cape] 请输入有效的数字", NotificationType.ERR);
-                    } catch (Exception ignored) {}
+                    }
                 },
                 null
         ).presets(64, 128, 256, 512, 1024, 2048, 4096, 8192));
@@ -75,17 +65,7 @@ public class CustomCapeModule extends Module {
                 values -> {
                     try {
                         int v = Integer.parseInt(values[0].trim());
-                        int closest;
-                        if (v <= 64) {
-                            closest = 64;
-                        } else if (v >= 4096) {
-                            closest = 4096;
-                        } else {
-                            int lower = Integer.highestOneBit(v);
-                            int upper = lower << 1;
-                            closest = (v - lower <= upper - v) ? lower : upper;
-                        }
-                        closest = Math.max(64, Math.min(4096, closest));
+                        int closest = nearestPowerOfTwo(v, 64, 4096);
 
                         IrcConfig.get().remoteCapeCanvasSize = closest;
                         IrcConfig.save();
@@ -185,5 +165,19 @@ public class CustomCapeModule extends Module {
         } catch (Exception e) {
             ChatNotifier.send("§c[Cape] 打开失败: " + e.getMessage(), NotificationType.ERR);
         }
+    }
+
+    private static int nearestPowerOfTwo(int v, int min, int max) {
+        int closest;
+        if (v <= min) {
+            closest = min;
+        } else if (v >= max) {
+            closest = max;
+        } else {
+            int lower = Integer.highestOneBit(v);
+            int upper = lower << 1;
+            closest = (v - lower <= upper - v) ? lower : upper;
+        }
+        return Math.max(min, Math.min(max, closest));
     }
 }

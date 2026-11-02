@@ -25,6 +25,10 @@ public class HideArmorModule extends Module {
             "feet", EquipmentSlot.FEET
     );
 
+    private static final List<EquipmentSlot> ORDER = List.of(
+            EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET
+    );
+
     public HideArmorModule() {
         super("hideArmor", Category.FUNCTIONS, PanelItemComponent.ItemType.TOGGLE, () -> IrcConfig.get().hideArmor);
     }
@@ -42,7 +46,7 @@ public class HideArmorModule extends Module {
         config.hideArmor = enabled;
 
         if (enabled && !HideArmorManager.hasAnyPartHidden()) {
-            PARTS.values().forEach(slot -> HideArmorManager.setPartHidden(slot, true));
+            ORDER.forEach(slot -> HideArmorManager.setPartHidden(slot, true));
         }
 
         IrcConfig.save();
@@ -71,7 +75,7 @@ public class HideArmorModule extends Module {
         IrcConfig config = IrcConfig.get();
         StringBuilder status = new StringBuilder("§6[IRC] hideArmor: ").append(config.hideArmor ? "§a开启" : "§c关闭");
 
-        PARTS.values().forEach(slot -> status.append(" §7| ").append(slotName(slot))
+        ORDER.forEach(slot -> status.append(" §7| ").append(slotName(slot))
                 .append(HideArmorManager.isPartHidden(slot) ? " §c隐藏" : " §a显示"));
 
         ChatNotifier.sendInChatScreen(status.toString());
@@ -84,8 +88,7 @@ public class HideArmorModule extends Module {
         panel.clearChildren();
         panel.child(TextInfoPaneComponent.header("隐藏部位"));
 
-        List.of(EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET)
-                .forEach(slot -> panel.child(new PanelItemComponent(
+        ORDER.forEach(slot -> panel.child(new PanelItemComponent(
                         slotName(slot),
                         PanelItemComponent.ItemType.TOGGLE,
                         () -> setHideArmorPart(slot, !HideArmorManager.isPartHidden(slot)),

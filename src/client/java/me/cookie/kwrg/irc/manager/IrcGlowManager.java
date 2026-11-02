@@ -5,6 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 
 import java.util.Collection;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -26,13 +27,13 @@ public class IrcGlowManager {
 
     public static void addPlayer(String username) {
         if (username != null && !username.isBlank()) {
-            ONLINE_IRC_PLAYERS.add(username.toLowerCase());
+            ONLINE_IRC_PLAYERS.add(username.toLowerCase(Locale.ROOT));
         }
     }
 
     public static void removePlayer(String username) {
         if (username != null && !username.isBlank()) {
-            ONLINE_IRC_PLAYERS.remove(username.toLowerCase());
+            ONLINE_IRC_PLAYERS.remove(username.toLowerCase(Locale.ROOT));
         }
     }
 
@@ -41,7 +42,7 @@ public class IrcGlowManager {
         if (players != null) {
             for (String p : players) {
                 if (p != null && !p.isBlank()) {
-                    ONLINE_IRC_PLAYERS.add(p.toLowerCase());
+                    ONLINE_IRC_PLAYERS.add(p.toLowerCase(Locale.ROOT));
                 }
             }
         }
@@ -58,7 +59,7 @@ public class IrcGlowManager {
             return false;
         }
 
-        return ONLINE_IRC_PLAYERS.contains(name.toLowerCase());
+        return ONLINE_IRC_PLAYERS.contains(name.toLowerCase(Locale.ROOT));
     }
 
     public static int getGlowColorRgb() {

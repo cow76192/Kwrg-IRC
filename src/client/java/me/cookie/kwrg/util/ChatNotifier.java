@@ -35,6 +35,8 @@ public class ChatNotifier {
             "https?://[a-zA-Z0-9-._~:/?#\\[\\]@!$&'()*+,;=%]+",
             Pattern.CASE_INSENSITIVE
     );
+    public static final Pattern FORMATTING_PATTERN = Pattern.compile("§[0-9a-fk-orA-FK-OR]");
+    public static final Pattern LOWERCASE_FORMATTING_PATTERN = Pattern.compile("§[0-9a-fk-or]");
 
     private record StyledPart(Style style, String text) {}
     private record UrlRange(int start, int end, String cleanUrl, URI uri) {}
@@ -63,7 +65,7 @@ public class ChatNotifier {
         matcher.reset();
         while (matcher.find()) {
             String rawUrl = matcher.group();
-            String cleanUrl = rawUrl.replaceAll("§[0-9a-fk-or]", "").trim();
+            String cleanUrl = LOWERCASE_FORMATTING_PATTERN.matcher(rawUrl).replaceAll("").trim();
             try {
                 URI uri = URI.create(cleanUrl);
                 ranges.add(new UrlRange(matcher.start(), matcher.end(), cleanUrl, uri));
@@ -189,7 +191,7 @@ public class ChatNotifier {
     }
 
     private static String[] splitTitleAndSubtitle(String rawMessage) {
-        String clean = rawMessage.replaceAll("§[0-9a-fk-or]", "").trim();
+        String clean = LOWERCASE_FORMATTING_PATTERN.matcher(rawMessage).replaceAll("").trim();
         clean = clean.replaceFirst("^(?:\\[IRC\\]|\\[Kwrg\\])\\s*", "");
 
         String title = clean;

@@ -164,8 +164,9 @@ public class FontManagerHelper {
             return true;
         }
 
-        Path fontFile = ensureFontDir().resolve(fontFileName);
-        if (!Files.exists(fontFile)) {
+        Path fontDir = ensureFontDir().normalize();
+        Path fontFile = fontDir.resolve(fontFileName).normalize();
+        if (!fontFile.startsWith(fontDir) || !Files.exists(fontFile)) {
             LOGGER.warn("[Kwrg] 目标字体文件不存在: {}", fontFile);
             return false;
         }

@@ -247,12 +247,15 @@ public final class ConfigMigrator {
                 {"islandOffsetX", "offsetX"}, {"islandOffsetY", "offsetY"}
         };
 
-        JsonObject island = new JsonObject();
+        JsonObject hud = hudObject(jsonObj);
+        JsonObject element = elementObject(hud, "dynamicIsland");
         boolean hasLegacy = false;
         for (String[] pair : legacy) {
             if (jsonObj.has(pair[0])) {
                 JsonElement val = jsonObj.get(pair[0]);
-                island.add(pair[1], val);
+                if (!element.has(pair[1])) {
+                    element.add(pair[1], val);
+                }
                 hasLegacy = true;
                 notifyMigration(pair[0], "hudElements.dynamicIsland." + pair[1], val);
                 jsonObj.remove(pair[0]);
@@ -260,9 +263,8 @@ public final class ConfigMigrator {
         }
         if (!hasLegacy) return;
 
-        JsonObject hud = hudObject(jsonObj);
         if (!hud.has("dynamicIsland")) {
-            hud.add("dynamicIsland", island);
+            hud.add("dynamicIsland", element);
         }
         jsonObj.add("hudElements", hud);
     }

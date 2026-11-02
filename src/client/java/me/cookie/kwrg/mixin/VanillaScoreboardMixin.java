@@ -17,7 +17,6 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -34,22 +33,10 @@ public abstract class VanillaScoreboardMixin {
     @Unique private boolean kwrg$collectingScoreboard = false;
     @Unique private static final Pattern kwrg$scoreNumber = Pattern.compile("^[0-9,.-]+$");
 
-    @Unique private static Method kwrg$shHideScoreboardMethod = null;
-    @Unique private static boolean kwrg$shMethodResolved = false;
-
     @Unique
     private static boolean kwrg$isSkyHanniHandlingScoreboard() {
         if (ScoreboardIslandRenderer.isSkyHanniActive()) return true;
-        try {
-            if (!kwrg$shMethodResolved) {
-                kwrg$shMethodResolved = true;
-                Class<?> cs = Class.forName("at.hannibal2.skyhanni.features.gui.customscoreboard.CustomScoreboard");
-                kwrg$shHideScoreboardMethod = cs.getMethod("isHideVanillaScoreboardEnabled");
-            }
-            return kwrg$shHideScoreboardMethod != null && (boolean) kwrg$shHideScoreboardMethod.invoke(null);
-        } catch (Throwable ignored) {
-            return false;
-        }
+        return ScoreboardIslandRenderer.isHideVanillaScoreboardEnabled();
     }
 
     @WrapOperation(

@@ -21,8 +21,6 @@ public class ColorUtil {
     private static final Pattern HEX_PATTERN = Pattern.compile("#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})");
     private static final Pattern GRADIENT_PATTERN = Pattern.compile("(?:linear-)?gradient\\s*\\((.+)\\)", Pattern.CASE_INSENSITIVE);
 
-    private static final Pattern SPACE_RGB_PATTERN = Pattern.compile("^\\s*(\\d{1,3})\\s+(\\d{1,3})\\s+(\\d{1,3})\\s*$");
-
     public static Component applyStyle(String text, String styleConfig) {
         if (text == null || text.isEmpty()) return Component.empty();
         if (styleConfig == null || styleConfig.isBlank()) return Component.literal(text);
@@ -235,32 +233,6 @@ public class ColorUtil {
         return null;
     }
 
-    public static Color parseHexLoose(String raw) {
-        if (raw == null) return null;
-        String clean = raw.trim();
-        if (clean.startsWith("#")) {
-            clean = clean.substring(1);
-        }
-        if (clean.matches("[A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}")) {
-            return parseSingleColor("#" + clean);
-        }
-        return null;
-    }
-
-    public static Color parseRgbLoose(String raw) {
-        if (raw == null || raw.isBlank()) return null;
-        Color direct = parseSingleColor(raw);
-        if (direct != null) return direct;
-        Matcher m = SPACE_RGB_PATTERN.matcher(raw);
-        if (m.matches()) {
-            int r = clampChannel(Integer.parseInt(m.group(1)));
-            int g = clampChannel(Integer.parseInt(m.group(2)));
-            int b = clampChannel(Integer.parseInt(m.group(3)));
-            return new Color(r, g, b);
-        }
-        return null;
-    }
-
     private static Integer parseChannel(String raw) {
         try {
             return clampChannel(Integer.parseInt(raw));
@@ -271,19 +243,6 @@ public class ColorUtil {
 
     private static int clampChannel(int v) {
         return Math.clamp(v, 0, 255);
-    }
-
-    public static int applyHslTransform(int rgb, float hue, float saturation, float lightness) {
-        int r = (rgb >> 16) & 0xFF;
-        int g = (rgb >> 8) & 0xFF;
-        int b = rgb & 0xFF;
-        float[] hsb = Color.RGBtoHSB(r, g, b, null);
-
-        hsb[0] = (hue / 360.0f) % 1.0f;
-        hsb[1] = Math.clamp(hsb[1] * saturation, 0.0f, 1.0f);
-        hsb[2] = Math.clamp(hsb[2] * lightness, 0.0f, 1.0f);
-
-        return Color.HSBtoRGB(hsb[0], hsb[1], hsb[2]) & 0xFFFFFF;
     }
 
     public static double relativeLuminance(int rgb) {
@@ -470,5 +429,43 @@ public class ColorUtil {
         } catch (NumberFormatException e) {
             return Float.NaN;
         }
+    }
+
+    private static final List<String> PRESET_MODIFIERS = List.of("bold", "underline", "italic", "strikethrough", "obfuscated", "flow");
+
+    private static final String[] PRESET_STYLES = new String[]{
+            "rainbow", "sunset", "ocean", "fire", "sakura", "neon", "gold", "purple",
+            "bold", "underline", "italic", "strikethrough", "obfuscated", "flow",
+            "rainbow bold", "#FF55AA", "rgb(255,100,50)", "gradient(#ff758c,#ff7eb3)", "gradient(#00f2fe,#4facfe,#00ff87)"
+    };
+
+    public static List<String> presetNames() {
+        return List.of(PRESET_STYLES);
+    }
+
+    public static String mergePreset(String currentStyle, String preset) {
+        String current = currentStyle == null ? "" : currentStyle.trim();
+
+        if (PRESET_MODIFIERS.contains(preset.toLowerCase())) {
+            if (current.toLowerCase().contains(preset.toLowerCase())) {
+                return current.replaceAll("(?i)\\b" + preset + "\\b", "").trim().replaceAll(" +", " ");
+            }
+            return current.isEmpty() ? preset : current + " " + preset;
+        }
+
+        List<String> currentMods = new ArrayList<>();
+        for (String mod : PRESET_MODIFIERS) {
+            if (current.toLowerCase().matches(".*\\b" + mod + "\\b.*")) {
+                currentMods.add(mod);
+            }
+        }
+
+        StringBuilder sb = new StringBuilder(preset);
+        for (String mod : currentMods) {
+            if (!preset.toLowerCase().matches(".*\\b" + mod + "\\b.*")) {
+                sb.append(" ").append(mod);
+            }
+        }
+        return sb.toString().trim();
     }
 }
