@@ -278,30 +278,9 @@ public final class Navigator {
     }
 
     private static boolean clearLine(Level level, BlockPos from, BlockPos to) {
-        int dx = to.getX() - from.getX();
-        int dy = to.getY() - from.getY();
-        int dz = to.getZ() - from.getZ();
-        int steps = Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz)));
-        if (steps <= 1) return clearCorner(level, from, dx, dz);
-        int samples = steps * 4;
-        int lastX = from.getX();
-        int lastY = from.getY();
-        int lastZ = from.getZ();
-        for (int index = 1; index < samples; index++) {
-            double ratio = (double) index / samples;
-            int x = (int) Math.floor(from.getX() + dx * ratio);
-            int y = (int) Math.floor(from.getY() + dy * ratio);
-            int z = (int) Math.floor(from.getZ() + dz * ratio);
-            if (x != lastX || z != lastZ) {
-                if (!clearCorner(level, new BlockPos(lastX, lastY, lastZ), x - lastX, z - lastZ)) return false;
-                lastX = x;
-                lastY = y;
-                lastZ = z;
-            }
-            if (!free(level, new BlockPos(x, y, z))) return false;
-        }
-        return true;
+        return sampleLine(level, from, to, cell -> free(level, cell));
     }
+
     private static boolean clearCorner(Level level, BlockPos from, int dx, int dz) {
         return clearCorner(level, from.getX(), from.getY(), from.getZ(), dx, dz);
     }
