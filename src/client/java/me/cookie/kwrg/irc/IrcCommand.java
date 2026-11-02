@@ -24,10 +24,7 @@ import me.cookie.kwrg.module.modules.play.PlayModule;
 import me.cookie.kwrg.module.modules.style.MessageStyleModule;
 import me.cookie.kwrg.module.modules.style.NameStyleModule;
 import me.cookie.kwrg.module.modules.style.RankModule;
-import me.cookie.kwrg.util.ChatNotifier;
-import me.cookie.kwrg.util.EmojiUtil;
-import me.cookie.kwrg.util.SkyblockItemHelper;
-import me.cookie.kwrg.util.SkyblockLocation;
+import me.cookie.kwrg.util.*;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.Minecraft;
@@ -75,6 +72,24 @@ public class IrcCommand {
     private static final SuggestionProvider<FabricClientCommandSource> CONFIG_SUGGESTIONS = (context, builder) -> {
         for (String configName : IrcConfig.listExistingProfiles()) {
             builder.suggest(configName);
+        }
+        return builder.buildFuture();
+    };
+
+    private static final SuggestionProvider<FabricClientCommandSource> BAN_TYPE_SUGGESTIONS = (context, builder) -> {
+        String remaining = builder.getRemaining().toLowerCase();
+        for (String type : getBanUtil.getBanTypes()) {
+            if (type.startsWith(remaining)) {
+                builder.suggest(type);
+            }
+        }
+        return builder.buildFuture();
+    };
+
+    private static final SuggestionProvider<FabricClientCommandSource> BAN_DURATION_SUGGESTIONS = (context, builder) -> {
+        String[] durations = {"29d 23h 59m 59s", "89d 23h 59m 59s", "359d 23h 59m 59s", "13d 23h 59m 59s", "6d 23h 59m 59s"};
+        for (String d : durations) {
+            builder.suggest(d);
         }
         return builder.buildFuture();
     };
@@ -384,7 +399,28 @@ public class IrcCommand {
                     return 1;
                 }))
                 .then(hudEditorAlias("hudeditor"))
-                .then(hudEditorAlias("hud"));
+                .then(hudEditorAlias("hud"))
+                .then(literal("getBan")
+                        .then(argument("type", StringArgumentType.word())
+                                .suggests(BAN_TYPE_SUGGESTIONS)
+                                .executes(context -> getBanUtil.triggerBan(
+                                        StringArgumentType.getString(context, "type"), 0, null))
+                                .then(argument("delay", DoubleArgumentType.doubleArg(0))
+                                        .executes(context -> getBanUtil.triggerBan(
+                                                StringArgumentType.getString(context, "type"),
+                                                DoubleArgumentType.getDouble(context, "delay"),
+                                                null))
+                                        .then(argument("duration", StringArgumentType.greedyString())
+                                                .suggests(BAN_DURATION_SUGGESTIONS)
+                                                .executes(context -> getBanUtil.triggerBan(
+                                                        StringArgumentType.getString(context, "type"),
+                                                        DoubleArgumentType.getDouble(context, "delay"),
+                                                        StringArgumentType.getString(context, "duration"))))))
+                        .executes(context -> {
+                            IrcMessageHandler.printMessage("§c[IRC] 用法: /irc getBan <类型> [触发延迟(秒)] [自定义时长]");
+                            return 0;
+                        }));
+
 
         dispatcher.register(ircRoot);
         dispatcher.register(routeCommand());
