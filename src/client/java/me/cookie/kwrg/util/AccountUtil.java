@@ -16,22 +16,27 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class AccountUtil {
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
+              .connectTimeout(Duration.ofSeconds(10))
             .build();
+
+    private static final AtomicLong REQUEST_ID_GENERATOR = new AtomicLong(0);
 
     public record LoginResult(boolean success, String username, String message) {}
 
-    /**
-     * 异步验证 AccessToken 并在成功后切换当前游戏账号
-     */
+    public static void cancelPendingLogins() {
+        REQUEST_ID_GENERATOR.incrementAndGet();
+    }
+
     public static CompletableFuture<LoginResult> loginWithToken(String rawToken) {
+        final long currentRequestId = REQUEST_ID_GENERATOR.incrementAndGet();
+
         return CompletableFuture.supplyAsync(() -> {
             try {
                 String cleanToken = rawToken.trim();
-                // 兼容不小心带上了 Bearer 前缀的情况
                 if (cleanToken.regionMatches(true, 0, "Bearer ", 0, 7)) {
                     cleanToken = cleanToken.substring(7).trim();
                 }
@@ -49,6 +54,11 @@ public class AccountUtil {
 
                 HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
 
+                // 如果网络请求返回时该请求已被取消或被新请求取代，直接中止
+                if (REQUEST_ID_GENERATOR.get() != currentRequestId) {
+                    return new LoginResult(false, null, "登录请求已取消");
+                }
+
                 if (response.statusCode() == 200) {
                     JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
                     if (!json.has("id") || !json.has("name")) {
@@ -62,8 +72,15 @@ public class AccountUtil {
                     final String finalToken = cleanToken;
                     Minecraft mc = Minecraft.getInstance();
 
-                    // 回到 Minecraft 主线程更新 User 会话信息
-                    mc.execute(() -> {
+                   return CompletableFuture.supplyAsync(() -> {
+                        if (REQUEST_ID_GENERATOR.get() != currentRequestId) {
+                            return new LoginResult(false, null, "登录请求已取消");
+                        }
+
+                        if (mc.level != null || mc.getConnection() != null) {
+                            return new LoginResult(false, null, "已连接到服务器，无法切换账号");
+                        }
+
                         User newUser = new User(
                                 name,
                                 uuid,
@@ -71,11 +88,12 @@ public class AccountUtil {
                                 Optional.empty(),
                                 Optional.empty()
                         );
+
                         ((MinecraftAccessor) mc).kwrg$setUser(newUser);
                         CookieMain.LOGGER.info("成功切换账户至: {} ({})", name, uuid);
-                    });
+                        return new LoginResult(true, name, "验证成功！已切换为: " + name);
+                    }, mc).join();
 
-                    return new LoginResult(true, name, "验证成功！已切换为: " + name);
                 } else if (response.statusCode() == 401) {
                     return new LoginResult(false, null, "Token 无效或已过期 (HTTP 401)");
                 } else {

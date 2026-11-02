@@ -8,16 +8,18 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
+import java.util.concurrent.CompletableFuture;
+
 public class TokenLoginScreen extends Screen {
     private final Screen lastScreen;
 
     private EditBox currentInfoBox;
-
     private EditBox tokenField;
     private Button saveButton;
 
     private Component statusMessage = Component.empty();
     private boolean isVerifying = false;
+    private CompletableFuture<AccountUtil.LoginResult> activeLoginFuture = null;
 
     public TokenLoginScreen(Screen lastScreen) {
         super(Component.literal("Token 账号切换"));
@@ -63,6 +65,7 @@ public class TokenLoginScreen extends Screen {
         this.saveButton = Button.builder(Component.literal("保存"), button -> this.onSave())
                 .bounds(centerX - 150, centerY + 25, 145, 20)
                 .build();
+        this.saveButton.active = !this.isVerifying;
         this.addRenderableWidget(this.saveButton);
 
         Button backButton = Button.builder(Component.literal("返回"), button -> this.onClose())
@@ -98,11 +101,10 @@ public class TokenLoginScreen extends Screen {
         }
 
         this.minecraft.keyboardHandler.setClipboard(currentToken);
-
         this.currentInfoBox.setValue(currentToken);
         this.currentInfoBox.moveCursorToStart(false);
 
-        this.statusMessage = Component.literal("§a✔ 已获取并复制 [" + AccountUtil.getUsername() + "] 的 Token 到剪贴板！");
+        this.statusMessage = Component.literal("§a✔ 已获取并复制 [" +  AccountUtil.getUsername() + "] 的 Token 到剪贴板！");
     }
 
     private void onSave() {
@@ -118,10 +120,19 @@ public class TokenLoginScreen extends Screen {
         this.saveButton.active = false;
         this.statusMessage = Component.literal("§e正在校验账号信息，请稍候...");
 
-        AccountUtil.loginWithToken(token).thenAccept(result -> {
+        CompletableFuture<AccountUtil.LoginResult> future = AccountUtil.loginWithToken(token);
+        this.activeLoginFuture = future;
+
+        future.thenAccept(result -> {
             this.minecraft.execute(() -> {
+                if (this.minecraft.screen != this || this.activeLoginFuture != future) {
+                    return;
+                }
+
                 this.isVerifying = false;
                 this.saveButton.active = true;
+                this.activeLoginFuture = null;
+
                 if (result.success()) {
                     this.refreshCurrentInfoWidget();
                     this.tokenField.setValue("");
@@ -140,21 +151,33 @@ public class TokenLoginScreen extends Screen {
         int centerX = this.width / 2;
         int centerY = this.height / 2;
 
-        // 标题
         graphics.centeredText(this.font, this.title, centerX, centerY - 70, 0xFFFFFFFF);
-
-        // 小标签说明
         graphics.text(this.font, Component.literal("§7当前登录账户信息:"), centerX - 150, centerY - 52, 0xFFAAAAAA);
         graphics.text(this.font, Component.literal("§7输入新 Token 切换账户:"), centerX - 150, centerY - 17, 0xFFAAAAAA);
 
-        // 底部状态提示
         if (!this.statusMessage.getString().isEmpty()) {
             graphics.centeredText(this.font, this.statusMessage, centerX, centerY + 55, 0xFFFFFFFF);
         }
     }
 
+    private void invalidatePendingLogin() {
+        AccountUtil.cancelPendingLogins();
+        if (this.activeLoginFuture != null) {
+            this.activeLoginFuture.cancel(true);
+            this.activeLoginFuture = null;
+        }
+        this.isVerifying = false;
+    }
+
+    @Override
+    public void removed() {
+        this.invalidatePendingLogin();
+        super.removed();
+    }
+
     @Override
     public void onClose() {
+        this.invalidatePendingLogin();
         this.minecraft.setScreen(this.lastScreen);
     }
 }
