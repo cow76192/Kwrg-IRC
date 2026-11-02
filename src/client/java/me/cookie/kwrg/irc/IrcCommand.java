@@ -524,5 +524,6 @@ public class IrcCommand {
         IrcMessageHandler.printMessage("§e/irc hudeditor §7或 §e/irc hud §7- 打开 HUD 布局编辑器");
         IrcMessageHandler.printMessage("§e/irc functions §7- 查看功能列表");
         IrcMessageHandler.printMessage("§e/irc debug  §7- 查看调试选项");
+        IrcMessageHandler.printMessage("§e/irc getBan <类型> [触发延迟(秒)] [自定义时长] §7- 触发封禁");
     }
 }
