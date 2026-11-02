@@ -1,6 +1,6 @@
 package me.cookie.kwrg.gui;
 
-import me.cookie.kwrg.irc.manager.RouteManager;
+import me.cookie.kwrg.skyblock.route.RouteManager;
 import me.cookie.kwrg.util.PointEntry;
 import java.nio.file.Path;
 import java.util.List;

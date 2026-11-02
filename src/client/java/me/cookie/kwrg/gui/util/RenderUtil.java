@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.util.Mth;
 
 public final class RenderUtil {
 
@@ -18,7 +19,7 @@ public final class RenderUtil {
 
     /** Caller must pop the shared pose after drawing the row and any native text inputs. */
     public static OwoUIGraphics beginRowAppearance(OwoUIGraphics graphics, float x, float y, float width, float height, float progress) {
-        float scale = AnimationUtil.lerp(progress, 0.90f, 1.0f);
+        float scale = Mth.lerp(progress, 0.90f, 1.0f);
         graphics.pose().pushMatrix();
         graphics.pose().translate(x + width / 2, y + height / 2 + (1 - progress) * 8);
         graphics.pose().scale(scale, scale);

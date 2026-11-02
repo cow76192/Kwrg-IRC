@@ -1,6 +1,7 @@
 package me.cookie.kwrg.util;
 
 import com.google.gson.Gson;
+import me.cookie.kwrg.skyblock.route.WaypointFiles;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.*;
@@ -23,7 +24,7 @@ public final class WaypointRouteUpdate {
     private final List<Node> nodes = new ArrayList<>();
     private boolean applied;
 
-    WaypointRouteUpdate(Path sourcePath, Path targetPath, WaypointFiles.Collection target) throws IOException {
+    public WaypointRouteUpdate(Path sourcePath, Path targetPath, WaypointFiles.Collection target) throws IOException {
         this.sourcePath = sourcePath;
         this.targetPath = targetPath;
         this.target = target;
@@ -178,9 +179,9 @@ public final class WaypointRouteUpdate {
         return new Summary(added, deleted, modified);
     }
 
-    static SourceNode snapshot(PointEntry source, PointEntry local) { return new SourceNode(source.explicitId ? source.id : "", copy(source), copy(local)); }
+    public static SourceNode snapshot(PointEntry source, PointEntry local) { return new SourceNode(source.explicitId ? source.id : "", copy(source), copy(local)); }
 
-    static PointEntry copy(PointEntry point) {
+    public static PointEntry copy(PointEntry point) {
         PointEntry copy = new PointEntry(point.name, point.x, point.y, point.z);
         copy.id = point.id;
         copy.visible = point.visible;

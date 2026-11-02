@@ -7,7 +7,6 @@ import me.cookie.kwrg.gui.component.PointListDrag;
 import me.cookie.kwrg.gui.component.ScrollbarDrag;
 import me.cookie.kwrg.gui.component.route.RouteButtonComponent;
 import me.cookie.kwrg.gui.component.route.RoutePointComponent;
-import me.cookie.kwrg.gui.component.route.RouteNodeAnimation;
 import me.cookie.kwrg.gui.component.waypoint.RegionSelectionPane;
 import me.cookie.kwrg.gui.component.waypoint.RouteUpdatePane;
 import me.cookie.kwrg.gui.notification.NotificationType;
@@ -28,7 +27,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import org.lwjgl.glfw.GLFW;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -42,7 +40,7 @@ import java.util.Map;
 /** A modal owned by IrcScreen; its existing menu stays mounted during both transitions. */
 public abstract class PointCollectionScreen {
     private static final long ANIMATION_MS = 250;
-    private static final int FILE_HEIGHT = 44;
+    static final int FILE_HEIGHT = 44;
 
     private final PointCollectionStore store;
     private final float originX, originY;
@@ -237,7 +235,7 @@ public abstract class PointCollectionScreen {
         for (Path path : store.listFiles()) {
             FileRow row = files.get(path);
             if (row == null) {
-                row = new FileRow(path);
+                row = new FileRow(path, store);
             }
 
             row.options = row.refreshOptions();
@@ -613,31 +611,6 @@ public abstract class PointCollectionScreen {
         graphics.pose().popMatrix();
     }
 
-    private record DialogMorph(float x, float y, float width, float height) {}
-
-    private static DialogMorph morphFrom(float progress, RouteButtonComponent.Bounds origin, int x, int y, int width, int height) {
-        return new DialogMorph(
-                AnimationUtil.lerp(progress, origin.x(), x),
-                AnimationUtil.lerp(progress, origin.y(), y),
-                AnimationUtil.lerp(progress, origin.width(), width),
-                AnimationUtil.lerp(progress, origin.height(), height));
-    }
-
-    private static void pushMorphMatrix(GuiGraphicsExtractor graphics, DialogMorph morph, int x, int y, int width, int height) {
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(morph.x(), morph.y());
-        graphics.pose().scale(morph.width() / width, morph.height() / height);
-        graphics.pose().translate(-x, -y);
-    }
-
-    private static float dialogLabelAlpha(float progress) {
-        return 1 - Mth.clamp(progress * 4, 0, 1);
-    }
-
-    private static float dialogContentAlpha(float progress) {
-        return Mth.clamp((progress - 0.2f) / 0.8f, 0, 1);
-    }
-
     private void renderSaveRecovery(OwoUIGraphics graphics, int mouseX, int mouseY) {
         int width = Math.min(430, panelW - 24), height = 142;
         int x = panelX + (panelW - width) / 2, y = panelY + (panelH - height) / 2;
@@ -648,11 +621,11 @@ public abstract class PointCollectionScreen {
         continueEditingButton.bounds(x + 36 + buttonW * 2, y + 102, buttonW, 26);
 
         float progress = AnimationUtil.easeOutCubic((System.currentTimeMillis() - saveFailureAt) / (float) ANIMATION_MS);
-        DialogMorph morph = morphFrom(progress, (pageTarget > 0 ? backButton : closeButton).bounds(), x, y, width, height);
+        DialogMorph morph = DialogMorph.morphFrom(progress, (pageTarget > 0 ? backButton : closeButton).bounds(), x, y, width, height);
         float currentX = morph.x(), currentY = morph.y(), currentW = morph.width(), currentH = morph.height();
 
         RenderUtil.drawSubpixelRoundedPanel(graphics, currentX, currentY, currentW, currentH, 8, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.dialogBg())), AnimationUtil.withAlpha(GuiThemeService.dialogErrorBorder(), 0xAA));
-        pushMorphMatrix(graphics, morph, x, y, width, height);
+        DialogMorph.pushMorphMatrix(graphics, morph, x, y, width, height);
         graphics = RenderUtil.withOpacity(graphics, progress);
 
         RenderUtil.drawSmoothText(graphics, "修改尚未保存", x + 16, y + 16, AnimationUtil.opaqueArgb(GuiThemeService.warning()));
@@ -1369,14 +1342,14 @@ public abstract class PointCollectionScreen {
 
         float progress = namingProgress();
 
-        DialogMorph morph = morphFrom(progress, namingOrigin, x, y, dialogW, 152);
+        DialogMorph morph = DialogMorph.morphFrom(progress, namingOrigin, x, y, dialogW, 152);
         float currentX = morph.x(), currentY = morph.y(), currentW = morph.width(), currentH = morph.height();
         RenderUtil.drawSubpixelRoundedPanel(owo, currentX, currentY, currentW, currentH,
                 AnimationUtil.lerp(progress, 5, 10),
                 AnimationUtil.lerpColor(progress, namingOriginColor, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.dialogBg()))),
                 AnimationUtil.withAlpha(GuiThemeService.regionBorder(), 0x88));
 
-        float labelAlpha = dialogLabelAlpha(progress);
+        float labelAlpha = DialogMorph.dialogLabelAlpha(progress);
 
         if (labelAlpha > 0.005f) {
             RenderUtil.drawCenteredSmoothText(RenderUtil.withOpacity(owo, labelAlpha),
@@ -1384,12 +1357,12 @@ public abstract class PointCollectionScreen {
                     currentX + currentW / 2, currentY + currentH / 2, 0.80f, AnimationUtil.opaqueArgb(GuiThemeService.routeBody()));
         }
 
-        float contentAlpha = dialogContentAlpha(progress);
+        float contentAlpha = DialogMorph.dialogContentAlpha(progress);
         if (contentAlpha <= 0.005f) {
             return;
         }
 
-        pushMorphMatrix(graphics, morph, x, y, dialogW, 152);
+        DialogMorph.pushMorphMatrix(graphics, morph, x, y, dialogW, 152);
         graphics.enableScissor(x, y, x + dialogW, y + 152);
 
         OwoUIGraphics content = RenderUtil.withOpacity(owo, contentAlpha);
@@ -1414,25 +1387,25 @@ public abstract class PointCollectionScreen {
 
         float progress = deleteProgress();
 
-        DialogMorph morph = morphFrom(progress, deleteOrigin, x, y, dialogW, 112);
+        DialogMorph morph = DialogMorph.morphFrom(progress, deleteOrigin, x, y, dialogW, 112);
         float currentX = morph.x(), currentY = morph.y(), currentW = morph.width(), currentH = morph.height();
 
         RenderUtil.drawSubpixelRoundedPanel(graphics, currentX, currentY, currentW, currentH,
                 AnimationUtil.lerp(progress, 5, 10),
                 AnimationUtil.lerpColor(progress, deleteOriginColor, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.dialogBg()))), AnimationUtil.withAlpha(GuiThemeService.dialogErrorBorder(), 0xAA));
-        float labelAlpha = dialogLabelAlpha(progress);
+        float labelAlpha = DialogMorph.dialogLabelAlpha(progress);
 
         if (labelAlpha > 0.005f) {
             RenderUtil.drawCenteredSmoothText(RenderUtil.withOpacity(graphics, labelAlpha),
                     Component.literal("×"), currentX + currentW / 2, currentY + currentH / 2, 0.80f, AnimationUtil.opaqueArgb(GuiThemeService.routeBody()));
         }
 
-        float contentAlpha = dialogContentAlpha(progress);
+        float contentAlpha = DialogMorph.dialogContentAlpha(progress);
         if (contentAlpha <= 0.005f) {
             return;
         }
 
-        pushMorphMatrix(graphics, morph, x, y, dialogW, 112);
+        DialogMorph.pushMorphMatrix(graphics, morph, x, y, dialogW, 112);
         graphics.enableScissor(x, y, x + dialogW, y + 112);
 
         OwoUIGraphics content = RenderUtil.withOpacity(graphics, contentAlpha);
@@ -1515,116 +1488,4 @@ public abstract class PointCollectionScreen {
         } catch (Exception e) { ChatNotifier.send("§c[Route] 打开目录失败 | " + e.getMessage(), NotificationType.ERR); }
     }
 
-    private final class FileRow {
-        private final Path path;
-        private PointCollectionStore.FileOptions options;
-        private long optionsModified = Long.MIN_VALUE;
-        private long optionsSize = -1L;
-
-        private final RouteButtonComponent surface = new RouteButtonComponent();
-        private final RouteButtonComponent visible = new RouteButtonComponent();
-        private final RouteButtonComponent line = new RouteButtonComponent();
-        private final RouteButtonComponent rename = new RouteButtonComponent();
-        private final RouteButtonComponent region = new RouteButtonComponent();
-        private final RouteButtonComponent importButton = new RouteButtonComponent();
-
-        private String externalAction = "导入";
-        private final RouteNodeAnimation appearance = new RouteNodeAnimation();
-        private int x, y, width;
-
-        private FileRow(Path path) {
-            this.path = path;
-            this.options = store.fileOptions(path);
-        }
-
-        private PointCollectionStore.FileOptions refreshOptions() {
-            long modified;
-            long size;
-
-            try {
-                modified = Files.getLastModifiedTime(path).toMillis();
-                size = Files.size(path);
-            } catch (IOException e) {
-                optionsModified = Long.MIN_VALUE;
-                optionsSize = -1L;
-                return store.fileOptions(path);
-            }
-
-            if (options != null && optionsModified == modified && optionsSize == size) {
-                return options;
-            }
-
-            optionsModified = modified;
-            optionsSize = size;
-            return store.fileOptions(path);
-        }
-
-        private void layout(int x, int y, int width) {
-            this.x = x;
-            this.y = y;
-            this.width = width;
-
-            surface.bounds(x, y + 2, width - 4, FILE_HEIGHT - 4);
-            visible.bounds(x + width - 132, y + 11, 58, 22);
-            line.bounds(x + width - 68, y + 11, 58, 22);
-            rename.bounds(x + width - 196, y + 11, 58, 22);
-
-            if (!store.supportsLines()) {
-                visible.bounds(x + width - 68, y + 11, 58, 22);
-                region.bounds(x + width - 132, y + 11, 58, 22);
-                rename.bounds(x + width - 196, y + 11, 58, 22);
-                if (store.supportsTracers()) {
-                    visible.bounds(x + width - 132, y + 11, 58, 22);
-                    region.bounds(x + width - 196, y + 11, 58, 22);
-                    rename.bounds(x + width - 260, y + 11, 58, 22);
-                }
-            }
-
-            importButton.bounds(x + width - 68, y + 11, 58, 22);
-        }
-        private void draw(OwoUIGraphics graphics, int mouseX, int mouseY, RouteButtonComponent hiddenButton) {
-            float appear = appearance.progress(System.currentTimeMillis());
-            if (appear <= 0.005f) {
-                return;
-            }
-
-            graphics = RenderUtil.beginRowAppearance(graphics, x, y, width, FILE_HEIGHT, appear);
-
-            boolean external = store.externalFile(path);
-            boolean active = !external && store.active(path);
-
-            surface.draw(graphics, "", active, mouseX, mouseY);
-            String name = store.protectedFile(path) ? "默认点位 (default.json)" : path.getFileName().toString();
-            RenderUtil.drawSmoothText(graphics, RenderUtil.fitText((active ? "● " : "") + name, width - (external ? 86 : store.supportsTracers() ? 282 : 218), 0.85f), x + 10, y + 11, external ? AnimationUtil.opaqueArgb(GuiThemeService.routeInactive()) : active ? AnimationUtil.opaqueArgb(GuiThemeService.routeAccentText()) : AnimationUtil.opaqueArgb(GuiThemeService.routeTitleAlt()));
-
-            String hint = external ? "来自 routes · 导入为独立点位集"
-                    : active ? store.supportsLines() ? "当前路线 · 右键编辑" : "已激活 · 右键编辑"
-                    : "左键激活 · 右键编辑";
-            RenderUtil.drawSmoothText(graphics, hint, x + 10, y + 27, AnimationUtil.opaqueArgb(GuiThemeService.routeDimmer()));
-
-            if (external) {
-                if (hiddenButton != importButton) {
-                    importButton.draw(graphics, externalAction, false, mouseX, mouseY);
-                }
-                graphics.pose().popMatrix();
-                return;
-            }
-
-            visible.draw(graphics, options.visible() ? "显示 开" : "显示 关", options.visible(), mouseX, mouseY);
-            if (store.supportsLines() || store.supportsTracers()) {
-                line.draw(graphics, options.showLine() ? "连线 开" : "连线 关", options.showLine(), mouseX, mouseY);
-            }
-            if (!store.supportsLines()) {
-                if (hiddenButton != region) {
-                    region.draw(graphics, "生效区域", false, mouseX, mouseY);
-                }
-            }
-
-            if (hiddenButton != rename && !store.protectedFile(path)) {
-                rename.draw(graphics, "改名", false, mouseX, mouseY);
-            }
-
-            graphics.pose().popMatrix();
-        }
-    }
 }

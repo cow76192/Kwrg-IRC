@@ -101,7 +101,11 @@ public class LoadModule extends Module {
                 try {
                     Path dir = IrcConfig.getKwrgDir();
                     Files.createDirectories(dir);
-                    Path filePath = dir.resolve(cleanName + ".json");
+                    Path filePath = SafePaths.resolveInside(dir, cleanName + ".json");
+                    if (filePath == null) {
+                        ChatNotifier.send("§c[IRC] 保存导入配置失败: 配置文件名非法", NotificationType.ERR);
+                        return;
+                    }
 
                     Files.writeString(filePath, this.pendingImportJson);
                     this.pendingImportJson = null;
@@ -260,6 +264,7 @@ public class LoadModule extends Module {
         }
         return success ? 1 : 0;
     }
+
     public static int createConfig(String name) {
         String cleanName = name.trim();
         String error = validateProfileName(cleanName);

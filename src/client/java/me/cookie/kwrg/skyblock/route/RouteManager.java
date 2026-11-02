@@ -1,4 +1,4 @@
-package me.cookie.kwrg.irc.manager;
+package me.cookie.kwrg.skyblock.route;
 
 import me.cookie.kwrg.render.RouteLineRenderer;
 import me.cookie.kwrg.util.PointEntry;
@@ -157,10 +157,10 @@ public final class RouteManager {
             Files.createDirectories(dir);
             try (Stream<Path> stream = Files.list(dir)) {
                 Map<String, Path> selected = new LinkedHashMap<>();
-                for (Path path : stream.filter(RouteManager::isRouteFile).toList()) {
-                    String base = baseName(path).toLowerCase(Locale.ROOT);
+                for (Path path : stream.filter(RouteNames::isRouteFile).toList()) {
+                    String base = RouteNames.baseName(path).toLowerCase(Locale.ROOT);
                     Path existing = selected.get(base);
-                    if (existing == null || (isJson(path) && !isJson(existing))) {
+                    if (existing == null || (RouteNames.isJson(path) && !RouteNames.isJson(existing))) {
                         selected.put(base, path);
                     }
                 }
@@ -174,26 +174,13 @@ public final class RouteManager {
     }
 
     public static String currentSourceName() {
-        return currentFile == null ? "" : baseName(currentFile);
-    }
-
-    private static String validateRouteName(String name) {
-        String clean = name == null ? "" : name.strip();
-        if (clean.toLowerCase(Locale.ROOT).endsWith(".json")) clean = clean.substring(0, clean.length() - 5).strip();
-        if (clean.isEmpty() || clean.length() > 64) throw new IllegalArgumentException("名称须为 1–64 个字符");
-        if (clean.equals(".") || clean.equals("..") || clean.endsWith(".")
-                || clean.chars().anyMatch(c -> c < 32 || "<>:\"/\\|?*".indexOf(c) >= 0)) {
-            throw new IllegalArgumentException("名称不能包含路径或文件名特殊字符");
-        }
-        String stem = clean.split("\\.", 2)[0].toUpperCase(Locale.ROOT);
-        if (stem.matches("CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9]")) throw new IllegalArgumentException("请使用其他路线名称");
-        return clean;
+        return currentFile == null ? "" : RouteNames.baseName(currentFile);
     }
 
     private static void ensureRouteNameAvailable(Path directory, String name, Path original) throws IOException {
         try (Stream<Path> stream = Files.list(directory)) {
-            for (Path file : stream.filter(RouteManager::isRouteFile).toList()) {
-                if ((original == null || !file.equals(original)) && baseName(file).equalsIgnoreCase(name)) {
+            for (Path file : stream.filter(RouteNames::isRouteFile).toList()) {
+                if ((original == null || !file.equals(original)) && RouteNames.baseName(file).equalsIgnoreCase(name)) {
                     throw new IllegalArgumentException("已存在同名路线，请换一个名称");
                 }
             }
@@ -205,7 +192,7 @@ public final class RouteManager {
     }
 
     private static Path createRoute(Path directory, String name) throws IOException {
-        String clean = validateRouteName(name);
+        String clean = RouteNames.validateRouteName(name);
         Files.createDirectories(directory);
         ensureRouteNameAvailable(directory, clean, null);
         Path target = directory.resolve(clean + ".json");
@@ -219,16 +206,16 @@ public final class RouteManager {
     }
 
     public static Path renameRoute(Path file, String name) throws IOException {
-        String clean = validateRouteName(name);
+        String clean = RouteNames.validateRouteName(name);
         Path directory = file.getParent();
         ensureRouteNameAvailable(directory, clean, file);
-        Path target = directory.resolve(clean + (isJson(file) ? ".json" : ".txt"));
+        Path target = directory.resolve(clean + (RouteNames.isJson(file) ? ".json" : ".txt"));
         String content = readFile(file);
         if (content == null) throw new IOException("无法读取路线文件");
         if (file.equals(currentFile) && !java.util.Objects.equals(content, loadedContent)) {
             throw new IOException("路线文件已被外部修改，请先重新加载再改名");
         }
-        if (isJson(file)) {
+        if (RouteNames.isJson(file)) {
             JsonElement parsed = JsonParser.parseString(content);
             JsonObject root;
             if (parsed.isJsonObject()) root = parsed.getAsJsonObject();
@@ -280,7 +267,7 @@ public final class RouteManager {
     public static FileOptions fileOptions(Path path) {
         if (path.equals(currentFile)) return new FileOptions(visible, showLine);
         String text = readFile(path);
-        if (text != null && isJson(path)) {
+        if (text != null && RouteNames.isJson(path)) {
             try {
                 JsonElement parsed = JsonParser.parseString(text);
                 if (parsed.isJsonObject()) {
@@ -307,7 +294,7 @@ public final class RouteManager {
         try {
             JsonObject root;
             Path target = path;
-            if (isJson(path)) {
+            if (RouteNames.isJson(path)) {
                 JsonElement parsed = JsonParser.parseString(text);
                 if (parsed.isJsonObject()) root = parsed.getAsJsonObject();
                 else if (parsed.isJsonArray()) {
@@ -316,16 +303,16 @@ public final class RouteManager {
                 } else return false;
             } else {
                 root = new JsonObject();
-                root.addProperty("name", baseName(path));
+                root.addProperty("name", RouteNames.baseName(path));
                 root.add("waypoints", entriesJson(parseTxt(text)));
-                target = getDir().resolve(baseName(path) + ".json");
+                target = getDir().resolve(RouteNames.baseName(path) + ".json");
             }
             root.addProperty("visible", fileVisible);
             root.addProperty("showLine", fileShowLine);
             Files.writeString(target, GSON.toJson(root));
             return true;
         } catch (IOException | RuntimeException e) {
-            ChatNotifier.send("§c[Route] 设置保存失败 | " + fileName(path), NotificationType.ERR);
+            ChatNotifier.send("§c[Route] 设置保存失败 | " + RouteNames.fileName(path), NotificationType.ERR);
             LOGGER.warn("[Route] 设置保存失败: {}", path, e);
             return false;
         }
@@ -380,12 +367,12 @@ public final class RouteManager {
     private static boolean loadFile(Path path, boolean interactive) {
         String text = readFile(path);
         if (text == null) {
-            if (interactive) ChatNotifier.send("§c[Route] 读取失败 | " + fileName(path), NotificationType.ERR);
+            if (interactive) ChatNotifier.send("§c[Route] 读取失败 | " + RouteNames.fileName(path), NotificationType.ERR);
             else LOGGER.warn("[Route] 恢复路线失败: {}", path);
             return false;
         }
 
-        boolean json = isJson(path);
+        boolean json = RouteNames.isJson(path);
         List<Entry> loaded;
         boolean loadedVisible = true;
         boolean loadedShowLine = false;
@@ -401,14 +388,14 @@ public final class RouteManager {
             }
         } catch (RuntimeException e) {
             LOGGER.warn("[Route] 路线格式无效: {}", path, e);
-            if (interactive) ChatNotifier.send("§c[Route] 路线 JSON 格式无效 | " + fileName(path), NotificationType.ERR);
+            if (interactive) ChatNotifier.send("§c[Route] 路线 JSON 格式无效 | " + RouteNames.fileName(path), NotificationType.ERR);
             return false;
         }
         ENTRIES.clear();
         ENTRIES.addAll(loaded);
         visible = loadedVisible;
         showLine = loadedShowLine;
-        currentFile = json ? path : getDir().resolve(baseName(path) + ".json");
+        currentFile = json ? path : getDir().resolve(RouteNames.baseName(path) + ".json");
         loadedContent = json ? text : readFile(currentFile);
         conflictReported = false;
         if (!json && !saveCurrent(interactive)) return false;
@@ -416,7 +403,7 @@ public final class RouteManager {
         IrcConfig.get().currentRouteFileName = currentFileName();
         if (interactive) {
             if (selectionChanged) IrcConfig.save();
-            ChatNotifier.send("§a[Route] 已导入 | " + fileName(path) + " (" + ENTRIES.size() + " 条)", NotificationType.SUCCESS);
+            ChatNotifier.send("§a[Route] 已导入 | " + RouteNames.fileName(path) + " (" + ENTRIES.size() + " 条)", NotificationType.SUCCESS);
         }
         return true;
     }
@@ -434,7 +421,7 @@ public final class RouteManager {
         String text = readFile(path);
         if (text == null) return false;
         Minecraft.getInstance().keyboardHandler.setClipboard(text);
-        ChatNotifier.send("§a[Route] 已复制 | " + fileName(path), NotificationType.SUCCESS);
+        ChatNotifier.send("§a[Route] 已复制 | " + RouteNames.fileName(path), NotificationType.SUCCESS);
         return true;
     }
 
@@ -444,10 +431,10 @@ public final class RouteManager {
             if (path.equals(currentFile)) {
                 clear();
             }
-            ChatNotifier.send("§e[Route] 已删除文件 | " + fileName(path), NotificationType.INFO);
+            ChatNotifier.send("§e[Route] 已删除文件 | " + RouteNames.fileName(path), NotificationType.INFO);
             return true;
         } catch (IOException e) {
-            ChatNotifier.send("§c[Route] 删除失败 | " + fileName(path), NotificationType.ERR);
+            ChatNotifier.send("§c[Route] 删除失败 | " + RouteNames.fileName(path), NotificationType.ERR);
             return false;
         }
     }
@@ -583,9 +570,9 @@ public final class RouteManager {
             if (!builder.isEmpty()) builder.append(' ');
             builder.append(i + 1)
                     .append(".[").append(displayName(entry, i))
-                    .append("][").append(value(entry.x))
-                    .append("] [").append(value(entry.y))
-                    .append("] [").append(value(entry.z))
+                    .append("][").append(RouteNames.value(entry.x))
+                    .append("] [").append(RouteNames.value(entry.y))
+                    .append("] [").append(RouteNames.value(entry.z))
                     .append(']');
         }
         IrcMessageHandler.printMessage("§b[Route] §f" + builder);
@@ -655,9 +642,9 @@ public final class RouteManager {
             String y;
             String z;
             if (coords != null) {
-                x = coordAt(coords, 0);
-                y = coordAt(coords, 1);
-                z = coordAt(coords, 2);
+                x = RouteNames.coordAt(coords, 0);
+                y = RouteNames.coordAt(coords, 1);
+                z = RouteNames.coordAt(coords, 2);
             } else {
                 x = string(waypoint, "x");
                 y = string(waypoint, "y");
@@ -685,24 +672,12 @@ public final class RouteManager {
             JsonObject waypoint = new JsonObject();
             waypoint.addProperty("name", entry.name);
             waypoint.addProperty("visible", entry.visible);
-            addCoordinate(waypoint, "x", entry.x);
-            addCoordinate(waypoint, "y", entry.y);
-            addCoordinate(waypoint, "z", entry.z);
+            RouteNames.addCoordinate(waypoint, "x", entry.x);
+            RouteNames.addCoordinate(waypoint, "y", entry.y);
+            RouteNames.addCoordinate(waypoint, "z", entry.z);
             waypoints.add(waypoint);
         }
         return waypoints;
-    }
-
-    private static void addCoordinate(JsonObject object, String key, String value) {
-        try {
-            double coordinate = Double.parseDouble(value.trim());
-            if (Double.isFinite(coordinate)) {
-                object.addProperty(key, coordinate);
-                return;
-            }
-        } catch (Exception ignored) {
-        }
-        object.addProperty(key, value == null ? "" : value);
     }
 
     private static String firstString(JsonObject object, String... keys) {
@@ -725,12 +700,6 @@ public final class RouteManager {
             if (element != null && element.isJsonArray()) return element.getAsJsonArray();
         }
         return null;
-    }
-
-    private static String coordAt(JsonArray array, int index) {
-        if (index < 0 || index >= array.size()) return "";
-        JsonElement element = array.get(index);
-        return element == null || element.isJsonNull() ? "" : element.getAsString().trim();
     }
 
     private static void render(LevelRenderContext context) {
@@ -790,21 +759,6 @@ public final class RouteManager {
         return node.subtract(cameraUp.scale(offset));
     }
 
-    private static boolean isRouteFile(Path path) {
-        String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
-        return name.endsWith(".txt") || name.endsWith(".json");
-    }
-
-    private static boolean isJson(Path path) {
-        return path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".json");
-    }
-
-    private static String baseName(Path path) {
-        String name = path.getFileName().toString();
-        int dot = name.lastIndexOf('.');
-        return dot > 0 ? name.substring(0, dot) : name;
-    }
-
     private static String readFile(Path path) {
         try {
             if (Files.size(path) > MAX_ROUTE_FILE_BYTES) return null;
@@ -812,14 +766,6 @@ public final class RouteManager {
         } catch (IOException e) {
             return null;
         }
-    }
-
-    private static String fileName(Path path) {
-        return path == null ? "" : path.getFileName().toString();
-    }
-
-    private static String value(String text) {
-        return text == null || text.isBlank() ? "?" : text;
     }
 
     public static final class Entry extends PointEntry {

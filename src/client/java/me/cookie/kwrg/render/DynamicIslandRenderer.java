@@ -2,7 +2,6 @@ package me.cookie.kwrg.render;
 
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
-import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.HardwareMetricsTracker;
@@ -20,7 +19,6 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -66,6 +64,10 @@ public class DynamicIslandRenderer {
         }
     }
 
+    public static void addCustomNotice(String key, String text) {
+        setCustomNotice(key, text);
+    }
+
     /**
      * 根据 key 移除指定的自定义消息
      */
@@ -73,6 +75,20 @@ public class DynamicIslandRenderer {
         if (key != null) {
             CUSTOM_NOTICES.remove(key);
         }
+    }
+
+    public static void clearCustomNotices() {
+        CUSTOM_NOTICES.clear();
+    }
+
+    public static Map<String, String> getCustomNotices() {
+        synchronized (CUSTOM_NOTICES) {
+            return Collections.unmodifiableMap(new LinkedHashMap<>(CUSTOM_NOTICES));
+        }
+    }
+
+    public static boolean hasCustomNotice(String key) {
+        return key != null && CUSTOM_NOTICES.containsKey(key);
     }
 
     private static class IslandNoticeEntry {
@@ -151,8 +167,6 @@ public class DynamicIslandRenderer {
     private static GuiGraphicsExtractor currentFrameExtractor = null;
 
     private static boolean wasSkyHanniInCurrentSession = false;
-    private static Object skyHanniInstance = null;
-    private static Method skyHanniDrawMethod = null;
 
     private static long lastIslandThrottleTime = 0;
 
@@ -162,24 +176,14 @@ public class DynamicIslandRenderer {
     private static float tabTargetShiftY = 0.0f;
     private static boolean editorPreview = false;
 
-    public static float resolveIslandCenterX(float width) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.getWindow() == null) return width / 2.0f;
+    public static GuiGraphicsExtractor getCurrentExtractor() { return currentFrameExtractor; }
 
-        HudElement.State state = HudElementRegistry.state(HudElementRegistry.ISLAND);
-        return HudElement.Anchor.resolveCenterX(state.anchorX, state.marginX,
-                HudElementRegistry.resolveOffsetX(HudElementRegistry.ISLAND), width,
-                mc.getWindow().getGuiScaledWidth());
+    public static float resolveIslandCenterX(float width) {
+        return IslandLayout.resolveIslandCenterX(width);
     }
 
     public static float resolveIslandTopY(float height) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.getWindow() == null) return 0.0f;
-
-        HudElement.State state = HudElementRegistry.state(HudElementRegistry.ISLAND);
-        return HudElement.Anchor.resolveY(state.anchorY, state.marginY,
-                HudElementRegistry.resolveOffsetY(HudElementRegistry.ISLAND), height,
-                mc.getWindow().getGuiScaledHeight());
+        return IslandLayout.resolveIslandTopY(height);
     }
 
     public static boolean isIslandVisible() {
@@ -269,8 +273,20 @@ public class DynamicIslandRenderer {
         return HudElementRegistry.state(HudElementRegistry.ISLAND).shadow;
     }
 
+    public static float getShadowBlur() {
+        return shadowBlur;
+    }
+
+    public static float getShadowOffsetY() {
+        return shadowOffsetY;
+    }
+
+    public static int getShadowBaseAlpha() {
+        return shadowBaseAlpha;
+    }
+
     public static void setSkyHanniInstance(Object instance) {
-        skyHanniInstance = instance;
+        SkyHanniTabAdapter.setSkyHanniInstance(instance);
     }
 
     public static void markSkyHanniTabRendered() {
@@ -282,8 +298,6 @@ public class DynamicIslandRenderer {
     }
 
     private static boolean wasSkyblockerInCurrentSession = false;
-    private static Method skyblockerExtractMethod = null;
-    private static Method skyblockerGetScaleMethod = null;
 
     private static long lastUpdateFrameTime = -1;
 
@@ -373,22 +387,8 @@ public class DynamicIslandRenderer {
             return;
         }
 
-        float targetW = smoothTabW;
-        float targetH = smoothTabH;
-
-        float shiftX = resolveIslandCenterX(targetW) - screenW / 2.0f;
-        if (screenW > targetW) {
-            shiftX = Mth.clamp(shiftX, targetW / 2.0f - screenW / 2.0f, screenW / 2.0f - targetW / 2.0f);
-        } else {
-            shiftX = 0.0f;
-        }
-
-        float shiftY = resolveIslandTopY(targetH) - BASE_TOP_Y;
-        if (screenH > targetH) {
-            shiftY = Mth.clamp(shiftY, -smoothTabY, screenH - targetH - smoothTabY);
-        } else {
-            shiftY = 0.0f;
-        }
+        float shiftX = IslandLayout.tabShiftX(smoothTabW, screenW);
+        float shiftY = IslandLayout.tabShiftY(smoothTabH, screenH, smoothTabY, BASE_TOP_Y);
 
         tabTargetShiftX = shiftX;
         tabTargetShiftY = shiftY;
@@ -497,67 +497,11 @@ public class DynamicIslandRenderer {
     }
 
     public static void renderSkyblockerTab(GuiGraphicsExtractor graphics) {
-        if (!isTabFeatureOn() || graphics == null) return;
-        currentFrameExtractor = graphics;
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.getWindow() == null || mc.player == null) return;
-
-        try {
-            Class<?> wmClass = Class.forName("de.hysky.skyblocker.skyblock.tabhud.screenbuilder.WidgetManager");
-            Object screenBuilder = wmClass.getField("SCREEN_BUILDER").get(null);
-            Method tabMethod = screenBuilder.getClass().getMethod("tab");
-            Object tabLayer = tabMethod.invoke(screenBuilder);
-
-            if (skyblockerGetScaleMethod == null) {
-                Class<?> tabHudClass = Class.forName("de.hysky.skyblocker.skyblock.tabhud.TabHud");
-                skyblockerGetScaleMethod = tabHudClass.getMethod("getScaleFactor");
-            }
-            float scale = ((Number) skyblockerGetScaleMethod.invoke(null)).floatValue();
-
-            int screenW = (int) (mc.getWindow().getGuiScaledWidth() / scale);
-            int screenH = (int) (mc.getWindow().getGuiScaledHeight() / scale);
-
-            if (skyblockerExtractMethod == null) {
-                for (Method m : tabLayer.getClass().getMethods()) {
-                    if (m.getName().equals("extractRenderStates") && m.getParameterCount() == 4) {
-                        skyblockerExtractMethod = m;
-                        break;
-                    }
-                }
-            }
-
-            graphics.pose().pushMatrix();
-            graphics.pose().scale(scale, scale);
-            try {
-                skyblockerExtractMethod.invoke(tabLayer, graphics, screenW, screenH, false);
-            } finally {
-                graphics.pose().popMatrix();
-            }
-        } catch (Throwable ignored) {}
+        SkyHanniTabAdapter.renderSkyblockerTab(graphics);
     }
 
     public static void renderSkyHanniTab(GuiGraphicsExtractor graphics) {
-        if (!isTabFeatureOn()) return;
-        if (skyHanniInstance != null && graphics != null) {
-            currentFrameExtractor = graphics;
-            try {
-                Class<?> dcuClass = Class.forName("at.hannibal2.skyhanni.utils.compat.DrawContextUtils");
-                Object dcuInstance = dcuClass.getField("INSTANCE").get(null);
-                Method setContextMethod = dcuClass.getMethod("setContext", GuiGraphicsExtractor.class);
-                Method clearContextMethod = dcuClass.getMethod("clearContext");
-
-                setContextMethod.invoke(dcuInstance, graphics);
-                try {
-                    if (skyHanniDrawMethod == null) {
-                        skyHanniDrawMethod = skyHanniInstance.getClass().getDeclaredMethod("drawTabList");
-                        skyHanniDrawMethod.setAccessible(true);
-                    }
-                    skyHanniDrawMethod.invoke(skyHanniInstance);
-                } finally {
-                    clearContextMethod.invoke(dcuInstance);
-                }
-            } catch (Throwable ignored) {}
-        }
+        SkyHanniTabAdapter.renderSkyHanniTab(graphics);
     }
 
     public static void updateTargetTabBounds(float w, float h, float y) {

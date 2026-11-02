@@ -1,4 +1,4 @@
-package me.cookie.kwrg.irc.manager;
+package me.cookie.kwrg.skyblock.route;
 
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.util.ChatNotifier;

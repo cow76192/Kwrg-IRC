@@ -68,22 +68,8 @@ public final class Navigator {
             {1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
     };
 
-    private static final int[][] RAY_DIRECTIONS = buildRayDirections();
+    private static final int[][] RAY_DIRECTIONS = NavigatorMath.buildRayDirections();
     private static final int[][][] RAY_STEPS = buildRaySteps();
-
-    private static int[][] buildRayDirections() {
-        List<int[]> list = new ArrayList<>(98);
-        for (int dx = -2; dx <= 2; dx++) {
-            for (int dy = -2; dy <= 2; dy++) {
-                for (int dz = -2; dz <= 2; dz++) {
-                    if (dx == 0 && dy == 0 && dz == 0) continue;
-                    if (greatestCommonDivisor(Math.abs(dx), greatestCommonDivisor(Math.abs(dy), Math.abs(dz))) != 1) continue;
-                    list.add(new int[]{dx, dy, dz});
-                }
-            }
-        }
-        return list.toArray(new int[0][]);
-    }
 
     private static int[][][] buildRaySteps() {
         int[][][] rays = new int[RAY_DIRECTIONS.length][][];
@@ -108,10 +94,6 @@ public final class Navigator {
             rays[index] = steps.toArray(new int[0][]);
         }
         return rays;
-    }
-
-    private static int greatestCommonDivisor(int a, int b) {
-        return b == 0 ? a : greatestCommonDivisor(b, a % b);
     }
 
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor(r -> {
@@ -180,7 +162,7 @@ public final class Navigator {
                 || (grounded(level, start) && grounded(level, goal)
                 && start.distSqr(goal) <= (double) TELEPORT_RANGE * TELEPORT_RANGE
                 && teleportLine(level, start, goal));
-        if (direct) return new Result(List.of(center(start), center(goal)), true, false);
+        if (direct) return new Result(List.of(NavigatorMath.center(start), NavigatorMath.center(goal)), true, false);
 
         Search search = new Search(level, start, goal);
         Node reached = search.run();
@@ -209,13 +191,9 @@ public final class Navigator {
         return new Result(points, true, false);
     }
 
-    private static Vec3 center(BlockPos pos) {
-        return new Vec3(pos.getX() + 0.5, pos.getY() + 0.05, pos.getZ() + 0.5);
-    }
-
     private static List<Vec3> finish(Level level, List<Vec3> points, BlockPos goal, boolean complete) {
         if (points.isEmpty()) return points;
-        Vec3 target = center(goal);
+        Vec3 target = NavigatorMath.center(goal);
         Vec3 last = points.get(points.size() - 1);
         if (last.distanceToSqr(target) <= 1.0) return points;
         if (complete || clearLine(level, BlockPos.containing(last.x, last.y, last.z), goal)) points.add(target);
@@ -449,7 +427,7 @@ public final class Navigator {
         boolean[] jump = new boolean[size];
         for (int index = 0; index < size; index++) {
             Node node = chain.get(size - 1 - index);
-            points.add(center(node.pos()));
+            points.add(NavigatorMath.center(node.pos()));
             jump[index] = node.teleport;
         }
         return new Traced(points, jump);
@@ -475,10 +453,6 @@ public final class Navigator {
         LOGGER.warn("[Navigator] path search failed: {}", reason);
     }
 
-    private static boolean jumpAt(boolean[] jump, int index) {
-        return index >= 0 && index < jump.length && jump[index];
-    }
-
     private static List<Vec3> smooth(List<Vec3> points, boolean[] jump) {
         if (points.size() < 2) return points;
         List<Vec3> result = new ArrayList<>(points.size() * 2);
@@ -486,7 +460,7 @@ public final class Navigator {
         for (int index = 0; index < points.size() - 1; index++) {
             Vec3 p1 = points.get(index);
             Vec3 p2 = points.get(index + 1);
-            if (jumpAt(jump, index) || jumpAt(jump, index + 1) || jumpAt(jump, index + 2)) {
+            if (NavigatorMath.jumpAt(jump, index) || NavigatorMath.jumpAt(jump, index + 1) || NavigatorMath.jumpAt(jump, index + 2)) {
                 result.add(p2);
                 continue;
             }
@@ -494,26 +468,10 @@ public final class Navigator {
             Vec3 p3 = points.get(Math.min(points.size() - 1, index + 2));
             int steps = Math.max(1, (int) (p1.distanceTo(p2) / SMOOTHING_STEP));
             for (int step = 1; step <= steps; step++) {
-                result.add(catmullRom(p0, p1, p2, p3, (double) step / steps));
+                result.add(NavigatorMath.catmullRom(p0, p1, p2, p3, (double) step / steps));
             }
         }
         return result;
-    }
-
-    private static Vec3 catmullRom(Vec3 p0, Vec3 p1, Vec3 p2, Vec3 p3, double t) {
-        double t2 = t * t;
-        double t3 = t2 * t;
-        return new Vec3(
-                axis(p0.x, p1.x, p2.x, p3.x, t, t2, t3),
-                axis(p0.y, p1.y, p2.y, p3.y, t, t2, t3),
-                axis(p0.z, p1.z, p2.z, p3.z, t, t2, t3));
-    }
-
-    private static double axis(double p0, double p1, double p2, double p3, double t, double t2, double t3) {
-        return (p1 * 2.0
-                + (p2 - p0) * t
-                + (p0 * 2.0 - p1 * 5.0 + p2 * 4.0 - p3) * t2
-                + (p1 * 3.0 - p0 - p2 * 3.0 + p3) * t3) * 0.5;
     }
 
     private static final class Node {

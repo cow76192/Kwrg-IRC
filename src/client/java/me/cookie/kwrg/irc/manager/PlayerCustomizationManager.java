@@ -17,16 +17,12 @@ import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Player;
 import org.lwjgl.system.MemoryUtil;
-import org.w3c.dom.Node;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
-import javax.imageio.metadata.IIOMetadata;
 import javax.imageio.stream.ImageInputStream;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -45,33 +41,12 @@ public class PlayerCustomizationManager {
 
     private static final int MAX_GIF_FRAMES = 96;
 
-    private static final Map<String, RenderType> CAPE_TYPE_CACHE = new ConcurrentHashMap<>();
-    private static final Map<String, Identifier> CAPE_IDS_CACHE = new ConcurrentHashMap<>();
-    private static final Map<String, List<NativeImage>> CAPE_FRAMES_CACHE = new ConcurrentHashMap<>();
-    private static final Map<String, NativeImage> CAPE_ACTIVE_IMAGE = new ConcurrentHashMap<>();
-    private static final Map<String, Long> CAPE_LAST_FRAME_TIME = new ConcurrentHashMap<>();
-    private static final Map<String, Integer> CAPE_CURRENT_FRAME_INDEX = new ConcurrentHashMap<>();
-    private static final Map<String, int[]> CAPE_FRAME_DELAYS = new ConcurrentHashMap<>();
-    // GIF 原生帧率
-    private static final Map<String, Integer> CAPE_NATIVE_FPS = new ConcurrentHashMap<>();
-    private static final Map<String, String> IRC_PLAYER_CAPES = new ConcurrentHashMap<>();
-    private static final Map<String, Float> IRC_PLAYER_SCALES = new ConcurrentHashMap<>();
-    private static final Map<String, Set<String>> CAPE_ACTIVE_USERS = new ConcurrentHashMap<>();
-    private static final Map<String, Float> REMOTE_PLAYER_SCALES = new ConcurrentHashMap<>();
-    // 记录对应披风是否具备合法鞘翅贴图
-    private static final Map<String, Boolean> CAPE_HAS_ELYTRA = new ConcurrentHashMap<>();
-    private static final Map<String, RenderType> ELYTRA_TYPE_CACHE = new ConcurrentHashMap<>();
     public static volatile boolean inInventoryRendering = false;
 
     private static volatile Object localRenderState = null;
 
     public static final int CAPE_PREVIEW_W = 40;
     public static final int CAPE_PREVIEW_H = 64;
-
-    private record CapePreview(Identifier id, long lastModified) {}
-
-    private static final Map<String, CapePreview> CAPE_PREVIEW_CACHE = new ConcurrentHashMap<>();
-    private static final Set<String> CAPE_PREVIEW_LOADING = ConcurrentHashMap.newKeySet();
 
     private static final ExecutorService PREVIEW_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "kwrg-cape-preview");
@@ -92,42 +67,20 @@ public class PlayerCustomizationManager {
     public static float getMyScale() { return IrcConfig.get().myScale; }
 
     public static Identifier peekCapePreview(String fileName) {
-        CapePreview p = CAPE_PREVIEW_CACHE.get(fileName);
+        CapeCache.CapePreview p = CapeCache.previews().get(fileName);
         return p == null ? null : p.id();
-    }
-
-    //检查贴图右侧的鞘翅有效区域
-    private static boolean checkHasElytra(BufferedImage img) {
-        if (!isStandardCape(img.getWidth(), img.getHeight())) {
-            return false;
-        }
-        int w = img.getWidth();
-        int h = img.getHeight();
-        int u = w / 64;
-
-        int startX = 22 * u;
-        for (int y = 0; y < h; y++) {
-            for (int x = startX; x < w; x++) {
-                int pixel = img.getRGB(x, y);
-                int alpha = (pixel >> 24) & 0xFF;
-                if (alpha > 10) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     public static Identifier getPlayerElytraTexture(Player player) {
         Minecraft mc = Minecraft.getInstance();
-        String capeName = (player == mc.player) ? getMyCape() : IRC_PLAYER_CAPES.get(capeKey(player.getGameProfile().name()));
+        String capeName = (player == mc.player) ? getMyCape() : CapeCache.playerCapes().get(capeKey(player.getGameProfile().name()));
         if (capeName == null || capeName.isBlank()) return null;
 
-        if (!Boolean.TRUE.equals(CAPE_HAS_ELYTRA.get(capeName))) {
+        if (!Boolean.TRUE.equals(CapeCache.hasElytra().get(capeName))) {
             return null;
         }
 
-        Identifier id = CAPE_IDS_CACHE.get(capeName);
+        Identifier id = CapeCache.capeIds().get(capeName);
         if (id != null) {
             updateFrameIfNeeded(capeName);
             return id;
@@ -150,9 +103,9 @@ public class PlayerCustomizationManager {
             return;
         }
 
-        CapePreview cached = CAPE_PREVIEW_CACHE.get(fileName);
+        CapeCache.CapePreview cached = CapeCache.previews().get(fileName);
         if (cached != null && cached.lastModified() == modified) return;
-        if (!CAPE_PREVIEW_LOADING.add(fileName)) return;
+        if (!CapeCache.previewLoading().add(fileName)) return;
 
         PREVIEW_EXECUTOR.submit(() -> {
             NativeImage img = null;
@@ -163,13 +116,13 @@ public class PlayerCustomizationManager {
                     return;
                 }
 
-                int frames = "gif".equals(capeMagic(file)) ? 1 : parseRequestedFrameCount(fileName);
+                int frames = "gif".equals(CapeImagePipeline.capeMagic(file)) ? 1 : CapeImagePipeline.parseRequestedFrameCount(fileName);
                 if (frames >= 2 && src.getWidth() >= frames) {
                     src = src.getSubimage(0, 0, src.getWidth() / frames, src.getHeight());
                 }
 
                 BufferedImage previewSrc;
-                if (isStandardCape(src.getWidth(), src.getHeight())) {
+                if (CapeImagePipeline.isStandardCape(src.getWidth(), src.getHeight())) {
                     int u = src.getWidth() / 64;
                     previewSrc = src.getSubimage(12 * u, 1 * u, 10 * u, 16 * u);
                 } else {
@@ -187,25 +140,25 @@ public class PlayerCustomizationManager {
                 g.drawImage(previewSrc, 0, 0, CAPE_PREVIEW_W, CAPE_PREVIEW_H, null);
                 g.dispose();
 
-                img = toNativeImage(scaledPreview);
+                img = CapeImagePipeline.toNativeImage(scaledPreview);
                 final NativeImage finalImg = img;
 
                 Minecraft mc = Minecraft.getInstance();
                 mc.execute(() -> {
                     try {
-                        CapePreview old = CAPE_PREVIEW_CACHE.get(fileName);
+                        CapeCache.CapePreview old = CapeCache.previews().get(fileName);
                         if (old != null) mc.getTextureManager().release(old.id());
 
                         Identifier id = Identifier.fromNamespaceAndPath("kwrg",
-                                "cape_preview/" + sanitizePath(fileName) + "_" + Integer.toHexString(fileName.hashCode()));
+                                "cape_preview/" + CapeImagePipeline.sanitizePath(fileName) + "_" + Integer.toHexString(fileName.hashCode()));
                         mc.getTextureManager().register(id,
                                 new DynamicTexture(() -> "kwrg_cape_preview", finalImg));
-                        CAPE_PREVIEW_CACHE.put(fileName, new CapePreview(id, modified));
+                        CapeCache.previews().put(fileName, new CapeCache.CapePreview(id, modified));
                     } catch (Exception e) {
                         e.printStackTrace();
                         finalImg.close();
                     } finally {
-                        CAPE_PREVIEW_LOADING.remove(fileName);
+                        CapeCache.previewLoading().remove(fileName);
                     }
                 });
                 handedOver = true;
@@ -215,7 +168,7 @@ public class PlayerCustomizationManager {
             } finally {
                 if (!handedOver) {
                     if (img != null) img.close();
-                    CAPE_PREVIEW_LOADING.remove(fileName);
+                    CapeCache.previewLoading().remove(fileName);
                 }
             }
         });
@@ -227,10 +180,7 @@ public class PlayerCustomizationManager {
             mc.execute(PlayerCustomizationManager::clearCapePreviews);
             return;
         }
-        for (CapePreview p : CAPE_PREVIEW_CACHE.values()) {
-            mc.getTextureManager().release(p.id());
-        }
-        CAPE_PREVIEW_CACHE.clear();
+        CapeCache.releasePreviews();
     }
 
     public static void setMyScale(float scale) {
@@ -243,9 +193,9 @@ public class PlayerCustomizationManager {
         if (username == null || username.isBlank()) return;
         String key = username.toLowerCase(Locale.ROOT);
         if (Math.abs(scale - 1.0f) > 0.001f) {
-            REMOTE_PLAYER_SCALES.put(key, scale);
+            CapeCache.remoteScales().put(key, scale);
         } else {
-            REMOTE_PLAYER_SCALES.remove(key);
+            CapeCache.remoteScales().remove(key);
         }
     }
 
@@ -255,11 +205,11 @@ public class PlayerCustomizationManager {
             return getMyScale();
         }
         String name = player.getGameProfile().name().toLowerCase(Locale.ROOT);
-        return REMOTE_PLAYER_SCALES.getOrDefault(name, 1.0f);
+        return CapeCache.remoteScales().getOrDefault(name, 1.0f);
     }
 
     public static void clearRemotePlayerScales() {
-        REMOTE_PLAYER_SCALES.clear();
+        CapeCache.remoteScales().clear();
     }
 
     public static float cycleMyScale() {
@@ -320,21 +270,21 @@ public class PlayerCustomizationManager {
         if (key.isEmpty()) return;
 
         if (capeFile != null && !capeFile.isBlank()) {
-            IRC_PLAYER_CAPES.put(key, capeFile);
+            CapeCache.playerCapes().put(key, capeFile);
 
-            boolean isNearby = CAPE_ACTIVE_USERS.values().stream().anyMatch(set -> set.contains(key));
+            boolean isNearby = CapeCache.activeUsers().values().stream().anyMatch(set -> set.contains(key));
             if (isNearby) {
                 bindPlayerCape(key, capeFile);
             }
         } else {
-            IRC_PLAYER_CAPES.remove(key);
+            CapeCache.playerCapes().remove(key);
             unbindPlayer(key);
         }
 
         if (scale > 0.1f && scale <= 5.0f) {
-            IRC_PLAYER_SCALES.put(key, scale);
+            CapeCache.playerScales().put(key, scale);
         } else {
-            IRC_PLAYER_SCALES.remove(key);
+            CapeCache.playerScales().remove(key);
         }
     }
 
@@ -343,11 +293,11 @@ public class PlayerCustomizationManager {
         if (key.isEmpty()) return;
 
         String oldCape = null;
-        for (Map.Entry<String, Set<String>> entry : CAPE_ACTIVE_USERS.entrySet()) {
+        for (Map.Entry<String, Set<String>> entry : CapeCache.activeUsers().entrySet()) {
             if (entry.getValue().remove(key)) {
                 oldCape = entry.getKey();
                 if (entry.getValue().isEmpty()) {
-                    CAPE_ACTIVE_USERS.remove(oldCape);
+                    CapeCache.activeUsers().remove(oldCape);
                     releaseSpecificCape(oldCape);
                 }
                 break;
@@ -355,13 +305,13 @@ public class PlayerCustomizationManager {
         }
 
         if (newCape != null && !newCape.isBlank()) {
-            CAPE_ACTIVE_USERS.computeIfAbsent(newCape, k -> ConcurrentHashMap.newKeySet()).add(key);
+            CapeCache.activeUsers().computeIfAbsent(newCape, k -> ConcurrentHashMap.newKeySet()).add(key);
             triggerAsyncLoad(newCape);
         }
     }
 
     public static void preloadIrcPlayer(String username) {
-        String capeName = IRC_PLAYER_CAPES.get(capeKey(username));
+        String capeName = CapeCache.playerCapes().get(capeKey(username));
         if (capeName != null && !capeName.isBlank()) {
             bindPlayerCape(username, capeName);
         }
@@ -374,8 +324,8 @@ public class PlayerCustomizationManager {
 
     public static void removeIrcPlayer(String username) {
         String key = capeKey(username);
-        IRC_PLAYER_CAPES.remove(key);
-        IRC_PLAYER_SCALES.remove(key);
+        CapeCache.playerCapes().remove(key);
+        CapeCache.playerScales().remove(key);
     }
 
     private static String capeKey(String username) {
@@ -388,12 +338,12 @@ public class PlayerCustomizationManager {
         if (player == mc.player) {
             capeName = getMyCape();
         } else {
-            capeName = IRC_PLAYER_CAPES.get(capeKey(player.getGameProfile().name()));
+            capeName = CapeCache.playerCapes().get(capeKey(player.getGameProfile().name()));
         }
 
         if (capeName == null || capeName.isBlank()) return null;
 
-        RenderType type = CAPE_TYPE_CACHE.get(capeName);
+        RenderType type = CapeCache.capeTypes().get(capeName);
         if (type != null) {
             updateFrameIfNeeded(capeName);
             return type;
@@ -434,59 +384,14 @@ public class PlayerCustomizationManager {
             return;
         }
 
-        for (Identifier id : CAPE_IDS_CACHE.values()) {
-            mc.getTextureManager().release(id);
-        }
+        CapeCache.clearAll();
 
-        for (Map.Entry<String, List<NativeImage>> entry : CAPE_FRAMES_CACHE.entrySet()) {
-            List<NativeImage> frames = entry.getValue();
-            NativeImage active = CAPE_ACTIVE_IMAGE.get(entry.getKey());
-            if (active != null && (frames == null || !frames.contains(active))) {
-                active.close();
-            }
-            if (frames != null) {
-                for (NativeImage img : frames) img.close();
-            }
-        }
-
-        CAPE_TYPE_CACHE.clear();
-        CAPE_IDS_CACHE.clear();
-        CAPE_FRAMES_CACHE.clear();
-        CAPE_ACTIVE_IMAGE.clear();
-        CAPE_LAST_FRAME_TIME.clear();
-        CAPE_CURRENT_FRAME_INDEX.clear();
-        CAPE_FRAME_DELAYS.clear();
-        CAPE_NATIVE_FPS.clear();
-        CAPE_HAS_ELYTRA.clear();
         activeCapeName = null;
         loadingCapeName = null;
     }
 
     private static void releaseSpecificCape(String capeName) {
-        if (capeName == null) return;
-        Minecraft mc = Minecraft.getInstance();
-
-        Identifier id = CAPE_IDS_CACHE.remove(capeName);
-        if (id != null) {
-            mc.getTextureManager().release(id);
-        }
-
-        List<NativeImage> frames = CAPE_FRAMES_CACHE.remove(capeName);
-        NativeImage active = CAPE_ACTIVE_IMAGE.remove(capeName);
-
-        if (active != null && (frames == null || !frames.contains(active))) {
-            active.close();
-        }
-        if (frames != null) {
-            for (NativeImage img : frames) img.close();
-        }
-
-        CAPE_TYPE_CACHE.remove(capeName);
-        CAPE_LAST_FRAME_TIME.remove(capeName);
-        CAPE_CURRENT_FRAME_INDEX.remove(capeName);
-        CAPE_FRAME_DELAYS.remove(capeName);
-        CAPE_NATIVE_FPS.remove(capeName);
-        CAPE_HAS_ELYTRA.remove(capeName);
+        CapeCache.releaseCape(capeName);
     }
 
     private static void cleanupLoading(long token) {
@@ -502,7 +407,7 @@ public class PlayerCustomizationManager {
     private static void triggerAsyncLoad(String value, boolean force) {
         if (value == null || value.isBlank()) return;
 
-        if (!force && value.equals(activeCapeName) && CAPE_TYPE_CACHE.containsKey(value)) {
+        if (!force && value.equals(activeCapeName) && CapeCache.capeTypes().containsKey(value)) {
             return;
         }
         if (!force && value.equals(loadingCapeName)) {
@@ -522,10 +427,10 @@ public class PlayerCustomizationManager {
                     return;
                 }
 
-                String magic = capeMagic(file);
+                String magic = CapeImagePipeline.capeMagic(file);
                 boolean gifSource = "gif".equals(magic);
-                String extension = capeExtension(value);
-                if (!magicMatchesExtension(magic, extension)) {
+                String extension = CapeImagePipeline.capeExtension(value);
+                if (!CapeImagePipeline.magicMatchesExtension(magic, extension)) {
                     System.err.println("[KWRG Cape] " + value + " extension=" + extension + " content=" + magic);
                 }
 
@@ -537,11 +442,11 @@ public class PlayerCustomizationManager {
 
                 boolean hasElytra = false;
                 if (!gifSource) {
-                    int requestedFrames = parseRequestedFrameCount(value);
+                    int requestedFrames = CapeImagePipeline.parseRequestedFrameCount(value);
                     BufferedImage firstRawFrame = (requestedFrames >= 2 && src.getWidth() >= requestedFrames)
                             ? src.getSubimage(0, 0, src.getWidth() / requestedFrames, src.getHeight())
                             : src;
-                    hasElytra = checkHasElytra(firstRawFrame);
+                    hasElytra = CapeImagePipeline.checkHasElytra(firstRawFrame);
                 }
 
 
@@ -550,7 +455,7 @@ public class PlayerCustomizationManager {
                     blocks = layoutGifFrames(file, value);
                     if (blocks == null || blocks.isEmpty()) {
                         BufferedImage first = ImageIO.read(file.toFile());
-                        blocks = first == null ? null : layoutFrames(first, plainCapeName(value));
+                        blocks = first == null ? null : layoutFrames(first, CapeImagePipeline.plainCapeName(value));
                     }
                 } else {
                     blocks = layoutFrames(src, value);
@@ -567,7 +472,7 @@ public class PlayerCustomizationManager {
                         cleanupLoading(token);
                         return;
                     }
-                    frames.add(toNativeImage(block));
+                    frames.add(CapeImagePipeline.toNativeImage(block));
                 }
 
                 if (frames.size() > 1) {
@@ -596,7 +501,7 @@ public class PlayerCustomizationManager {
                         }
 
                         Minecraft mc = Minecraft.getInstance();
-                        Identifier id = Identifier.fromNamespaceAndPath("kwrg", sanitizePath(value));
+                        Identifier id = Identifier.fromNamespaceAndPath("kwrg", CapeImagePipeline.sanitizePath(value));
 
                         DynamicTexture tex = new DynamicTexture(() -> "kwrg_cape", finalActive);
                         mc.getTextureManager().register(id, tex);
@@ -622,13 +527,13 @@ public class PlayerCustomizationManager {
                                     .affectsCrumbling()
                                     .setOutline(RenderSetup.OutlineProperty.AFFECTS_OUTLINE)
                                     .createRenderSetup());
-                            ELYTRA_TYPE_CACHE.put(value, elytraType);
+                            CapeCache.elytraTypes().put(value, elytraType);
                         } else {
-                            ELYTRA_TYPE_CACHE.remove(value);
+                            CapeCache.elytraTypes().remove(value);
                         }
-                        CAPE_HAS_ELYTRA.put(value, finalHasElytra);
-                        List<NativeImage> prevFrames = CAPE_FRAMES_CACHE.remove(value);
-                        NativeImage prevActive = CAPE_ACTIVE_IMAGE.remove(value);
+                        CapeCache.hasElytra().put(value, finalHasElytra);
+                        List<NativeImage> prevFrames = CapeCache.capeFrames().remove(value);
+                        NativeImage prevActive = CapeCache.activeImages().remove(value);
                         if (prevActive != null && (prevFrames == null || !prevFrames.contains(prevActive))) {
                             prevActive.close();
                         }
@@ -636,12 +541,12 @@ public class PlayerCustomizationManager {
                             for (NativeImage img : prevFrames) img.close();
                         }
 
-                        CAPE_FRAMES_CACHE.put(value, frames);
-                        CAPE_ACTIVE_IMAGE.put(value, finalActive);
-                        CAPE_TYPE_CACHE.put(value, out);
-                        CAPE_IDS_CACHE.put(value, id);
-                        CAPE_CURRENT_FRAME_INDEX.put(value, 0);
-                        CAPE_LAST_FRAME_TIME.put(value, System.currentTimeMillis());
+                        CapeCache.capeFrames().put(value, frames);
+                        CapeCache.activeImages().put(value, finalActive);
+                        CapeCache.capeTypes().put(value, out);
+                        CapeCache.capeIds().put(value, id);
+                        CapeCache.currentFrameIndexes().put(value, 0);
+                        CapeCache.lastFrameTimes().put(value, System.currentTimeMillis());
 
                         activeCapeName = value;
                     } catch (Exception e) {
@@ -664,14 +569,14 @@ public class PlayerCustomizationManager {
         String value = getMyCape();
         if (value == null) return null;
 
-        RenderType type = CAPE_TYPE_CACHE.get(value);
+        RenderType type = CapeCache.capeTypes().get(value);
         if (type != null) {
             updateFrameIfNeeded(value);
             return type;
         }
 
         if (activeCapeName != null) {
-            RenderType oldType = CAPE_TYPE_CACHE.get(activeCapeName);
+            RenderType oldType = CapeCache.capeTypes().get(activeCapeName);
             if (oldType != null) {
                 if (!value.equals(loadingCapeName)) {
                     triggerAsyncLoad(value);
@@ -688,12 +593,12 @@ public class PlayerCustomizationManager {
     }
 
     private static void updateFrameIfNeeded(String value) {
-        List<NativeImage> frames = CAPE_FRAMES_CACHE.get(value);
+        List<NativeImage> frames = CapeCache.capeFrames().get(value);
         if (frames == null || frames.size() <= 1) return;
 
         int fps = resolvePlaybackFps(value);
-        int currentIndex = CAPE_CURRENT_FRAME_INDEX.getOrDefault(value, 0);
-        int[] delays = CAPE_FRAME_DELAYS.get(value);
+        int currentIndex = CapeCache.currentFrameIndexes().getOrDefault(value, 0);
+        int[] delays = CapeCache.frameDelays().get(value);
 
         long interval;
         if (delays != null && delays.length == frames.size()) {
@@ -706,13 +611,13 @@ public class PlayerCustomizationManager {
         }
 
         long now = System.currentTimeMillis();
-        long lastTime = CAPE_LAST_FRAME_TIME.getOrDefault(value, 0L);
+        long lastTime = CapeCache.lastFrameTimes().getOrDefault(value, 0L);
 
         if (now - lastTime >= interval) {
             int nextIndex = (currentIndex + 1) % frames.size();
 
-            NativeImage activeImage = CAPE_ACTIVE_IMAGE.get(value);
-            Identifier id = CAPE_IDS_CACHE.get(value);
+            NativeImage activeImage = CapeCache.activeImages().get(value);
+            Identifier id = CapeCache.capeIds().get(value);
             if (activeImage != null && id != null) {
                 NativeImage nextFrame = frames.get(nextIndex);
 
@@ -737,8 +642,8 @@ public class PlayerCustomizationManager {
                     dt.upload();
                 }
 
-                CAPE_CURRENT_FRAME_INDEX.put(value, nextIndex);
-                CAPE_LAST_FRAME_TIME.put(value, now);
+                CapeCache.currentFrameIndexes().put(value, nextIndex);
+                CapeCache.lastFrameTimes().put(value, now);
             }
         }
     }
@@ -752,7 +657,7 @@ public class PlayerCustomizationManager {
         int srcW = src.getWidth();
         int srcH = src.getHeight();
 
-        int requestedFrames = parseRequestedFrameCount(fileName);
+        int requestedFrames = CapeImagePipeline.parseRequestedFrameCount(fileName);
         boolean isAnimated = requestedFrames >= 2 && srcW >= requestedFrames;
 
         if (isAnimated) {
@@ -770,63 +675,13 @@ public class PlayerCustomizationManager {
             int frameWidth = srcW / requestedFrames;
             for (int k = 0; k < requestedFrames; k++) {
                 BufferedImage frame = src.getSubimage(k * frameWidth, 0, frameWidth, srcH);
-                blocks.add(processCapeFrame(frame, block, faceW, faceH));
+                blocks.add(CapeImagePipeline.processCapeFrame(frame, block, faceW, faceH));
             }
             return blocks;
         }
 
-        blocks.add(processCapeFrame(src, block, faceW, faceH));
+        blocks.add(CapeImagePipeline.processCapeFrame(src, block, faceW, faceH));
         return blocks;
-    }
-
-    private static String capeMagic(Path file) {
-        try (InputStream in = Files.newInputStream(file)) {
-            byte[] header = new byte[12];
-            int read = in.read(header);
-
-            if (read >= 3 && header[0] == 'G' && header[1] == 'I' && header[2] == 'F') return "gif";
-            if (read >= 8 && (header[0] & 0xFF) == 0x89 && header[1] == 'P' && header[2] == 'N' && header[3] == 'G') {
-                return hasPngAnimationChunk(file) ? "apng" : "png";
-            }
-            if (read >= 3 && (header[0] & 0xFF) == 0xFF && (header[1] & 0xFF) == 0xD8) return "jpg";
-            if (read >= 12 && header[0] == 'R' && header[1] == 'I' && header[2] == 'F' && header[3] == 'F'
-                    && header[8] == 'W' && header[9] == 'E' && header[10] == 'B' && header[11] == 'P') return "webp";
-
-            if (read <= 0) return "empty";
-            StringBuilder hex = new StringBuilder();
-            for (int i = 0; i < Math.min(read, 8); i++) hex.append(String.format("%02X", header[i]));
-            return "raw:" + hex;
-        } catch (Exception e) {
-            return "unreadable";
-        }
-    }
-
-    private static boolean hasPngAnimationChunk(Path file) {
-        try (InputStream in = Files.newInputStream(file)) {
-            byte[] chunk = new byte[4096];
-            int read = in.read(chunk);
-            if (read <= 0) return false;
-            return new String(chunk, 0, read, StandardCharsets.ISO_8859_1).contains("acTL");
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    private static String plainCapeName(String fileName) {
-        if (fileName == null) return null;
-        return fileName.replace('@', '_').replace('#', '_');
-    }
-
-    private static String capeExtension(String fileName) {
-        int dot = fileName == null ? -1 : fileName.lastIndexOf('.');
-        return dot >= 0 ? fileName.substring(dot + 1).toLowerCase(Locale.ROOT) : "";
-    }
-
-    private static boolean magicMatchesExtension(String magic, String extension) {
-        if ("jpg".equals(extension) || "jpeg".equals(extension)) return "jpg".equals(magic);
-        if ("gif".equals(extension)) return "gif".equals(magic);
-        if ("png".equals(extension)) return "png".equals(magic);
-        return true;
     }
 
     private static List<BufferedImage> layoutGifFrames(Path file, String fileName) throws Exception {
@@ -861,13 +716,13 @@ public class PlayerCustomizationManager {
 
             for (int i = 0; i < count; i++) {
                 BufferedImage frame = reader.read(i);
-                int[] info = gifFrameInfo(reader.getImageMetadata(i));
+                int[] info = CapeImagePipeline.gifFrameInfo(reader.getImageMetadata(i));
                 int left = info[0];
                 int top = info[1];
                 int disposal = info[2];
                 accumulatedDelay += Math.max(10, info[3]);
 
-                if (disposal == 3) previous = copyOf(canvas);
+                if (disposal == 3) previous = CapeImagePipeline.copyOf(canvas);
 
                 boolean fullSize = frame.getWidth() == canvas.getWidth() && frame.getHeight() == canvas.getHeight();
                 int x = fullSize ? 0 : left;
@@ -880,7 +735,7 @@ public class PlayerCustomizationManager {
                 if (emitted < emittedCount && ((i + 1) % emitEvery == 0 || i == count - 1)) {
                     delays[emitted++] = (int) Math.min(Integer.MAX_VALUE, accumulatedDelay);
                     accumulatedDelay = 0;
-                    blocks.add(processCapeFrame(copyOf(canvas), block, faceW, faceH));
+                    blocks.add(CapeImagePipeline.processCapeFrame(CapeImagePipeline.copyOf(canvas), block, faceW, faceH));
                 }
 
                 if (disposal == 2) {
@@ -889,16 +744,16 @@ public class PlayerCustomizationManager {
                     clear.fillRect(x, y, frame.getWidth(), frame.getHeight());
                     clear.dispose();
                 } else if (disposal == 3 && previous != null) {
-                    canvas = copyOf(previous);
+                    canvas = CapeImagePipeline.copyOf(previous);
                 }
             }
 
-            CAPE_FRAME_DELAYS.put(fileName, delays);
+            CapeCache.frameDelays().put(fileName, delays);
 
             long delaySum = 0;
             for (int delay : delays) delaySum += delay;
             if (delays.length > 0 && delaySum > 0) {
-                CAPE_NATIVE_FPS.put(fileName, clampFps((int) Math.max(1L, 1000L * delays.length / delaySum)));
+                CapeCache.nativeFps().put(fileName, clampFps((int) Math.max(1L, 1000L * delays.length / delaySum)));
             }
         } finally {
             if (reader != null) reader.dispose();
@@ -907,93 +762,16 @@ public class PlayerCustomizationManager {
         return blocks;
     }
 
-    private static int[] gifFrameInfo(IIOMetadata metadata) {
-        int[] info = {0, 0, 1, 100};
-        if (metadata == null) return info;
-
-        String format = metadata.getNativeMetadataFormatName();
-        if (format == null) return info;
-
-        try {
-            gifCollect(metadata.getAsTree(format), info);
-        } catch (Exception ignored) {}
-        return info;
-    }
-
-    private static void gifCollect(Node node, int[] info) {
-        String name = node.getNodeName();
-        if ("ImageDescriptor".equalsIgnoreCase(name)) {
-            info[0] = gifAttr(node, "imageLeftPosition", info[0]);
-            info[1] = gifAttr(node, "imageTopPosition", info[1]);
-        } else if ("GraphicControlExtension".equalsIgnoreCase(name)) {
-            info[2] = gifDisposal(node, info[2]);
-            int delay = gifAttr(node, "delayTime", -1);
-            if (delay >= 0) info[3] = delay * 10;
-        }
-
-        for (Node child = node.getFirstChild(); child != null; child = child.getNextSibling()) {
-            gifCollect(child, info);
-        }
-    }
-
-    private static int gifAttr(Node node, String attribute, int fallback) {
-        Node value = node.getAttributes() == null ? null : node.getAttributes().getNamedItem(attribute);
-        if (value == null) return fallback;
-        try {
-            return Integer.parseInt(value.getNodeValue().trim());
-        } catch (Exception ignored) {
-            return fallback;
-        }
-    }
-
-    private static int gifDisposal(Node node, int fallback) {
-        Node value = node.getAttributes() == null ? null : node.getAttributes().getNamedItem("disposalMethod");
-        if (value == null) return fallback;
-
-        String mode = value.getNodeValue();
-        if ("restoreToBackgroundColor".equalsIgnoreCase(mode)) return 2;
-        if ("restoreToPrevious".equalsIgnoreCase(mode)) return 3;
-        if ("none".equalsIgnoreCase(mode)) return 0;
-        return fallback;
-    }
-
-    private static BufferedImage copyOf(BufferedImage src) {
-        BufferedImage copy = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g = copy.createGraphics();
-        g.drawImage(src, 0, 0, null);
-        g.dispose();
-        return copy;
-    }
-
     public static void reloadRemoteCapes() {
-        for (String key : new ArrayList<>(CAPE_TYPE_CACHE.keySet())) {
+        for (String key : new ArrayList<>(CapeCache.capeTypes().keySet())) {
             if (key.startsWith("cache/")) {
                 releaseSpecificCape(key);
             }
         }
     }
 
-    private static int parseRequestedFrameCount(String fileName) {
-        if (fileName == null || fileName.isBlank()) return 1;
-
-        int at = fileName.lastIndexOf('@');
-        if (at < 0 || at + 1 >= fileName.length()) return 1;
-
-        int dot = fileName.indexOf('.', at);
-        int hash = fileName.indexOf('#', at);
-        if (hash >= 0 && (dot < 0 || hash < dot)) dot = hash;
-        String num = dot >= 0 ? fileName.substring(at + 1, dot) : fileName.substring(at + 1);
-
-        try {
-            int n = Integer.parseInt(num);
-            return n >= 2 ? n : 1;
-        } catch (Exception ignored) {
-            return 1;
-        }
-    }
-
     public static int getCapeFrameCount(String fileName) {
-        return parseRequestedFrameCount(fileName);
+        return CapeImagePipeline.parseRequestedFrameCount(fileName);
     }
 
     public static int getCapePresetFps(String fileName) {
@@ -1019,7 +797,7 @@ public class PlayerCustomizationManager {
     }
 
     public static void refreshFrameTiming() {
-        CAPE_LAST_FRAME_TIME.clear();
+        CapeCache.lastFrameTimes().clear();
     }
 
     private static int resolvePlaybackFps(String capeName) {
@@ -1027,131 +805,10 @@ public class PlayerCustomizationManager {
         if (preset > 0) return preset;
 
         if (capeName != null) {
-            Integer nativeFps = CAPE_NATIVE_FPS.get(capeName);
+            Integer nativeFps = CapeCache.nativeFps().get(capeName);
             if (nativeFps != null) return nativeFps;
         }
         return clampFps(IrcConfig.get().capeAnimFps);
     }
 
-    private static BufferedImage paintBlock(BufferedImage face, int block, int faceW, int faceH) {
-        int u = block / 64;
-        int width = block;
-        int height = block / 2;
-
-        BufferedImage canvas = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g = canvas.createGraphics();
-
-        g.setColor(Color.WHITE);
-        g.fillRect(0, 0, width, height);
-
-        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-
-        g.drawImage(face, 1 * u, 0, 11 * u, 1 * u, 0, 0, faceW, 1, null);
-        g.drawImage(face, 11 * u, 0, 21 * u, 1 * u, 0, faceH - 1, faceW, faceH, null);
-
-        g.drawImage(face, 0, 1 * u, 1 * u, 17 * u, 0, 0, 1, faceH, null);              // 右侧厚度 (West)
-        g.drawImage(face, 1 * u, 1 * u, 11 * u, 17 * u, 0, 0, faceW, faceH, null);      // 正面朝内 (North)
-        g.drawImage(face, 11 * u, 1 * u, 12 * u, 17 * u, faceW - 1, 0, faceW, faceH, null); // 左侧厚度 (East)
-        g.drawImage(face, 12 * u, 1 * u, 22 * u, 17 * u, 0, 0, faceW, faceH, null);     // 背面朝外 (South)
-
-        g.dispose();
-        return canvas;
-    }
-
-    private static BufferedImage downscaleSmooth(BufferedImage src, int tw, int th) {
-
-        if (src.getWidth() == tw && src.getHeight() == th) {
-            return src;
-        }
-
-        BufferedImage cur = src;
-
-        int minStepW = Math.max(tw * 2, 64);
-        int minStepH = Math.max(th * 2, 64);
-
-        while (cur.getWidth() > minStepW && cur.getHeight() > minStepH) {
-            int nw = Math.max(minStepW, cur.getWidth() / 2);
-            int nh = Math.max(minStepH, cur.getHeight() / 2);
-            BufferedImage step = new BufferedImage(nw, nh, BufferedImage.TYPE_INT_ARGB);
-            Graphics2D sg = step.createGraphics();
-            sg.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-            sg.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-            sg.drawImage(cur, 0, 0, nw, nh, null);
-            sg.dispose();
-            cur = step;
-        }
-
-        BufferedImage out = new BufferedImage(tw, th, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D og = out.createGraphics();
-        og.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-        og.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        og.drawImage(cur, 0, 0, tw, th, null);
-        og.dispose();
-        return out;
-    }
-
-    private static String sanitizePath(String fileName) {
-        if (fileName == null || fileName.isBlank()) return "unknown_cape";
-
-        String clean = fileName.toLowerCase(Locale.ROOT);
-        int dot = clean.lastIndexOf('.');
-        if (dot > 0) {
-            clean = clean.substring(0, dot);
-        }
-
-        clean = clean.replace('@', '_');
-        clean = clean.replaceAll("[^a-z0-9._-]", "_");
-
-        return clean.isEmpty() || clean.equals("_") ? "unknown_cape" : clean;
-    }
-
-    private static NativeImage toNativeImage(BufferedImage bufferedImage) {
-        int width = bufferedImage.getWidth();
-        int height = bufferedImage.getHeight();
-        NativeImage nativeImage = new NativeImage(width, height, false);
-
-        int[] argbPixels = new int[width * height];
-        bufferedImage.getRGB(0, 0, width, height, argbPixels, 0, width);
-
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                int argb = argbPixels[y * width + x];
-                nativeImage.setPixel(x, y, argb);
-            }
-        }
-        return nativeImage;
-    }
-
-    private static boolean isStandardCape(int width, int height) {
-        return width == height * 2;
-    }
-
-    private static BufferedImage scaleStandardCape(BufferedImage src, int targetW, int targetH) {
-        if (src.getWidth() == targetW && src.getHeight() == targetH) {
-            return src;
-        }
-        BufferedImage out = new BufferedImage(targetW, targetH, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g = out.createGraphics();
-
-        if (src.getWidth() < targetW) {
-            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-        } else {
-            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-            g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        }
-
-        g.drawImage(src, 0, 0, targetW, targetH, null);
-        g.dispose();
-        return out;
-    }
-
-    private static BufferedImage processCapeFrame(BufferedImage frame, int block, int faceW, int faceH) {
-        if (isStandardCape(frame.getWidth(), frame.getHeight())) {
-            return scaleStandardCape(frame, block, block / 2);
-        } else {
-            return paintBlock(downscaleSmooth(frame, faceW, faceH), block, faceW, faceH);
-        }
-    }
 }

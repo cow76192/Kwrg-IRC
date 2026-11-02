@@ -1,6 +1,6 @@
 package me.cookie.kwrg.util;
 
-import me.cookie.kwrg.irc.manager.ChatWaypointManager;
+import me.cookie.kwrg.skyblock.route.ChatWaypointManager;
 import net.hypixel.modapi.HypixelModAPI;
 import net.hypixel.modapi.packet.impl.clientbound.event.ClientboundLocationPacket;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;

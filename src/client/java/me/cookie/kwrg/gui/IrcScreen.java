@@ -221,7 +221,7 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
         } else {
             float progress = (float) elapsed / SCALE_ANIM_DURATION;
             float ease = AnimationUtil.easeOutCubic(progress);
-            this.currentScale = AnimationUtil.lerp(ease, this.fromScale, this.targetScale);
+            this.currentScale = Mth.lerp(ease, this.fromScale, this.targetScale);
         }
 
         return this.currentScale;

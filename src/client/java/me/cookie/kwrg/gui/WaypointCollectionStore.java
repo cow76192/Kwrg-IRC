@@ -1,7 +1,7 @@
 package me.cookie.kwrg.gui;
 
 import me.cookie.kwrg.util.PointEntry;
-import me.cookie.kwrg.util.WaypointFiles;
+import me.cookie.kwrg.skyblock.route.WaypointFiles;
 import me.cookie.kwrg.util.WaypointRouteUpdate;
 import java.nio.file.Path;
 import java.util.List;

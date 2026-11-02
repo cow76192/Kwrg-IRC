@@ -1,4 +1,4 @@
-package me.cookie.kwrg.irc.manager;
+package me.cookie.kwrg.skyblock.route;
 
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
@@ -29,14 +29,13 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public final class ChatWaypointManager {
 
     private static final String BUTTON_TEXT = "[show waypoints]";
 
-    private static final int MAX_MESSAGE_LENGTH = 1024;
+    static final int MAX_MESSAGE_LENGTH = 1024;
     public static final int MAX_COORD = 30_000_000;
     private static final double NEAR_DISTANCE_SQ = 36.0;
     private static final double ARRIVED_DISTANCE_SQ = 9.0;
@@ -50,13 +49,13 @@ public final class ChatWaypointManager {
     private static final long IDLE_REFRESH_MS = 1000L;
 
     private static final String NUMBER = "-?\\d{1,9}(?:\\.\\d{1,14})?";
-    private static final Pattern LABELED_PATTERN = Pattern.compile(
+    static final Pattern LABELED_PATTERN = Pattern.compile(
             "(?i)(?<![\\w:.])x\\s*[:：=]?\\s*(" + NUMBER + ")\\s*[,，]?\\s*y\\s*[:：=]?\\s*(" + NUMBER + ")\\s*[,，]?\\s*z\\s*[:：=]?\\s*(" + NUMBER + ")(?![\\d.])"
     );
-    private static final Pattern BARE_PATTERN = Pattern.compile(
+    static final Pattern BARE_PATTERN = Pattern.compile(
             "(?<![\\d.\\-])(" + NUMBER + ")\\s+(" + NUMBER + ")\\s+(" + NUMBER + ")(?![\\d.])"
     );
-    private static final Pattern UNSAFE_PATTERN = Pattern.compile("[^A-Za-z0-9_\\[\\]+ ]");
+    static final Pattern UNSAFE_PATTERN = Pattern.compile("[^A-Za-z0-9_\\[\\]+ ]");
 
     private static final GizmoStyle BLOCK_STYLE = GizmoStyle.strokeAndFill(0xFF1E2836, 1.0f, 0x8011161F);
     private static final int BEAM_COLOR = 0xFF2B3648;
@@ -80,38 +79,11 @@ public final class ChatWaypointManager {
         POINTS.clear();
     }
 
-    private static int[] parse(String message) {
-        if (message == null || message.isEmpty()) return null;
-
-        String text = ChatNotifier.FORMATTING_PATTERN.matcher(message).replaceAll("");
-        if (text.length() > MAX_MESSAGE_LENGTH) return null;
-
-        Matcher matcher = LABELED_PATTERN.matcher(text);
-        if (!matcher.find()) {
-            matcher = BARE_PATTERN.matcher(text.trim());
-            if (!matcher.matches()) return null;
-        }
-        return blockPos(matcher.group(1), matcher.group(2), matcher.group(3));
-    }
-
-    private static int[] blockPos(String x, String y, String z) {
-        try {
-            double dx = Double.parseDouble(x);
-            double dy = Double.parseDouble(y);
-            double dz = Double.parseDouble(z);
-            if (!Double.isFinite(dx) || !Double.isFinite(dy) || !Double.isFinite(dz)) return null;
-            if (Math.abs(dx) > MAX_COORD || Math.abs(dy) > MAX_COORD || Math.abs(dz) > MAX_COORD) return null;
-            return new int[]{(int) Math.floor(dx), (int) Math.floor(dy), (int) Math.floor(dz)};
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
     public static void appendButton(List<ChatNotifier.AnimatedSegment> segments, String body, String rank, String username) {
-        int[] coord = parse(body);
+        int[] coord = ChatWaypointParser.parse(body);
         if (coord == null) return;
 
-        String label = label(rank, username);
+        String label = ChatWaypointParser.label(rank, username);
         String command = "/irc waypoint chat " + coord[0] + " " + coord[1] + " " + coord[2] + " " + label;
         Style style = Style.EMPTY
                 .withColor(COLOR)
@@ -121,15 +93,6 @@ public final class ChatWaypointManager {
                 .withHoverEvent(new HoverEvent.ShowText(Component.literal("§a标记 §f" + label + " §a的坐标")));
         segments.add(new ChatNotifier.AnimatedSegment(" ", "", true));
         segments.add(new ChatNotifier.AnimatedSegment(BUTTON_TEXT, "", true, style));
-    }
-
-    private static String label(String rank, String username) {
-        String formatted = IrcMessageHandler.formatRankWithBrackets(rank);
-        String raw = username == null ? "" : username;
-        String name = formatted.isEmpty() ? raw : formatted + " " + raw;
-        String clean = UNSAFE_PATTERN.matcher(ChatNotifier.FORMATTING_PATTERN.matcher(name).replaceAll("")).replaceAll("").trim();
-        if (clean.isEmpty()) return "Unknown";
-        return clean.length() > WaypointManager.MAX_NAME_LENGTH ? clean.substring(0, WaypointManager.MAX_NAME_LENGTH) : clean;
     }
 
     public static int mark(int x, int y, int z, String label) {

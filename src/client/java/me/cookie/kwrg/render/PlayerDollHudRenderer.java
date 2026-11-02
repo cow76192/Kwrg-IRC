@@ -164,8 +164,8 @@ public final class PlayerDollHudRenderer {
             float rawPitch = Mth.clamp(player.getViewXRot(delta), -60.0f, 60.0f);
 
             float smoothFactor = 1.0f - (float) Math.pow(0.0005f, dt);
-            smoothedYawDiff = AnimationUtil.lerp(smoothFactor, smoothedYawDiff, rawYawDiff);
-            smoothedPitch = AnimationUtil.lerp(smoothFactor, smoothedPitch, rawPitch);
+            smoothedYawDiff = Mth.lerp(smoothFactor, smoothedYawDiff, rawYawDiff);
+            smoothedPitch = Mth.lerp(smoothFactor, smoothedPitch, rawPitch);
 
             lookX = midX - smoothedYawDiff * 1.35f;
             lookY = midY + smoothedPitch * 1.15f;

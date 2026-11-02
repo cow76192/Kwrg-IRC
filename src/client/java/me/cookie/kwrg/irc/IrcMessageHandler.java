@@ -10,7 +10,7 @@ import me.cookie.kwrg.module.modules.style.ChatModule;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
-import me.cookie.kwrg.irc.manager.ChatWaypointManager;
+import me.cookie.kwrg.skyblock.route.ChatWaypointManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.*;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -90,12 +90,12 @@ public class IrcMessageHandler {
         boolean changed = true;
         while (changed) {
             changed = false;
-            String strippedLeft = str.replaceFirst("^((?:§[0-9a-fk-orA-FK-OR])*)\\[", "$1");
+            String strippedLeft = ChatNotifier.LEADING_BRACKET_PATTERN.matcher(str).replaceFirst("$1");
             if (!strippedLeft.equals(str)) {
                 str = strippedLeft.trim();
                 changed = true;
             }
-            String strippedRight = str.replaceFirst("\\]((?:§[0-9a-fk-orA-FK-OR])*)$", "$1");
+            String strippedRight = ChatNotifier.TRAILING_BRACKET_PATTERN.matcher(str).replaceFirst("$1");
             if (!strippedRight.equals(str)) {
                 str = strippedRight.trim();
                 changed = true;
@@ -316,7 +316,7 @@ public class IrcMessageHandler {
                 if (target.equalsIgnoreCase(currentName)) {
                     String receiver = optStr(obj, "username", "对方");
                     String reason = optStr(obj, "reason", "未知错误");
-                    IrcMessageHandler.printMessage("§c[IRC] 玩家 §f" + safe(receiver) + " §c播放失败: §e" + noFormatting(reason));
+                    EffectDispatcher.handlePlayFail(safe(receiver), noFormatting(reason));
                 }
                 return;
             }
@@ -413,51 +413,7 @@ public class IrcMessageHandler {
     }
 
     private static void triggerTotemEffect(String sender, String rawItemId) {
-        if (rawItemId.startsWith("http://") || rawItemId.startsWith("https://")) {
-            me.cookie.kwrg.util.TotemAnimationManager.playUrlEffect(sender, rawItemId);
-            return;
-        }
-
-        if (me.cookie.kwrg.util.SkyblockItemHelper.isSkyblockItem(rawItemId)) {
-            Minecraft mc = Minecraft.getInstance();
-            mc.execute(() -> {
-                if (mc.player == null) return;
-                net.minecraft.world.item.ItemStack itemStack = me.cookie.kwrg.util.SkyblockItemHelper.resolve(rawItemId);
-                mc.gameRenderer.displayItemActivation(itemStack);
-                mc.player.playSound(net.minecraft.sounds.SoundEvents.TOTEM_USE, 1.0F, 1.0F);
-
-                if (!Objects.equals(sender, "server ") && !Objects.equals(sender, "控制台管理员")) {
-                    IrcMessageHandler.printMessage("§6[IRC] §e" + sender + " §a向你触发了图腾激活效果！(§f" + itemStack.getHoverName().getString() + "§a)");
-                }
-            });
-            return;
-        }
-
-        Minecraft mc = Minecraft.getInstance();
-        mc.execute(() -> {
-            if (mc.player == null || mc.gameRenderer == null) return;
-
-            String fullId = rawItemId.contains(":") ? rawItemId : "minecraft:" + rawItemId;
-            net.minecraft.resources.Identifier id = net.minecraft.resources.Identifier.tryParse(fullId);
-
-            java.util.Optional<net.minecraft.world.item.Item> optionalItem = (id == null)
-                    ? java.util.Optional.empty()
-                    : net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(id);
-
-            if (optionalItem.isEmpty() || (optionalItem.get() == net.minecraft.world.item.Items.AIR && !fullId.equals("minecraft:air"))) {
-                String errorReason = "未知的物品 " + rawItemId;
-                IrcMessageHandler.printMessage("§c[IRC] 收到来自 §e" + sender + " §c的未知物品: §e" + rawItemId);
-                IrcClient.sendPlayFail(sender, rawItemId, errorReason);
-                return;
-            }
-
-            net.minecraft.world.item.Item item = optionalItem.get();
-            net.minecraft.world.item.ItemStack itemStack = new net.minecraft.world.item.ItemStack(item);
-
-            mc.gameRenderer.displayItemActivation(itemStack);
-            mc.player.playSound(net.minecraft.sounds.SoundEvents.TOTEM_USE, 1.0F, 1.0F);
-            IrcMessageHandler.printMessage("§6[IRC] §e" + sender + " §a向你触发了图腾激活效果！(§f" + item.getName(itemStack).getString() + "§a)");
-        });
+        EffectDispatcher.triggerTotemEffect(sender, rawItemId);
     }
 
     private static void showImportantTitle(String rank, String nameStyle, String username, String chatStyle, String content) {

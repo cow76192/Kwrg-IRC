@@ -259,6 +259,14 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
                 : (this.readOnly ? GuiThemeService.paneBorderReadOnly() : GuiThemeService.paneBorder());
     }
 
+    // ==================== 物理 Shift 键判定 ====================
+
+    private static boolean isShiftPressed() {
+        long handle = Minecraft.getInstance().getWindow().handle();
+        return GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS
+                || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS;
+    }
+
     // ==================== 排版与换行缓存 ====================
 
     private record LineInfo(int start, int end, String text, Component styledText) {}

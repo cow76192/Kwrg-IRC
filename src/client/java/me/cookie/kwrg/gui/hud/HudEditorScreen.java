@@ -31,8 +31,6 @@ import java.util.Objects;
 public class HudEditorScreen extends Screen {
 
     private static final float GRAB_PADDING = 10.0f;
-    private static final float SNAP_DISTANCE = 6.0f;
-    private static final float SCALE_STEP = 0.05f;
     private static final float FEEDBACK_OPEN_MS = 160.0f;
     private static final float FEEDBACK_CLOSE_MS = 200.0f;
     private static final int HINT_BAR_HEIGHT = 44;
@@ -55,11 +53,7 @@ public class HudEditorScreen extends Screen {
     private static final float ANIM_SPEED = 1.75f;
 
     private String selectedId;
-    private boolean dragging = false;
-    private double dragStartMouseX = 0.0;
-    private double dragStartMouseY = 0.0;
-    private float dragStartOffsetX = 0.0f;
-    private float dragStartOffsetY = 0.0f;
+    private final HudDragController dragController = new HudDragController();
     private List<String> scrollFeedback = List.of();
     private String scrollFeedbackId;
     private float scrollFeedbackProgress;
@@ -392,10 +386,7 @@ public class HudEditorScreen extends Screen {
                     target.setFollowGlobal(false);
                 }
 
-                float delta = (scrollY > 0 ? 1.0f : -1.0f) * SCALE_STEP;
-                float newScale = Math.round((state.scale + delta) * 100.0f) / 100.0f;
-                state.scale = Mth.clamp(newScale, HudElement.State.MIN_SCALE, HudElement.State.MAX_SCALE);
-                state.sanitize();
+                dragController.applyScaleStep(state, scrollY);
 
                 showScrollFeedback(target, describeScale(target));
                 IrcConfig.saveDelayed(400);
@@ -428,14 +419,7 @@ public class HudEditorScreen extends Screen {
             HudElement hit = hitTest(click.x(), click.y());
             if (hit != null) {
                 selectedId = hit.id();
-                dragging = true;
-                dragStartMouseX = click.x();
-                dragStartMouseY = click.y();
-
-                HudElementRegistry.cancelResetAnimation(hit.id());
-                HudElement.State state = HudElementRegistry.state(hit.id());
-                dragStartOffsetX = state.offsetX;
-                dragStartOffsetY = state.offsetY;
+                dragController.begin(click.x(), click.y(), hit);
                 return true;
             }
         }
@@ -444,63 +428,15 @@ public class HudEditorScreen extends Screen {
 
     @Override
     public boolean mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
-        if (dragging && click.button() == 0 && selectedId != null) {
-            HudElement.State state = HudElementRegistry.state(selectedId);
-            state.offsetX = (float) (dragStartOffsetX + (click.x() - dragStartMouseX));
-            state.offsetY = (float) (dragStartOffsetY + (click.y() - dragStartMouseY));
-            state.sanitize();
-
-            if (!click.hasControlDown()) {
-                applySnapping(state);
-            }
-
-            IrcConfig.saveDelayed(400);
+        if (dragController.drag(click, selectedId, this.width, this.height)) {
             return true;
         }
         return super.mouseDragged(click, deltaX, deltaY);
     }
 
-    private void applySnapping(HudElement.State state) {
-        HudElement element = HudElementRegistry.get(selectedId);
-        if (element == null) return;
-
-        float[] bounds = element.bounds();
-        if (bounds == null || bounds[2] <= 0.0f || bounds[3] <= 0.0f) return;
-
-        float left = HudElement.Anchor.resolveX(state.anchorX, state.marginX, state.offsetX, bounds[2], this.width);
-        float top = HudElement.Anchor.resolveY(state.anchorY, state.marginY, state.offsetY, bounds[3], this.height);
-        float right = left + bounds[2];
-        float bottom = top + bounds[3];
-
-        float[] bestX = {Float.NaN};
-        float[] bestY = {Float.NaN};
-
-        considerSnap(left + bounds[2] / 2.0f, this.width / 2.0f, bestX);
-        considerSnap(left, 0.0f, bestX);
-        considerSnap(right, this.width, bestX);
-
-        considerSnap(top + bounds[3] / 2.0f, this.height / 2.0f, bestY);
-        considerSnap(top, 0.0f, bestY);
-        considerSnap(bottom, this.height, bestY);
-
-        if (!Float.isNaN(bestX[0])) state.offsetX += bestX[0];
-        if (!Float.isNaN(bestY[0])) state.offsetY += bestY[0];
-        state.sanitize();
-    }
-
-    private static void considerSnap(float value, float target, float[] best) {
-        float delta = target - value;
-        if (Math.abs(delta) > SNAP_DISTANCE) return;
-        if (Float.isNaN(best[0]) || Math.abs(delta) < Math.abs(best[0])) {
-            best[0] = delta;
-        }
-    }
-
     @Override
     public boolean mouseReleased(MouseButtonEvent click) {
-        if (dragging && click.button() == 0) {
-            dragging = false;
-            IrcConfig.save();
+        if (dragController.release(click)) {
             return true;
         }
         return super.mouseReleased(click);

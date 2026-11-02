@@ -23,6 +23,17 @@ public class ScoreboardIslandRenderer {
     private static final FontDescription SCOREBOARD_FONT = new FontDescription.Resource(Identifier.fromNamespaceAndPath("kwrg", "island"));
     private static final Style SCOREBOARD_STYLE = Style.EMPTY.withFont(SCOREBOARD_FONT);
 
+    private static final Component PREVIEW_TITLE = Component.literal("§6§lDynamicScoreboard").setStyle(SCOREBOARD_STYLE);
+    private static final Component[] PREVIEW_LINES = new Component[]{
+            Component.literal("§701/10/26 §8m12A").setStyle(SCOREBOARD_STYLE),
+            Component.literal(" "),
+            Component.literal("§fCoins: §612,450,890").setStyle(SCOREBOARD_STYLE),
+            Component.literal("§fGems: §a1,200").setStyle(SCOREBOARD_STYLE),
+            Component.literal("§fServer: §emini12D").setStyle(SCOREBOARD_STYLE),
+            Component.literal(" "),
+            Component.literal("§e§owww.hypixel.net").setStyle(SCOREBOARD_STYLE)
+    };
+
     private static final float CORNER_RADIUS = 8.0f;
     private static final float SHADOW_BLUR = 4.0f;
     private static final float SHADOW_OFFSET_Y = 1.5f;
@@ -242,20 +253,9 @@ public class ScoreboardIslandRenderer {
         Font font = mc.font;
         if (font == null) return;
 
-        Component title = Component.literal("§6§lDynamicScoreboard").setStyle(SCOREBOARD_STYLE);
-        Component[] sampleLines = new Component[]{
-                Component.literal("§701/10/26 §8m12A").setStyle(SCOREBOARD_STYLE),
-                Component.literal(" "),
-                Component.literal("§fCoins: §612,450,890").setStyle(SCOREBOARD_STYLE),
-                Component.literal("§fGems: §a1,200").setStyle(SCOREBOARD_STYLE),
-                Component.literal("§fServer: §emini12D").setStyle(SCOREBOARD_STYLE),
-                Component.literal(" "),
-                Component.literal("§e§owww.hypixel.net").setStyle(SCOREBOARD_STYLE)
-        };
-
-        float maxW = font.width(title);
-        for (Component c : sampleLines) maxW = Math.max(maxW, font.width(c));
-        float totalH = 10.0f + sampleLines.length * 9.0f;
+        float maxW = font.width(PREVIEW_TITLE);
+        for (Component c : PREVIEW_LINES) maxW = Math.max(maxW, font.width(c));
+        float totalH = 10.0f + PREVIEW_LINES.length * 9.0f;
 
         updateTargetBounds(maxW, totalH);
         updateAnimation();
@@ -275,11 +275,11 @@ public class ScoreboardIslandRenderer {
             float textX = state.padding;
             float textY = state.padding;
 
-            float titleX = (smoothW - font.width(title)) / 2.0f;
-            RenderUtil.drawFluidSubpixelText(graphics, title, titleX, textY, 0xFFFFFFFF);
+            float titleX = (smoothW - font.width(PREVIEW_TITLE)) / 2.0f;
+            RenderUtil.drawFluidSubpixelText(graphics, PREVIEW_TITLE, titleX, textY, 0xFFFFFFFF);
             textY += 10.0f;
 
-            for (Component line : sampleLines) {
+            for (Component line : PREVIEW_LINES) {
                 RenderUtil.drawFluidSubpixelText(graphics, line, textX, textY, 0xFFFFFFFF);
                 textY += 9.0f;
             }

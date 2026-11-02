@@ -15,6 +15,7 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.PreeditEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 import java.util.function.Consumer;
 
 /** One route point, with an editable name, three decimal inputs and a visibility switch. */
@@ -167,7 +168,7 @@ public final class RoutePointComponent {
 
         for (int field = 0; field < 4; field++) {
             EditBox input = field(field);
-            focusProgress[field] = AnimationUtil.lerp(step, focusProgress[field], input.isFocused() ? 1 : 0);
+            focusProgress[field] = Mth.lerp(step, focusProgress[field], input.isFocused() ? 1 : 0);
             Color line = AnimationUtil.lerpColor(focusProgress[field], Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.routeDim())), Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.accentSoft())));
             RenderUtil.drawSmoothText(owo, Component.literal(field == 0 ? "名称" : "XYZ".substring(field - 1, field)), input.getX(), y + 5, 0.62f, AnimationUtil.opaqueArgb(GuiThemeService.routeLabel()));
             RenderUtil.fillSubpixel(owo, input.getX(), y + 32, input.getX() + input.getWidth(), y + 32.8f, line.argb());

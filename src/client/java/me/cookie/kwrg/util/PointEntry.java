@@ -1,6 +1,6 @@
 package me.cookie.kwrg.util;
 
-import me.cookie.kwrg.irc.manager.WaypointManager;
+import me.cookie.kwrg.skyblock.route.WaypointManager;
 
 import net.minecraft.core.BlockPos;
 

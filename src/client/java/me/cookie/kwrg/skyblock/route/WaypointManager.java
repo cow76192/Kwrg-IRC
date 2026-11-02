@@ -1,7 +1,7 @@
-package me.cookie.kwrg.irc.manager;
+package me.cookie.kwrg.skyblock.route;
 
 import me.cookie.kwrg.util.PointEntry;
-import me.cookie.kwrg.util.WaypointFiles;
+import me.cookie.kwrg.skyblock.route.WaypointFiles;
 import me.cookie.kwrg.util.SkyblockLocation;
 import me.cookie.kwrg.render.WaypointRenderer;
 

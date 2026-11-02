@@ -2,7 +2,7 @@ package me.cookie.kwrg.util;
 
 import me.cookie.kwrg.gui.notification.NotificationManager;
 import me.cookie.kwrg.gui.notification.NotificationType;
-import me.cookie.kwrg.irc.manager.WaypointManager;
+import me.cookie.kwrg.skyblock.route.WaypointManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -37,6 +37,8 @@ public class ChatNotifier {
     );
     public static final Pattern FORMATTING_PATTERN = Pattern.compile("§[0-9a-fk-orA-FK-OR]");
     public static final Pattern LOWERCASE_FORMATTING_PATTERN = Pattern.compile("§[0-9a-fk-or]");
+    public static final Pattern LEADING_BRACKET_PATTERN = Pattern.compile("^((?:§[0-9a-fk-orA-FK-OR])*)\\[");
+    public static final Pattern TRAILING_BRACKET_PATTERN = Pattern.compile("\\]((?:§[0-9a-fk-orA-FK-OR])*)$");
 
     private record StyledPart(Style style, String text) {}
     private record UrlRange(int start, int end, String cleanUrl, URI uri) {}

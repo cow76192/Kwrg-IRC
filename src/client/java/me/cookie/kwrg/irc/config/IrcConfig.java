@@ -7,10 +7,9 @@ import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.gui.manager.GuiColorManager;
 import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
-import me.cookie.kwrg.irc.manager.RouteManager;
-import me.cookie.kwrg.irc.manager.WaypointManager;
+import me.cookie.kwrg.skyblock.route.RouteManager;
+import me.cookie.kwrg.skyblock.route.WaypointManager;
 import me.cookie.kwrg.util.Navigator;
-import me.cookie.kwrg.util.SafePaths;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,22 +22,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 public class IrcConfig {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("kwrg-irc-config");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-
-    private static final ScheduledExecutorService SAVE_EXECUTOR = Executors.newSingleThreadScheduledExecutor(r -> {
-        Thread t = new Thread(r, "kwrg-config-saver");
-        t.setDaemon(true);
-        return t;
-    });
-    private static ScheduledFuture<?> pendingSaveTask = null;
 
     public String rank = "&7[Member&7]";
     public String namestyle = "";
@@ -147,21 +135,6 @@ public class IrcConfig {
         return getKwrgDir().resolve("config.json");
     }
 
-    private static Path getProfilePath(String profileName) {
-        Path kwrgDir = getKwrgDir();
-        Path profilePath = SafePaths.resolveInside(kwrgDir, profileName + ".json");
-        return profilePath != null ? profilePath : kwrgDir.resolve("default.json");
-    }
-
-    private static String sanitizeProfileName(String name) {
-        if (name == null || name.isBlank()) return "default";
-        String clean = name.trim();
-        if (clean.endsWith(".json")) {
-            clean = clean.substring(0, clean.length() - 5);
-        }
-        return clean.isEmpty() ? "default" : clean;
-    }
-
     private static class ProfileSelector {
         String selected = "default";
     }
@@ -175,7 +148,7 @@ public class IrcConfig {
                 String metaJson = Files.readString(metaPath);
                 ProfileSelector selector = GSON.fromJson(metaJson, ProfileSelector.class);
                 if (selector != null && selector.selected != null && !selector.selected.isBlank()) {
-                    selected = sanitizeProfileName(selector.selected);
+                    selected = ConfigProfiles.sanitizeProfileName(selector.selected);
                 }
             }
 
@@ -188,8 +161,8 @@ public class IrcConfig {
     }
 
     public static boolean loadProfile(String profileName, boolean createIfMissing) {
-        String cleanName = sanitizeProfileName(profileName);
-        Path profilePath = getProfilePath(cleanName);
+        String cleanName = ConfigProfiles.sanitizeProfileName(profileName);
+        Path profilePath = ConfigProfiles.getProfilePath(getKwrgDir(), cleanName);
 
         try {
             if (Files.exists(profilePath)) {
@@ -259,7 +232,7 @@ public class IrcConfig {
     }
 
     public static void createProfile(String profileName) {
-        String cleanName = sanitizeProfileName(profileName);
+        String cleanName = ConfigProfiles.sanitizeProfileName(profileName);
         instance = new IrcConfig();
         currentProfileName = cleanName;
         GuiColorManager.refresh();
@@ -270,15 +243,13 @@ public class IrcConfig {
     }
 
     public static synchronized boolean save() {
-        if (pendingSaveTask != null && !pendingSaveTask.isDone()) {
-            pendingSaveTask.cancel(false);
-        }
+        SaveScheduler.cancelPending();
 
         try {
             Path dir = getKwrgDir();
             Files.createDirectories(dir);
 
-            Path profilePath = getProfilePath(currentProfileName);
+            Path profilePath = ConfigProfiles.getProfilePath(getKwrgDir(), currentProfileName);
             Files.writeString(profilePath, GSON.toJson(instance));
 
             saveSelectorMeta(currentProfileName);
@@ -292,15 +263,11 @@ public class IrcConfig {
     }
 
     public static synchronized void saveDelayed(long delayMs) {
-        if (pendingSaveTask != null && !pendingSaveTask.isDone()) {
-            pendingSaveTask.cancel(false);
-        }
-
-        pendingSaveTask = SAVE_EXECUTOR.schedule(() -> {
+        SaveScheduler.schedule(() -> {
             synchronized (IrcConfig.class) {
                 save();
             }
-        }, delayMs, TimeUnit.MILLISECONDS);
+        }, delayMs);
     }
 
     private static void saveSelectorMeta(String selected) {

@@ -209,13 +209,7 @@ public class SecondaryPanelComponent extends FlowLayout {
         this.updateY(py);
 
         float panelAlpha = ease;
-        int bgAlpha = (int) (255 * panelAlpha * GuiThemeService.opacity());
-        int outlineAlpha = (int) (85 * panelAlpha * GuiThemeService.opacity());
-
-        Color panelBg = AnimationUtil.withAlpha(GuiThemeService.panelBg(), bgAlpha);
-        Color outlineColor = AnimationUtil.withAlpha(GuiThemeService.panelOutline(), outlineAlpha);
-
-        RenderUtil.drawRoundedPanel(graphics, px, py, width, height, 14.0f, panelBg, outlineColor);
+        TertiaryPanelComponent.drawPanelSurface(graphics, panelAlpha, px, py, width, height);
 
         graphics = RenderUtil.withOpacity(graphics, GuiThemeService.opacity());
 

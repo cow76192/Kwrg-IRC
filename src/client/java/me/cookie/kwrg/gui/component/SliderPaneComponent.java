@@ -232,7 +232,7 @@ public class SliderPaneComponent extends BaseGuiComponent {
             // 直接点击目标位置
             float raw = Mth.clamp((now - clickAnimStartMs) / (float) CLICK_GLIDE_DURATION_MS, 0.0f, 1.0f);
             float eased = AnimationUtil.easeOutCubic(raw);
-            visualProgress = AnimationUtil.lerp(eased, clickAnimFrom, clickAnimTo);
+            visualProgress = Mth.lerp(eased, clickAnimFrom, clickAnimTo);
             if (raw >= 1.0f) {
                 visualProgress = clickAnimTo;
                 clickAnimating = false;
@@ -240,7 +240,7 @@ public class SliderPaneComponent extends BaseGuiComponent {
         } else {
             // 长按拖动
             float followFactor = 1.0f - (float) Math.pow(0.00005f, dt);
-            visualProgress = AnimationUtil.lerp(followFactor, visualProgress, targetProgress);
+            visualProgress = Mth.lerp(followFactor, visualProgress, targetProgress);
         }
 
         boolean hovered = isMouseInside(mouseX, mouseY);
@@ -301,7 +301,7 @@ public class SliderPaneComponent extends BaseGuiComponent {
 
         // 绘制轨道底槽
         float trackY = this.y + 23.0f;
-        float trackH = AnimationUtil.lerp(activeEase, 4.5f, 5.5f);
+        float trackH = Mth.lerp(activeEase, 4.5f, 5.5f);
         int trackBorderRgb = AnimationUtil.lerpRgb(paneBorder(), GuiThemeService.accentSoft(), highlightEase * 0.75f);
 
         RenderUtil.drawSubpixelRoundedPanel(
@@ -327,16 +327,16 @@ public class SliderPaneComponent extends BaseGuiComponent {
         }
 
         // 绘制原点
-        float baseKnobSize = AnimationUtil.lerp(hoverEase, 7.0f, 8.8f);
-        float knobSize = AnimationUtil.lerp(activeEase, baseKnobSize, 10.8f);
+        float baseKnobSize = Mth.lerp(hoverEase, 7.0f, 8.8f);
+        float knobSize = Mth.lerp(activeEase, baseKnobSize, 10.8f);
 
         float centerX = Mth.clamp(trackX + trackW * clampedVisual, trackX + knobSize * 0.5f, trackX + trackW - knobSize * 0.5f);
         float centerY = trackY + trackH * 0.5f;
 
         if (hoverEase > 0.01f || activeEase > 0.01f) {
-            float haloExpand = AnimationUtil.lerp(activeEase, 3.5f, 6.5f);
+            float haloExpand = Mth.lerp(activeEase, 3.5f, 6.5f);
             float haloSize = knobSize + haloExpand;
-            int haloAlpha = Math.round(panelAlpha * AnimationUtil.lerp(activeEase, hoverEase * 42.0f, 88.0f));
+            int haloAlpha = Math.round(panelAlpha * Mth.lerp(activeEase, hoverEase * 42.0f, 88.0f));
             if (haloAlpha > 2) {
                 RenderUtil.drawSubpixelRoundedPanel(
                         graphics,
@@ -358,7 +358,7 @@ public class SliderPaneComponent extends BaseGuiComponent {
                 centerX - knobSize * 0.5f,
                 centerY - knobSize * 0.5f,
                 knobSize, knobSize, knobSize * 0.5f,
-                AnimationUtil.lerp(activeEase, 1.0f, 1.5f),
+                Mth.lerp(activeEase, 1.0f, 1.5f),
                 AnimationUtil.withAlpha(knobFillRgb, Math.round(panelAlpha * 255.0f)),
                 AnimationUtil.withAlpha(knobBorderRgb, Math.round(panelAlpha * 235.0f))
         );

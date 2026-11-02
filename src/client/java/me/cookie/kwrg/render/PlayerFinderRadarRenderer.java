@@ -34,11 +34,9 @@ public class PlayerFinderRadarRenderer {
 
         float yawRad = (float) Math.toRadians(camera.yRot());
         float pitchRad = (float) Math.toRadians(camera.xRot());
-        Vec3 forward = new Vec3(
-                -Math.sin(yawRad) * Math.cos(pitchRad),
-                -Math.sin(pitchRad),
-                Math.cos(yawRad) * Math.cos(pitchRad)
-        );
+        double forwardX = -Math.sin(yawRad) * Math.cos(pitchRad);
+        double forwardY = -Math.sin(pitchRad);
+        double forwardZ = Math.cos(yawRad) * Math.cos(pitchRad);
 
         float bob = (float) Math.sin((System.currentTimeMillis() % 1600L) / 1600.0 * Math.PI * 2.0) * 2.5f;
 
@@ -48,14 +46,14 @@ public class PlayerFinderRadarRenderer {
             double tx = Mth.lerp(delta, target.xo, target.getX());
             double ty = Mth.lerp(delta, target.yo, target.getY()) + target.getBbHeight() + 0.45;
             double tz = Mth.lerp(delta, target.zo, target.getZ());
-            Vec3 targetWorldPos = new Vec3(tx, ty, tz);
+            double relX = tx - camPos.x;
+            double relY = ty - camPos.y;
+            double relZ = tz - camPos.z;
+            if (relX * forwardX + relY * forwardY + relZ * forwardZ <= 0.15) continue;
 
-            Vec3 toTarget = targetWorldPos.subtract(camPos);
-            if (toTarget.dot(forward) <= 0.15) continue;
+            double dist = Math.sqrt(relX * relX + relY * relY + relZ * relZ);
 
-            double dist = toTarget.length();
-
-            Vec3 ndc = mc.gameRenderer.projectPointToScreen(targetWorldPos);
+            Vec3 ndc = mc.gameRenderer.projectPointToScreen(new Vec3(tx, ty, tz));
 
             float screenX = (float) ((ndc.x + 1.0) * 0.5 * screenW);
             float screenY = (float) ((1.0 - ndc.y) * 0.5 * screenH);
@@ -66,6 +64,9 @@ public class PlayerFinderRadarRenderer {
             drawTacticalArrowMarker(graphics, mc, screenX, screenY + bob, playerName, dist, scale);
         }
     }
+
+    private static final Color BADGE_BG = Color.ofArgb(ARGB.color(195, 16, 22, 30));
+    private static final Color BADGE_BORDER = Color.ofArgb(ARGB.color(140, 255, 255, 255));
 
     private static void drawTacticalArrowMarker(OwoUIGraphics graphics, Minecraft mc, float sx, float sy, String playerName, double dist, float scale) {
         graphics.pose().pushMatrix();
@@ -91,9 +92,7 @@ public class PlayerFinderRadarRenderer {
         int badgeX = -badgeW / 2;
         int badgeY = -24;
 
-        Color badgeBg = Color.ofArgb(ARGB.color(195, 16, 22, 30));
-        Color badgeBorder = Color.ofArgb(ARGB.color(140, 255, 255, 255));
-        RenderUtil.drawRoundedPanel(graphics, badgeX, badgeY, badgeW, badgeH, 3.0f, badgeBg, badgeBorder);
+        RenderUtil.drawRoundedPanel(graphics, badgeX, badgeY, badgeW, badgeH, 3.0f, BADGE_BG, BADGE_BORDER);
 
         float textX = badgeX + (badgeW - textW) / 2.0f;
         float textY = badgeY + (badgeH - fontH) / 2.0f + 0.5f;

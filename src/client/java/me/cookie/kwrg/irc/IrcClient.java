@@ -15,59 +15,32 @@ import net.minecraft.world.entity.EquipmentSlot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 public class IrcClient {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("kwrg-irc");
-    private static final Gson GSON = new Gson();
-    private static final String HOST = "47.96.141.237";
-    private static final int PORT = 13140;
+    static final Gson GSON = new Gson();
+    static final String HOST = "47.96.141.237";
+    static final int PORT = 13140;
 
-    private static Socket socket;
-    private static PrintWriter writer;
-    private static BufferedReader reader;
-    private static volatile boolean isRunning = false;
+    static volatile boolean isRunning = false;
 
     public static volatile boolean isIrcChatActive = false;
     public static volatile boolean isIrcConnect = false;
 
-    private static final int MAX_RECONNECT_ATTEMPTS = 3;
-    private static final AtomicInteger reconnectAttempts = new AtomicInteger(0);
-    private static volatile boolean shouldAutoReconnect = false;
-    private static final AtomicBoolean isConnecting = new AtomicBoolean(false);
-
-    private static final Object SEND_LOCK = new Object();
-    private static ExecutorService sendExecutor;
-
-    private static ScheduledExecutorService heartbeatExecutor;
-    private static final ScheduledExecutorService reconnectExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
-        Thread t = new Thread(r, "IRC-Reconnect-Thread");
-        t.setDaemon(true);
-        return t;
-    });
-
-    private static volatile long lastPingTimestamp = 0L;
-    private static volatile long lastLatency = -1L;
-    private static final List<Consumer<Long>> pingCallbacks = new CopyOnWriteArrayList<>();
+    static volatile long lastPingTimestamp = 0L;
+    static volatile long lastLatency = -1L;
+    static final List<Consumer<Long>> pingCallbacks = new CopyOnWriteArrayList<>();
 
     public static long getLastLatency() {
         return lastLatency;
     }
 
     public static void sendPing(Consumer<Long> onResult) {
-        if (!isRunning || socket == null || socket.isClosed()) {
+        if (!IrcTransport.isAlive()) {
             if (onResult != null) {
                 Minecraft.getInstance().execute(() -> onResult.accept(-1L));
             }
@@ -81,7 +54,7 @@ public class IrcClient {
         lastPingTimestamp = System.currentTimeMillis();
         JsonObject ping = new JsonObject();
         ping.addProperty("type", "ping");
-        sendRaw(GSON.toJson(ping));
+        IrcTransport.sendRaw(GSON.toJson(ping));
     }
 
     public static void connect() {
@@ -90,209 +63,15 @@ public class IrcClient {
             return;
         }
 
-        if (isConnecting.get()) {
+        if (IrcTransport.isConnecting.get()) {
             ChatNotifier.send("§e[IRC] 正在连接中，请稍候...", NotificationType.INFO);
             return;
         }
 
-        reconnectAttempts.set(0);
-        shouldAutoReconnect = true;
+        IrcTransport.reconnectAttempts.set(0);
+        IrcTransport.shouldAutoReconnect = true;
 
-        doConnect(false);
-    }
-
-    private static void doConnect(boolean isSilent) {
-        if (!isConnecting.compareAndSet(false, true)) {
-            return;
-        }
-
-        CompletableFuture.runAsync(() -> {
-            try {
-                closeResources();
-
-                socket = new Socket();
-                socket.setKeepAlive(true);
-                socket.setTcpNoDelay(true);
-                socket.connect(new InetSocketAddress(HOST, PORT), 5000);
-
-                writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
-                reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-                isRunning = true;
-                isIrcConnect = true;
-
-                reconnectAttempts.set(0);
-
-                if (isSilent) {
-                    ChatNotifier.send("§a[IRC] 重新连接成功！", NotificationType.SUCCESS);
-                    LOGGER.info("[IRC] 静默重连成功");
-                } else {
-                    ChatNotifier.send("§a[IRC] 成功连接至 IRC 服务器！", NotificationType.SUCCESS);
-                    LOGGER.info("[IRC] 手动连接成功");
-                }
-
-                JsonObject joinJson = new JsonObject();
-                joinJson.addProperty("type", "join");
-                joinJson.addProperty("senderId", Minecraft.getInstance().getUser().getProfileId().toString());
-                joinJson.addProperty("username", Minecraft.getInstance().getUser().getName());
-                joinJson.addProperty("rank", IrcConfig.get().rank);
-                sendRaw(GSON.toJson(joinJson));
-
-                sendHideArmorSync();
-                sendScaleSync(IrcConfig.get().myScale);
-                me.cookie.kwrg.irc.manager.IrcCapeManager.syncMyCape();
-                sendChannelSync(IrcConfig.get().currentChannel, IrcConfig.get().channelEnabled, IrcConfig.get().savedChannels);
-                queryOnline();
-                startHeartbeat();
-                sendImportantPlayersSync();
-                listenLoop();
-            } catch (Exception e) {
-                LOGGER.warn("[IRC] 连接尝试失败 (isSilent={}): {}", isSilent, e.getMessage());
-                if (!isSilent) {
-                    ChatNotifier.send("§c[IRC] 无法连接到 IRC 服务器: " + e.getMessage(), NotificationType.ERR);
-                }
-                handleDisconnect();
-            } finally {
-                isConnecting.set(false);
-            }
-        });
-    }
-
-    private static void startHeartbeat() {
-        stopHeartbeat();
-        heartbeatExecutor = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "IRC-Heartbeat-Thread");
-            t.setDaemon(true);
-            return t;
-        });
-
-        heartbeatExecutor.scheduleAtFixedRate(() -> {
-            try {
-                Socket current = socket;
-                if (isRunning && current != null && !current.isClosed()) {
-                    sendPing(null);
-                }
-            } catch (Exception e) {
-                LOGGER.warn("[IRC] 心跳发送异常: {}", e.getMessage());
-            }
-        }, 0, 15, TimeUnit.SECONDS);
-    }
-
-    private static void stopHeartbeat() {
-        if (heartbeatExecutor != null && !heartbeatExecutor.isShutdown()) {
-            heartbeatExecutor.shutdownNow();
-            heartbeatExecutor = null;
-        }
-    }
-
-    private static void listenLoop() {
-        try {
-            String line;
-            while (isRunning && reader != null && (line = reader.readLine()) != null) {
-                String rawJson = line.trim();
-                if (!rawJson.isEmpty()) {
-                    if (rawJson.contains("\"type\":\"pong\"") || rawJson.contains("\"type\": \"pong\"")) {
-                        if (lastPingTimestamp > 0) {
-                            long latency = System.currentTimeMillis() - lastPingTimestamp;
-                            lastLatency = latency;
-                            lastPingTimestamp = 0L;
-
-                            Minecraft.getInstance().execute(() -> {
-                                for (Consumer<Long> cb : pingCallbacks) {
-                                    try {
-                                        cb.accept(latency);
-                                    } catch (Exception ignored) {
-                                    }
-                                }
-                                pingCallbacks.clear();
-                            });
-                        }
-                        continue;
-                    }
-
-                    if (LOGGER.isInfoEnabled()) {
-                        String logText = rawJson;
-                        if (logText.contains("\"data\"")) {
-                            logText = logText.replaceAll("\"data\"\\s*:\\s*\"[^\"]+\"", "\"data\":\"<Base64 Image Omitted>\"");
-                        }
-                        if (logText.length() > 250) {
-                            logText = logText.substring(0, 250) + "... [总长 " + rawJson.length() + " 字节]";
-                        }
-                        LOGGER.info("[IRC-RECV] 收到服务端广播: {}", logText);
-                    }
-
-                    Minecraft.getInstance().execute(() -> IrcMessageHandler.handleIncomingJson(rawJson));
-                }
-            }
-        } catch (Exception e) {
-            if (isRunning) {
-                LOGGER.warn("[IRC] 接收线程中断: {}", e.getMessage());
-            }
-        } finally {
-            handleDisconnect();
-        }
-    }
-
-    private static synchronized void handleDisconnect() {
-        isRunning = false;
-        isIrcConnect = false;
-        isIrcChatActive = false;
-
-        lastLatency = -1L;
-        lastPingTimestamp = 0L;
-        Minecraft.getInstance().execute(() -> {
-            for (Consumer<Long> cb : pingCallbacks) {
-                try {
-                    cb.accept(-1L);
-                } catch (Exception ignored) {
-                }
-            }
-            pingCallbacks.clear();
-        });
-
-        stopHeartbeat();
-        closeResources();
-
-        HideArmorManager.clear();
-        IrcGlowManager.clear();
-
-        if (shouldAutoReconnect) {
-            int currentAttempt = reconnectAttempts.incrementAndGet();
-            if (currentAttempt > MAX_RECONNECT_ATTEMPTS) {
-                shouldAutoReconnect = false;
-                LOGGER.info("[IRC] 自动重连已达 3 次上限，放弃重试。等待手动连接。");
-                ChatNotifier.send("§c[IRC] 与服务器连接断开，重连失败(3/3)", NotificationType.ERR);
-            } else {
-                LOGGER.info("[IRC] 连接断开，执行第 {}/{} 次重连...", currentAttempt, MAX_RECONNECT_ATTEMPTS);
-                reconnectExecutor.schedule(() -> {
-                    if (!isRunning && shouldAutoReconnect) {
-                        doConnect(true);
-                    }
-                }, 5, TimeUnit.SECONDS);
-            }
-        }
-    }
-
-    private static void sendRaw(String jsonStr) {
-        sendExecutor().execute(() -> {
-            synchronized (SEND_LOCK) {
-                if (writer != null && isRunning) {
-                    writer.println(jsonStr);
-                }
-            }
-        });
-    }
-
-    private static ExecutorService sendExecutor() {
-        synchronized (SEND_LOCK) {
-            if (sendExecutor == null || sendExecutor.isShutdown()) {
-                sendExecutor = Executors.newSingleThreadExecutor(r -> {
-                    Thread t = new Thread(r, "IRC-Send-Thread");
-                    t.setDaemon(true);
-                    return t;
-                });
-            }
-            return sendExecutor;
-        }
+        IrcTransport.doConnect(false);
     }
 
     public static void sendMessage(String content) {
@@ -335,7 +114,7 @@ public class IrcClient {
                 decoration.content(), decoration.prefix(), decoration.suffix());
 
         if (isRunning) {
-            sendRaw(GSON.toJson(json));
+            IrcTransport.sendRaw(GSON.toJson(json));
         } else {
             IrcMessageHandler.printMessage("§c[IRC] 发送失败：未连接至 IRC 服务器！正在尝试连接...");
             connect();
@@ -354,7 +133,7 @@ public class IrcClient {
         json.addProperty("item", itemId);
 
         if (isRunning) {
-            sendRaw(GSON.toJson(json));
+            IrcTransport.sendRaw(GSON.toJson(json));
         } else {
             IrcMessageHandler.printMessage("§c[IRC] 发送失败：未连接至 IRC 服务器，正在尝试连接...");
             connect();
@@ -394,7 +173,7 @@ public class IrcClient {
                 decoration.content(), decoration.prefix(), decoration.suffix());
 
         if (isRunning) {
-            sendRaw(GSON.toJson(json));
+            IrcTransport.sendRaw(GSON.toJson(json));
         } else {
             IrcMessageHandler.printMessage("§c[IRC] 发送失败：未连接至 IRC 服务器！正在尝试连接...");
             connect();
@@ -413,7 +192,7 @@ public class IrcClient {
         json.addProperty("item", rawItem);
         json.addProperty("reason", reason);
 
-        sendRaw(GSON.toJson(json));
+        IrcTransport.sendRaw(GSON.toJson(json));
     }
 
     public static void sendFunctionSync(String functionName, boolean enabled) {
@@ -429,7 +208,7 @@ public class IrcClient {
         json.addProperty("username", username);
         json.addProperty("enabled", enabled);
 
-        sendRaw(GSON.toJson(json));
+        IrcTransport.sendRaw(GSON.toJson(json));
     }
 
     public static void sendHideArmorSync() {
@@ -453,7 +232,7 @@ public class IrcClient {
         json.addProperty("username", mc.getUser().getName());
         json.addProperty("enabled", config.hideArmor && !parts.isEmpty());
         json.add("parts", parts);
-        sendRaw(GSON.toJson(json));
+        IrcTransport.sendRaw(GSON.toJson(json));
     }
 
     public static void sendChannelSync(String channel, boolean enabled, java.util.List<String> channels) {
@@ -480,7 +259,7 @@ public class IrcClient {
         }
         json.add("channels", array);
 
-        sendRaw(GSON.toJson(json));
+        IrcTransport.sendRaw(GSON.toJson(json));
     }
 
     public static void sendChannelSync(String channel, boolean enabled) {
@@ -512,7 +291,7 @@ public class IrcClient {
         json.add("data", data != null ? data : new JsonObject());
 
         if (isRunning) {
-            sendRaw(GSON.toJson(json));
+            IrcTransport.sendRaw(GSON.toJson(json));
         } else {
             IrcMessageHandler.printMessage("§c[IRC] 发送失败：未连接至 IRC 服务器，正在尝试连接...");
             connect();
@@ -545,7 +324,7 @@ public class IrcClient {
         json.addProperty("username", username);
         json.addProperty("scale", scale);
 
-        sendRaw(GSON.toJson(json));
+        IrcTransport.sendRaw(GSON.toJson(json));
     }
 
     // 检查服务端是否已有该披风哈希
@@ -557,30 +336,23 @@ public class IrcClient {
         json.addProperty("username", mc.getUser().getName());
         json.addProperty("hash", hash);
         json.addProperty("fileName", fileName);
-        sendRaw(GSON.toJson(json));
+        IrcTransport.sendRaw(GSON.toJson(json));
     }
 
     // 向服务端上传披风的完整 Base64
     public static void sendCapeUpload(String hash, String fileName, String base64Data) {
-        sendRaw(GSON.toJson(capeUploadJson(hash, fileName, base64Data)));
+        IrcTransport.sendRaw(GSON.toJson(capeUploadJson(hash, fileName, base64Data)));
     }
 
     // 广播佩戴指定哈希的披风
     public static void sendCapeSync(String hash, String fileName) {
-        sendRaw(GSON.toJson(capeSyncJson(hash, fileName)));
+        IrcTransport.sendRaw(GSON.toJson(capeSyncJson(hash, fileName)));
     }
 
     public static void sendCapeUploadAndSync(String hash, String fileName, String base64Data) {
         String upload = GSON.toJson(capeUploadJson(hash, fileName, base64Data));
         String sync = GSON.toJson(capeSyncJson(hash, fileName));
-        CompletableFuture.runAsync(() -> {
-            synchronized (SEND_LOCK) {
-                if (writer != null && isRunning) {
-                    writer.println(upload);
-                    writer.println(sync);
-                }
-            }
-        });
+        IrcTransport.sendRawAsyncPair(upload, sync);
     }
 
     public static void sendImportantPlayersSync() {
@@ -604,7 +376,7 @@ public class IrcClient {
         json.add("players", array);
         json.add("importantPlayers", array);
 
-        sendRaw(GSON.toJson(json));
+        IrcTransport.sendRaw(GSON.toJson(json));
     }
 
     public static void sendTypingStatus(boolean isTyping) {
@@ -619,7 +391,7 @@ public class IrcClient {
         json.addProperty("typing", isTyping);
         json.addProperty("action", isTyping ? "start" : "stop");
 
-        sendRaw(GSON.toJson(json));
+        IrcTransport.sendRaw(GSON.toJson(json));
     }
 
     private static JsonObject capeUploadJson(String hash, String fileName, String base64Data) {
@@ -655,14 +427,14 @@ public class IrcClient {
         JsonObject json = new JsonObject();
         json.addProperty("type", "cape_download");
         json.addProperty("hash", hash);
-        sendRaw(GSON.toJson(json));
+        IrcTransport.sendRaw(GSON.toJson(json));
     }
 
     public static void queryOnline() {
         if (isRunning) {
             JsonObject json = new JsonObject();
             json.addProperty("type", "query_online");
-            sendRaw(GSON.toJson(json));
+            IrcTransport.sendRaw(GSON.toJson(json));
         } else {
             IrcMessageHandler.printMessage("§c[IRC] 未连接至 IRC 服务器，正在尝试连接...");
             connect();
@@ -670,8 +442,8 @@ public class IrcClient {
     }
 
     public static void disconnect() {
-        shouldAutoReconnect = false;
-        reconnectAttempts.set(0);
+        IrcTransport.shouldAutoReconnect = false;
+        IrcTransport.reconnectAttempts.set(0);
 
         lastLatency = -1L;
         lastPingTimestamp = 0L;
@@ -685,8 +457,8 @@ public class IrcClient {
             pingCallbacks.clear();
         });
 
-        stopHeartbeat();
-        closeResources();
+        IrcTransport.stopHeartbeat();
+        IrcTransport.closeResources();
 
         isRunning = false;
         isIrcChatActive = false;
@@ -696,23 +468,5 @@ public class IrcClient {
         IrcGlowManager.clear();
         LOGGER.info("[IRC] 已手动断开连接");
         ChatNotifier.send("§c[IRC] 已断开连接", NotificationType.INFO);
-    }
-
-    private static void closeResources() {
-        try {
-            if (writer != null) writer.close();
-            if (reader != null) reader.close();
-            if (socket != null && !socket.isClosed()) socket.close();
-        } catch (Exception ignored) {
-        }
-        writer = null;
-        reader = null;
-        socket = null;
-        synchronized (SEND_LOCK) {
-            if (sendExecutor != null && !sendExecutor.isShutdown()) {
-                sendExecutor.shutdownNow();
-            }
-            sendExecutor = null;
-        }
     }
 }

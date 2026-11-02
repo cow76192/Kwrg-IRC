@@ -17,6 +17,14 @@ import java.util.List;
 
 public class MessageStyleModule extends Module {
 
+    private static final List<String> MODIFIERS = List.of("bold", "underline", "italic", "strikethrough", "obfuscated", "flow");
+
+    private static final String[] PRESETS = new String[]{
+            "rainbow", "sunset", "ocean", "fire", "sakura", "neon", "gold", "purple",
+            "bold", "underline", "italic", "strikethrough", "obfuscated", "flow",
+            "rainbow bold", "#FF55AA", "rgb(255,100,50)", "gradient(#ff758c,#ff7eb3)", "gradient(#00f2fe,#4facfe,#00ff87)"
+    };
+
     public MessageStyleModule() {
         super("messageStyle", Category.STYLE, PanelItemComponent.ItemType.TRIGGER);
     }

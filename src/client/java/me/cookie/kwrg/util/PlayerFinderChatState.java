@@ -2,8 +2,8 @@ package me.cookie.kwrg.util;
 
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
-import me.cookie.kwrg.irc.manager.RouteEditor;
-import me.cookie.kwrg.irc.manager.ChatWaypointManager;
+import me.cookie.kwrg.skyblock.route.RouteEditor;
+import me.cookie.kwrg.skyblock.route.ChatWaypointManager;
 import net.minecraft.client.Minecraft;
 
 import java.util.ArrayList;

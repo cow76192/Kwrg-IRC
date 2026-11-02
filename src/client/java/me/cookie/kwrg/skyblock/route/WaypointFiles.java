@@ -1,7 +1,9 @@
-package me.cookie.kwrg.util;
+package me.cookie.kwrg.skyblock.route;
 
-import me.cookie.kwrg.irc.manager.WaypointManager;
-import me.cookie.kwrg.irc.manager.RouteManager;
+import me.cookie.kwrg.skyblock.route.WaypointManager;
+import me.cookie.kwrg.skyblock.route.RouteManager;
+import me.cookie.kwrg.util.PointEntry;
+import me.cookie.kwrg.util.WaypointRouteUpdate;
 
 import com.google.gson.*;
 import me.cookie.kwrg.irc.config.IrcConfig;
@@ -451,7 +453,7 @@ public final class WaypointFiles {
         return new WaypointRouteUpdate(route, target, latest);
     }
 
-    static void commitUpdate(Path path, Collection expected, Collection updated) throws IOException {
+    public static void commitUpdate(Path path, Collection expected, Collection updated) throws IOException {
         if (FILES.get(path) != expected || !Files.exists(path)) {
             throw new IOException("点位文件已变化，请重新更新");
         }
@@ -459,7 +461,7 @@ public final class WaypointFiles {
         FILES.put(path, updated);
     }
 
-    static Collection copy(Collection file) {
+    public static Collection copy(Collection file) {
         Collection result = new Collection(file.name);
         result.enabled = file.enabled;
         result.visible = file.visible;
@@ -490,7 +492,7 @@ public final class WaypointFiles {
         return file;
     }
 
-    static Collection parse(Path path, String text) throws IOException {
+    public static Collection parse(Path path, String text) throws IOException {
         JsonElement parsed = JsonParser.parseString(text);
         if (!parsed.isJsonObject() && !parsed.isJsonArray()) {
             throw new IOException("无效的点位 JSON");

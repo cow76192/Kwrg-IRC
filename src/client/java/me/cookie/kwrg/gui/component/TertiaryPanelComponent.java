@@ -125,13 +125,7 @@ public class TertiaryPanelComponent extends FlowLayout {
         this.updateY(py);
 
         float panelAlpha = ease;
-        int bgAlpha = (int) (255 * panelAlpha * GuiThemeService.opacity());
-        int outlineAlpha = (int) (85 * panelAlpha * GuiThemeService.opacity());
-
-        Color panelBg = AnimationUtil.withAlpha(GuiThemeService.panelBg(), bgAlpha);
-        Color outlineColor = AnimationUtil.withAlpha(GuiThemeService.panelOutline(), outlineAlpha);
-
-        RenderUtil.drawRoundedPanel(graphics, px, py, width, height, 14.0f, panelBg, outlineColor);
+        drawPanelSurface(graphics, panelAlpha, px, py, width, height);
 
         graphics = RenderUtil.withOpacity(graphics, GuiThemeService.opacity());
 
@@ -194,6 +188,16 @@ public class TertiaryPanelComponent extends FlowLayout {
         if (trackHeight > 30 && ease > 0.20f) {
             this.scrollbar.draw(graphics, px + width - 5, itemStartY, trackHeight, mouseX, mouseY, panelAlpha, delta);
         }
+    }
+
+    public static void drawPanelSurface(OwoUIGraphics graphics, float panelAlpha, int px, int py, int width, int height) {
+        int bgAlpha = (int) (255 * panelAlpha * GuiThemeService.opacity());
+        int outlineAlpha = (int) (85 * panelAlpha * GuiThemeService.opacity());
+
+        Color panelBg = AnimationUtil.withAlpha(GuiThemeService.panelBg(), bgAlpha);
+        Color outlineColor = AnimationUtil.withAlpha(GuiThemeService.panelOutline(), outlineAlpha);
+
+        RenderUtil.drawRoundedPanel(graphics, px, py, width, height, 14.0f, panelBg, outlineColor);
     }
 
     public int getActualPanelX() {
