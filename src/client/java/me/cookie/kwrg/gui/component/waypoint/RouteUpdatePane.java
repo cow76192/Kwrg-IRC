@@ -15,6 +15,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import org.lwjgl.glfw.GLFW;
+import java.io.IOException;
 import java.util.*;
 
 /** Batch or per-node decisions; grows from the source update button and shrinks back into it. */
@@ -72,7 +73,7 @@ public final class RouteUpdatePane {
             applied.run();
             ChatNotifier.send("§a[Waypoint] 更新完成 | " + summary.describe(), NotificationType.SUCCESS);
             close();
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             error = e.getMessage() == null ? "更新失败，请重新打开窗口" : e.getMessage();
         }
     }

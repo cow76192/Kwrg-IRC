@@ -15,11 +15,18 @@ import net.minecraft.network.chat.Component;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -27,6 +34,7 @@ public final class ConfigMigrator {
 
     private static final Set<String> KNOWN_CONFIG_KEYS = new HashSet<>();
     private static final Gson BACKUP_GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final int MAX_BACKUPS = 10;
 
     static {
         for (Field field : IrcConfig.class.getDeclaredFields()) {
@@ -100,14 +108,73 @@ public final class ConfigMigrator {
         try {
             Path backupDir = IrcConfig.getKwrgDir().resolve("backUp");
             Files.createDirectories(backupDir);
+            String backupJson = BACKUP_GSON.toJson(originalConfig);
+            String backupHash = hashOf(backupJson);
+            if (backupHash != null && hasBackupWithHash(backupDir, backupHash)) return;
             Path backupFile = backupDir.resolve("config-" + System.currentTimeMillis() + "-" + UUID.randomUUID() + ".json");
-            Files.writeString(backupFile, BACKUP_GSON.toJson(originalConfig), StandardOpenOption.CREATE_NEW,
+            Files.writeString(backupFile, backupJson, StandardOpenOption.CREATE_NEW,
                     StandardOpenOption.WRITE);
+            pruneBackups(backupDir);
             notifyBackup("§e未知配置字段: §f" + unknownFields + "\n§e原始配置已备份至: §f" + backupFile.toAbsolutePath(),
                     NotificationType.WARN);
         } catch (IOException | SecurityException e) {
             notifyBackup("§c未知配置字段: §f" + unknownFields + "\n§c原始配置备份失败: §f" + e.getMessage(),
                     NotificationType.ERR);
+        }
+    }
+
+    private static String hashOf(String content) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(content.getBytes(StandardCharsets.UTF_8)));
+        } catch (java.security.NoSuchAlgorithmException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    private static boolean hasBackupWithHash(Path backupDir, String expectedHash) {
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(backupDir, "config-*.json")) {
+            for (Path file : stream) {
+                try {
+                    if (expectedHash.equals(hashOf(Files.readString(file)))) return true;
+                } catch (IOException | RuntimeException ignored) {
+                }
+            }
+        } catch (IOException | RuntimeException ignored) {
+        }
+        return false;
+    }
+
+    private static void pruneBackups(Path backupDir) {
+        List<Path> backups = new ArrayList<>();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(backupDir, "config-*.json")) {
+            for (Path file : stream) {
+                if (backupTimestamp(file) >= 0L) backups.add(file);
+            }
+        } catch (IOException | RuntimeException ignored) {
+            return;
+        }
+        if (backups.size() <= MAX_BACKUPS) return;
+        backups.sort(Comparator.comparingLong(ConfigMigrator::backupTimestamp));
+        int remove = backups.size() - MAX_BACKUPS;
+        for (int i = 0; i < remove; i++) {
+            try {
+                Files.deleteIfExists(backups.get(i));
+            } catch (IOException | RuntimeException ignored) {
+            }
+        }
+    }
+
+    private static long backupTimestamp(Path file) {
+        String name = file.getFileName().toString();
+        if (!name.startsWith("config-") || !name.endsWith(".json")) return -1L;
+        int start = "config-".length();
+        int end = name.indexOf('-', start);
+        if (end <= start) return -1L;
+        try {
+            return Long.parseLong(name.substring(start, end));
+        } catch (NumberFormatException e) {
+            return -1L;
         }
     }
 

@@ -49,6 +49,10 @@ public class DynamicIslandRenderer {
     private static final Component WARN_COMPONENT = Component.literal("⚠ Server Lagging (Low TPS)").setStyle(ISLAND_STYLE);
 
     private static final Map<String, String> CUSTOM_NOTICES = Collections.synchronizedMap(new LinkedHashMap<>());
+    private static volatile int noticesVersion = 0;
+    private static List<IslandNoticeEntry> cachedExtraLines = null;
+    private static int cachedNoticesVersion = -1;
+    private static boolean cachedLowTps = false;
 
     /**
      * 添加或更新自定义消息
@@ -57,6 +61,7 @@ public class DynamicIslandRenderer {
      */
     public static void setCustomNotice(String key, String text) {
         if (key == null) return;
+        noticesVersion++;
         if (text == null || text.isBlank()) {
             CUSTOM_NOTICES.remove(key);
         } else {
@@ -73,11 +78,13 @@ public class DynamicIslandRenderer {
      */
     public static void removeCustomNotice(String key) {
         if (key != null) {
+            noticesVersion++;
             CUSTOM_NOTICES.remove(key);
         }
     }
 
     public static void clearCustomNotices() {
+        noticesVersion++;
         CUSTOM_NOTICES.clear();
     }
 
@@ -104,6 +111,11 @@ public class DynamicIslandRenderer {
     }
 
     private static List<IslandNoticeEntry> getActiveExtraLines(boolean isLowTps) {
+        int version = noticesVersion;
+        if (cachedExtraLines != null && version == cachedNoticesVersion && isLowTps == cachedLowTps) {
+            return cachedExtraLines;
+        }
+
         List<IslandNoticeEntry> lines = new ArrayList<>();
 
         synchronized (CUSTOM_NOTICES) {
@@ -120,6 +132,9 @@ public class DynamicIslandRenderer {
             lines.add(new IslandNoticeEntry(WARN_COMPONENT, 0xFFFF5F3C, true));
         }
 
+        cachedExtraLines = lines;
+        cachedNoticesVersion = version;
+        cachedLowTps = isLowTps;
         return lines;
     }
 

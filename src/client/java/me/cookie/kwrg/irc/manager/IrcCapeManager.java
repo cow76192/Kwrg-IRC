@@ -6,6 +6,7 @@ import me.cookie.kwrg.util.SafePaths;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
@@ -30,7 +31,7 @@ public class IrcCapeManager {
             if (!Files.exists(cacheDir)) {
                 Files.createDirectories(cacheDir);
             }
-        } catch (Exception ignored) {}
+        } catch (IOException | RuntimeException ignored) {}
         return cacheDir;
     }
 
@@ -47,7 +48,7 @@ public class IrcCapeManager {
                 hex.append(h);
             }
             return hex.toString();
-        } catch (Exception e) {
+        } catch (java.security.NoSuchAlgorithmException | IOException | RuntimeException e) {
             return null;
         }
     }
@@ -81,7 +82,7 @@ public class IrcCapeManager {
                 byte[] bytes = Files.readAllBytes(capeFile);
                 String base64 = Base64.getEncoder().encodeToString(bytes);
                 IrcClient.sendCapeUploadAndSync(hash, myCape, base64);
-            } catch (Exception ignored) {}
+            } catch (IOException | RuntimeException ignored) {}
         } else {
             IrcClient.sendCapeSync(hash, myCape);
         }
@@ -93,7 +94,7 @@ public class IrcCapeManager {
             if (uuidStr != null && !uuidStr.isBlank()) {
                 uuid = UUID.fromString(uuidStr);
             }
-        } catch (Exception ignored) {}
+        } catch (RuntimeException ignored) {}
 
         if (hash == null || hash.isBlank()) {
             if (uuid != null) UUID_TO_CAPE.remove(uuid);
@@ -123,7 +124,7 @@ public class IrcCapeManager {
             if (uuidStr != null && !uuidStr.isBlank()) {
                 UUID_TO_CAPE.remove(UUID.fromString(uuidStr));
             }
-        } catch (Exception ignored) {}
+        } catch (RuntimeException ignored) {}
         if (username != null) {
             NAME_TO_CAPE.remove(username.toLowerCase(Locale.ROOT));
         }
@@ -213,7 +214,7 @@ public class IrcCapeManager {
                         }
                     });
                 }
-            } catch (Exception ignored) {}
+            } catch (IOException | RuntimeException ignored) {}
         });
     }
 

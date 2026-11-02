@@ -10,6 +10,7 @@ import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -97,7 +98,7 @@ final class IrcTransport {
                 startHeartbeat();
                 IrcClient.sendImportantPlayersSync();
                 listenLoop();
-            } catch (Exception e) {
+            } catch (IOException | RuntimeException e) {
                 LOGGER.warn("[IRC] 连接尝试失败 (isSilent={}): {}", isSilent, e.getMessage());
                 if (!isSilent) {
                     ChatNotifier.send("§c[IRC] 无法连接到 IRC 服务器: " + e.getMessage(), NotificationType.ERR);
@@ -123,7 +124,7 @@ final class IrcTransport {
                 if (IrcClient.isRunning && current != null && !current.isClosed()) {
                     IrcClient.sendPing(null);
                 }
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 LOGGER.warn("[IRC] 心跳发送异常: {}", e.getMessage());
             }
         }, 0, 15, TimeUnit.SECONDS);
@@ -152,7 +153,7 @@ final class IrcTransport {
                                 for (Consumer<Long> cb : IrcClient.pingCallbacks) {
                                     try {
                                         cb.accept(latency);
-                                    } catch (Exception ignored) {
+                                    } catch (RuntimeException ignored) {
                                     }
                                 }
                                 IrcClient.pingCallbacks.clear();
@@ -175,7 +176,7 @@ final class IrcTransport {
                     Minecraft.getInstance().execute(() -> IrcMessageHandler.handleIncomingJson(rawJson));
                 }
             }
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             if (IrcClient.isRunning) {
                 LOGGER.warn("[IRC] 接收线程中断: {}", e.getMessage());
             }
@@ -195,7 +196,7 @@ final class IrcTransport {
             for (Consumer<Long> cb : IrcClient.pingCallbacks) {
                 try {
                     cb.accept(-1L);
-                } catch (Exception ignored) {
+                } catch (RuntimeException ignored) {
                 }
             }
             IrcClient.pingCallbacks.clear();
@@ -263,7 +264,7 @@ final class IrcTransport {
             if (writer != null) writer.close();
             if (reader != null) reader.close();
             if (socket != null && !socket.isClosed()) socket.close();
-        } catch (Exception ignored) {
+        } catch (IOException | RuntimeException ignored) {
         }
         writer = null;
         reader = null;

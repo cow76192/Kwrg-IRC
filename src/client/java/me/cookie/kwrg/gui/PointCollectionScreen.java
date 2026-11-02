@@ -27,10 +27,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import org.lwjgl.glfw.GLFW;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.IdentityHashMap;
@@ -140,7 +140,7 @@ public abstract class PointCollectionScreen {
     public boolean isFinished() { return closingAt >= 0 && System.currentTimeMillis() - closingAt >= ANIMATION_MS; }
 
     private float pageProgress() {
-        return AnimationUtil.lerp(AnimationUtil.easeOutCubic((System.currentTimeMillis() - pageStartedAt) / (float) ANIMATION_MS), pageFrom, pageTarget);
+        return Mth.lerp(AnimationUtil.easeOutCubic((System.currentTimeMillis() - pageStartedAt) / (float) ANIMATION_MS), pageFrom, pageTarget);
     }
 
     private boolean interactive() {
@@ -280,22 +280,14 @@ public abstract class PointCollectionScreen {
     }
 
     private List<? extends PointEntry> orderedEntries() {
-        var entries = new ArrayList<>(store.entries());
-        if (!store.persistsPointOrder()) {
-            List<String> order = displayOrders.get(store.currentFile());
-            if (order != null) {
-                Map<String, Integer> positions = new HashMap<>();
-                for (int i = 0; i < order.size(); i++) positions.put(order.get(i), i);
-                // Stable sorting appends new nodes while preserving the surviving nodes' positions.
-                entries.sort(Comparator.comparingInt(entry -> positions.getOrDefault(entry.id, Integer.MAX_VALUE)));
-            }
-        }
-        return entries;
+        var entries = store.entries();
+        boolean persistsPointOrder = store.persistsPointOrder();
+        return PointListModel.orderedEntries(entries, persistsPointOrder ? null : displayOrders.get(store.currentFile()), persistsPointOrder);
     }
 
     private void rememberDisplayOrder() {
         if (!store.persistsPointOrder() && store.currentFile() != null) {
-            displayOrders.put(store.currentFile(), points.stream().map(point -> point.entry().id).toList());
+            displayOrders.put(store.currentFile(), PointListModel.displayOrderIds(points));
         }
     }
 
@@ -309,19 +301,7 @@ public abstract class PointCollectionScreen {
             return false;
         }
 
-        if (!store.persistsPointOrder()) {
-            var identities = java.util.Collections.newSetFromMap(new IdentityHashMap<PointEntry, Boolean>());
-            identities.addAll(entries);
-            return points.stream().allMatch(point -> identities.contains(point.entry()));
-        }
-
-        for (int i = 0; i < entries.size(); i++) {
-            if (entries.get(i) != points.get(i).entry()) {
-                return false;
-            }
-        }
-
-        return true;
+        return PointListModel.sameEntries(entries, points, store.persistsPointOrder());
     }
 
     private void blurPoints() {
@@ -385,7 +365,7 @@ public abstract class PointCollectionScreen {
 
         float position(float next, long now) {
             if (Float.isNaN(target)) from = target = next;
-            float current = AnimationUtil.lerp(AnimationUtil.easeOutCubic((now - startedAt) / 180f), from, target);
+            float current = Mth.lerp(AnimationUtil.easeOutCubic((now - startedAt) / 180f), from, target);
             if (next != target) {
                 from = current;
                 target = next;
@@ -530,8 +510,8 @@ public abstract class PointCollectionScreen {
             sourceH = originComponent.height() * scale;
         }
 
-        float w = AnimationUtil.lerp(alpha, sourceW, panelW), h = AnimationUtil.lerp(alpha, sourceH, panelH);
-        float cx = AnimationUtil.lerp(alpha, sourceX, width / 2.0f), cy = AnimationUtil.lerp(alpha, sourceY, height / 2.0f);
+        float w = Mth.lerp(alpha, sourceW, panelW), h = Mth.lerp(alpha, sourceH, panelH);
+        float cx = Mth.lerp(alpha, sourceX, width / 2.0f), cy = Mth.lerp(alpha, sourceY, height / 2.0f);
 
         graphics.pose().pushMatrix();
         graphics.pose().translate(cx - w / 2, cy - h / 2);
@@ -927,7 +907,7 @@ public abstract class PointCollectionScreen {
                             refreshFiles();
                             ChatNotifier.send("§a[Waypoint] 已导入为独立点位集", NotificationType.SUCCESS);
                         }
-                    } catch (Exception e) {
+                    } catch (IOException | RuntimeException e) {
                         ChatNotifier.send("§c[Waypoint] " + row.externalAction + "失败 | " + e.getMessage(), NotificationType.ERR);
                     }
                 }
@@ -1292,7 +1272,7 @@ public abstract class PointCollectionScreen {
             closeRouteNaming();
         } catch (IllegalArgumentException e) {
             routeNameError = e.getMessage();
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             routeNameError = "保存失败，请检查文件权限或名称是否重复";
         }
     }
@@ -1345,7 +1325,7 @@ public abstract class PointCollectionScreen {
         DialogMorph morph = DialogMorph.morphFrom(progress, namingOrigin, x, y, dialogW, 152);
         float currentX = morph.x(), currentY = morph.y(), currentW = morph.width(), currentH = morph.height();
         RenderUtil.drawSubpixelRoundedPanel(owo, currentX, currentY, currentW, currentH,
-                AnimationUtil.lerp(progress, 5, 10),
+                Mth.lerp(progress, 5, 10),
                 AnimationUtil.lerpColor(progress, namingOriginColor, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.dialogBg()))),
                 AnimationUtil.withAlpha(GuiThemeService.regionBorder(), 0x88));
 
@@ -1391,7 +1371,7 @@ public abstract class PointCollectionScreen {
         float currentX = morph.x(), currentY = morph.y(), currentW = morph.width(), currentH = morph.height();
 
         RenderUtil.drawSubpixelRoundedPanel(graphics, currentX, currentY, currentW, currentH,
-                AnimationUtil.lerp(progress, 5, 10),
+                Mth.lerp(progress, 5, 10),
                 AnimationUtil.lerpColor(progress, deleteOriginColor, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.dialogBg()))), AnimationUtil.withAlpha(GuiThemeService.dialogErrorBorder(), 0xAA));
         float labelAlpha = DialogMorph.dialogLabelAlpha(progress);
 
@@ -1485,7 +1465,7 @@ public abstract class PointCollectionScreen {
         try {
             Files.createDirectories(store.getDir());
             net.minecraft.util.Util.getPlatform().openPath(store.getDir());
-        } catch (Exception e) { ChatNotifier.send("§c[Route] 打开目录失败 | " + e.getMessage(), NotificationType.ERR); }
+        } catch (IOException | RuntimeException e) { ChatNotifier.send("§c[Route] 打开目录失败 | " + e.getMessage(), NotificationType.ERR); }
     }
 
 }

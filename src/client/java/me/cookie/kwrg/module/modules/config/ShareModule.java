@@ -20,6 +20,7 @@ import me.cookie.kwrg.util.ColorUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -250,7 +251,7 @@ public class ShareModule extends Module {
                         IrcClient.sendShare(targetPlayer, "share", "config", obj);
                         ChatNotifier.send("§a[Share] 已向 §f" + targetPlayer + " §a发送配置: §e" + state.payload, NotificationType.SUCCESS);
                     }
-                } catch (Exception e) {
+                } catch (IOException | RuntimeException e) {
                     ChatNotifier.send("§c[Share] 读取配置文件失败: " + e.getMessage(), NotificationType.ERR);
                 }
             }
@@ -327,7 +328,7 @@ public class ShareModule extends Module {
                     String matched = FontManagerHelper.findFontByHash(hash);
                     fontStatus = (matched != null) ? "§a匹配成功 (" + matched + ")" : "§c本地缺失 (跳过)";
                 }
-            } catch (Exception ignored) {}
+            } catch (RuntimeException ignored) {}
 
             String finalProfileName = profileName;
             String finalFontStatus = fontStatus;
@@ -374,7 +375,7 @@ public class ShareModule extends Module {
                 if (obj.has("content")) {
                     return obj.get("content").getAsString();
                 }
-            } catch (Exception ignored) {}
+            } catch (RuntimeException ignored) {}
         }
         return clean;
     }
@@ -456,7 +457,7 @@ public class ShareModule extends Module {
                     } else {
                         ChatNotifier.send("§e[Share] 配置已导入，但未在本地 font 文件夹找到匹配的字体文件 (哈希不匹配)，已跳过字体加载！", NotificationType.WARN);
                     }
-                } catch (Exception e) {
+                } catch (IOException | RuntimeException e) {
                     ChatNotifier.send("§c[Share] 导入配置文件失败: " + e.getMessage(), NotificationType.ERR);
                 }
             }

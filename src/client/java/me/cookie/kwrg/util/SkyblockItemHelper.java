@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -160,7 +161,7 @@ public class SkyblockItemHelper {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             ChatNotifier.sendInChatScreen("§c[Kwrg] 索引 items.min.json 失败");
             LOGGER.error("[Kwrg] 索引 items.min.json 失败", e);
         }
@@ -203,7 +204,7 @@ public class SkyblockItemHelper {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             ChatNotifier.sendInChatScreen("§c[Kwrg] 索引 attributes.min.json 失败");
             LOGGER.error("[Kwrg] 索引 attributes.min.json 失败", e);
         }
@@ -258,7 +259,7 @@ public class SkyblockItemHelper {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             ChatNotifier.sendInChatScreen("§c[Kwrg] 索引 pets.min.json 失败");
             LOGGER.error("[Kwrg] 索引 pets.min.json 失败", e);
         }
@@ -326,7 +327,7 @@ public class SkyblockItemHelper {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             ChatNotifier.sendInChatScreen("§c[Kwrg] 索引 enchantments.min.json 失败");
             LOGGER.error("[Kwrg] 索引 enchantments.min.json 失败", e);
         }
@@ -388,7 +389,7 @@ public class SkyblockItemHelper {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             ChatNotifier.sendInChatScreen("§c[Kwrg] 索引 runes.min.json 失败");
             LOGGER.error("[Kwrg] 索引 runes.min.json 失败", e);
         }

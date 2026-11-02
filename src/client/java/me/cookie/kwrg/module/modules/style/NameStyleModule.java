@@ -73,12 +73,12 @@ public class NameStyleModule extends Module {
         ));
         panel.child(TextInfoPaneComponent.header("预设样式"));
 
-        for (String preset : ColorUtil.presetNames()) {
+        for (String preset : PRESETS) {
             panel.child(new PanelItemComponent(
                     preset,
                     PanelItemComponent.ItemType.TRIGGER,
                     (item, click) -> {
-                        String newStyle = ColorUtil.mergePreset(inputPane.getText(), preset);
+                        String newStyle = ColorUtil.mergePreset(inputPane.getText(), preset, MODIFIERS);
                         inputPane.setText(newStyle);
                         currentEditingStyle[0] = newStyle;
                         IrcConfig.get().namestyle = newStyle;

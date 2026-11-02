@@ -127,7 +127,7 @@ public final class WaypointFiles {
                         syncDefault();
                     }
                 }
-                catch (Exception e) {
+                catch (IOException | RuntimeException e) {
                     LoggerFactory.getLogger(WaypointFiles.class).warn("无法加载点位文件 {}", path, e);
                 }
             }

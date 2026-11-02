@@ -53,7 +53,7 @@ public class NickManager {
     public static HypixelRank getRank() {
         try {
             return HypixelRank.valueOf(IrcConfig.get().nickRank);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             return HypixelRank.MVP_PLUS;
         }
     }
@@ -67,7 +67,7 @@ public class NickManager {
         try {
             if ("GRAY".equals(IrcConfig.get().nickPlusColor)) return HypixelRank.PlusColor.DARK_GRAY;
             return HypixelRank.PlusColor.valueOf(IrcConfig.get().nickPlusColor);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             return HypixelRank.PlusColor.RED;
         }
     }
@@ -80,7 +80,7 @@ public class NickManager {
     public static HypixelRank.TagColor getTagColor() {
         try {
             return HypixelRank.TagColor.valueOf(IrcConfig.get().nickTagColor);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             return HypixelRank.TagColor.GOLD;
         }
     }
@@ -292,38 +292,36 @@ public class NickManager {
         HypixelRank rank = getRank();
         if (rank == HypixelRank.NONE) return;
 
-        HypixelRank.PlusColor plus = getPlusColor();
-
-        switch (rank) {
-            case VIP -> appendChars(list, "[VIP] ", 0x55FF55);
-            case VIP_PLUS -> {
-                appendChars(list, "[VIP", 0x55FF55);
-                appendChars(list, "+", 0xFFAA00); // VIP+ 的加号固定金色
-                appendChars(list, "] ", 0x55FF55);
-            }
-            case MVP -> appendChars(list, "[MVP] ", 0x55FFFF);
-            case MVP_PLUS -> {
-                appendChars(list, "[MVP", 0x55FFFF);
-                appendChars(list, "+", plus.rgb); // 自定义加号颜色
-                appendChars(list, "] ", 0x55FFFF);
-            }
-            case MVP_PLUS_PLUS -> {
-                int tagColor = rank.getNameColorRgb(getTagColor());
-                appendChars(list, "[MVP", tagColor);
-                appendChars(list, "++", plus.rgb); // 自定义加号颜色
-                appendChars(list, "] ", tagColor);
-            }
-            case ADMIN -> appendChars(list, "[ADMIN] ", 0xFF5555);
-            case OWNER -> appendChars(list, "[OWNER] ", 0xFF5555);
-            case YOUTUBE ->  appendChars(list, "[YOUTUBE] ", 0xFF5555);
-        }
+        list.addAll(parseRankPrefix(rank.getFormattedPrefix(getPlusColor(), getTagColor()), rank.getNameColorRgb(getTagColor())));
     }
 
-    private static void appendChars(List<StyledChar> list, String text, int rgb) {
-        Style style = Style.EMPTY.withColor(TextColor.fromRgb(rgb));
-        for (int cp : text.codePoints().toArray()) {
-            list.add(new StyledChar(cp, style));
+    private static List<StyledChar> parseRankPrefix(String formatted, int baseRgb) {
+        List<StyledChar> chars = new ArrayList<>();
+        int currentRgb = baseRgb;
+        int i = 0;
+        while (i < formatted.length()) {
+            char c = formatted.charAt(i);
+            if (c == '§' && i + 1 < formatted.length()) {
+                int rgb = rankCodeRgb(formatted.charAt(i + 1));
+                currentRgb = rgb >= 0 ? rgb : baseRgb;
+                i += 2;
+                continue;
+            }
+            chars.add(new StyledChar(c, Style.EMPTY.withColor(TextColor.fromRgb(currentRgb))));
+            i++;
         }
+        return chars;
+    }
+
+    private static int rankCodeRgb(char code) {
+        String key = "§" + Character.toLowerCase(code);
+        for (HypixelRank.PlusColor plus : HypixelRank.PlusColor.values()) {
+            if (plus.code.equals(key)) return plus.rgb;
+        }
+        for (HypixelRank.TagColor tag : HypixelRank.TagColor.values()) {
+            if (tag.code.equals(key)) return tag.rgb;
+        }
+        return -1;
     }
 
     private static boolean matches(List<StyledChar> chars, int start, int[] target) {

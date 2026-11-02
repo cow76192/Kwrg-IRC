@@ -100,7 +100,7 @@ public class DisableBlurModule extends Module {
                 ChatNotifier.send("§a模糊质量已更新为: §f" + q, NotificationType.SUCCESS);
                 refreshScreenSurface();
                 renderTertiaryUI(panel);
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 ChatNotifier.send("§c请输入合法的数字格式", NotificationType.WARN);
             }
         });
@@ -120,7 +120,7 @@ public class DisableBlurModule extends Module {
                 ChatNotifier.send("§a模糊半径已更新为: §f" + s, NotificationType.SUCCESS);
                 refreshScreenSurface();
                 renderTertiaryUI(panel);
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 ChatNotifier.send("§c请输入合法的数字格式", NotificationType.WARN);
             }
         });

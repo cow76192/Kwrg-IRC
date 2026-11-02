@@ -451,7 +451,7 @@ public class IrcClient {
             for (Consumer<Long> cb : pingCallbacks) {
                 try {
                     cb.accept(-1L);
-                } catch (Exception ignored) {
+                } catch (RuntimeException ignored) {
                 }
             }
             pingCallbacks.clear();

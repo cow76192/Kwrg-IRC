@@ -32,7 +32,7 @@ final class RouteNames {
                 object.addProperty(key, coordinate);
                 return;
             }
-        } catch (Exception ignored) {
+        } catch (RuntimeException ignored) {
         }
         object.addProperty(key, value == null ? "" : value);
     }

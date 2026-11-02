@@ -48,7 +48,7 @@ public class RankModule extends Module {
                 } else {
                     ChatNotifier.send("§c[IRC] 无法解析当前配置！", NotificationType.WARN);
                 }
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 ChatNotifier.send("§c[IRC] 保存 Rank 失败: " + e.getMessage(), NotificationType.ERR);
             }
         });
@@ -70,7 +70,7 @@ public class RankModule extends Module {
                 } else {
                     isParseError[0] = true;
                 }
-            } catch (Exception e) {
+            } catch (RuntimeException e) {
                 isParseError[0] = true;
             }
         });

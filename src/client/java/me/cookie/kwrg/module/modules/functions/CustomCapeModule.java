@@ -12,6 +12,7 @@ import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.util.Util;
 import org.lwjgl.glfw.GLFW;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -74,7 +75,7 @@ public class CustomCapeModule extends Module {
                         renderCapeUI(panel);
                     } catch (NumberFormatException e) {
                         ChatNotifier.send("§c[Cape] 请输入有效的数字", NotificationType.ERR);
-                    } catch (Exception ignored) {}
+                    } catch (RuntimeException ignored) {}
                 },
                 null
         ).presets(64, 128, 256, 512, 1024, 2048, 4096));
@@ -93,7 +94,7 @@ public class CustomCapeModule extends Module {
                         renderCapeUI(panel);
                     } catch (NumberFormatException e) {
                         ChatNotifier.send("§c[Cape] 请输入有效的数字", NotificationType.ERR);
-                    } catch (Exception ignored) {}
+                    } catch (RuntimeException ignored) {}
                 },
                 null
         ).bounds(new int[][]{{1, IrcConfig.get().capeRenderMaxFps}}));
@@ -114,7 +115,7 @@ public class CustomCapeModule extends Module {
                         renderCapeUI(panel);
                     } catch (NumberFormatException e) {
                         ChatNotifier.send("§c[Cape] 请输入有效的数字", NotificationType.ERR);
-                    } catch (Exception ignored) {}
+                    } catch (RuntimeException ignored) {}
                 },
                 null
         ).bounds(new int[][]{{1, PlayerCustomizationManager.CAPE_MAX_FPS_LIMIT}}));
@@ -162,7 +163,7 @@ public class CustomCapeModule extends Module {
             if (!Files.exists(dir)) Files.createDirectories(dir);
             Util.getPlatform().openPath(dir);
             ChatNotifier.send("§a[Cape] 已打开目录: §f" + dir.toAbsolutePath(), NotificationType.SUCCESS);
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             ChatNotifier.send("§c[Cape] 打开失败: " + e.getMessage(), NotificationType.ERR);
         }
     }

@@ -13,6 +13,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 import org.lwjgl.glfw.GLFW;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -44,7 +45,7 @@ public class FontModule extends Module {
                     }
                     Util.getPlatform().openPath(fontDir);
                     ChatNotifier.send("§a[IRC] 已打开字体文件夹: §f" + fontDir.toAbsolutePath(), NotificationType.SUCCESS);
-                } catch (Exception e) {
+                } catch (IOException | RuntimeException e) {
                     ChatNotifier.send("§c[IRC] 打开文件夹失败: " + e.getMessage(), NotificationType.ERR);
                 }
             }

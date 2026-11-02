@@ -67,7 +67,7 @@ public class HideArmorManager {
         if (cachedField != null) {
             try {
                 return getStringFromField(cachedField, state);
-            } catch (Exception ignored) {
+            } catch (ReflectiveOperationException | RuntimeException ignored) {
             }
         }
 
@@ -83,7 +83,7 @@ public class HideArmorManager {
                             NAME_FIELD_CACHE.put(clazz, f);
                             return extracted;
                         }
-                    } catch (Exception ignored) {
+                    } catch (ReflectiveOperationException | RuntimeException ignored) {
                     }
                 }
             }
@@ -92,7 +92,7 @@ public class HideArmorManager {
         return null;
     }
 
-    private static String getStringFromField(Field f, Object obj) throws Exception {
+    private static String getStringFromField(Field f, Object obj) throws ReflectiveOperationException {
         Object val = f.get(obj);
         if (val instanceof String s) {
             return s;

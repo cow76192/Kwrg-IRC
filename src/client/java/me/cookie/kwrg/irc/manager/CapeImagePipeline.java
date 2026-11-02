@@ -8,6 +8,7 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -56,7 +57,7 @@ final class CapeImagePipeline {
             StringBuilder hex = new StringBuilder();
             for (int i = 0; i < Math.min(read, 8); i++) hex.append(String.format("%02X", header[i]));
             return "raw:" + hex;
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             return "unreadable";
         }
     }
@@ -67,7 +68,7 @@ final class CapeImagePipeline {
             int read = in.read(chunk);
             if (read <= 0) return false;
             return new String(chunk, 0, read, StandardCharsets.ISO_8859_1).contains("acTL");
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             return false;
         }
     }
@@ -98,7 +99,7 @@ final class CapeImagePipeline {
 
         try {
             gifCollect(metadata.getAsTree(format), info);
-        } catch (Exception ignored) {}
+        } catch (RuntimeException ignored) {}
         return info;
     }
 
@@ -123,7 +124,7 @@ final class CapeImagePipeline {
         if (value == null) return fallback;
         try {
             return Integer.parseInt(value.getNodeValue().trim());
-        } catch (Exception ignored) {
+        } catch (RuntimeException ignored) {
             return fallback;
         }
     }
@@ -161,7 +162,7 @@ final class CapeImagePipeline {
         try {
             int n = Integer.parseInt(num);
             return n >= 2 ? n : 1;
-        } catch (Exception ignored) {
+        } catch (RuntimeException ignored) {
             return 1;
         }
     }

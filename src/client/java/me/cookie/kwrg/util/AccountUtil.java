@@ -8,6 +8,7 @@ import me.cookie.kwrg.mixin.accessor.MinecraftAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.User;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -99,7 +100,7 @@ public class AccountUtil {
                 } else {
                     return new LoginResult(false, null, "验证失败 (HTTP 状态码: " + response.statusCode() + ")");
                 }
-            } catch (Exception e) {
+            } catch (IOException | InterruptedException | RuntimeException e) {
                 CookieMain.LOGGER.error("Token 验证出错", e);
                 return new LoginResult(false, null, "网络请求异常: " + e.getMessage());
             }

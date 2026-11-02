@@ -31,11 +31,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Stream;
 
@@ -44,7 +40,7 @@ public final class RouteManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(RouteManager.class);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String DEFAULT_ROUTE = "kuudra_pearl_waypoints.json";
-    private static final long MAX_ROUTE_FILE_BYTES = 2L * 1024L * 1024L;
+    static final long MAX_ROUTE_FILE_BYTES = 2L * 1024L * 1024L;
     private static final GizmoStyle BLOCK_STYLE = GizmoStyle.strokeAndFill(0xFF00E5FF, 1.0f, 0x8000E5FF);
     private static final int TEXT_COLOR = 0xFF00E5FF;
     private static final int LINE_COLOR = 0xFF00E5FF;
@@ -152,39 +148,11 @@ public final class RouteManager {
     }
 
     public static List<Path> listFiles() {
-        try {
-            Path dir = getDir();
-            Files.createDirectories(dir);
-            try (Stream<Path> stream = Files.list(dir)) {
-                Map<String, Path> selected = new LinkedHashMap<>();
-                for (Path path : stream.filter(RouteNames::isRouteFile).toList()) {
-                    String base = RouteNames.baseName(path).toLowerCase(Locale.ROOT);
-                    Path existing = selected.get(base);
-                    if (existing == null || (RouteNames.isJson(path) && !RouteNames.isJson(existing))) {
-                        selected.put(base, path);
-                    }
-                }
-                return selected.values().stream()
-                        .sorted(Comparator.comparing(path -> path.getFileName().toString().toLowerCase(Locale.ROOT)))
-                        .toList();
-            }
-        } catch (IOException e) {
-            return List.of();
-        }
+        return RouteFiles.listFiles();
     }
 
     public static String currentSourceName() {
         return currentFile == null ? "" : RouteNames.baseName(currentFile);
-    }
-
-    private static void ensureRouteNameAvailable(Path directory, String name, Path original) throws IOException {
-        try (Stream<Path> stream = Files.list(directory)) {
-            for (Path file : stream.filter(RouteNames::isRouteFile).toList()) {
-                if ((original == null || !file.equals(original)) && RouteNames.baseName(file).equalsIgnoreCase(name)) {
-                    throw new IllegalArgumentException("已存在同名路线，请换一个名称");
-                }
-            }
-        }
     }
 
     public static Path createRoute(String name) throws IOException {
@@ -194,7 +162,7 @@ public final class RouteManager {
     private static Path createRoute(Path directory, String name) throws IOException {
         String clean = RouteNames.validateRouteName(name);
         Files.createDirectories(directory);
-        ensureRouteNameAvailable(directory, clean, null);
+        RouteFiles.ensureRouteNameAvailable(directory, clean, null);
         Path target = directory.resolve(clean + ".json");
         JsonObject root = new JsonObject();
         root.addProperty("name", clean);
@@ -208,9 +176,9 @@ public final class RouteManager {
     public static Path renameRoute(Path file, String name) throws IOException {
         String clean = RouteNames.validateRouteName(name);
         Path directory = file.getParent();
-        ensureRouteNameAvailable(directory, clean, file);
+        RouteFiles.ensureRouteNameAvailable(directory, clean, file);
         Path target = directory.resolve(clean + (RouteNames.isJson(file) ? ".json" : ".txt"));
-        String content = readFile(file);
+        String content = RouteFiles.readFile(file);
         if (content == null) throw new IOException("无法读取路线文件");
         if (file.equals(currentFile) && !java.util.Objects.equals(content, loadedContent)) {
             throw new IOException("路线文件已被外部修改，请先重新加载再改名");
@@ -266,7 +234,7 @@ public final class RouteManager {
 
     public static FileOptions fileOptions(Path path) {
         if (path.equals(currentFile)) return new FileOptions(visible, showLine);
-        String text = readFile(path);
+        String text = RouteFiles.readFile(path);
         if (text != null && RouteNames.isJson(path)) {
             try {
                 JsonElement parsed = JsonParser.parseString(text);
@@ -289,7 +257,7 @@ public final class RouteManager {
             showLine = fileShowLine;
             return saveCurrent();
         }
-        String text = readFile(path);
+        String text = RouteFiles.readFile(path);
         if (text == null) return false;
         try {
             JsonObject root;
@@ -365,7 +333,7 @@ public final class RouteManager {
 
     /** Restore during config loading without saving the profile or showing import notifications. */
     private static boolean loadFile(Path path, boolean interactive) {
-        String text = readFile(path);
+        String text = RouteFiles.readFile(path);
         if (text == null) {
             if (interactive) ChatNotifier.send("§c[Route] 读取失败 | " + RouteNames.fileName(path), NotificationType.ERR);
             else LOGGER.warn("[Route] 恢复路线失败: {}", path);
@@ -396,7 +364,7 @@ public final class RouteManager {
         visible = loadedVisible;
         showLine = loadedShowLine;
         currentFile = json ? path : getDir().resolve(RouteNames.baseName(path) + ".json");
-        loadedContent = json ? text : readFile(currentFile);
+        loadedContent = json ? text : RouteFiles.readFile(currentFile);
         conflictReported = false;
         if (!json && !saveCurrent(interactive)) return false;
         boolean selectionChanged = !currentFileName().equals(IrcConfig.get().currentRouteFileName);
@@ -418,7 +386,7 @@ public final class RouteManager {
     }
 
     public static boolean copyFile(Path path) {
-        String text = readFile(path);
+        String text = RouteFiles.readFile(path);
         if (text == null) return false;
         Minecraft.getInstance().keyboardHandler.setClipboard(text);
         ChatNotifier.send("§a[Route] 已复制 | " + RouteNames.fileName(path), NotificationType.SUCCESS);
@@ -445,7 +413,7 @@ public final class RouteManager {
 
     private static boolean saveCurrent(boolean notify) {
         if (currentFile == null) return false;
-        String diskContent = readFile(currentFile);
+        String diskContent = RouteFiles.readFile(currentFile);
         if (!java.util.Objects.equals(diskContent, loadedContent)) {
             if (!conflictReported) {
                 LOGGER.warn("[Route] 路线文件已被外部修改，停止保存并保留内存编辑: {}", currentFile);
@@ -757,15 +725,6 @@ public final class RouteManager {
         double offset = 0.18 * proximity * proximity * (3 - 2 * proximity);
         // A line starting at the camera collapses to a screen point. Move it down in view space nearby.
         return node.subtract(cameraUp.scale(offset));
-    }
-
-    private static String readFile(Path path) {
-        try {
-            if (Files.size(path) > MAX_ROUTE_FILE_BYTES) return null;
-            return Files.readString(path);
-        } catch (IOException e) {
-            return null;
-        }
     }
 
     public static final class Entry extends PointEntry {

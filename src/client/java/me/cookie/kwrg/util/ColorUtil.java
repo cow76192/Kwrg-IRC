@@ -472,22 +472,10 @@ public class ColorUtil {
         }
     }
 
-    private static final List<String> PRESET_MODIFIERS = List.of("bold", "underline", "italic", "strikethrough", "obfuscated", "flow");
-
-    private static final String[] PRESET_STYLES = new String[]{
-            "rainbow", "sunset", "ocean", "fire", "sakura", "neon", "gold", "purple",
-            "bold", "underline", "italic", "strikethrough", "obfuscated", "flow",
-            "rainbow bold", "#FF55AA", "rgb(255,100,50)", "gradient(#ff758c,#ff7eb3)", "gradient(#00f2fe,#4facfe,#00ff87)"
-    };
-
-    public static List<String> presetNames() {
-        return List.of(PRESET_STYLES);
-    }
-
-    public static String mergePreset(String currentStyle, String preset) {
+    public static String mergePreset(String currentStyle, String preset, List<String> modifiers) {
         String current = currentStyle == null ? "" : currentStyle.trim();
 
-        if (PRESET_MODIFIERS.contains(preset.toLowerCase())) {
+        if (modifiers.contains(preset.toLowerCase())) {
             if (current.toLowerCase().contains(preset.toLowerCase())) {
                 return current.replaceAll("(?i)\\b" + preset + "\\b", "").trim().replaceAll(" +", " ");
             }
@@ -495,7 +483,7 @@ public class ColorUtil {
         }
 
         List<String> currentMods = new ArrayList<>();
-        for (String mod : PRESET_MODIFIERS) {
+        for (String mod : modifiers) {
             if (current.toLowerCase().matches(".*\\b" + mod + "\\b.*")) {
                 currentMods.add(mod);
             }

@@ -114,7 +114,7 @@ public final class RemoteTextureCache {
                     Identifier id = Identifier.fromNamespaceAndPath("kwrg", "remote/" + idFor(url));
                     mc.getTextureManager().register(id, new DynamicTexture(() -> "kwrg_remote", finalImg));
                     READY.put(url, id);
-                } catch (Exception e) {
+                } catch (RuntimeException e) {
                     System.err.println("[KWRG Remote] register failed: " + url);
                     e.printStackTrace();
                     finalImg.close();
@@ -124,7 +124,7 @@ public final class RemoteTextureCache {
                 }
             });
             handedOver = true;
-        } catch (Exception e) {
+        } catch (IOException | InterruptedException | RuntimeException e) {
             System.err.println("[KWRG Remote] load failed: " + url + " (" + e + ")");
             FAILED_AT.put(url, System.currentTimeMillis());
         } finally {

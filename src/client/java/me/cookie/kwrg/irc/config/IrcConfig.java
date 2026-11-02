@@ -14,6 +14,7 @@ import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -153,7 +154,7 @@ public class IrcConfig {
             }
 
             loadProfile(selected, true);
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             LOGGER.error("[Kwrg] 初始化读取配置文件失败，启用内存默认配置", e);
             instance = new IrcConfig();
             currentProfileName = "default";
@@ -205,6 +206,11 @@ public class IrcConfig {
 
                 instance = loaded;
                 currentProfileName = cleanName;
+                try {
+                    Files.writeString(profilePath, GSON.toJson(instance));
+                } catch (IOException | RuntimeException e) {
+                    LOGGER.warn("[Kwrg] 迁移结果写盘失败: {}.json", cleanName, e);
+                }
                 GuiColorManager.refresh();
                 saveSelectorMeta(cleanName);
 
@@ -225,7 +231,7 @@ public class IrcConfig {
                 save();
                 return true;
             }
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             LOGGER.error("[Kwrg] 加载配置文件 {}.json 失败", cleanName, e);
         }
         return false;
@@ -256,15 +262,20 @@ public class IrcConfig {
 
             LOGGER.info("[Kwrg] 配置已成功保存至: {}.json", currentProfileName);
             return true;
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             LOGGER.error("[Kwrg] 保存配置文件失败", e);
             return false;
         }
     }
 
     public static synchronized void saveDelayed(long delayMs) {
+        final String targetProfile = currentProfileName;
+        final IrcConfig targetInstance = instance;
         SaveScheduler.schedule(() -> {
             synchronized (IrcConfig.class) {
+                if (!Objects.equals(targetProfile, currentProfileName) || targetInstance != instance) {
+                    return;
+                }
                 save();
             }
         }, delayMs);
@@ -278,7 +289,7 @@ public class IrcConfig {
             ProfileSelector selector = new ProfileSelector();
             selector.selected = selected;
             Files.writeString(getMetaPath(), GSON.toJson(selector));
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             LOGGER.error("[Kwrg] 更新 config.json 失败", e);
         }
     }
@@ -294,7 +305,7 @@ public class IrcConfig {
                         list.add(fileName.substring(0, fileName.length() - 5));
                     }
                 }
-            } catch (Exception ignored) {
+            } catch (IOException | RuntimeException ignored) {
             }
         }
         return list;

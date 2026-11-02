@@ -7,6 +7,7 @@ import net.minecraft.server.packs.repository.PackRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -16,8 +17,10 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -50,6 +53,14 @@ public class ServerPackManager {
 
         boolean fileExists = Files.exists(targetZip) && targetZip.toFile().length() > 0;
         boolean isAlreadyActive = mc.options.resourcePacks.contains(expectedPackId);
+
+        if (fileExists && !verify(targetZip, hash)) {
+            LOGGER.warn("[Kwrg] 材质包缓存哈希校验失败，删除并重新下载: {} (hash={})", newPackFileName, hash);
+            try {
+                Files.deleteIfExists(targetZip);
+            } catch (IOException | RuntimeException ignored) {}
+            fileExists = false;
+        }
 
         if (fileExists && isAlreadyActive) {
             LOGGER.info("[Kwrg] 材质包已缓存且已在启用状态: {}", newPackFileName);
@@ -85,6 +96,14 @@ public class ServerPackManager {
                     try (InputStream in = response.body()) {
                         Files.copy(in, tempFile, StandardCopyOption.REPLACE_EXISTING);
                     }
+                    if (!verify(tempFile, hash)) {
+                        try {
+                            Files.deleteIfExists(tempFile);
+                        } catch (IOException | RuntimeException ignored) {}
+                        LOGGER.warn("[Kwrg] 材质包内容哈希校验失败，已丢弃本次下载: hash={}, URL={}", hash, url);
+                        packetSender.accept(new ServerboundResourcePackPacket(id, ServerboundResourcePackPacket.Action.FAILED_DOWNLOAD));
+                        return;
+                    }
                     Files.move(tempFile, targetZip, StandardCopyOption.REPLACE_EXISTING);
                     LOGGER.info("[Kwrg] 材质包下载完成并已保存至: {}", targetZip);
 
@@ -92,14 +111,43 @@ public class ServerPackManager {
                 } else {
                     LOGGER.error("[Kwrg] 材质包下载失败，HTTP状态码: {}", response.statusCode());
                     ChatNotifier.sendInChatScreen("§c[Kwrg] 材质包下载失败 (HTTP " + response.statusCode() + ")");
-                    packetSender.accept(new ServerboundResourcePackPacket(id, ServerboundResourcePackPacket.Action.SUCCESSFULLY_LOADED));
+                    packetSender.accept(new ServerboundResourcePackPacket(id, ServerboundResourcePackPacket.Action.FAILED_DOWNLOAD));
                 }
-            } catch (Exception e) {
+            } catch (IOException | InterruptedException | RuntimeException e) {
                 LOGGER.error("[Kwrg] 材质包下载异常", e);
                 ChatNotifier.sendInChatScreen("§c[Kwrg] 材质包下载出错：" + e.getMessage());
-                packetSender.accept(new ServerboundResourcePackPacket(id, ServerboundResourcePackPacket.Action.SUCCESSFULLY_LOADED));
+                packetSender.accept(new ServerboundResourcePackPacket(id, ServerboundResourcePackPacket.Action.FAILED_DOWNLOAD));
             }
         });
+    }
+
+    private static boolean verify(Path file, String expectedHex) {
+        if (expectedHex == null) {
+            LOGGER.warn("[Kwrg] 材质包哈希缺失，跳过内容校验: {}", file);
+            return true;
+        }
+
+        String algorithm;
+        if (expectedHex.length() == 40) {
+            algorithm = "SHA-1";
+        } else if (expectedHex.length() == 64) {
+            algorithm = "SHA-256";
+        } else {
+            LOGGER.warn("[Kwrg] 无法判定材质包哈希算法，跳过内容校验: {}", expectedHex);
+            return true;
+        }
+
+        try (InputStream in = Files.newInputStream(file)) {
+            MessageDigest digest = MessageDigest.getInstance(algorithm);
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = in.read(buffer)) != -1) {
+                digest.update(buffer, 0, read);
+            }
+            return expectedHex.equalsIgnoreCase(HexFormat.of().formatHex(digest.digest()));
+        } catch (java.security.NoSuchAlgorithmException | IOException | RuntimeException e) {
+            return false;
+        }
     }
 
     private static void applyNewPack(UUID packId, String newPackFileName, Path targetZip, Path kwrgDir, Consumer<Packet<?>> packetSender) {
@@ -143,7 +191,7 @@ public class ServerPackManager {
                     LOGGER.info("[Kwrg] 已清理旧版本材质包: {}", file.getFileName());
                 }
             }
-        } catch (Exception ignored) {
+        } catch (IOException | RuntimeException ignored) {
         }
     }
 }

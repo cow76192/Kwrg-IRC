@@ -23,6 +23,7 @@ import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -99,7 +100,7 @@ public class PlayerCustomizationManager {
         long modified;
         try {
             modified = Files.getLastModifiedTime(file).toMillis();
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             return;
         }
 
@@ -154,7 +155,7 @@ public class PlayerCustomizationManager {
                         mc.getTextureManager().register(id,
                                 new DynamicTexture(() -> "kwrg_cape_preview", finalImg));
                         CapeCache.previews().put(fileName, new CapeCache.CapePreview(id, modified));
-                    } catch (Exception e) {
+                    } catch (RuntimeException e) {
                         e.printStackTrace();
                         finalImg.close();
                     } finally {
@@ -162,7 +163,7 @@ public class PlayerCustomizationManager {
                     }
                 });
                 handedOver = true;
-            } catch (Exception e) {
+            } catch (IOException | RuntimeException e) {
                 System.err.println("[KWRG Preview] load failed: " + fileName);
                 e.printStackTrace();
             } finally {
@@ -260,7 +261,7 @@ public class PlayerCustomizationManager {
                         return lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".gif");
                     })
                     .collect(Collectors.toList());
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             return new ArrayList<>();
         }
     }
@@ -549,7 +550,7 @@ public class PlayerCustomizationManager {
                         CapeCache.lastFrameTimes().put(value, System.currentTimeMillis());
 
                         activeCapeName = value;
-                    } catch (Exception e) {
+                    } catch (RuntimeException e) {
                         if (finalActive != frames.get(0)) finalActive.close();
                         frames.forEach(NativeImage::close);
                     } finally {
@@ -557,7 +558,7 @@ public class PlayerCustomizationManager {
                     }
                 });
 
-            } catch (Exception e) {
+            } catch (IOException | RuntimeException e) {
                 if (activeImage != null && (frames.isEmpty() || activeImage != frames.get(0))) activeImage.close();
                 frames.forEach(NativeImage::close);
                 cleanupLoading(token);
@@ -684,7 +685,7 @@ public class PlayerCustomizationManager {
         return blocks;
     }
 
-    private static List<BufferedImage> layoutGifFrames(Path file, String fileName) throws Exception {
+    private static List<BufferedImage> layoutGifFrames(Path file, String fileName) throws IOException {
         boolean isRemote = fileName != null && fileName.startsWith("cache/");
         int block = isRemote ? Math.min(IrcConfig.get().remoteCapeCanvasSize, 512) : Math.min(IrcConfig.get().capeCanvasSize, 1024);
         int faceW = block * 10 / 64;
@@ -787,7 +788,7 @@ public class PlayerCustomizationManager {
         try {
             int n = Integer.parseInt(num);
             return n >= 1 ? clampFps(n) : -1;
-        } catch (Exception ignored) {
+        } catch (RuntimeException ignored) {
             return -1;
         }
     }
