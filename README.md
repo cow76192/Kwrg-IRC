@@ -7,6 +7,7 @@
 ![Java](https://img.shields.io/badge/Java-25-EA923E?style=flat-square)
 [![License: MIT](https://img.shields.io/badge/License-MIT-4C9BD6?style=flat-square)](./LICENSE)
 [![Java source lines: 30,340](https://img.shields.io/badge/Code%20lines-30%2C340-8B7EC8?style=flat-square)](./src "Total lines in src/**/*.java, including comments and blank lines")
+
 【[devlog] Skyblock QOL IRC Mod - KwrgIRC 26.1.2】 https://www.bilibili.com/video/BV1Ukxh6NEbi/?share_source=copy_web&vd_source=626a20fc228373f6416c8f5e140c93f0
 
 面向 Hypixel SkyBlock 的 Fabric 客户端模组，提供内置 IRC 聊天、路径点与路线管理，以及可自定义的 GUI 和 HUD。
