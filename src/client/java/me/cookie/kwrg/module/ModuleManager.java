@@ -1,5 +1,6 @@
 package me.cookie.kwrg.module;
 
+import me.cookie.kwrg.module.modules.cheat.DanceRoomModule;
 import me.cookie.kwrg.module.modules.config.*;
 import me.cookie.kwrg.module.modules.debug.*;
 import me.cookie.kwrg.module.modules.functions.*;
@@ -61,6 +62,7 @@ public class ModuleManager {
 
         // --- CHEAT 模块 ---
 //        register(new test());
+        register(new DanceRoomModule());
     }
 
     public static void register(Module module) {
