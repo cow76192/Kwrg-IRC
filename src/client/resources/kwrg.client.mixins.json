@@ -23,6 +23,7 @@
 		"InventoryScreenMixin",
 		"ConnectionMixin",
 		"ChatScreenMixin",
+		"JoinMultiplayerScreenMixin",
 		"skyhanni.SkyHanniTabMixin",
 		"skyhanni.SkyHanniScoreboardDirectRenderMixin",
 		"skyblocker.SkyblockerTabMixin",

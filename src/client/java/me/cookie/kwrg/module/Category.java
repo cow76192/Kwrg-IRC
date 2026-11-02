@@ -7,7 +7,8 @@ public enum Category {
     CONFIG("config"),
     FUNCTIONS("functions"),
     DEBUG("debug"),
-    PLAY("play");
+    PLAY("play"),
+    CHEAT("cheat");
 
     private final String name;
 

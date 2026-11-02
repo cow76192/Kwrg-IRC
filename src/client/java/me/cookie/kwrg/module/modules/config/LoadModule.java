@@ -251,6 +251,7 @@ public class LoadModule extends Module {
         }
         return success ? 1 : 0;
     }
+
     public static int createConfig(String name) {
         String cleanName = name.trim();
         String error = validateProfileName(cleanName);
