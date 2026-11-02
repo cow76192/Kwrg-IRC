@@ -2,6 +2,8 @@ package me.cookie.kwrg.util;
 
 import me.cookie.kwrg.irc.IrcMessageHandler;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
 
 import java.util.*;
@@ -232,8 +234,15 @@ public class getBanUtil {
         }
 
         Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.getConnection() == null) {
+        ClientPacketListener initialListener = mc.getConnection();
+        if (mc.player == null || initialListener == null) {
             IrcMessageHandler.printMessage("§c[IRC] 当前不在服务器或世界中！");
+            return 0;
+        }
+
+        final Connection targetConnection = initialListener.getConnection();
+        if (!targetConnection.isConnected()) {
+            IrcMessageHandler.printMessage("§c[IRC] 当前网络连接已断开！");
             return 0;
         }
 
@@ -264,27 +273,34 @@ public class getBanUtil {
             IrcMessageHandler.printMessage(String.format("§a[IRC] 将在 %.1f 秒后触发 §e%s §a封禁效果...", extraDelaySec, template.name()));
         }
 
-        // 第一阶段：等待设定的触发延迟 -> 发送 /limbo
+        // 第一阶段：等待设定的触发延迟 -> 在主线程检查连接并发送 /limbo
         CompletableFuture.delayedExecutor(initialDelayMs, TimeUnit.MILLISECONDS).execute(() -> {
             mc.execute(() -> {
-                if (mc.player != null && mc.getConnection() != null) {
-                    mc.player.connection.sendCommand("limbo");
+                ClientPacketListener currentListener = mc.getConnection();
+                if (mc.player == null || currentListener == null
+                        || currentListener.getConnection() != targetConnection
+                        || !targetConnection.isConnected()) {
+                    return;
                 }
-            });
 
-            // 第二阶段：等待 1.3s ~ 2.5s -> 断开连接并显示 Ban 界面
-            CompletableFuture.delayedExecutor(limboToKickDelayMs, TimeUnit.MILLISECONDS).execute(() -> {
-                mc.execute(() -> {
-                    if (mc.getConnection() != null) {
-                        mc.getConnection().getConnection().disconnect(kickMessage);
-                    }
+                currentListener.sendCommand("limbo");
+
+                // 第二阶段：确认第一阶段成功后，再启动 1.3s ~ 2.5s 计时 -> 断开原始连接并显示 Ban 界面
+                CompletableFuture.delayedExecutor(limboToKickDelayMs, TimeUnit.MILLISECONDS).execute(() -> {
+                    mc.execute(() -> {
+                        ClientPacketListener latestListener = mc.getConnection();
+                        if (latestListener != null
+                                && latestListener.getConnection() == targetConnection
+                                && targetConnection.isConnected()) {
+                            targetConnection.disconnect(kickMessage);
+                        }
+                    });
                 });
             });
         });
 
         return 1;
     }
-
     private static String generateBanId() {
         String chars = "0123456789ABCDEF";
         StringBuilder sb = new StringBuilder(8);
