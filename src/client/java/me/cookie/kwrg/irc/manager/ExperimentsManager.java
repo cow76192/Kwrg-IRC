@@ -47,6 +47,9 @@ public class ExperimentsManager {
     private static final List<String> chronomatronSequence = new ArrayList<>();
     private static final List<Integer> ultrasequencerSequence = new ArrayList<>();
 
+    private static int activeContainerId = -1;
+    private static GameType activeGameType = GameType.NONE;
+
     private static boolean chronHasBeenEmpty = true;
     private static int chronomatronSequenceIndex = 0;
     private static int currentChronomatronRound = 0;
@@ -56,9 +59,6 @@ public class ExperimentsManager {
     private static int autoClickIndex = 0;
     private static int lastClickedSlot = -1;
     private static long nextClickTimeMs = 0L;
-
-    private static int activeContainerId = -1;
-    private static GameType activeGameType = GameType.NONE;
 
     public static boolean isEnabled() {
         return enabled;
@@ -101,6 +101,8 @@ public class ExperimentsManager {
     public static void resetState() {
         chronomatronSequence.clear();
         ultrasequencerSequence.clear();
+        activeContainerId = -1;
+        activeGameType = GameType.NONE;
         chronHasBeenEmpty = true;
         chronomatronSequenceIndex = 0;
         currentChronomatronRound = 0;
@@ -109,15 +111,22 @@ public class ExperimentsManager {
         autoClickIndex = 0;
         lastClickedSlot = -1;
         nextClickTimeMs = 0L;
-        activeContainerId = -1;
-        activeGameType = GameType.NONE;
+    }
+
+    private static boolean hasCachedState() {
+        return activeContainerId != -1
+                || activeGameType != GameType.NONE
+                || currentPhase != null
+                || !chronomatronSequence.isEmpty()
+                || !ultrasequencerSequence.isEmpty();
     }
 
     public static void onTick(Minecraft mc) {
         if (!enabled || mc.player == null || mc.gameMode == null) return;
 
+        // 离开容器界面时清空状态
         if (!(mc.screen instanceof AbstractContainerScreen<?> screen)) {
-            if (activeContainerId != -1 || currentPhase != null || !chronomatronSequence.isEmpty() || !ultrasequencerSequence.isEmpty()) {
+            if (hasCachedState()) {
                 resetState();
             }
             return;
@@ -126,7 +135,7 @@ public class ExperimentsManager {
         String title = stripColor(screen.getTitle().getString());
         GameType gameType = getGameType(title);
         if (gameType == GameType.NONE) {
-            if (activeContainerId != -1 || currentPhase != null || !chronomatronSequence.isEmpty() || !ultrasequencerSequence.isEmpty()) {
+            if (hasCachedState()) {
                 resetState();
             }
             return;
@@ -143,6 +152,7 @@ public class ExperimentsManager {
         if (!menu.getCarried().isEmpty()) {
             return;
         }
+
         HelperPhase oldPhase = currentPhase;
         currentPhase = readPhase(menu);
 
@@ -196,6 +206,15 @@ public class ExperimentsManager {
     private static void processChronomatron(AbstractContainerMenu menu, HelperPhase oldPhase) {
         Integer round = readRound(menu);
         if (round == null) return;
+
+        //如果回合数比已记录的回合数更小（例如重新开始了第 1 轮），重置序列
+        if (round < currentChronomatronRound) {
+            chronomatronSequence.clear();
+            chronomatronSequenceIndex = 0;
+            chronHasBeenEmpty = true;
+            autoClickIndex = 0;
+            lastClickedSlot = -1;
+        }
         currentChronomatronRound = round;
 
         int hypixelSizeNow = chronomatronSequence.size();
@@ -313,6 +332,8 @@ public class ExperimentsManager {
         if (currentPhase != HelperPhase.READ) return;
 
         List<UltraSlot> orderedSlots = new ArrayList<>();
+        int maxNumberInMenu = 0;
+
         for (Slot slot : menu.slots) {
             if (slot.container instanceof Inventory) continue;
             if (slot.index == ROUND_STATUS_SLOT || slot.index == PHASE_STATUS_SLOT) continue;
@@ -325,17 +346,28 @@ public class ExperimentsManager {
 
             try {
                 int seqNum = Integer.parseInt(cleanName);
-                currentUltraSequencerRound = Math.max(currentUltraSequencerRound, seqNum);
+                maxNumberInMenu = Math.max(maxNumberInMenu, seqNum);
                 orderedSlots.add(new UltraSlot(seqNum, slot.index));
             } catch (NumberFormatException ignored) {
             }
+        }
+
+        if (orderedSlots.isEmpty()) return;
+
+        // 如果当前桌面只有 1 个数字 (第 1 轮)，而之前缓存的回合数 > 1，说明开始了新的一局
+        if (maxNumberInMenu == 1 && orderedSlots.size() == 1 && currentUltraSequencerRound > 1) {
+            ultrasequencerSequence.clear();
+            currentUltraSequencerRound = 1;
+            lastClickedSlot = -1;
+        } else {
+            currentUltraSequencerRound = Math.max(currentUltraSequencerRound, maxNumberInMenu);
         }
 
         orderedSlots.sort(Comparator.comparingInt(UltraSlot::number));
 
         boolean isOld = currentUltraSequencerRound != orderedSlots.size();
         boolean alreadyKnown = ultrasequencerSequence.size() == orderedSlots.size();
-        if (isOld || alreadyKnown || orderedSlots.isEmpty()) return;
+        if (isOld || alreadyKnown) return;
 
         ultrasequencerSequence.clear();
         for (UltraSlot us : orderedSlots) {
