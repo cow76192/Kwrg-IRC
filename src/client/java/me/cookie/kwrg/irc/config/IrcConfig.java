@@ -132,6 +132,7 @@ public class IrcConfig {
     public int danceRoomPunchTick = 5;
     public double danceRoomDeadzone = 0.50;
 
+    public boolean experimentsEnabled = false;
     public int experimentsBaseDelay = 300;
     public int experimentsRandomDelay = 65;
 

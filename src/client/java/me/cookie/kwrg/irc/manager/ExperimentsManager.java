@@ -21,8 +21,6 @@ import java.util.regex.Pattern;
 
 public class ExperimentsManager {
 
-    private static boolean enabled = false;
-
     private enum GameType {
         NONE, CHRONOMATRON, ULTRASEQUENCER
     }
@@ -61,15 +59,16 @@ public class ExperimentsManager {
     private static long nextClickTimeMs = 0L;
 
     public static boolean isEnabled() {
-        return enabled;
+        return IrcConfig.get().experimentsEnabled;
     }
 
     public static void toggle() {
-        enabled = !enabled;
+        boolean nextState = !isEnabled();
+        IrcConfig.get().experimentsEnabled = nextState;
         resetState();
         ChatNotifier.send(
-                enabled ? "§a[Experiments] 自动实验桌小游戏已开启" : "§c[Experiments] 自动实验桌小游戏已关闭",
-                enabled ? NotificationType.SUCCESS : NotificationType.INFO
+                nextState ? "§a[Experiments] 自动实验桌小游戏已开启" : "§c[Experiments] 自动实验桌小游戏已关闭",
+                nextState ? NotificationType.SUCCESS : NotificationType.INFO
         );
     }
 
@@ -79,23 +78,6 @@ public class ExperimentsManager {
 
     public static int getRandomDelay() {
         return IrcConfig.get().experimentsRandomDelay;
-    }
-
-    public static boolean saveDelaySettings(String[] values) {
-        if (values == null || values.length < 2) return false;
-        try {
-            int base = Integer.parseInt(values[0].trim());
-            int rand = Integer.parseInt(values[1].trim());
-            if (base < 50 || base > 1000 || rand < 0 || rand > 500) {
-                return false;
-            }
-            IrcConfig.get().experimentsBaseDelay = base;
-            IrcConfig.get().experimentsRandomDelay = rand;
-            IrcConfig.saveDelayed(500);
-            return true;
-        } catch (NumberFormatException e) {
-            return false;
-        }
     }
 
     public static void resetState() {
@@ -122,7 +104,12 @@ public class ExperimentsManager {
     }
 
     public static void onTick(Minecraft mc) {
-        if (!enabled || mc.player == null || mc.gameMode == null) return;
+        if (!isEnabled() || mc.player == null || mc.gameMode == null) {
+            if (hasCachedState()) {
+                resetState();
+            }
+            return;
+        }
 
         // 离开容器界面时清空状态
         if (!(mc.screen instanceof AbstractContainerScreen<?> screen)) {

@@ -5,6 +5,7 @@ import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.manager.ExperimentsManager;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -19,6 +20,28 @@ public class ExperimentsModule extends Module {
     @Override
     public void onExecute() {
         ExperimentsManager.toggle();
+        saveConfig();
+    }
+
+    private boolean saveDelaySettings(String[] values) {
+        if (values == null || values.length < 2) return false;
+        try {
+            int base = Integer.parseInt(values[0].trim());
+            int rand = Integer.parseInt(values[1].trim());
+            if (base < 50 || base > 1000 || rand < 0 || rand > 500) {
+                return false;
+            }
+            IrcConfig.get().experimentsBaseDelay = base;
+            IrcConfig.get().experimentsRandomDelay = rand;
+            saveConfig();
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    private void saveConfig() {
+        IrcConfig.saveDelayed(500);
     }
 
     @Override
@@ -40,7 +63,7 @@ public class ExperimentsModule extends Module {
                 delayInputs,
                 new String[]{"ms", "ms"},
                 values -> {
-                    if (!ExperimentsManager.saveDelaySettings(values)) {
+                    if (!saveDelaySettings(values)) {
                         ChatNotifier.send("§c[Experiments] 保存失败 | 基准(50~1000ms) 随机(0~500ms)", NotificationType.ERR);
                         return;
                     }
