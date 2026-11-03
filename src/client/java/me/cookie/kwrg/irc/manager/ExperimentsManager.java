@@ -57,6 +57,9 @@ public class ExperimentsManager {
     private static int lastClickedSlot = -1;
     private static long nextClickTimeMs = 0L;
 
+    private static int activeContainerId = -1;
+    private static GameType activeGameType = GameType.NONE;
+
     public static boolean isEnabled() {
         return enabled;
     }
@@ -106,13 +109,15 @@ public class ExperimentsManager {
         autoClickIndex = 0;
         lastClickedSlot = -1;
         nextClickTimeMs = 0L;
+        activeContainerId = -1;
+        activeGameType = GameType.NONE;
     }
 
     public static void onTick(Minecraft mc) {
         if (!enabled || mc.player == null || mc.gameMode == null) return;
 
         if (!(mc.screen instanceof AbstractContainerScreen<?> screen)) {
-            if (currentPhase != null || !chronomatronSequence.isEmpty() || !ultrasequencerSequence.isEmpty()) {
+            if (activeContainerId != -1 || currentPhase != null || !chronomatronSequence.isEmpty() || !ultrasequencerSequence.isEmpty()) {
                 resetState();
             }
             return;
@@ -121,15 +126,23 @@ public class ExperimentsManager {
         String title = stripColor(screen.getTitle().getString());
         GameType gameType = getGameType(title);
         if (gameType == GameType.NONE) {
+            if (activeContainerId != -1 || currentPhase != null || !chronomatronSequence.isEmpty() || !ultrasequencerSequence.isEmpty()) {
+                resetState();
+            }
             return;
         }
 
         AbstractContainerMenu menu = screen.getMenu();
+        if (menu.containerId != activeContainerId || gameType != activeGameType) {
+            resetState();
+            activeContainerId = menu.containerId;
+            activeGameType = gameType;
+        }
+
         // 如果玩家鼠标光标上意外拿起了物品，暂停自动点击以防 BadPackets
         if (!menu.getCarried().isEmpty()) {
             return;
         }
-
         HelperPhase oldPhase = currentPhase;
         currentPhase = readPhase(menu);
 
