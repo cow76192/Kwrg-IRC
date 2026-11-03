@@ -17,6 +17,7 @@ import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 
 import java.lang.reflect.Method;
+import java.util.List;
 
 public class ScoreboardIslandRenderer {
 
@@ -244,6 +245,34 @@ public class ScoreboardIslandRenderer {
 
         extractor.disableScissor();
         isScissorActive = false;
+    }
+
+    public static void renderFrame(GuiGraphicsExtractor graphics, float contentW, float contentH,
+                                   float contentMinX, float contentMinY, List<Runnable> drawText) {
+        updateTargetBounds(contentW, contentH);
+        updateAnimation();
+        renderScoreboardBackground(OwoUIGraphics.of(graphics));
+
+        HudElement.State state = HudElementRegistry.state(HudElementRegistry.SCOREBOARD);
+        float scale = getScale();
+
+        boolean scissored = beginScissor(graphics);
+        graphics.pose().pushMatrix();
+        try {
+            graphics.pose().translate(getSmoothX(), getSmoothY());
+
+            if (Math.abs(scale - 1.0f) > 0.001f) {
+                graphics.pose().scale(scale, scale);
+            }
+
+            graphics.pose().translate(state.padding - contentMinX, state.padding - contentMinY);
+
+            for (Runnable line : drawText) line.run();
+        } finally {
+            graphics.pose().popMatrix();
+            if (scissored) endScissor(graphics);
+        }
+        markScoreboardRendered();
     }
 
     public static void renderPreviewIfEmpty(GuiGraphicsExtractor extractor) {

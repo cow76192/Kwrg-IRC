@@ -1,14 +1,17 @@
-package me.cookie.kwrg.gui.pointcollection;
+package me.cookie.kwrg.skyblock.route;
 
 import me.cookie.kwrg.skyblock.PointEntry;
 import me.cookie.kwrg.skyblock.route.WaypointRouteUpdate;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 
 public interface PointCollectionStore {
     record FileOptions(boolean visible, boolean showLine, boolean enabled) {}
+
+    enum Result { OK, UNSUPPORTED, FAILED }
 
     String noun();
 
@@ -40,6 +43,14 @@ public interface PointCollectionStore {
 
     FileOptions fileOptions(Path path);
 
+    default long fileVersion(Path path) {
+        try {
+            return Files.getLastModifiedTime(path).toMillis() * 31L + Files.size(path);
+        } catch (IOException e) {
+            return Long.MIN_VALUE;
+        }
+    }
+
     boolean setFileOptions(Path path, boolean visible, boolean showLine);
 
     void addEmpty(int position);
@@ -48,7 +59,7 @@ public interface PointCollectionStore {
 
     default boolean persistsPointOrder() { return false; }
 
-    default boolean moveEntry(int from, int to) { return false; }
+    default Result moveEntry(int from, int to) { return Result.UNSUPPORTED; }
 
     default void updateName(int index, String name) { entries().get(index).name = name; }
 
@@ -75,11 +86,11 @@ public interface PointCollectionStore {
 
     default boolean active(Path path) { return supportsLines() ? path.equals(currentFile()) : enabled(path); }
 
-    default boolean setEnabled(Path path, boolean enabled) { return false; }
+    default Result setEnabled(Path path, boolean enabled) { return Result.UNSUPPORTED; }
 
     default Set<String> regions(Path path) { return Set.of("all"); }
 
-    default boolean setRegions(Path path, Set<String> regions) { return false; }
+    default Result setRegions(Path path, Set<String> regions) { return Result.UNSUPPORTED; }
 
     default void importExternal(Path path) throws IOException {}
 

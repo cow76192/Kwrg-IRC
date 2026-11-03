@@ -15,6 +15,7 @@ import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
+import me.cookie.kwrg.skyblock.route.PointCollectionStore;
 import me.cookie.kwrg.skyblock.PointEntry;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.client.Minecraft;
@@ -462,7 +463,7 @@ public abstract class PointCollectionScreen {
         dragEntries = List.of();
 
         if (store.persistsPointOrder()) {
-            if (store.moveEntry(from, to)) {
+            if (store.moveEntry(from, to) == PointCollectionStore.Result.OK) {
                 markDirty();
                 flush();
             }
@@ -929,7 +930,7 @@ public abstract class PointCollectionScreen {
             } else if (click.button() == 0) {
                 if (!store.supportsLines() && row.region.contains(click.x(), click.y())) {
                     row.region.press();
-                    regionPane = new RegionSelectionPane(row.region, store.regions(row.path), selected -> store.setRegions(row.path, selected));
+                    regionPane = new RegionSelectionPane(row.region, store.regions(row.path), selected -> store.setRegions(row.path, selected) == PointCollectionStore.Result.OK);
                 } else if (!store.protectedFile(row.path) && row.rename.contains(click.x(), click.y())) {
                     row.rename.press();
                     startRouteNaming(row.path, row.rename);
@@ -952,7 +953,7 @@ public abstract class PointCollectionScreen {
                     }
                 } else {
                     row.surface.press();
-                    if (!store.supportsLines() && !store.setEnabled(row.path, !store.enabled(row.path))) {
+                    if (!store.supportsLines() && store.setEnabled(row.path, !store.enabled(row.path)) != PointCollectionStore.Result.OK) {
                         ChatNotifier.send("§c[Waypoint] 启用状态保存失败，已恢复原状态 | " + row.path.getFileName(), NotificationType.ERR);
                         return;
                     }

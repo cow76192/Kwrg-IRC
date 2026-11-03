@@ -1,4 +1,4 @@
-package me.cookie.kwrg.gui.pointcollection;
+package me.cookie.kwrg.skyblock.route;
 
 import me.cookie.kwrg.skyblock.route.RouteManager;
 import me.cookie.kwrg.skyblock.PointEntry;
@@ -44,13 +44,13 @@ public final class RouteCollectionStore implements PointCollectionStore {
 
     public boolean persistsPointOrder() { return true; }
 
-    public boolean moveEntry(int from, int to) {
+    public Result moveEntry(int from, int to) {
         var entries = RouteManager.entries();
         if (from < 0 || from >= entries.size() || to < 0 || to >= entries.size() || from == to) {
-            return false;
+            return Result.FAILED;
         }
 
         entries.add(to, entries.remove(from));
-        return true;
+        return Result.OK;
     }
 }

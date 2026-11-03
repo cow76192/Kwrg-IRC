@@ -1,4 +1,4 @@
-package me.cookie.kwrg.pathfinding;
+package me.cookie.kwrg.navigator;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;

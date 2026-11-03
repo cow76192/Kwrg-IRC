@@ -6,6 +6,7 @@ import me.cookie.kwrg.gui.component.route.RouteNodeAnimation;
 import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;
+import me.cookie.kwrg.skyblock.route.PointCollectionStore;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,8 +15,7 @@ final class FileRow {
     private final PointCollectionStore store;
     final Path path;
     PointCollectionStore.FileOptions options;
-    private long optionsModified = Long.MIN_VALUE;
-    private long optionsSize = -1L;
+    private long optionsVersion = Long.MIN_VALUE;
 
     final RouteButtonComponent surface = new RouteButtonComponent();
     final RouteButtonComponent visible = new RouteButtonComponent();
@@ -37,24 +37,13 @@ final class FileRow {
     }
 
     PointCollectionStore.FileOptions refreshOptions() {
-        long modified;
-        long size;
+        long version = store.fileVersion(path);
 
-        try {
-            modified = Files.getLastModifiedTime(path).toMillis();
-            size = Files.size(path);
-        } catch (IOException e) {
-            optionsModified = Long.MIN_VALUE;
-            optionsSize = -1L;
-            return store.fileOptions(path);
-        }
-
-        if (options != null && optionsModified == modified && optionsSize == size) {
+        if (options != null && optionsVersion != Long.MIN_VALUE && optionsVersion == version) {
             return options;
         }
 
-        optionsModified = modified;
-        optionsSize = size;
+        optionsVersion = version;
         return store.fileOptions(path);
     }
 

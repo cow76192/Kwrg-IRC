@@ -72,6 +72,13 @@ public class ModuleManager {
         return MODULES.get(name.toLowerCase(Locale.ROOT));
     }
 
+    public static <T extends Module> T getModule(Class<T> type) {
+        for (Module module : MODULES.values()) {
+            if (type.isInstance(module)) return type.cast(module);
+        }
+        return null;
+    }
+
     public static List<Module> getModulesByCategory(Category category) {
         List<Module> list = new ArrayList<>();
         for (Module m : MODULES.values()) {

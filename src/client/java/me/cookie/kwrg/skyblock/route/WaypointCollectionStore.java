@@ -1,4 +1,4 @@
-package me.cookie.kwrg.gui.pointcollection;
+package me.cookie.kwrg.skyblock.route;
 
 import me.cookie.kwrg.skyblock.PointEntry;
 import me.cookie.kwrg.skyblock.route.WaypointFiles;
@@ -63,40 +63,40 @@ public final class WaypointCollectionStore implements PointCollectionStore {
 
     public boolean protectedFile(Path path) { return WaypointFiles.isDefault(path); }
 
-    public boolean setEnabled(Path path, boolean enabled) {
+    public Result setEnabled(Path path, boolean enabled) {
         var file = WaypointFiles.collection(path);
         if (file == null) {
-            return false;
+            return Result.FAILED;
         }
 
         boolean previous = file.enabled;
         file.enabled = enabled;
         if (WaypointFiles.save(path)) {
-            return true;
+            return Result.OK;
         }
 
         file.enabled = previous;
-        return false;
+        return Result.FAILED;
     }
 
     public Set<String> regions(Path path) { return Set.copyOf(WaypointFiles.collection(path).regions); }
 
-    public boolean setRegions(Path path, Set<String> regions) {
+    public Result setRegions(Path path, Set<String> regions) {
         var file = WaypointFiles.collection(path);
         if (file == null) {
-            return false;
+            return Result.FAILED;
         }
 
         Set<String> previous = Set.copyOf(file.regions);
         file.regions.clear();
         file.regions.addAll(regions.isEmpty() ? Set.of("all") : regions);
         if (WaypointFiles.save(path)) {
-            return true;
+            return Result.OK;
         }
 
         file.regions.clear();
         file.regions.addAll(previous);
-        return false;
+        return Result.FAILED;
     }
 
     public void importExternal(Path path) throws IOException { WaypointFiles.importRoute(path); }

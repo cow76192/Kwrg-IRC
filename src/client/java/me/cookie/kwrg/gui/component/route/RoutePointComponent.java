@@ -7,7 +7,7 @@ import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.skyblock.PointEntry;
-import me.cookie.kwrg.gui.pointcollection.PointCollectionStore;
+import me.cookie.kwrg.skyblock.route.PointCollectionStore;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.input.CharacterEvent;

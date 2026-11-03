@@ -9,7 +9,7 @@ import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import me.cookie.kwrg.skyblock.route.RouteManager;
 import me.cookie.kwrg.skyblock.route.WaypointManager;
-import me.cookie.kwrg.pathfinding.Navigator;
+import me.cookie.kwrg.navigator.Navigator;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

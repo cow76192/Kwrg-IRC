@@ -8,6 +8,12 @@ import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.module.Category;
+import me.cookie.kwrg.module.Module;
+import me.cookie.kwrg.module.ModuleManager;
+import me.cookie.kwrg.module.modules.style.dynamic.DynamicIslandModule;
+import me.cookie.kwrg.module.modules.style.dynamic.DynamicScoreboardModule;
+import me.cookie.kwrg.module.modules.style.dynamic.InventoryHudModule;
+import me.cookie.kwrg.module.modules.style.dynamic.PlayerDollHudModule;
 import me.cookie.kwrg.render.island.DynamicIslandRenderer;
 import me.cookie.kwrg.render.InventoryHudRenderer;
 import me.cookie.kwrg.render.PlayerDollHudRenderer;
@@ -38,6 +44,12 @@ public class HudEditorScreen extends Screen {
     private static final int LIST_ROW_HEIGHT = 22;
     private static final int LIST_TOP = 34;
     private static final int LIST_HEADER_HEIGHT = 26;
+
+    private static final Map<String, Class<? extends Module>> CONFIG_MODULES = Map.of(
+            HudElementRegistry.ISLAND, DynamicIslandModule.class,
+            HudElementRegistry.SCOREBOARD, DynamicScoreboardModule.class,
+            HudElementRegistry.INVENTORY, InventoryHudModule.class,
+            HudElementRegistry.PLAYER_DOLL, PlayerDollHudModule.class);
     private static final float LIST_CORNER_RADIUS = 12.0f;
     private static final float ROW_CORNER_RADIUS = 6.0f;
 
@@ -401,9 +413,10 @@ public class HudEditorScreen extends Screen {
         if (click.button() == 1) {
             HudElement hit = hitTest(click.x(), click.y());
             if (hit != null) {
-                String module = hit.configModule();
+                Class<? extends Module> type = CONFIG_MODULES.get(hit.id());
+                Module module = type == null ? null : ModuleManager.getModule(type);
                 if (module != null) {
-                    IrcScreen.openDirectToModule(Category.STYLE.getName(), module);
+                    IrcScreen.openDirectToModule(Category.STYLE.getName(), module.getName());
                     return true;
                 }
             }

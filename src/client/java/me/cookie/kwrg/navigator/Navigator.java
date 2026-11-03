@@ -1,4 +1,4 @@
-package me.cookie.kwrg.pathfinding;
+package me.cookie.kwrg.navigator;
 
 import it.unimi.dsi.fastutil.longs.Long2FloatOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;

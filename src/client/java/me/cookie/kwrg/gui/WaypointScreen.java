@@ -2,7 +2,7 @@ package me.cookie.kwrg.gui;
 
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.pointcollection.PointCollectionScreen;
-import me.cookie.kwrg.gui.pointcollection.WaypointCollectionStore;
+import me.cookie.kwrg.skyblock.route.WaypointCollectionStore;
 import net.minecraft.client.Minecraft;
 
 public final class WaypointScreen extends PointCollectionScreen {

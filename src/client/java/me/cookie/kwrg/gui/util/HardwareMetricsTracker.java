@@ -38,7 +38,9 @@ public class HardwareMetricsTracker {
             double instantLoad = Math.min(100.0, (mc.getFrameTimeNs() / (double) frameDuration) * 100.0);
             estimatedGpuLoad = estimatedGpuLoad * 0.85 + instantLoad * 0.15;
         }
+    }
 
+    public static void tick(Minecraft mc) {
         // 500ms 采样节流，避免高频跳数字
         long now = System.currentTimeMillis();
         if (now - lastSampleTime > 500L) {

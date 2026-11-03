@@ -13,12 +13,8 @@ import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.util.ChatNotifier;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.gizmos.GizmoStyle;
-import net.minecraft.gizmos.Gizmos;
 import net.minecraft.world.entity.Avatar;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
@@ -34,6 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.stream.Stream;
+import me.cookie.kwrg.render.RouteWorldRenderer;
 
 public final class RouteManager {
 
@@ -41,9 +38,6 @@ public final class RouteManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String DEFAULT_ROUTE = "kuudra_pearl_waypoints.json";
     static final long MAX_ROUTE_FILE_BYTES = 2L * 1024L * 1024L;
-    private static final GizmoStyle BLOCK_STYLE = GizmoStyle.strokeAndFill(0xFF00E5FF, 1.0f, 0x8000E5FF);
-    private static final int TEXT_COLOR = 0xFF00E5FF;
-    private static final int LINE_COLOR = 0xFF00E5FF;
 
     private static final List<Entry> ENTRIES = new CopyOnWriteArrayList<>();
     private static Path currentFile = null;
@@ -56,7 +50,7 @@ public final class RouteManager {
     }
 
     public static void init() {
-        LevelRenderEvents.BEFORE_GIZMOS.register(RouteManager::render);
+        RouteWorldRenderer.init();
     }
 
     public static void reloadFromConfig() {
@@ -668,63 +662,6 @@ public final class RouteManager {
             if (element != null && element.isJsonArray()) return element.getAsJsonArray();
         }
         return null;
-    }
-
-    private static void render(LevelRenderContext context) {
-        if (!visible || ENTRIES.isEmpty()) return;
-
-        var camera = context.levelState().cameraRenderState;
-        if (!camera.initialized) return;
-
-        Vec3 cameraPosition = camera.pos;
-        var up = camera.orientation.transform(new Vector3f(0, 1, 0));
-        Vec3 cameraUp = new Vec3(up.x(), up.y(), up.z());
-
-        RouteLineRenderer lines = showLine ? new RouteLineRenderer() : null;
-        Vec3 firstBlockTop = null;
-        Vec3 previousNode = null;
-        int index = 0;
-
-        for (Entry entry : ENTRIES) {
-            BlockPos pos = entry.visible ? blockPos(entry) : null;
-            if (pos == null) {
-                previousNode = null;
-                index++;
-                continue;
-            }
-            Gizmos.cuboid(pos, BLOCK_STYLE).setAlwaysOnTop();
-            Gizmos.billboardTextOverBlock(displayName(entry, index), pos, 0, TEXT_COLOR, 1.0f);
-
-            if (lines != null) {
-                Vec3 node = visibleLinePoint(pos, cameraPosition, cameraUp);
-                Vec3 blockTop = Vec3.atBottomCenterOf(pos).add(0, 1, 0);
-                if (index == 0) firstBlockTop = blockTop;
-                lines.line(blockTop, node, LINE_COLOR);
-                if (previousNode != null) lines.line(previousNode, blockTop, LINE_COLOR);
-                previousNode = node;
-            }
-
-            index++;
-        }
-
-        if (lines != null && index > 1 && previousNode != null && firstBlockTop != null) {
-            lines.line(previousNode, firstBlockTop, LINE_COLOR);
-        }
-
-        if (lines != null) lines.draw(context);
-    }
-
-    private static Vec3 linePoint(BlockPos pos) {
-        // A player standing on this block has their feet at its top face.
-        return Vec3.atBottomCenterOf(pos).add(0, 1 + (double) Avatar.DEFAULT_EYE_HEIGHT, 0);
-    }
-
-    private static Vec3 visibleLinePoint(BlockPos pos, Vec3 cameraPosition, Vec3 cameraUp) {
-        Vec3 node = linePoint(pos);
-        double proximity = Math.max(0, 1 - node.distanceTo(cameraPosition) / 0.75);
-        double offset = 0.18 * proximity * proximity * (3 - 2 * proximity);
-        // A line starting at the camera collapses to a screen point. Move it down in view space nearby.
-        return node.subtract(cameraUp.scale(offset));
     }
 
     public static final class Entry extends PointEntry {

@@ -2,7 +2,7 @@ package me.cookie.kwrg.gui;
 
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.pointcollection.PointCollectionScreen;
-import me.cookie.kwrg.gui.pointcollection.RouteCollectionStore;
+import me.cookie.kwrg.skyblock.route.RouteCollectionStore;
 import net.minecraft.client.Minecraft;
 
 public final class RouteScreen extends PointCollectionScreen {

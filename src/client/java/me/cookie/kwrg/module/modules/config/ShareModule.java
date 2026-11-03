@@ -351,7 +351,7 @@ public class ShareModule extends Module {
                     executeImport(pending);
                     currentPending = null;
                     panel.clearChildren();
-                    ((ShareModule) ModuleManager.getModule("share")).renderSenderPipelineUI(panel);
+                    ModuleManager.getModule(ShareModule.class).renderSenderPipelineUI(panel);
                 }
         ).withSpawnAnimation());
 
@@ -361,7 +361,7 @@ public class ShareModule extends Module {
                     ChatNotifier.send("§e[Share] 已忽略来自 §f" + pending.sender + " §e的分享", NotificationType.INFO);
                     currentPending = null;
                     panel.clearChildren();
-                    ((ShareModule) ModuleManager.getModule("share")).renderSenderPipelineUI(panel);
+                    ModuleManager.getModule(ShareModule.class).renderSenderPipelineUI(panel);
                 }
         ).withSpawnAnimation());
     }

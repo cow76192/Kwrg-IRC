@@ -32,9 +32,6 @@ final class IrcTransport {
     private static BufferedReader reader;
 
     private static final int MAX_RECONNECT_ATTEMPTS = 3;
-    static final AtomicInteger reconnectAttempts = new AtomicInteger(0);
-    static volatile boolean shouldAutoReconnect = false;
-    static final AtomicBoolean isConnecting = new AtomicBoolean(false);
 
     private static final Object SEND_LOCK = new Object();
     private static ExecutorService sendExecutor;
@@ -51,11 +48,11 @@ final class IrcTransport {
 
     static boolean isAlive() {
         Socket current = socket;
-        return IrcClient.isRunning && current != null && !current.isClosed();
+        return IrcLink.isRunning && current != null && !current.isClosed();
     }
 
     static void doConnect(boolean isSilent) {
-        if (!isConnecting.compareAndSet(false, true)) {
+        if (!IrcLink.isConnecting.compareAndSet(false, true)) {
             return;
         }
 
@@ -66,14 +63,14 @@ final class IrcTransport {
                 socket = new Socket();
                 socket.setKeepAlive(true);
                 socket.setTcpNoDelay(true);
-                socket.connect(new InetSocketAddress(IrcClient.HOST, IrcClient.PORT), 5000);
+                socket.connect(new InetSocketAddress(IrcLink.HOST, IrcLink.PORT), 5000);
 
                 writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
                 reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
-                IrcClient.isRunning = true;
+                IrcLink.isRunning = true;
                 IrcClient.isIrcConnect = true;
 
-                reconnectAttempts.set(0);
+                IrcLink.reconnectAttempts.set(0);
 
                 if (isSilent) {
                     ChatNotifier.send("§a[IRC] 重新连接成功！", NotificationType.SUCCESS);
@@ -88,7 +85,7 @@ final class IrcTransport {
                 joinJson.addProperty("senderId", Minecraft.getInstance().getUser().getProfileId().toString());
                 joinJson.addProperty("username", Minecraft.getInstance().getUser().getName());
                 joinJson.addProperty("rank", IrcConfig.get().rank);
-                sendRaw(IrcClient.GSON.toJson(joinJson));
+                sendRaw(IrcLink.GSON.toJson(joinJson));
 
                 IrcClient.sendHideArmorSync();
                 IrcClient.sendScaleSync(IrcConfig.get().myScale);
@@ -105,7 +102,7 @@ final class IrcTransport {
                 }
                 handleDisconnect();
             } finally {
-                isConnecting.set(false);
+                IrcLink.isConnecting.set(false);
             }
         });
     }
@@ -121,7 +118,7 @@ final class IrcTransport {
         heartbeatExecutor.scheduleAtFixedRate(() -> {
             try {
                 Socket current = socket;
-                if (IrcClient.isRunning && current != null && !current.isClosed()) {
+                if (IrcLink.isRunning && current != null && !current.isClosed()) {
                     IrcClient.sendPing(null);
                 }
             } catch (RuntimeException e) {
@@ -140,23 +137,23 @@ final class IrcTransport {
     private static void listenLoop() {
         try {
             String line;
-            while (IrcClient.isRunning && reader != null && (line = reader.readLine()) != null) {
+            while (IrcLink.isRunning && reader != null && (line = reader.readLine()) != null) {
                 String rawJson = line.trim();
                 if (!rawJson.isEmpty()) {
                     if (rawJson.contains("\"type\":\"pong\"") || rawJson.contains("\"type\": \"pong\"")) {
-                        if (IrcClient.lastPingTimestamp > 0) {
-                            long latency = System.currentTimeMillis() - IrcClient.lastPingTimestamp;
-                            IrcClient.lastLatency = latency;
-                            IrcClient.lastPingTimestamp = 0L;
+                        if (IrcLink.lastPingTimestamp > 0) {
+                            long latency = System.currentTimeMillis() - IrcLink.lastPingTimestamp;
+                            IrcLink.lastLatency = latency;
+                            IrcLink.lastPingTimestamp = 0L;
 
                             Minecraft.getInstance().execute(() -> {
-                                for (Consumer<Long> cb : IrcClient.pingCallbacks) {
+                                for (Consumer<Long> cb : IrcLink.pingCallbacks) {
                                     try {
                                         cb.accept(latency);
                                     } catch (RuntimeException ignored) {
                                     }
                                 }
-                                IrcClient.pingCallbacks.clear();
+                                IrcLink.pingCallbacks.clear();
                             });
                         }
                         continue;
@@ -177,7 +174,7 @@ final class IrcTransport {
                 }
             }
         } catch (IOException | RuntimeException e) {
-            if (IrcClient.isRunning) {
+            if (IrcLink.isRunning) {
                 LOGGER.warn("[IRC] 接收线程中断: {}", e.getMessage());
             }
         } finally {
@@ -186,20 +183,20 @@ final class IrcTransport {
     }
 
     private static synchronized void handleDisconnect() {
-        IrcClient.isRunning = false;
+        IrcLink.isRunning = false;
         IrcClient.isIrcConnect = false;
         IrcClient.isIrcChatActive = false;
 
-        IrcClient.lastLatency = -1L;
-        IrcClient.lastPingTimestamp = 0L;
+        IrcLink.lastLatency = -1L;
+        IrcLink.lastPingTimestamp = 0L;
         Minecraft.getInstance().execute(() -> {
-            for (Consumer<Long> cb : IrcClient.pingCallbacks) {
+            for (Consumer<Long> cb : IrcLink.pingCallbacks) {
                 try {
                     cb.accept(-1L);
                 } catch (RuntimeException ignored) {
                 }
             }
-            IrcClient.pingCallbacks.clear();
+            IrcLink.pingCallbacks.clear();
         });
 
         stopHeartbeat();
@@ -208,16 +205,16 @@ final class IrcTransport {
         HideArmorManager.clear();
         IrcGlowManager.clear();
 
-        if (shouldAutoReconnect) {
-            int currentAttempt = reconnectAttempts.incrementAndGet();
+        if (IrcLink.shouldAutoReconnect) {
+            int currentAttempt = IrcLink.reconnectAttempts.incrementAndGet();
             if (currentAttempt > MAX_RECONNECT_ATTEMPTS) {
-                shouldAutoReconnect = false;
+                IrcLink.shouldAutoReconnect = false;
                 LOGGER.info("[IRC] 自动重连已达 3 次上限，放弃重试。等待手动连接。");
                 ChatNotifier.send("§c[IRC] 与服务器连接断开，重连失败(3/3)", NotificationType.ERR);
             } else {
                 LOGGER.info("[IRC] 连接断开，执行第 {}/{} 次重连...", currentAttempt, MAX_RECONNECT_ATTEMPTS);
                 reconnectExecutor.schedule(() -> {
-                    if (!IrcClient.isRunning && shouldAutoReconnect) {
+                    if (!IrcLink.isRunning && IrcLink.shouldAutoReconnect) {
                         doConnect(true);
                     }
                 }, 5, TimeUnit.SECONDS);
@@ -228,7 +225,7 @@ final class IrcTransport {
     static void sendRaw(String jsonStr) {
         sendExecutor().execute(() -> {
             synchronized (SEND_LOCK) {
-                if (writer != null && IrcClient.isRunning) {
+                if (writer != null && IrcLink.isRunning) {
                     writer.println(jsonStr);
                 }
             }
@@ -238,7 +235,7 @@ final class IrcTransport {
     static void sendRawAsyncPair(String first, String second) {
         CompletableFuture.runAsync(() -> {
             synchronized (SEND_LOCK) {
-                if (writer != null && IrcClient.isRunning) {
+                if (writer != null && IrcLink.isRunning) {
                     writer.println(first);
                     writer.println(second);
                 }

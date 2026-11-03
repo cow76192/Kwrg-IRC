@@ -53,24 +53,10 @@ public final class ConfigMigrator {
         JsonObject originalConfig = jsonObj.deepCopy();
 
         // 1. onlyTab -> onlyApplyToTab
-        if (jsonObj.has("onlyTab")) {
-            JsonElement onlyTabVal = jsonObj.get("onlyTab");
-            if (!jsonObj.has("onlyApplyToTab")) {
-                jsonObj.add("onlyApplyToTab", onlyTabVal);
-                notifyMigration("onlyTab", "onlyApplyToTab", onlyTabVal);
-            }
-            jsonObj.remove("onlyTab");
-        }
+        renameField(jsonObj, "onlyTab", "onlyApplyToTab");
 
         // 2. 远程新增：chatSuffixText -> chatSuffix
-        if (jsonObj.has("chatSuffixText")) {
-            JsonElement chatSuffixVal = jsonObj.get("chatSuffixText");
-            if (!jsonObj.has("chatSuffix")) {
-                jsonObj.add("chatSuffix", chatSuffixVal);
-                notifyMigration("chatSuffixText", "chatSuffix", chatSuffixVal);
-            }
-            jsonObj.remove("chatSuffixText");
-        }
+        renameField(jsonObj, "chatSuffixText", "chatSuffix");
 
         // 3. 移除已废弃字段
         removeDeprecatedField(jsonObj, "autoTrackPlayer");
@@ -86,6 +72,16 @@ public final class ConfigMigrator {
 
         // 5. 校验未知字段
         checkUnknownFields(jsonObj, originalConfig);
+    }
+
+    private static void renameField(JsonObject jsonObj, String from, String to) {
+        if (!jsonObj.has(from)) return;
+        JsonElement value = jsonObj.get(from);
+        if (!jsonObj.has(to)) {
+            jsonObj.add(to, value);
+            notifyMigration(from, to, value);
+        }
+        jsonObj.remove(from);
     }
 
     private static void removeDeprecatedField(JsonObject jsonObj, String key) {

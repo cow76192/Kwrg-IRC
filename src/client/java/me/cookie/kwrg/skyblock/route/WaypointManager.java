@@ -2,15 +2,10 @@ package me.cookie.kwrg.skyblock.route;
 
 import me.cookie.kwrg.skyblock.PointEntry;
 import me.cookie.kwrg.skyblock.SkyblockLocation;
-import me.cookie.kwrg.render.WaypointRenderer;
 
 import me.cookie.kwrg.irc.config.IrcConfig;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.gizmos.GizmoStyle;
-import net.minecraft.gizmos.Gizmos;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -26,7 +21,6 @@ public final class WaypointManager {
     public static final String EMPTY_NAME = "\u200B";
     private static final double MAX_COORD = 30_000_000.0;
 
-    private static final GizmoStyle BLOCK_STYLE = GizmoStyle.strokeAndFill(0xFF00FF88, 1.0f, 0x8000FF88);
     private static final int TEXT_COLOR = 0xFF00FF88;
 
     private static final Map<String, IrcConfig.WaypointEntry> SAVED_WAYPOINTS = new LinkedHashMap<>();
@@ -75,7 +69,7 @@ public final class WaypointManager {
 
     public static void init() {
         SkyblockLocation.init();
-        LevelRenderEvents.BEFORE_GIZMOS.register(WaypointManager::renderWaypoints);
+        me.cookie.kwrg.render.WaypointWorldRenderer.init();
     }
 
     public static List<IrcConfig.WaypointEntry> savedEntries() {
@@ -164,26 +158,19 @@ public final class WaypointManager {
                 && Math.abs(x) <= MAX_COORD && Math.abs(y) <= MAX_COORD && Math.abs(z) <= MAX_COORD;
     }
 
-    private static void renderWaypoints(LevelRenderContext context) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || mc.player == null || !context.levelState().cameraRenderState.initialized) return;
-        float animationTime = Math.floorMod(mc.level.getGameTime(), 40)
-                + mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);
-        WaypointRenderer renderer = new WaypointRenderer(context, animationTime);
+    public record RenderNode(BlockPos pos, String label, boolean tracer) {
+    }
 
+    public static List<RenderNode> renderNodes() {
+        List<RenderNode> out = new ArrayList<>();
         for (WaypointFiles.Collection file : WaypointFiles.collections()) {
             if (!file.activeIn(SkyblockLocation.island())) continue;
             for (PointEntry entry : file.points) {
                 if (!entry.visible || !entry.valid()) continue;
-                BlockPos pos = entry.blockPos();
-                Gizmos.cuboid(pos, BLOCK_STYLE).setAlwaysOnTop();
-                renderer.waypoint(pos, TEXT_COLOR, false, file.showTracer);
-                if (entry.name != null && !entry.name.isBlank() && !EMPTY_NAME.equals(entry.name)) {
-                    Gizmos.billboardTextOverBlock(entry.name, pos, 0, TEXT_COLOR, 1.0f);
-                }
+                String label = entry.name != null && !entry.name.isBlank() && !EMPTY_NAME.equals(entry.name) ? entry.name : null;
+                out.add(new RenderNode(entry.blockPos(), label, file.showTracer));
             }
         }
-
-        renderer.draw();
+        return out;
     }
 }

@@ -22,21 +22,14 @@ import java.util.function.Consumer;
 public class IrcClient {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("kwrg-irc");
-    static final Gson GSON = new Gson();
-    static final String HOST = "47.96.141.237";
-    static final int PORT = 13140;
 
-    static volatile boolean isRunning = false;
 
     public static volatile boolean isIrcChatActive = false;
     public static volatile boolean isIrcConnect = false;
 
-    static volatile long lastPingTimestamp = 0L;
-    static volatile long lastLatency = -1L;
-    static final List<Consumer<Long>> pingCallbacks = new CopyOnWriteArrayList<>();
 
     public static long getLastLatency() {
-        return lastLatency;
+        return IrcLink.lastLatency;
     }
 
     public static void sendPing(Consumer<Long> onResult) {
@@ -48,28 +41,28 @@ public class IrcClient {
         }
 
         if (onResult != null) {
-            pingCallbacks.add(onResult);
+            IrcLink.pingCallbacks.add(onResult);
         }
 
-        lastPingTimestamp = System.currentTimeMillis();
+        IrcLink.lastPingTimestamp = System.currentTimeMillis();
         JsonObject ping = new JsonObject();
         ping.addProperty("type", "ping");
-        IrcTransport.sendRaw(GSON.toJson(ping));
+        IrcTransport.sendRaw(IrcLink.GSON.toJson(ping));
     }
 
     public static void connect() {
-        if (isRunning) {
+        if (IrcLink.isRunning) {
             ChatNotifier.sendInChatScreen("§c[IRC] 已经连接至 IRC 服务器了喵~");
             return;
         }
 
-        if (IrcTransport.isConnecting.get()) {
+        if (IrcLink.isConnecting.get()) {
             ChatNotifier.send("§e[IRC] 正在连接中，请稍候...", NotificationType.INFO);
             return;
         }
 
-        IrcTransport.reconnectAttempts.set(0);
-        IrcTransport.shouldAutoReconnect = true;
+        IrcLink.reconnectAttempts.set(0);
+        IrcLink.shouldAutoReconnect = true;
 
         IrcTransport.doConnect(false);
     }
@@ -113,8 +106,8 @@ public class IrcClient {
         IrcMessageHandler.displayFormattedMessage(channel, config.rank, config.namestyle, username, config.chatstyle,
                 decoration.content(), decoration.prefix(), decoration.suffix());
 
-        if (isRunning) {
-            IrcTransport.sendRaw(GSON.toJson(json));
+        if (IrcLink.isRunning) {
+            IrcTransport.sendRaw(IrcLink.GSON.toJson(json));
         } else {
             IrcMessageHandler.printMessage("§c[IRC] 发送失败：未连接至 IRC 服务器！正在尝试连接...");
             connect();
@@ -132,8 +125,8 @@ public class IrcClient {
         json.addProperty("target", targetPlayer);
         json.addProperty("item", itemId);
 
-        if (isRunning) {
-            IrcTransport.sendRaw(GSON.toJson(json));
+        if (IrcLink.isRunning) {
+            IrcTransport.sendRaw(IrcLink.GSON.toJson(json));
         } else {
             IrcMessageHandler.printMessage("§c[IRC] 发送失败：未连接至 IRC 服务器，正在尝试连接...");
             connect();
@@ -172,8 +165,8 @@ public class IrcClient {
         IrcMessageHandler.displayFormattedMessage("", config.rank, config.namestyle, username, config.chatstyle,
                 decoration.content(), decoration.prefix(), decoration.suffix());
 
-        if (isRunning) {
-            IrcTransport.sendRaw(GSON.toJson(json));
+        if (IrcLink.isRunning) {
+            IrcTransport.sendRaw(IrcLink.GSON.toJson(json));
         } else {
             IrcMessageHandler.printMessage("§c[IRC] 发送失败：未连接至 IRC 服务器！正在尝试连接...");
             connect();
@@ -192,7 +185,7 @@ public class IrcClient {
         json.addProperty("item", rawItem);
         json.addProperty("reason", reason);
 
-        IrcTransport.sendRaw(GSON.toJson(json));
+        IrcTransport.sendRaw(IrcLink.GSON.toJson(json));
     }
 
     public static void sendFunctionSync(String functionName, boolean enabled) {
@@ -208,7 +201,7 @@ public class IrcClient {
         json.addProperty("username", username);
         json.addProperty("enabled", enabled);
 
-        IrcTransport.sendRaw(GSON.toJson(json));
+        IrcTransport.sendRaw(IrcLink.GSON.toJson(json));
     }
 
     public static void sendHideArmorSync() {
@@ -232,7 +225,7 @@ public class IrcClient {
         json.addProperty("username", mc.getUser().getName());
         json.addProperty("enabled", config.hideArmor && !parts.isEmpty());
         json.add("parts", parts);
-        IrcTransport.sendRaw(GSON.toJson(json));
+        IrcTransport.sendRaw(IrcLink.GSON.toJson(json));
     }
 
     public static void sendChannelSync(String channel, boolean enabled, java.util.List<String> channels) {
@@ -259,7 +252,7 @@ public class IrcClient {
         }
         json.add("channels", array);
 
-        IrcTransport.sendRaw(GSON.toJson(json));
+        IrcTransport.sendRaw(IrcLink.GSON.toJson(json));
     }
 
     public static void sendChannelSync(String channel, boolean enabled) {
@@ -290,8 +283,8 @@ public class IrcClient {
         json.addProperty("shareType", shareType != null ? shareType : "custom");
         json.add("data", data != null ? data : new JsonObject());
 
-        if (isRunning) {
-            IrcTransport.sendRaw(GSON.toJson(json));
+        if (IrcLink.isRunning) {
+            IrcTransport.sendRaw(IrcLink.GSON.toJson(json));
         } else {
             IrcMessageHandler.printMessage("§c[IRC] 发送失败：未连接至 IRC 服务器，正在尝试连接...");
             connect();
@@ -324,7 +317,7 @@ public class IrcClient {
         json.addProperty("username", username);
         json.addProperty("scale", scale);
 
-        IrcTransport.sendRaw(GSON.toJson(json));
+        IrcTransport.sendRaw(IrcLink.GSON.toJson(json));
     }
 
     // 检查服务端是否已有该披风哈希
@@ -336,22 +329,22 @@ public class IrcClient {
         json.addProperty("username", mc.getUser().getName());
         json.addProperty("hash", hash);
         json.addProperty("fileName", fileName);
-        IrcTransport.sendRaw(GSON.toJson(json));
+        IrcTransport.sendRaw(IrcLink.GSON.toJson(json));
     }
 
     // 向服务端上传披风的完整 Base64
     public static void sendCapeUpload(String hash, String fileName, String base64Data) {
-        IrcTransport.sendRaw(GSON.toJson(capeUploadJson(hash, fileName, base64Data)));
+        IrcTransport.sendRaw(IrcLink.GSON.toJson(capeUploadJson(hash, fileName, base64Data)));
     }
 
     // 广播佩戴指定哈希的披风
     public static void sendCapeSync(String hash, String fileName) {
-        IrcTransport.sendRaw(GSON.toJson(capeSyncJson(hash, fileName)));
+        IrcTransport.sendRaw(IrcLink.GSON.toJson(capeSyncJson(hash, fileName)));
     }
 
     public static void sendCapeUploadAndSync(String hash, String fileName, String base64Data) {
-        String upload = GSON.toJson(capeUploadJson(hash, fileName, base64Data));
-        String sync = GSON.toJson(capeSyncJson(hash, fileName));
+        String upload = IrcLink.GSON.toJson(capeUploadJson(hash, fileName, base64Data));
+        String sync = IrcLink.GSON.toJson(capeSyncJson(hash, fileName));
         IrcTransport.sendRawAsyncPair(upload, sync);
     }
 
@@ -376,11 +369,11 @@ public class IrcClient {
         json.add("players", array);
         json.add("importantPlayers", array);
 
-        IrcTransport.sendRaw(GSON.toJson(json));
+        IrcTransport.sendRaw(IrcLink.GSON.toJson(json));
     }
 
     public static void sendTypingStatus(boolean isTyping) {
-        if (!isRunning) return;
+        if (!IrcLink.isRunning) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.getUser() == null) return;
 
@@ -391,7 +384,7 @@ public class IrcClient {
         json.addProperty("typing", isTyping);
         json.addProperty("action", isTyping ? "start" : "stop");
 
-        IrcTransport.sendRaw(GSON.toJson(json));
+        IrcTransport.sendRaw(IrcLink.GSON.toJson(json));
     }
 
     private static JsonObject capeUploadJson(String hash, String fileName, String base64Data) {
@@ -427,14 +420,14 @@ public class IrcClient {
         JsonObject json = new JsonObject();
         json.addProperty("type", "cape_download");
         json.addProperty("hash", hash);
-        IrcTransport.sendRaw(GSON.toJson(json));
+        IrcTransport.sendRaw(IrcLink.GSON.toJson(json));
     }
 
     public static void queryOnline() {
-        if (isRunning) {
+        if (IrcLink.isRunning) {
             JsonObject json = new JsonObject();
             json.addProperty("type", "query_online");
-            IrcTransport.sendRaw(GSON.toJson(json));
+            IrcTransport.sendRaw(IrcLink.GSON.toJson(json));
         } else {
             IrcMessageHandler.printMessage("§c[IRC] 未连接至 IRC 服务器，正在尝试连接...");
             connect();
@@ -442,25 +435,25 @@ public class IrcClient {
     }
 
     public static void disconnect() {
-        IrcTransport.shouldAutoReconnect = false;
-        IrcTransport.reconnectAttempts.set(0);
+        IrcLink.shouldAutoReconnect = false;
+        IrcLink.reconnectAttempts.set(0);
 
-        lastLatency = -1L;
-        lastPingTimestamp = 0L;
+        IrcLink.lastLatency = -1L;
+        IrcLink.lastPingTimestamp = 0L;
         Minecraft.getInstance().execute(() -> {
-            for (Consumer<Long> cb : pingCallbacks) {
+            for (Consumer<Long> cb : IrcLink.pingCallbacks) {
                 try {
                     cb.accept(-1L);
                 } catch (RuntimeException ignored) {
                 }
             }
-            pingCallbacks.clear();
+            IrcLink.pingCallbacks.clear();
         });
 
         IrcTransport.stopHeartbeat();
         IrcTransport.closeResources();
 
-        isRunning = false;
+        IrcLink.isRunning = false;
         isIrcChatActive = false;
         isIrcConnect = false;
 

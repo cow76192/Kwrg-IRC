@@ -3,17 +3,12 @@ package me.cookie.kwrg.skyblock.route;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.IrcMessageHandler;
-import me.cookie.kwrg.render.WaypointRenderer;
 import me.cookie.kwrg.util.ChatNotifier;
-import me.cookie.kwrg.pathfinding.Navigator;
+import me.cookie.kwrg.navigator.Navigator;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.gizmos.GizmoStyle;
-import net.minecraft.gizmos.Gizmos;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
@@ -34,6 +29,7 @@ import java.util.regex.Pattern;
 public final class ChatWaypointManager {
 
     private static final String BUTTON_TEXT = "[show waypoints]";
+    private static final int COLOR = 0xFF9FB6CC;
 
     static final int MAX_MESSAGE_LENGTH = 1024;
     public static final int MAX_COORD = 30_000_000;
@@ -57,10 +53,6 @@ public final class ChatWaypointManager {
     );
     static final Pattern UNSAFE_PATTERN = Pattern.compile("[^A-Za-z0-9_\\[\\]+ ]");
 
-    private static final GizmoStyle BLOCK_STYLE = GizmoStyle.strokeAndFill(0xFF1E2836, 1.0f, 0x8011161F);
-    private static final int BEAM_COLOR = 0xFF2B3648;
-    private static final int COLOR = 0xFF9FB6CC;
-    private static final int PATH_COLOR = 0xFFA64DFF;
 
     private static final Map<String, ChatWaypoint> POINTS = new LinkedHashMap<>();
 
@@ -69,7 +61,7 @@ public final class ChatWaypointManager {
 
     public static void init() {
         Navigator.setHeuristicWeight(IrcConfig.get().navigatorWeight);
-        LevelRenderEvents.BEFORE_GIZMOS.register(ChatWaypointManager::render);
+        me.cookie.kwrg.render.ChatWaypointWorldRenderer.init();
         ClientTickEvents.END_CLIENT_TICK.register(ChatWaypointManager::onTick);
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> POINTS.clear());
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> POINTS.clear());
@@ -111,28 +103,20 @@ public final class ChatWaypointManager {
         return 1;
     }
 
-    private static void render(LevelRenderContext context) {
-        if (POINTS.isEmpty()) return;
+    public record RenderNode(BlockPos pos, String label, List<Vec3> path) {
+    }
 
+    public static List<RenderNode> renderNodes() {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || mc.player == null || !context.levelState().cameraRenderState.initialized) return;
-
-        float animationTime = Math.floorMod(mc.level.getGameTime(), 40)
-                + mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);
-        WaypointRenderer renderer = new WaypointRenderer(context, animationTime);
-        Vec3 cameraPos = context.levelState().cameraRenderState.pos;
-
+        if (mc.level == null) return List.of();
+        List<RenderNode> out = new ArrayList<>();
         for (ChatWaypoint waypoint : POINTS.values()) {
             if (!waypoint.dimension.equals(mc.level.dimension())) continue;
-            Gizmos.cuboid(waypoint.pos, BLOCK_STYLE).setAlwaysOnTop();
-            renderer.beam(waypoint.pos, BEAM_COLOR);
-            Gizmos.billboardTextOverBlock(waypoint.label + " §b[" + (int) cameraPos.distanceTo(Vec3.atCenterOf(waypoint.pos)) + "m]", waypoint.pos, 0, COLOR, 1.0f);
-
             List<Vec3> visible = waypoint.visible();
             if (visible.isEmpty()) visible = waypoint.guidePath();
-            if (!visible.isEmpty()) renderer.path(visible, PATH_COLOR);
+            out.add(new RenderNode(waypoint.pos, waypoint.label, visible));
         }
-        renderer.draw();
+        return out;
     }
 
     private static void onTick(Minecraft mc) {

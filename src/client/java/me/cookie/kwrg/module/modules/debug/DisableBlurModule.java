@@ -138,7 +138,7 @@ public class DisableBlurModule extends Module {
         ChatNotifier.send("§a已应用 " + name + " 预设: §f" + quality + ", " + size, NotificationType.SUCCESS);
         refreshScreenSurface();
         panel.clearChildren();
-        ((DisableBlurModule) me.cookie.kwrg.module.ModuleManager.getModule("disableBlur")).renderTertiaryUI(panel);
+        me.cookie.kwrg.module.ModuleManager.getModule(DisableBlurModule.class).renderTertiaryUI(panel);
     }
 
     private static void refreshScreenSurface() {

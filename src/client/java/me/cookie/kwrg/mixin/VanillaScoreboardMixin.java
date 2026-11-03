@@ -2,9 +2,6 @@ package me.cookie.kwrg.mixin;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import io.wispforest.owo.ui.core.OwoUIGraphics;
-import me.cookie.kwrg.gui.hud.HudElement;
-import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.render.ScoreboardIslandRenderer;
 import net.minecraft.client.gui.Font;
@@ -70,30 +67,10 @@ public abstract class VanillaScoreboardMixin {
             kwrg$collectingScoreboard = false;
             if (kwrg$scoreboardText.isEmpty()) return;
 
-            ScoreboardIslandRenderer.updateTargetBounds(kwrg$currentMaxX - kwrg$currentMinX, kwrg$currentMaxY - kwrg$currentMinY);
-            ScoreboardIslandRenderer.updateAnimation();
-            ScoreboardIslandRenderer.renderScoreboardBackground(OwoUIGraphics.of(graphics));
-
-            HudElement.State state = HudElementRegistry.state(HudElementRegistry.SCOREBOARD);
-            float scale = ScoreboardIslandRenderer.getScale();
-
-            boolean scissored = ScoreboardIslandRenderer.beginScissor(graphics);
-            graphics.pose().pushMatrix();
-            try {
-                graphics.pose().translate(ScoreboardIslandRenderer.getSmoothX(), ScoreboardIslandRenderer.getSmoothY());
-
-                if (Math.abs(scale - 1.0f) > 0.001f) {
-                    graphics.pose().scale(scale, scale);
-                }
-
-                graphics.pose().translate(state.padding - kwrg$currentMinX, state.padding - kwrg$currentMinY);
-
-                for (Runnable drawText : kwrg$scoreboardText) drawText.run();
-            } finally {
-                graphics.pose().popMatrix();
-                if (scissored) ScoreboardIslandRenderer.endScissor(graphics);
-            }
-            ScoreboardIslandRenderer.markScoreboardRendered();
+            ScoreboardIslandRenderer.renderFrame(graphics,
+                    kwrg$currentMaxX - kwrg$currentMinX,
+                    kwrg$currentMaxY - kwrg$currentMinY,
+                    kwrg$currentMinX, kwrg$currentMinY, kwrg$scoreboardText);
         } finally {
             kwrg$collectingScoreboard = false;
             kwrg$scoreboardText.clear();

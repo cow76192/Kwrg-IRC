@@ -30,7 +30,6 @@ public class ChatNotifier {
         return WaypointManager.formatCoordMessage(pos.getX(), pos.getY(), pos.getZ());
     }
 
-    private static final Queue<Component> PENDING_MESSAGES = new ConcurrentLinkedQueue<>();
     private static final Pattern URL_PATTERN = Pattern.compile(
             "https?://[a-zA-Z0-9-._~:/?#\\[\\]@!$&'()*+,;=%]+",
             Pattern.CASE_INSENSITIVE
@@ -52,7 +51,7 @@ public class ChatNotifier {
         if (component == null) return;
         Component protectedComp = me.cookie.kwrg.irc.cosmetic.NickManager.protectComponent(component);
         Component parsed = parseUrls(protectedComp);
-        PENDING_MESSAGES.offer(parsed);
+        ChatAnimationQueue.enqueue(parsed, null);
         Minecraft.getInstance().execute(ChatNotifier::flush);
     }
 
@@ -233,9 +232,6 @@ public class ChatNotifier {
         return part;
     }
 
-    private static final Queue<List<AnimatedSegment>> PENDING_ANIMATIONS = new ConcurrentLinkedQueue<>();
-    private static final java.util.Map<net.minecraft.client.multiplayer.chat.GuiMessage, List<AnimatedSegment>> ACTIVE_ANIMATIONS = new java.util.concurrent.ConcurrentHashMap<>();
-
     public static void sendAnimatedInChatScreen(List<AnimatedSegment> segments) {
         if (segments == null || segments.isEmpty()) return;
 
@@ -251,26 +247,16 @@ public class ChatNotifier {
 
         Component parsed = parseUrls(root);
 
-        if (hasAnimation) {
-            PENDING_ANIMATIONS.offer(segments);
-        }
-
-        PENDING_MESSAGES.offer(parsed);
+        ChatAnimationQueue.enqueue(parsed, hasAnimation ? segments : null);
         Minecraft.getInstance().execute(ChatNotifier::flush);
     }
 
     public static void onMessageAdded(net.minecraft.client.multiplayer.chat.GuiMessage message) {
-        List<AnimatedSegment> segs = PENDING_ANIMATIONS.poll();
-        if (segs != null) {
-            ACTIVE_ANIMATIONS.put(message, segs);
-            if (ACTIVE_ANIMATIONS.size() > 150) {
-                ACTIVE_ANIMATIONS.clear();
-            }
-        }
+        ChatAnimationQueue.bind(message);
     }
 
     public static Component getAnimatedFrame(net.minecraft.client.multiplayer.chat.GuiMessage msg) {
-        List<AnimatedSegment> segs = ACTIVE_ANIMATIONS.get(msg);
+        List<AnimatedSegment> segs = ChatAnimationQueue.get(msg);
         if (segs == null) return null;
 
         MutableComponent root = Component.empty();
@@ -281,10 +267,7 @@ public class ChatNotifier {
     }
 
     public static void updateMessageBinding(net.minecraft.client.multiplayer.chat.GuiMessage oldMsg, net.minecraft.client.multiplayer.chat.GuiMessage newMsg) {
-        List<AnimatedSegment> segs = ACTIVE_ANIMATIONS.remove(oldMsg);
-        if (segs != null) {
-            ACTIVE_ANIMATIONS.put(newMsg, segs);
-        }
+        ChatAnimationQueue.rebind(oldMsg, newMsg);
     }
 
     private static class MessageLineCache {
@@ -305,7 +288,7 @@ public class ChatNotifier {
     }
 
     public static boolean hasAnimation(net.minecraft.client.multiplayer.chat.GuiMessage msg) {
-        return msg != null && ACTIVE_ANIMATIONS.containsKey(msg);
+        return ChatAnimationQueue.has(msg);
     }
 
     public static FormattedCharSequence createDynamicLine(
@@ -354,9 +337,14 @@ public class ChatNotifier {
     public static void flush() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null && mc.level != null) {
-            Component msg;
-            while ((msg = PENDING_MESSAGES.poll()) != null) {
-                mc.gui.getChat().addClientSystemMessage(msg);
+            ChatAnimationQueue.Pending pending;
+            while ((pending = ChatAnimationQueue.poll()) != null) {
+                ChatAnimationQueue.arm(pending.segments());
+                try {
+                    mc.gui.getChat().addClientSystemMessage(pending.message());
+                } finally {
+                    ChatAnimationQueue.disarm();
+                }
             }
         }
     }
