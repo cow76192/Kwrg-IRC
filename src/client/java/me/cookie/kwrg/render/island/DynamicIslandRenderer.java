@@ -61,12 +61,12 @@ public class DynamicIslandRenderer {
      */
     public static void setCustomNotice(String key, String text) {
         if (key == null) return;
-        noticesVersion++;
         if (text == null || text.isBlank()) {
             CUSTOM_NOTICES.remove(key);
         } else {
             CUSTOM_NOTICES.put(key, text);
         }
+        noticesVersion++;
     }
 
     public static void addCustomNotice(String key, String text) {
@@ -78,14 +78,14 @@ public class DynamicIslandRenderer {
      */
     public static void removeCustomNotice(String key) {
         if (key != null) {
-            noticesVersion++;
             CUSTOM_NOTICES.remove(key);
+            noticesVersion++;
         }
     }
 
     public static void clearCustomNotices() {
-        noticesVersion++;
         CUSTOM_NOTICES.clear();
+        noticesVersion++;
     }
 
     public static Map<String, String> getCustomNotices() {

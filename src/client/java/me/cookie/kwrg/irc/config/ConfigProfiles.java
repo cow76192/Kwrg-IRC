@@ -17,7 +17,6 @@ final class ConfigProfiles {
     }
 
     static Path getProfilePath(Path kwrgDir, String profileName) {
-        Path profilePath = SafePaths.resolveInside(kwrgDir, profileName + ".json");
-        return profilePath != null ? profilePath : kwrgDir.resolve("default.json");
+        return SafePaths.resolveInside(kwrgDir, profileName + ".json");
     }
 }

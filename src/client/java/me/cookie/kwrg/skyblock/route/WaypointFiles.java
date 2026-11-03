@@ -213,10 +213,14 @@ public final class WaypointFiles {
     public static boolean saveDefault(Map<String, IrcConfig.WaypointEntry> saved) {
         ensure();
         Collection defaults = FILES.get(defaultFile());
+        List<PointEntry> previous = new ArrayList<>(defaults.points);
         // Incomplete rows cannot be represented by the legacy numeric editor; preserve them.
         defaults.points.removeIf(PointEntry::valid);
         saved.forEach((id, entry) -> defaults.points.add(fromSaved(id, entry)));
-        return save(defaultFile());
+        if (save(defaultFile())) return true;
+        defaults.points.clear();
+        defaults.points.addAll(previous);
+        return false;
     }
 
     private static PointEntry fromSaved(String id, IrcConfig.WaypointEntry saved) {

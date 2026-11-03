@@ -164,6 +164,10 @@ public class IrcConfig {
     public static boolean loadProfile(String profileName, boolean createIfMissing) {
         String cleanName = ConfigProfiles.sanitizeProfileName(profileName);
         Path profilePath = ConfigProfiles.getProfilePath(getKwrgDir(), cleanName);
+        if (profilePath == null) {
+            LOGGER.warn("[Kwrg] 非法的配置档名: {}", profileName);
+            return false;
+        }
 
         try {
             if (Files.exists(profilePath)) {
@@ -239,6 +243,10 @@ public class IrcConfig {
 
     public static void createProfile(String profileName) {
         String cleanName = ConfigProfiles.sanitizeProfileName(profileName);
+        if (ConfigProfiles.getProfilePath(getKwrgDir(), cleanName) == null) {
+            LOGGER.warn("[Kwrg] 非法的配置档名: {}", profileName);
+            return;
+        }
         instance = new IrcConfig();
         currentProfileName = cleanName;
         GuiColorManager.refresh();
@@ -256,6 +264,10 @@ public class IrcConfig {
             Files.createDirectories(dir);
 
             Path profilePath = ConfigProfiles.getProfilePath(getKwrgDir(), currentProfileName);
+            if (profilePath == null) {
+                LOGGER.warn("[Kwrg] 非法的配置档名: {}", currentProfileName);
+                return false;
+            }
             Files.writeString(profilePath, GSON.toJson(instance));
 
             saveSelectorMeta(currentProfileName);
