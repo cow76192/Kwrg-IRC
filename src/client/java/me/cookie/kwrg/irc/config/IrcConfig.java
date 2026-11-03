@@ -9,7 +9,7 @@ import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import me.cookie.kwrg.skyblock.route.RouteManager;
 import me.cookie.kwrg.skyblock.route.WaypointManager;
-import me.cookie.kwrg.util.Navigator;
+import me.cookie.kwrg.pathfinding.Navigator;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -192,8 +192,8 @@ public class IrcConfig {
                 if (loaded.capeCanvasSize < 64) loaded.capeCanvasSize = 4096;
                 if (loaded.capeAnimFps <= 0) loaded.capeAnimFps = 10;
                 if (loaded.capeRenderMaxFps <= 0) loaded.capeRenderMaxFps = 120;
-                if (loaded.capeRenderMaxFps > me.cookie.kwrg.irc.manager.PlayerCustomizationManager.CAPE_MAX_FPS_LIMIT) {
-                    loaded.capeRenderMaxFps = me.cookie.kwrg.irc.manager.PlayerCustomizationManager.CAPE_MAX_FPS_LIMIT;
+                if (loaded.capeRenderMaxFps > me.cookie.kwrg.irc.cosmetic.PlayerCustomizationManager.CAPE_MAX_FPS_LIMIT) {
+                    loaded.capeRenderMaxFps = me.cookie.kwrg.irc.cosmetic.PlayerCustomizationManager.CAPE_MAX_FPS_LIMIT;
                 }
                 if (loaded.capeAnimFps > loaded.capeRenderMaxFps) loaded.capeAnimFps = loaded.capeRenderMaxFps;
 

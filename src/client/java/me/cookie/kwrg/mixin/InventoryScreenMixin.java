@@ -1,6 +1,6 @@
 package me.cookie.kwrg.mixin;
 
-import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
+import me.cookie.kwrg.irc.cosmetic.PlayerCustomizationManager;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;

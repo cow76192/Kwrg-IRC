@@ -1,6 +1,6 @@
 package me.cookie.kwrg.mixin;
 
-import me.cookie.kwrg.render.DynamicIslandRenderer;
+import me.cookie.kwrg.render.island.DynamicIslandRenderer;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.PlayerTabOverlay;
 import net.minecraft.world.scores.Objective;

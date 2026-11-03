@@ -1,9 +1,6 @@
 package me.cookie.kwrg.skyblock.route;
 
-import me.cookie.kwrg.skyblock.route.WaypointManager;
-import me.cookie.kwrg.skyblock.route.RouteManager;
-import me.cookie.kwrg.util.PointEntry;
-import me.cookie.kwrg.util.WaypointRouteUpdate;
+import me.cookie.kwrg.skyblock.PointEntry;
 
 import com.google.gson.*;
 import me.cookie.kwrg.irc.config.IrcConfig;

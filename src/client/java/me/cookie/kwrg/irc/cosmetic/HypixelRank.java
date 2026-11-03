@@ -1,4 +1,4 @@
-package me.cookie.kwrg.irc.manager;
+package me.cookie.kwrg.irc.cosmetic;
 
 public enum HypixelRank {
     NONE("NONE (普通玩家)", "", 0xAAAAAA, false),

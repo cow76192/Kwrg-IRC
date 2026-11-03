@@ -1,12 +1,12 @@
-package me.cookie.kwrg.gui;
+package me.cookie.kwrg.gui.pointcollection;
 
 import me.cookie.kwrg.skyblock.route.RouteManager;
-import me.cookie.kwrg.util.PointEntry;
+import me.cookie.kwrg.skyblock.PointEntry;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 
-final class RouteCollectionStore implements PointCollectionStore {
+public final class RouteCollectionStore implements PointCollectionStore {
     public String noun() { return "路线"; }
 
     public boolean supportsLines() { return true; }

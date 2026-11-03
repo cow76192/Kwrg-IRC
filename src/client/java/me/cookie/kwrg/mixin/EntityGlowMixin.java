@@ -1,6 +1,6 @@
 package me.cookie.kwrg.mixin;
 
-import me.cookie.kwrg.irc.manager.IrcGlowManager;
+import me.cookie.kwrg.irc.cosmetic.IrcGlowManager;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;

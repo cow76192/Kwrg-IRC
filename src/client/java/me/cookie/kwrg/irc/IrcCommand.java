@@ -13,6 +13,8 @@ import me.cookie.kwrg.gui.IrcScreen;
 import me.cookie.kwrg.gui.hud.HudEditorScreen;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.skyblock.SkyblockItemHelper;
+import me.cookie.kwrg.skyblock.SkyblockLocation;
 import me.cookie.kwrg.skyblock.route.ChatWaypointManager;
 import me.cookie.kwrg.skyblock.route.RouteEditor;
 import me.cookie.kwrg.skyblock.route.RouteManager;
@@ -62,7 +64,7 @@ public class IrcCommand {
     private static final SuggestionProvider<FabricClientCommandSource> ITEM_SUGGESTIONS = (context, builder) -> {
         String remaining = builder.getRemaining().toLowerCase();
 
-        for (String sbItem : me.cookie.kwrg.util.SkyblockItemHelper.getSuggestedIds()) {
+        for (String sbItem : me.cookie.kwrg.skyblock.SkyblockItemHelper.getSuggestedIds()) {
             if (sbItem.toLowerCase().startsWith(remaining)) {
                 builder.suggest(sbItem);
             }

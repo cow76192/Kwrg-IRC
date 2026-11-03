@@ -50,7 +50,7 @@ public class ChatNotifier {
 
     public static void sendInChatScreen(Component component) {
         if (component == null) return;
-        Component protectedComp = me.cookie.kwrg.irc.manager.NickManager.protectComponent(component);
+        Component protectedComp = me.cookie.kwrg.irc.cosmetic.NickManager.protectComponent(component);
         Component parsed = parseUrls(protectedComp);
         PENDING_MESSAGES.offer(parsed);
         Minecraft.getInstance().execute(ChatNotifier::flush);
@@ -223,7 +223,7 @@ public class ChatNotifier {
     }
 
     private static Component buildSegment(AnimatedSegment segment) {
-        String safeText = me.cookie.kwrg.irc.manager.NickManager.protectText(segment.text());
+        String safeText = me.cookie.kwrg.irc.cosmetic.NickManager.protectText(segment.text());
         if (!segment.isRaw()) {
             Component styled = ColorUtil.applyStyle(safeText, segment.styleConfig());
             return segment.overrideStyle() == null ? styled : styled.copy().setStyle(segment.overrideStyle());

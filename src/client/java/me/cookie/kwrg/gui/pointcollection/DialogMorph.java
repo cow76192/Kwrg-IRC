@@ -1,4 +1,4 @@
-package me.cookie.kwrg.gui;
+package me.cookie.kwrg.gui.pointcollection;
 
 import me.cookie.kwrg.gui.component.route.RouteButtonComponent;
 import net.minecraft.client.gui.GuiGraphicsExtractor;

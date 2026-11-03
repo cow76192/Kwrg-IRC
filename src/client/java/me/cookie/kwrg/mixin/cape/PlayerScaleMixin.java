@@ -1,7 +1,7 @@
 package me.cookie.kwrg.mixin.cape;
 
 import me.cookie.kwrg.duck.KwrgAvatarState;
-import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
+import me.cookie.kwrg.irc.cosmetic.PlayerCustomizationManager;
 import me.cookie.kwrg.render.PlayerDollHudRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;

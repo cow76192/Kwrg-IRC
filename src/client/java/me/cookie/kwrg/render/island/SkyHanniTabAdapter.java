@@ -1,4 +1,4 @@
-package me.cookie.kwrg.render;
+package me.cookie.kwrg.render.island;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;

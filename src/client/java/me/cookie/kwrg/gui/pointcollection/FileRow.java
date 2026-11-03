@@ -1,4 +1,4 @@
-package me.cookie.kwrg.gui;
+package me.cookie.kwrg.gui.pointcollection;
 
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import me.cookie.kwrg.gui.component.route.RouteButtonComponent;

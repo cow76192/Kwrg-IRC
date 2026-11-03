@@ -1,14 +1,14 @@
-package me.cookie.kwrg.gui;
+package me.cookie.kwrg.gui.pointcollection;
 
-import me.cookie.kwrg.util.PointEntry;
+import me.cookie.kwrg.skyblock.PointEntry;
 import me.cookie.kwrg.skyblock.route.WaypointFiles;
-import me.cookie.kwrg.util.WaypointRouteUpdate;
+import me.cookie.kwrg.skyblock.route.WaypointRouteUpdate;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 
-final class WaypointCollectionStore implements PointCollectionStore {
+public final class WaypointCollectionStore implements PointCollectionStore {
     public String noun() { return "点位集"; }
 
     public boolean supportsTracers() { return true; }

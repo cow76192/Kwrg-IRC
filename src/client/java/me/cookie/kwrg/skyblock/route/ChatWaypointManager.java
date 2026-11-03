@@ -5,7 +5,7 @@ import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.render.WaypointRenderer;
 import me.cookie.kwrg.util.ChatNotifier;
-import me.cookie.kwrg.util.Navigator;
+import me.cookie.kwrg.pathfinding.Navigator;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;

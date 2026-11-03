@@ -1,4 +1,4 @@
-package me.cookie.kwrg.render;
+package me.cookie.kwrg.render.island;
 
 import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.gui.hud.HudElementRegistry;

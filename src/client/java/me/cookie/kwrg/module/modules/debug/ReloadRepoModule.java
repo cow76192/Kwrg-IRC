@@ -3,7 +3,7 @@ package me.cookie.kwrg.module.modules.debug;
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
-import me.cookie.kwrg.util.SkyblockItemHelper;
+import me.cookie.kwrg.skyblock.SkyblockItemHelper;
 
 public class ReloadRepoModule extends Module {
 

@@ -8,7 +8,7 @@ import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.module.Category;
-import me.cookie.kwrg.render.DynamicIslandRenderer;
+import me.cookie.kwrg.render.island.DynamicIslandRenderer;
 import me.cookie.kwrg.render.InventoryHudRenderer;
 import me.cookie.kwrg.render.PlayerDollHudRenderer;
 import me.cookie.kwrg.render.ScoreboardIslandRenderer;

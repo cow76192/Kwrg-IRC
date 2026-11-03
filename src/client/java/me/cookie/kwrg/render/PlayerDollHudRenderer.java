@@ -7,7 +7,7 @@ import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.irc.config.IrcConfig;
-import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
+import me.cookie.kwrg.irc.cosmetic.PlayerCustomizationManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;

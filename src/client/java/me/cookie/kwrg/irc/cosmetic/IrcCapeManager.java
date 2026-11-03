@@ -1,4 +1,4 @@
-package me.cookie.kwrg.irc.manager;
+package me.cookie.kwrg.irc.cosmetic;
 
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.config.IrcConfig;

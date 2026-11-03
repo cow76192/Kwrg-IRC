@@ -1,7 +1,7 @@
 package me.cookie.kwrg.skyblock.route;
 
 import me.cookie.kwrg.render.RouteLineRenderer;
-import me.cookie.kwrg.util.PointEntry;
+import me.cookie.kwrg.skyblock.PointEntry;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;

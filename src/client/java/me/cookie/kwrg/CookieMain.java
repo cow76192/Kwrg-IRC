@@ -5,14 +5,14 @@ import me.cookie.kwrg.gui.util.TpsTracker;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcCommand;
 import me.cookie.kwrg.irc.config.IrcConfig;
-import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
+import me.cookie.kwrg.irc.cosmetic.PlayerCustomizationManager;
 import me.cookie.kwrg.skyblock.route.RouteManager;
 import me.cookie.kwrg.skyblock.route.WaypointManager;
 import me.cookie.kwrg.skyblock.route.ChatWaypointManager;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.EmojiUtil;
 import me.cookie.kwrg.util.GreetingManager;
-import me.cookie.kwrg.util.SkyblockItemHelper;
+import me.cookie.kwrg.skyblock.SkyblockItemHelper;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -73,19 +73,19 @@ public class CookieMain implements ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             GreetingManager.onSessionDisconnect();
             IrcClient.disconnect();
-            me.cookie.kwrg.irc.manager.IrcCapeManager.clearAll();
+            me.cookie.kwrg.irc.cosmetic.IrcCapeManager.clearAll();
         });
 
         ClientEntityEvents.ENTITY_LOAD.register((entity, world) -> {
             if (entity instanceof Player player && player != Minecraft.getInstance().player) {
                 PlayerCustomizationManager.preloadIrcPlayer(player.getGameProfile().name());
-                me.cookie.kwrg.irc.manager.IrcCapeManager.onEntityLoad(player);
+                me.cookie.kwrg.irc.cosmetic.IrcCapeManager.onEntityLoad(player);
             }
         });
 
         ClientEntityEvents.ENTITY_UNLOAD.register((entity, world) -> {
             if (entity instanceof Player player && player != Minecraft.getInstance().player) {
-                me.cookie.kwrg.irc.manager.IrcCapeManager.onEntityUnload(player);
+                me.cookie.kwrg.irc.cosmetic.IrcCapeManager.onEntityUnload(player);
             }
         });
 

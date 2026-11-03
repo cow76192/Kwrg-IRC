@@ -1,6 +1,6 @@
 package me.cookie.kwrg.mixin.skyblocker;
 
-import me.cookie.kwrg.render.DynamicIslandRenderer;
+import me.cookie.kwrg.render.island.DynamicIslandRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.spongepowered.asm.mixin.Mixin;

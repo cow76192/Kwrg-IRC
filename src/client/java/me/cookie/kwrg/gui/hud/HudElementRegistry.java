@@ -3,7 +3,7 @@ package me.cookie.kwrg.gui.hud;
 import me.cookie.kwrg.gui.notification.NotificationManager;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.irc.config.IrcConfig;
-import me.cookie.kwrg.render.DynamicIslandRenderer;
+import me.cookie.kwrg.render.island.DynamicIslandRenderer;
 import me.cookie.kwrg.render.InventoryHudRenderer;
 import me.cookie.kwrg.render.PlayerDollHudRenderer;
 import me.cookie.kwrg.render.ScoreboardIslandRenderer;

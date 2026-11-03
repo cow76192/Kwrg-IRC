@@ -3,8 +3,8 @@ package me.cookie.kwrg.irc;
 import com.google.gson.JsonObject;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
-import me.cookie.kwrg.irc.manager.HideArmorManager;
-import me.cookie.kwrg.irc.manager.IrcGlowManager;
+import me.cookie.kwrg.irc.cosmetic.HideArmorManager;
+import me.cookie.kwrg.irc.cosmetic.IrcGlowManager;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
@@ -92,7 +92,7 @@ final class IrcTransport {
 
                 IrcClient.sendHideArmorSync();
                 IrcClient.sendScaleSync(IrcConfig.get().myScale);
-                me.cookie.kwrg.irc.manager.IrcCapeManager.syncMyCape();
+                me.cookie.kwrg.irc.cosmetic.IrcCapeManager.syncMyCape();
                 IrcClient.sendChannelSync(IrcConfig.get().currentChannel, IrcConfig.get().channelEnabled, IrcConfig.get().savedChannels);
                 IrcClient.queryOnline();
                 startHeartbeat();

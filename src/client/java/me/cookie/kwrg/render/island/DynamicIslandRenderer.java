@@ -1,4 +1,4 @@
-package me.cookie.kwrg.render;
+package me.cookie.kwrg.render.island;
 
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;

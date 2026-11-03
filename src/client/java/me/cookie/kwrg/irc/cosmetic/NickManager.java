@@ -1,4 +1,4 @@
-package me.cookie.kwrg.irc.manager;
+package me.cookie.kwrg.irc.cosmetic;
 
 import com.mojang.authlib.GameProfile;
 import me.cookie.kwrg.irc.config.IrcConfig;

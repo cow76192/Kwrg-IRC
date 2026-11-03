@@ -4,10 +4,10 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import me.cookie.kwrg.irc.config.IrcConfig;
-import me.cookie.kwrg.irc.manager.HideArmorManager;
-import me.cookie.kwrg.irc.manager.IrcGlowManager;
+import me.cookie.kwrg.irc.cosmetic.HideArmorManager;
+import me.cookie.kwrg.irc.cosmetic.IrcGlowManager;
 import me.cookie.kwrg.module.modules.style.ChatModule;
-import me.cookie.kwrg.render.DynamicIslandRenderer;
+import me.cookie.kwrg.render.island.DynamicIslandRenderer;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
 import me.cookie.kwrg.skyblock.route.ChatWaypointManager;
@@ -165,7 +165,7 @@ public class IrcMessageHandler {
                     HideArmorManager.setRemotePlayerHideArmor(user, slot, enabled);
                 } else if ("modelScale".equalsIgnoreCase(function)) {
                     float scale = obj.has("scale") ? obj.get("scale").getAsFloat() : 1.0f;
-                    me.cookie.kwrg.irc.manager.PlayerCustomizationManager.setRemotePlayerScale(user, scale);
+                    me.cookie.kwrg.irc.cosmetic.PlayerCustomizationManager.setRemotePlayerScale(user, scale);
                 }
                 return;
             }
@@ -175,7 +175,7 @@ public class IrcMessageHandler {
                 String rank = optStr(obj, "rank", "");
                 String formattedRank = formatRankWithBrackets(rank);
                 IrcClient.sendHideArmorSync();
-                me.cookie.kwrg.irc.manager.IrcGlowManager.addPlayer(user);
+                me.cookie.kwrg.irc.cosmetic.IrcGlowManager.addPlayer(user);
                 IrcMessageHandler.printMessage("§e[IRC] " + (formattedRank.isEmpty() ? "" : formattedRank + " ") + "§f" + safe(user) + " §a加入了 IRC!");
                 return;
             }
@@ -185,9 +185,9 @@ public class IrcMessageHandler {
                 String senderUuid = optStr(obj, "senderId", "");
 
                 HideArmorManager.setRemotePlayerHideArmor(user, false);
-                me.cookie.kwrg.irc.manager.PlayerCustomizationManager.setRemotePlayerScale(user, 1.0f);
-                me.cookie.kwrg.irc.manager.IrcGlowManager.removePlayer(user);
-                me.cookie.kwrg.irc.manager.IrcCapeManager.handlePlayerLeave(senderUuid, user);
+                me.cookie.kwrg.irc.cosmetic.PlayerCustomizationManager.setRemotePlayerScale(user, 1.0f);
+                me.cookie.kwrg.irc.cosmetic.IrcGlowManager.removePlayer(user);
+                me.cookie.kwrg.irc.cosmetic.IrcCapeManager.handlePlayerLeave(senderUuid, user);
 
                 IrcMessageHandler.printMessage("§7[IRC] 玩家 §f" + safe(user) + " §7退出了 IRC");
                 return;
@@ -217,7 +217,7 @@ public class IrcMessageHandler {
             if ("cape_check_result".equalsIgnoreCase(type)) {
                 String hash = optStr(obj, "hash", "");
                 boolean exists = optBool(obj, "exists", false);
-                me.cookie.kwrg.irc.manager.IrcCapeManager.handleCheckResult(hash, exists);
+                me.cookie.kwrg.irc.cosmetic.IrcCapeManager.handleCheckResult(hash, exists);
                 return;
             }
 
@@ -231,14 +231,14 @@ public class IrcMessageHandler {
                     return;
                 }
 
-                me.cookie.kwrg.irc.manager.IrcCapeManager.handleRemoteCapeSync(senderUuid, username, hash, fileName);
+                me.cookie.kwrg.irc.cosmetic.IrcCapeManager.handleRemoteCapeSync(senderUuid, username, hash, fileName);
                 return;
             }
             if ("cape_data".equalsIgnoreCase(type)) {
                 String hash = optStr(obj, "hash", "");
                 String fileName = optStr(obj, "fileName", "");
                 String data = optStr(obj, "data", "");
-                me.cookie.kwrg.irc.manager.IrcCapeManager.handleIncomingCapeData(hash, fileName, data);
+                me.cookie.kwrg.irc.cosmetic.IrcCapeManager.handleIncomingCapeData(hash, fileName, data);
                 return;
             }
 

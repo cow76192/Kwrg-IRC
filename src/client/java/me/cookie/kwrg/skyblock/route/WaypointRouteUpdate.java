@@ -1,7 +1,7 @@
-package me.cookie.kwrg.util;
+package me.cookie.kwrg.skyblock.route;
 
 import com.google.gson.Gson;
-import me.cookie.kwrg.skyblock.route.WaypointFiles;
+import me.cookie.kwrg.skyblock.PointEntry;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.*;

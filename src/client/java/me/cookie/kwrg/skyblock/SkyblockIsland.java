@@ -1,4 +1,4 @@
-package me.cookie.kwrg.util;
+package me.cookie.kwrg.skyblock;
 
 
 import java.util.List;

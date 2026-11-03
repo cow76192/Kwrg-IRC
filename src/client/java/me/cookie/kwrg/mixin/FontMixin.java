@@ -1,6 +1,6 @@
 package me.cookie.kwrg.mixin;
 
-import me.cookie.kwrg.irc.manager.NickManager;
+import me.cookie.kwrg.irc.cosmetic.NickManager;
 import net.minecraft.client.gui.Font;
 import net.minecraft.locale.Language;
 import net.minecraft.network.chat.FormattedText;

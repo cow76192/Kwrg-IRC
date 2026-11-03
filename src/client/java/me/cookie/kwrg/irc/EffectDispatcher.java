@@ -12,11 +12,11 @@ public class EffectDispatcher {
             return;
         }
 
-        if (me.cookie.kwrg.util.SkyblockItemHelper.isSkyblockItem(rawItemId)) {
+        if (me.cookie.kwrg.skyblock.SkyblockItemHelper.isSkyblockItem(rawItemId)) {
             Minecraft mc = Minecraft.getInstance();
             mc.execute(() -> {
                 if (mc.player == null) return;
-                net.minecraft.world.item.ItemStack itemStack = me.cookie.kwrg.util.SkyblockItemHelper.resolve(rawItemId);
+                net.minecraft.world.item.ItemStack itemStack = me.cookie.kwrg.skyblock.SkyblockItemHelper.resolve(rawItemId);
                 mc.gameRenderer.displayItemActivation(itemStack);
                 mc.player.playSound(net.minecraft.sounds.SoundEvents.TOTEM_USE, 1.0F, 1.0F);
 

@@ -1,7 +1,8 @@
-package me.cookie.kwrg.gui;
+package me.cookie.kwrg.gui.pointcollection;
 
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
+import me.cookie.kwrg.gui.IrcScreen;
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.PointListDrag;
 import me.cookie.kwrg.gui.component.ScrollbarDrag;
@@ -14,7 +15,7 @@ import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
-import me.cookie.kwrg.util.PointEntry;
+import me.cookie.kwrg.skyblock.PointEntry;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;

@@ -1,7 +1,7 @@
-package me.cookie.kwrg.gui;
+package me.cookie.kwrg.gui.pointcollection;
 
 import me.cookie.kwrg.gui.component.route.RoutePointComponent;
-import me.cookie.kwrg.util.PointEntry;
+import me.cookie.kwrg.skyblock.PointEntry;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;

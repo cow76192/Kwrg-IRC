@@ -9,7 +9,7 @@ import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
-import me.cookie.kwrg.util.Navigator;
+import me.cookie.kwrg.pathfinding.Navigator;
 import net.minecraft.util.Mth;
 
 import java.util.Locale;
