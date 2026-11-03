@@ -37,7 +37,9 @@ public final class MovementUtil {
     }
 
     public static void setSneak(boolean pressed) {
-        setKeySafe(MC.options != null ? MC.options.keyShift : null, pressed);
+        if (MC.options == null) return;
+        boolean targetState = pressed && canSimulateInput();
+        setToggleableKey(MC.options.keyShift, MC.options.toggleCrouch().get(), targetState);
     }
 
     public static void setAttack(boolean pressed) {
@@ -64,8 +66,9 @@ public final class MovementUtil {
         options.keyLeft.setDown(false);
         options.keyRight.setDown(false);
         options.keyJump.setDown(false);
-        options.keyShift.setDown(false);
         options.keyAttack.setDown(false);
+
+        setToggleableKey(options.keyShift, options.toggleCrouch().get(), false);
 
         if (MC.screen == null) {
             KeyMapping.setAll();
@@ -79,10 +82,6 @@ public final class MovementUtil {
         options.keyDown.setDown(false);
         options.keyLeft.setDown(false);
         options.keyRight.setDown(false);
-
-        if (MC.screen == null) {
-            KeyMapping.setAll();
-        }
     }
 
     public static boolean isPhysicallyDown(KeyMapping key) {
@@ -101,5 +100,16 @@ public final class MovementUtil {
             return;
         }
         key.setDown(pressed);
+    }
+
+    private static void setToggleableKey(KeyMapping key, boolean isToggleMode, boolean targetState) {
+        if (key == null) return;
+        if (isToggleMode) {
+            if (key.isDown() != targetState) {
+                key.setDown(true);
+            }
+        } else {
+            key.setDown(targetState);
+        }
     }
 }
