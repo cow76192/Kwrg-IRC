@@ -132,6 +132,9 @@ public class IrcConfig {
     public int danceRoomPunchTick = 5;
     public double danceRoomDeadzone = 0.50;
 
+    public int experimentsBaseDelay = 300;
+    public int experimentsRandomDelay = 65;
+
     private static IrcConfig instance = new IrcConfig();
     private static String currentProfileName = "default";
 
@@ -243,6 +246,12 @@ public class IrcConfig {
                 } else {
                     loaded.danceRoomDeadzone = Math.clamp(loaded.danceRoomDeadzone, 0.25, 0.90);
                 }
+
+                if (loaded.experimentsBaseDelay < 50) loaded.experimentsBaseDelay = 200;
+                loaded.experimentsBaseDelay = Math.clamp(loaded.experimentsBaseDelay, 50, 1000);
+
+                if (loaded.experimentsRandomDelay < 0) loaded.experimentsRandomDelay = 50;
+                loaded.experimentsRandomDelay = Math.clamp(loaded.experimentsRandomDelay, 0, 500);
 
                 instance = loaded;
                 currentProfileName = cleanName;

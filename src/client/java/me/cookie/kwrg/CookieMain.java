@@ -56,6 +56,7 @@ public class CookieMain implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             ChatNotifier.flush();
             TpsTracker.tick();
+            ExperimentsManager.onTick(client);
         });
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
