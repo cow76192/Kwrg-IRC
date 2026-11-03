@@ -38,7 +38,7 @@ public final class DanceRoomManager {
     private static boolean enabled = false;
     private static boolean inRoom = false;
 
-    // 节拍状态
+    // 游戏节拍状态
     private static int index = 0;
     private static int countdownTicks = 0;
 
@@ -59,11 +59,10 @@ public final class DanceRoomManager {
 
     public static void setEnabled(boolean state) {
         enabled = state;
-        resetState();
+        resetStateAndRelease();
         if (enabled) {
             ChatNotifier.send("§a[DanceRoom] 自动跳舞已开启 | 请站到绿色玻璃中心并固定视角", NotificationType.SUCCESS);
         } else {
-            MovementUtil.releaseAll();
             ChatNotifier.send("§e[DanceRoom] 自动跳舞已关闭", NotificationType.INFO);
         }
     }
@@ -90,17 +89,33 @@ public final class DanceRoomManager {
         return IrcConfig.get().danceRoomDeadzone;
     }
 
-    public static boolean saveSettings(String[] values) {
-        if (values == null || values.length < 3) return false;
+    public static boolean saveTimingSettings(String[] values) {
+        if (values == null || values.length < 2) return false;
         try {
-            int j = Integer.parseInt(values[0].trim());
-            int p = Integer.parseInt(values[1].trim());
-            double d = Double.parseDouble(values[2].trim());
-            if (!Double.isFinite(d)) return false;
+            double jRaw = Double.parseDouble(values[0].trim());
+            double pRaw = Double.parseDouble(values[1].trim());
+            if (!Double.isFinite(jRaw) || !Double.isFinite(pRaw)) return false;
+
+            int j = (int) Math.round(jRaw);
+            int p = (int) Math.round(pRaw);
 
             IrcConfig config = IrcConfig.get();
             config.danceRoomJumpTick = Mth.clamp(j, 1, 18);
             config.danceRoomPunchTick = Mth.clamp(p, 1, 18);
+            IrcConfig.save();
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    public static boolean saveDeadzoneSetting(String[] values) {
+        if (values == null || values.length < 1) return false;
+        try {
+            double d = Double.parseDouble(values[0].trim());
+            if (!Double.isFinite(d)) return false;
+
+            IrcConfig config = IrcConfig.get();
             config.danceRoomDeadzone = Mth.clamp(d, 0.25, 0.90);
             IrcConfig.save();
             return true;
@@ -109,8 +124,19 @@ public final class DanceRoomManager {
         }
     }
 
+    public static boolean saveSettings(String[] values) {
+        if (values == null || values.length < 3) return false;
+        return saveTimingSettings(new String[]{values[0], values[1]})
+                && saveDeadzoneSetting(new String[]{values[2]});
+    }
+
     public static void resetStateAndRelease() {
-        resetState();
+        inRoom = false;
+        index = 0;
+        countdownTicks = 0;
+        primaryMoveDone = false;
+        crossCorrecting = false;
+        originPos = null;
         MovementUtil.releaseAll();
     }
 
@@ -123,19 +149,22 @@ public final class DanceRoomManager {
     }
 
     public static void onClientTick() {
-        if (!enabled || MC.player == null || MC.level == null) return;
+        if (!enabled || MC.player == null || MC.level == null) {
+            if (inRoom || index > 0 || countdownTicks > 0 || originPos != null) {
+                resetStateAndRelease();
+            }
+            return;
+        }
 
         boolean currentlyInRoom = DANCE_ROOM_BOX.contains(MC.player.position());
         if (!currentlyInRoom) {
-            if (inRoom) {
+            if (inRoom || index > 0 || countdownTicks > 0) {
                 resetStateAndRelease();
             }
-            inRoom = false;
             return;
         }
         inRoom = true;
 
-        // 持续记录玩家在第一块绿色玻璃上的站立位置作为原点
         if (index == 0) {
             originPos = MC.player.position();
             return;
@@ -148,13 +177,13 @@ public final class DanceRoomManager {
     }
 
     public static void onSoundReceived(String soundPath, float pitch, float volume) {
-        if (!enabled || !inRoom) return;
+        if (!enabled || !inRoom || MC.player == null || MC.level == null) return;
 
         // block.note_block.bass
         if (soundPath.endsWith("block.note_block.bass") && volume == 1.0f
                 && (approxEquals(pitch, 0.6984127f) || approxEquals(pitch, 0.52380955f))) {
 
-            if (index == 0 && MC.player != null) {
+            if (index == 0) {
                 originPos = MC.player.position();
             }
             index++;
@@ -170,6 +199,7 @@ public final class DanceRoomManager {
 
         if ((isBurp || isLevelUp) && (index > 0 || countdownTicks > 0)) {
             resetStateAndRelease();
+            inRoom = DANCE_ROOM_BOX.contains(MC.player.position());
             if (isLevelUp) {
                 ChatNotifier.send("§a[DanceRoom] 恭喜完成整支舞蹈！", NotificationType.SUCCESS);
             } else {

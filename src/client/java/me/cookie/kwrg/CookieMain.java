@@ -5,10 +5,7 @@ import me.cookie.kwrg.gui.util.TpsTracker;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcCommand;
 import me.cookie.kwrg.irc.config.IrcConfig;
-import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
-import me.cookie.kwrg.irc.manager.RouteManager;
-import me.cookie.kwrg.irc.manager.WaypointManager;
-import me.cookie.kwrg.irc.manager.ChatWaypointManager;
+import me.cookie.kwrg.irc.manager.*;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.EmojiUtil;
 import me.cookie.kwrg.util.GreetingManager;
@@ -64,6 +61,7 @@ public class CookieMain implements ClientModInitializer {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             GreetingManager.onSessionJoin();
             IrcClient.connect();
+            DanceRoomManager.resetStateAndRelease();
             String configuredFont = IrcConfig.get().guiFont;
             if (configuredFont != null && !configuredFont.isBlank() && !me.cookie.kwrg.gui.util.FontManagerHelper.DEFAULT_FONT.equalsIgnoreCase(configuredFont)) {
                 me.cookie.kwrg.gui.util.FontManagerHelper.applyFont(configuredFont);
@@ -72,6 +70,7 @@ public class CookieMain implements ClientModInitializer {
 
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             GreetingManager.onSessionDisconnect();
+            DanceRoomManager.resetStateAndRelease();
             IrcClient.disconnect();
             me.cookie.kwrg.irc.manager.IrcCapeManager.clearAll();
         });
