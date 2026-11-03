@@ -24,6 +24,8 @@
 		"ConnectionMixin",
 		"ChatScreenMixin",
 		"JoinMultiplayerScreenMixin",
+		"MinecraftTickMixin",
+		"ClientPacketListenerSoundMixin",
 		"skyhanni.SkyHanniTabMixin",
 		"skyhanni.SkyHanniScoreboardDirectRenderMixin",
 		"skyblocker.SkyblockerTabMixin",
