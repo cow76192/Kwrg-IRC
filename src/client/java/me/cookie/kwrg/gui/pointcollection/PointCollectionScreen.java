@@ -142,7 +142,7 @@ public abstract class PointCollectionScreen {
     public boolean isFinished() { return closingAt >= 0 && System.currentTimeMillis() - closingAt >= ANIMATION_MS; }
 
     private float pageProgress() {
-        return Mth.lerp(AnimationUtil.easeOutCubic((System.currentTimeMillis() - pageStartedAt) / (float) ANIMATION_MS), pageFrom, pageTarget);
+        return AnimationUtil.lerp(AnimationUtil.easeOutCubic((System.currentTimeMillis() - pageStartedAt) / (float) ANIMATION_MS), pageFrom, pageTarget);
     }
 
     private boolean interactive() {
@@ -367,7 +367,7 @@ public abstract class PointCollectionScreen {
 
         float position(float next, long now) {
             if (Float.isNaN(target)) from = target = next;
-            float current = Mth.lerp(AnimationUtil.easeOutCubic((now - startedAt) / 180f), from, target);
+            float current = AnimationUtil.lerp(AnimationUtil.easeOutCubic((now - startedAt) / 180f), from, target);
             if (next != target) {
                 from = current;
                 target = next;
@@ -512,8 +512,8 @@ public abstract class PointCollectionScreen {
             sourceH = originComponent.height() * scale;
         }
 
-        float w = Mth.lerp(alpha, sourceW, panelW), h = Mth.lerp(alpha, sourceH, panelH);
-        float cx = Mth.lerp(alpha, sourceX, width / 2.0f), cy = Mth.lerp(alpha, sourceY, height / 2.0f);
+        float w = AnimationUtil.lerp(alpha, sourceW, panelW), h = AnimationUtil.lerp(alpha, sourceH, panelH);
+        float cx = AnimationUtil.lerp(alpha, sourceX, width / 2.0f), cy = AnimationUtil.lerp(alpha, sourceY, height / 2.0f);
 
         graphics.pose().pushMatrix();
         graphics.pose().translate(cx - w / 2, cy - h / 2);
@@ -1327,7 +1327,7 @@ public abstract class PointCollectionScreen {
         DialogMorph morph = DialogMorph.morphFrom(progress, namingOrigin, x, y, dialogW, 152);
         float currentX = morph.x(), currentY = morph.y(), currentW = morph.width(), currentH = morph.height();
         RenderUtil.drawSubpixelRoundedPanel(owo, currentX, currentY, currentW, currentH,
-                Mth.lerp(progress, 5, 10),
+                AnimationUtil.lerp(progress, 5, 10),
                 AnimationUtil.lerpColor(progress, namingOriginColor, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.dialogBg()))),
                 AnimationUtil.withAlpha(GuiThemeService.regionBorder(), 0x88));
 
@@ -1373,7 +1373,7 @@ public abstract class PointCollectionScreen {
         float currentX = morph.x(), currentY = morph.y(), currentW = morph.width(), currentH = morph.height();
 
         RenderUtil.drawSubpixelRoundedPanel(graphics, currentX, currentY, currentW, currentH,
-                Mth.lerp(progress, 5, 10),
+                AnimationUtil.lerp(progress, 5, 10),
                 AnimationUtil.lerpColor(progress, deleteOriginColor, Color.ofArgb(AnimationUtil.opaqueArgb(GuiThemeService.dialogBg()))), AnimationUtil.withAlpha(GuiThemeService.dialogErrorBorder(), 0xAA));
         float labelAlpha = DialogMorph.dialogLabelAlpha(progress);
 
