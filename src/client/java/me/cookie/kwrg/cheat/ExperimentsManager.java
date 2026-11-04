@@ -1,4 +1,4 @@
-package me.cookie.kwrg.irc.manager;
+package me.cookie.kwrg.cheat;
 
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;

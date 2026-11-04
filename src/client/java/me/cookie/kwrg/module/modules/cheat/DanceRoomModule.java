@@ -5,7 +5,7 @@ import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
-import me.cookie.kwrg.irc.manager.DanceRoomManager;
+import me.cookie.kwrg.cheat.DanceRoomManager;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
