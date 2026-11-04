@@ -104,51 +104,7 @@ public final class Navigator {
             {1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
     };
 
-    private static final int[][] RAY_DIRECTIONS = buildRayDirections();
-    private static final int[][][] RAY_STEPS = buildRaySteps();
-
-    private static int[][] buildRayDirections() {
-        List<int[]> list = new ArrayList<>(98);
-        for (int dx = -2; dx <= 2; dx++) {
-            for (int dy = -2; dy <= 2; dy++) {
-                for (int dz = -2; dz <= 2; dz++) {
-                    if (dx == 0 && dy == 0 && dz == 0) continue;
-                    if (greatestCommonDivisor(Math.abs(dx), greatestCommonDivisor(Math.abs(dy), Math.abs(dz))) != 1) continue;
-                    list.add(new int[]{dx, dy, dz});
-                }
-            }
-        }
-        return list.toArray(new int[0][]);
-    }
-
-    private static int[][][] buildRaySteps() {
-        int[][][] rays = new int[RAY_DIRECTIONS.length][][];
-        for (int index = 0; index < RAY_DIRECTIONS.length; index++) {
-            int[] direction = RAY_DIRECTIONS[index];
-            double length = Math.sqrt(direction[0] * direction[0] + direction[1] * direction[1] + direction[2] * direction[2]);
-            List<int[]> steps = new ArrayList<>(TELEPORT_RANGE);
-            int lastX = 0;
-            int lastY = 0;
-            int lastZ = 0;
-            for (int step = 1; step <= TELEPORT_RANGE; step++) {
-                double ratio = step / length;
-                int x = (int) Math.round(direction[0] * ratio);
-                int y = (int) Math.round(direction[1] * ratio);
-                int z = (int) Math.round(direction[2] * ratio);
-                if (x == lastX && y == lastY && lastZ == z) continue;
-                steps.add(new int[]{x, y, z});
-                lastX = x;
-                lastY = y;
-                lastZ = z;
-            }
-            rays[index] = steps.toArray(new int[0][]);
-        }
-        return rays;
-    }
-
-    private static int greatestCommonDivisor(int a, int b) {
-        return b == 0 ? a : greatestCommonDivisor(b, a % b);
-    }
+    private static final int[][][] RAY_STEPS = RaycastUtil.buildRaySteps(2, TELEPORT_RANGE);
 
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor(r -> {
         Thread thread = new Thread(r, "kwrg-navigator");
@@ -304,60 +260,19 @@ public final class Navigator {
         int y = from.getY();
         if (fluid(level, from.getX(), y, from.getZ()) || fluid(level, to.getX(), y, to.getZ())) return false;
 
-        int dx = to.getX() - from.getX();
-        int dz = to.getZ() - from.getZ();
-        int steps = Math.max(Math.abs(dx), Math.abs(dz));
-        if (steps == 0) return true;
-        int samples = steps * 4;
-        int lastX = from.getX();
-        int lastZ = from.getZ();
-        for (int index = 1; index < samples; index++) {
-            double ratio = (double) index / samples;
-            int x = (int) Math.floor(from.getX() + dx * ratio);
-            int z = (int) Math.floor(from.getZ() + dz * ratio);
-            if (x != lastX || z != lastZ) {
-                if (!clearCorner(level, lastX, y, lastZ, x - lastX, z - lastZ)) return false;
-                lastX = x;
-                lastZ = z;
-            }
-            if (!standable(level, x, y, z) || fluid(level, x, y, z)) return false;
-        }
-        return true;
+        return RaycastUtil.isLineClear(from, to,
+                (x, sy, z) -> standable(level, x, sy, z) && !fluid(level, x, sy, z),
+                (x, sy, z) -> free(level, x, sy, z));
     }
 
     private static boolean teleportLine(Level level, BlockPos from, BlockPos to) {
-        int dx = to.getX() - from.getX();
-        int dy = to.getY() - from.getY();
-        int dz = to.getZ() - from.getZ();
-        int steps = Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz)));
-        if (steps == 0) return true;
-        int samples = steps * 4;
-        int lastX = from.getX();
-        int lastY = from.getY();
-        int lastZ = from.getZ();
-        for (int index = 1; index < samples; index++) {
-            double ratio = (double) index / samples;
-            int x = (int) Math.floor(from.getX() + dx * ratio);
-            int y = (int) Math.floor(from.getY() + dy * ratio);
-            int z = (int) Math.floor(from.getZ() + dz * ratio);
-            if (x != lastX || z != lastZ) {
-                if (!clearCorner(level, lastX, lastY, lastZ, x - lastX, z - lastZ)) return false;
-                lastX = x;
-                lastZ = z;
-            }
-            lastY = y;
-            if (blocked(level, x, y, z) || blocked(level, x, y + 1, z)) return false;
-        }
-        return true;
-    }
-
-    private static boolean clearCorner(Level level, BlockPos from, int dx, int dz) {
-        return clearCorner(level, from.getX(), from.getY(), from.getZ(), dx, dz);
+        return RaycastUtil.isLineClear(from, to,
+                (x, y, z) -> !blocked(level, x, y, z) && !blocked(level, x, y + 1, z),
+                (x, y, z) -> free(level, x, y, z));
     }
 
     private static boolean clearCorner(Level level, int x, int y, int z, int dx, int dz) {
-        if (dx == 0 || dz == 0) return true;
-        return free(level, x + dx, y, z) && free(level, x, y, z + dz);
+        return RaycastUtil.isCornerClear(x, y, z, dx, dz, (cx, cy, cz) -> free(level, cx, cy, cz));
     }
 
     private static BlockPos snapTarget(Level level, BlockPos to) {
@@ -753,21 +668,13 @@ public final class Navigator {
 
         private void teleportEdges(Node current) {
             BlockPos here = current.pos();
+            RaycastUtil.CellPredicate loaded = (x, y, z) -> level.hasChunkAt(SCRATCH.set(x, y, z));
+            RaycastUtil.CellPredicate passable = (x, y, z) -> free(level, x, y, z);
+            RaycastUtil.CellPredicate target = (x, y, z) -> grounded(level, x, y, z);
             for (int[][] ray : RAY_STEPS) {
-                BlockPos previous = here;
-                for (int[] offset : ray) {
-                    BlockPos cell = here.offset(offset[0], offset[1], offset[2]);
-                    if (!level.hasChunkAt(cell)) {
-                        previous = cell;
-                        continue;
-                    }
-                    if (!free(level, cell)) break;
-                    if (!clearCorner(level, previous, cell.getX() - previous.getX(), cell.getZ() - previous.getZ())) break;
-                    if (grounded(level, cell)) {
-                        relax(current, cell, (float) (Math.sqrt(here.distSqr(cell)) * TELEPORT_FACTOR + TELEPORT_PENALTY), true);
-                        break;
-                    }
-                    previous = cell;
+                BlockPos cell = RaycastUtil.firstTarget(here, ray, loaded, passable, target);
+                if (cell != null) {
+                    relax(current, cell, (float) (Math.sqrt(here.distSqr(cell)) * TELEPORT_FACTOR + TELEPORT_PENALTY), true);
                 }
             }
         }

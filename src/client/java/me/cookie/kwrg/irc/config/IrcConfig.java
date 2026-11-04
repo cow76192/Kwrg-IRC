@@ -295,7 +295,7 @@ public class IrcConfig {
         GuiColorManager.refresh();
         WaypointManager.reloadFromConfig();
         RouteManager.reloadFromConfig();
-        Navigator.setHeuristicWeight(instance.navigatorWeight);
+        syncNavigator();
         LOGGER.info("[Kwrg] 已在内存中新建配置 [{}]（尚未保存到磁盘）", cleanName);
     }
 
