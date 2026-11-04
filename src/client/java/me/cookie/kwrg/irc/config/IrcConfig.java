@@ -86,9 +86,14 @@ public class IrcConfig {
     public Map<String, HudElement.State> hudElements = new LinkedHashMap<>();
 
     public boolean disableBlur = false;
-    public float navigatorWeight = 1.0f;
     public float blurQuality = 8.0f;
     public float blurSize = 16.0f;
+
+    public float navigatorWeight = 1.0f;
+    public boolean navigatorAllowSwimming = true;
+    public boolean navigatorAllowJumping = true;
+    public boolean navigatorAllowTeleport = true;
+    public boolean navigatorAllowClimbing = true;
 
     public int guiFpsLimit = 60;
 
@@ -262,7 +267,7 @@ public class IrcConfig {
                 PlayerFinderManager.reloadFromConfig();
                 WaypointManager.reloadFromConfig();
                 RouteManager.reloadFromConfig();
-                Navigator.setHeuristicWeight(instance.navigatorWeight);
+                IrcConfig.syncNavigator();
 
                 LOGGER.info("[Kwrg] 已加载配置文件: {}.json", cleanName);
                 return true;
@@ -272,7 +277,8 @@ public class IrcConfig {
                 GuiColorManager.refresh();
                 WaypointManager.reloadFromConfig();
                 RouteManager.reloadFromConfig();
-                Navigator.setHeuristicWeight(instance.navigatorWeight);
+                IrcConfig.syncNavigator();
+
                 save();
                 return true;
             }
@@ -374,6 +380,15 @@ public class IrcConfig {
             this.z = z;
         }
     }
+
+    private static void syncNavigator() {
+        Navigator.setHeuristicWeight(instance.navigatorWeight);
+        Navigator.setAllowSwimming(instance.navigatorAllowSwimming);
+        Navigator.setAllowJumping(instance.navigatorAllowJumping);
+        Navigator.setAllowTeleport(instance.navigatorAllowTeleport);
+        Navigator.setAllowClimbing(instance.navigatorAllowClimbing);
+    }
+
 
     public static Path getFontDir() {
         return getKwrgDir().resolve("font");
