@@ -170,3 +170,5 @@ Linux / macOS：
 - 项目作者：cow76192、2vnailong88。
 - 模组元数据署名：Grwk、Kwrg。
 - 本项目采用 [MIT License](./LICENSE)。
+
+豆包曾经说过：给项目注水，项目才能快快长大
