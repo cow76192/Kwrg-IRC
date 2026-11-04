@@ -15,13 +15,11 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 
 public final class Navigator {
 
@@ -45,6 +43,7 @@ public final class Navigator {
     private static final float STEP_UP_COST = 0.4f;
     private static final float FALL_COST = 0.8f;
     private static final float WATER_COST = 0.6f;
+    private static final float WADE_PENALTY = 64.0f;
     private static final float CLIMB_COST = 1.0f;
     private static final float FALL_PENALTY = 0.5f;
     private static final int MAX_HOP = 8;
@@ -58,61 +57,54 @@ public final class Navigator {
     private static final float MAX_HEURISTIC_WEIGHT = 2.2f;
 
     private static volatile float heuristicWeight = 1.0f;
+    private static volatile boolean allowSwimming = true;
+    private static volatile boolean allowJumping = true;
+    private static volatile boolean allowTeleport = true;
+    private static volatile boolean allowClimbing = true;
 
     public static void setHeuristicWeight(float weight) {
         if (!Float.isFinite(weight)) return;
         heuristicWeight = Math.min(MAX_HEURISTIC_WEIGHT, Math.max(MIN_HEURISTIC_WEIGHT, weight));
     }
+
+    public static void setAllowSwimming(boolean allow) {
+        allowSwimming = allow;
+    }
+
+    public static boolean isAllowSwimming() {
+        return allowSwimming;
+    }
+
+    public static void setAllowJumping(boolean allow) {
+        allowJumping = allow;
+    }
+
+    public static boolean isAllowJumping() {
+        return allowJumping;
+    }
+
+    public static void setAllowTeleport(boolean allow) {
+        allowTeleport = allow;
+    }
+
+    public static boolean isAllowTeleport() {
+        return allowTeleport;
+    }
+
+    public static void setAllowClimbing(boolean allow) {
+        allowClimbing = allow;
+    }
+
+    public static boolean isAllowClimbing() {
+        return allowClimbing;
+    }
+
     private static final double SMOOTHING_STEP = 0.5;
     private static final int[][] DIRECTIONS = {
             {1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
     };
 
-    private static final int[][] RAY_DIRECTIONS = buildRayDirections();
-    private static final int[][][] RAY_STEPS = buildRaySteps();
-
-    private static int[][] buildRayDirections() {
-        List<int[]> list = new ArrayList<>(98);
-        for (int dx = -2; dx <= 2; dx++) {
-            for (int dy = -2; dy <= 2; dy++) {
-                for (int dz = -2; dz <= 2; dz++) {
-                    if (dx == 0 && dy == 0 && dz == 0) continue;
-                    if (greatestCommonDivisor(Math.abs(dx), greatestCommonDivisor(Math.abs(dy), Math.abs(dz))) != 1) continue;
-                    list.add(new int[]{dx, dy, dz});
-                }
-            }
-        }
-        return list.toArray(new int[0][]);
-    }
-
-    private static int[][][] buildRaySteps() {
-        int[][][] rays = new int[RAY_DIRECTIONS.length][][];
-        for (int index = 0; index < RAY_DIRECTIONS.length; index++) {
-            int[] direction = RAY_DIRECTIONS[index];
-            double length = Math.sqrt(direction[0] * direction[0] + direction[1] * direction[1] + direction[2] * direction[2]);
-            List<int[]> steps = new ArrayList<>(TELEPORT_RANGE);
-            int lastX = 0;
-            int lastY = 0;
-            int lastZ = 0;
-            for (int step = 1; step <= TELEPORT_RANGE; step++) {
-                double ratio = step / length;
-                int x = (int) Math.round(direction[0] * ratio);
-                int y = (int) Math.round(direction[1] * ratio);
-                int z = (int) Math.round(direction[2] * ratio);
-                if (x == lastX && y == lastY && z == lastZ) continue;
-                steps.add(new int[]{x, y, z});
-                lastX = x;
-                lastY = y;
-                lastZ = z;
-            }
-            rays[index] = steps.toArray(new int[0][]);
-        }
-        return rays;
-    }
-
-    private static int greatestCommonDivisor(int a, int b) {
-        return b == 0 ? a : greatestCommonDivisor(b, a % b);
-    }
+    private static final int[][][] RAY_STEPS = RaycastUtil.buildRaySteps(2, TELEPORT_RANGE);
 
     private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor(r -> {
         Thread thread = new Thread(r, "kwrg-navigator");
@@ -177,7 +169,7 @@ public final class Navigator {
         }
 
         boolean direct = (standable(level, start) && standable(level, goal) && clearWalkLine(level, start, goal))
-                || (grounded(level, start) && grounded(level, goal)
+                || (allowTeleport && grounded(level, start) && grounded(level, goal)
                 && start.distSqr(goal) <= (double) TELEPORT_RANGE * TELEPORT_RANGE
                 && teleportLine(level, start, goal));
         if (direct) return new Result(List.of(center(start), center(goal)), true, false);
@@ -198,11 +190,11 @@ public final class Navigator {
                     + " edges=" + search.considered
                     + " ms=" + search.elapsed);
             Traced traced = trace(best);
-            return new Result(finish(level, smooth(traced.points(), traced.jump()), goal, false), false, search.truncated);
+            return new Result(finish(level, smooth(traced.points(), traced.jump()), best, goal, false), false, search.truncated);
         }
         search.favor(reached);
         Traced traced = trace(reached);
-        List<Vec3> points = finish(level, smooth(traced.points(), traced.jump()), goal, true);
+        List<Vec3> points = finish(level, smooth(traced.points(), traced.jump()), reached, goal, true);
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("[Navigator] nodes={} edges={} ms={} points={}", search.visited, search.considered, search.elapsed, points.size());
         }
@@ -213,91 +205,86 @@ public final class Navigator {
         return new Vec3(pos.getX() + 0.5, pos.getY() + 0.05, pos.getZ() + 0.5);
     }
 
-    private static List<Vec3> finish(Level level, List<Vec3> points, BlockPos goal, boolean complete) {
+    private static List<Vec3> finish(Level level, List<Vec3> points, Node endNode, BlockPos goal, boolean complete) {
         if (points.isEmpty()) return points;
-        Vec3 target = center(goal);
-        Vec3 last = points.get(points.size() - 1);
-        if (last.distanceToSqr(target) <= 1.0) return points;
-        if (complete || clearLine(level, BlockPos.containing(last.x, last.y, last.z), goal)) points.add(target);
+        if (endNode.x == goal.getX() && endNode.y == goal.getY() && endNode.z == goal.getZ()) {
+            return points;
+        }
+        if (complete && canReachStep(level, endNode.x, endNode.y, endNode.z, goal.getX(), goal.getY(), goal.getZ())) {
+            Vec3 target = center(goal);
+            if (points.getLast().distanceToSqr(target) > 1.0e-4) {
+                points.add(target);
+            }
+        }
         return points;
     }
 
-    private static boolean sampleLine(Level level, BlockPos from, BlockPos to, Predicate<BlockPos> passable) {
-        int dx = to.getX() - from.getX();
-        int dy = to.getY() - from.getY();
-        int dz = to.getZ() - from.getZ();
-        int steps = Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz)));
-        if (steps == 0) return true;
-        int samples = steps * 4;
-        int lastX = from.getX();
-        int lastY = from.getY();
-        int lastZ = from.getZ();
-        for (int index = 1; index < samples; index++) {
-            double ratio = (double) index / samples;
-            int x = (int) Math.floor(from.getX() + dx * ratio);
-            int y = (int) Math.floor(from.getY() + dy * ratio);
-            int z = (int) Math.floor(from.getZ() + dz * ratio);
-            if (x != lastX || z != lastZ) {
-                if (!clearCorner(level, new BlockPos(lastX, lastY, lastZ), x - lastX, z - lastZ)) return false;
-                lastX = x;
-                lastZ = z;
+    private static boolean canReachStep(Level level, int fromX, int fromY, int fromZ, int toX, int toY, int toZ) {
+        int dx = toX - fromX;
+        int dy = toY - fromY;
+        int dz = toZ - fromZ;
+        if (dx == 0 && dz == 0) {
+            if (dy == 0) return true;
+            if (Math.abs(dy) == 1) {
+                if (allowClimbing && climbable(level, fromX, fromY, fromZ)) {
+                    return dy > 0 ? free(level, toX, toY, toZ) : walkable(level, toX, toY, toZ);
+                }
+                if (allowSwimming && fluid(level, fromX, fromY, fromZ)) {
+                    return dy > 0 ? (free(level, toX, toY, toZ) && fluid(level, toX, toY, toZ)) : walkable(level, toX, toY, toZ);
+                }
             }
-            lastY = y;
-            if (!passable.test(new BlockPos(x, y, z))) return false;
+            return false;
         }
-        return true;
+        if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1) {
+            if (!clearCorner(level, fromX, fromY, fromZ, dx, dz)) return false;
+            if (dy == 0) return free(level, toX, toY, toZ);
+            if (dy == 1) {
+                boolean canStepUp = allowJumping || (allowSwimming && fluid(level, fromX, fromY, fromZ));
+                return canStepUp
+                        && free(level, fromX, fromY + 1, fromZ)
+                        && clearCorner(level, fromX, fromY + 1, fromZ, dx, dz)
+                        && free(level, toX, toY, toZ);
+            }
+            if (dy < 0 && dy >= -MAX_FALL) {
+                for (int stepY = fromY; stepY >= toY; stepY--) {
+                    if (!free(level, toX, stepY, toZ)) return false;
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean clearWalkLine(Level level, BlockPos from, BlockPos to) {
-        return sampleLine(level, from, to, cell -> standable(level, cell));
+        if (from.getY() != to.getY()) return false;
+        int y = from.getY();
+        if (fluid(level, from.getX(), y, from.getZ()) || fluid(level, to.getX(), y, to.getZ())) return false;
+
+        return RaycastUtil.isLineClear(from, to,
+                (x, sy, z) -> standable(level, x, sy, z) && !fluid(level, x, sy, z),
+                (x, sy, z) -> free(level, x, sy, z));
     }
 
     private static boolean teleportLine(Level level, BlockPos from, BlockPos to) {
-        return sampleLine(level, from, to, cell -> !blocked(level, cell) && !blocked(level, cell.above()));
-    }
-
-    private static boolean clearLine(Level level, BlockPos from, BlockPos to) {
-        int dx = to.getX() - from.getX();
-        int dy = to.getY() - from.getY();
-        int dz = to.getZ() - from.getZ();
-        int steps = Math.max(Math.abs(dx), Math.max(Math.abs(dy), Math.abs(dz)));
-        if (steps <= 1) return clearCorner(level, from, dx, dz);
-        int samples = steps * 4;
-        int lastX = from.getX();
-        int lastY = from.getY();
-        int lastZ = from.getZ();
-        for (int index = 1; index < samples; index++) {
-            double ratio = (double) index / samples;
-            int x = (int) Math.floor(from.getX() + dx * ratio);
-            int y = (int) Math.floor(from.getY() + dy * ratio);
-            int z = (int) Math.floor(from.getZ() + dz * ratio);
-            if (x != lastX || z != lastZ) {
-                if (!clearCorner(level, new BlockPos(lastX, lastY, lastZ), x - lastX, z - lastZ)) return false;
-                lastX = x;
-                lastY = y;
-                lastZ = z;
-            }
-            if (!free(level, new BlockPos(x, y, z))) return false;
-        }
-        return true;
-    }
-    private static boolean clearCorner(Level level, BlockPos from, int dx, int dz) {
-        return clearCorner(level, from.getX(), from.getY(), from.getZ(), dx, dz);
+        return RaycastUtil.isLineClear(from, to,
+                (x, y, z) -> !blocked(level, x, y, z) && !blocked(level, x, y + 1, z),
+                (x, y, z) -> free(level, x, y, z));
     }
 
     private static boolean clearCorner(Level level, int x, int y, int z, int dx, int dz) {
-        if (dx == 0 || dz == 0) return true;
-        return free(level, x + dx, y, z) && free(level, x, y, z + dz);
+        return RaycastUtil.isCornerClear(x, y, z, dx, dz, (cx, cy, cz) -> free(level, cx, cy, cz));
     }
 
     private static BlockPos snapTarget(Level level, BlockPos to) {
-        if (standable(level, to)) return to;
+        if (walkable(level, to.getX(), to.getY(), to.getZ())) return to;
         for (int radius = 1; radius <= 4; radius++) {
             for (int dy = 2; dy >= -4; dy--) {
                 for (int dx = -radius; dx <= radius; dx++) {
                     for (int dz = -radius; dz <= radius; dz++) {
-                        BlockPos candidate = to.offset(dx, dy, dz);
-                        if (standable(level, candidate)) return candidate;
+                        int cx = to.getX() + dx;
+                        int cy = to.getY() + dy;
+                        int cz = to.getZ() + dz;
+                        if (walkable(level, cx, cy, cz)) return new BlockPos(cx, cy, cz);
                     }
                 }
             }
@@ -314,7 +301,9 @@ public final class Navigator {
 
     private static BlockPos walkNeighbour(Level level, int x, int y, int z, int dx, int dz) {
         if (!clearCorner(level, x, y, z, dx, dz)) return null;
-        for (int dy = 1; dy >= 0; dy--) {
+        int maxDy = (allowJumping || (allowSwimming && fluid(level, x, y, z))) ? 1 : 0;
+        for (int dy = maxDy; dy >= 0; dy--) {
+            if (dy > 0 && (!free(level, x, y + 1, z) || !clearCorner(level, x, y + 1, z, dx, dz))) continue;
             if (walkable(level, x + dx, y + dy, z + dz)) return new BlockPos(x + dx, y + dy, z + dz);
         }
         return null;
@@ -327,13 +316,17 @@ public final class Navigator {
 
     private static BlockPos descendTo(Level level, int x, int y, int z, int maxDown) {
         for (int dy = -1; dy >= -maxDown; dy--) {
-            if (blocked(level, x, y + dy, z) || blocked(level, x, y + dy + 1, z)) return null;
-            if (walkable(level, x, y + dy, z)) return new BlockPos(x, y + dy, z);
+            int ny = y + dy;
+            if (blocked(level, x, ny, z) || blocked(level, x, ny + 1, z)) return null;
+            if (walkable(level, x, ny, z)) return new BlockPos(x, ny, z);
+            // 当关闭游泳且遇到深水时（当前格是水但不可站立），不可继续向下穿透深水
+            if (!allowSwimming && fluid(level, x, ny, z)) return null;
         }
         return null;
     }
 
     private static BlockPos hop(Level level, int x, int y, int z, int dx, int dz) {
+        if (!allowJumping) return null;
         BlockPos best = null;
         int bestStep = 0;
         double bestScore = Double.MAX_VALUE;
@@ -341,8 +334,19 @@ public final class Navigator {
         for (int step = 1; step <= MAX_HOP + MAX_FALL; step++) {
             int columnX = x + dx * step;
             int columnZ = z + dz * step;
+            if (!clearCorner(level, columnX - dx, y, columnZ - dz, dx, dz)) break;
+            // 跳跃腾空轨迹不可穿过水体
+            if (fluid(level, columnX, y, columnZ) || fluid(level, columnX, y + 1, columnZ)) break;
+            // 关闭游泳时，禁止在深水上方进行超远跨跳（防止路线斜穿水池内部）
+            if (!allowSwimming && fluid(level, columnX, y - 1, columnZ)) break;
+
             BlockPos landing = landing(level, columnX, y, columnZ);
             if (landing != null) {
+                // 关闭游泳时，禁止通过跳跃落入水中
+                if (!allowSwimming && fluid(level, landing)) {
+                    if (!free(level, columnX, y, columnZ)) break;
+                    continue;
+                }
                 int vertical = landing.getY() - y;
                 if (vertical <= MAX_JUMP_UP && step <= MAX_HOP - vertical) {
                     double score = Math.abs(vertical) * 2.0 + step;
@@ -365,7 +369,7 @@ public final class Navigator {
 
     private static BlockPos landing(Level level, int x, int y, int z) {
         if (standable(level, x, y, z)) return new BlockPos(x, y, z);
-        if (standable(level, x, y + 1, z)) return new BlockPos(x, y + 1, z);
+        if (allowJumping && standable(level, x, y + 1, z)) return new BlockPos(x, y + 1, z);
         return descendTo(level, x, y, z, MAX_FALL);
     }
 
@@ -375,7 +379,10 @@ public final class Navigator {
 
     private static boolean standable(Level level, int x, int y, int z) {
         if (!free(level, x, y, z)) return false;
-        return blocked(level, x, y - 1, z) || fluid(level, x, y, z) || fluid(level, x, y - 1, z);
+        if (fluid(level, x, y, z)) {
+            return allowSwimming || (blocked(level, x, y - 1, z) && !fluid(level, x, y + 1, z));
+        }
+        return blocked(level, x, y - 1, z);
     }
 
     private static boolean grounded(Level level, BlockPos pos) {
@@ -400,7 +407,7 @@ public final class Navigator {
     }
 
     private static boolean walkable(Level level, int x, int y, int z) {
-        return standable(level, x, y, z) || climbNode(level, x, y, z);
+        return standable(level, x, y, z) || (allowClimbing && climbNode(level, x, y, z));
     }
 
     private static boolean climbable(Level level, BlockPos pos) {
@@ -434,7 +441,7 @@ public final class Navigator {
         float cost = diagonal ? (float) DIAGONAL : 1.0f;
         if (to.getY() > fromY) cost += STEP_UP_COST;
         if (to.getY() < fromY) cost += FALL_PENALTY + FALL_COST * (fromY - to.getY());
-        if (fluid(level, to)) cost += WATER_COST;
+        if (fluid(level, to)) cost += allowSwimming ? WATER_COST : WADE_PENALTY;
         return cost;
     }
 
@@ -547,6 +554,7 @@ public final class Navigator {
         private final Level level;
         private final BlockPos start;
         private final BlockPos goal;
+        private final boolean goalWalkable;
         private final int baseY;
         private final float hStart;
         private final float weight = heuristicWeight;
@@ -566,6 +574,7 @@ public final class Navigator {
             this.level = level;
             this.start = start;
             this.goal = goal;
+            this.goalWalkable = walkable(level, goal.getX(), goal.getY(), goal.getZ());
             this.baseY = start.getY() - Y_RADIUS;
             this.hStart = Math.max(distance(start.getX(), start.getY(), start.getZ()), 1.0f);
         }
@@ -577,11 +586,20 @@ public final class Navigator {
             first.f = first.h * weight;
             push(first);
 
+            int goalX = goal.getX();
+            int goalY = goal.getY();
+            int goalZ = goal.getZ();
+
             Node reached = null;
             while (heapSize > 0 && visited < MAX_NODES) {
                 Node current = pop();
                 visited++;
-                if (current.h * current.h <= GOAL_RADIUS_SQ && clearLine(level, current.pos(), goal)) {
+                if (current.x == goalX && current.y == goalY && current.z == goalZ) {
+                    reached = current;
+                    break;
+                }
+                if (!goalWalkable && current.h * current.h <= GOAL_RADIUS_SQ
+                        && canReachStep(level, current.x, current.y, current.z, goalX, goalY, goalZ)) {
                     reached = current;
                     break;
                 }
@@ -598,6 +616,7 @@ public final class Navigator {
 
         private void expand(Node current) {
             BlockPos here = current.pos();
+            boolean inFluid = fluid(level, current.x, current.y, current.z);
 
             for (int[] direction : DIRECTIONS) {
                 int x = current.x + direction[0];
@@ -608,10 +627,13 @@ public final class Navigator {
                 BlockPos walk = walkNeighbour(level, current.x, current.y, current.z, direction[0], direction[1]);
                 if (walk != null) {
                     relax(current, walk, stepCost(level, current.x, current.y, current.z, walk, diagonal));
-                } else {
+                } else if (allowJumping && !inFluid) {
                     BlockPos jump = hop(level, current.x, current.y, current.z, direction[0], direction[1]);
                     if (jump != null) {
-                        relax(current, jump, (float) Math.sqrt(here.distSqr(jump)));
+                        float jumpCost = (float) Math.sqrt(here.distSqr(jump));
+                        if (fluid(level, jump)) jumpCost += allowSwimming ? WATER_COST : WADE_PENALTY;
+                        // 第四个参数传 true，跳跃段保持直线，不被 Catmull-Rom 曲线向下弯曲
+                        relax(current, jump, jumpCost, true);
                     }
                 }
 
@@ -621,15 +643,24 @@ public final class Navigator {
                 }
             }
 
-            if (climbable(level, here)) {
+            if (allowClimbing && climbable(level, current.x, current.y, current.z)) {
                 for (int dy = -1; dy <= 1; dy += 2) {
-                    BlockPos candidate = here.above(dy);
-                    if (!(dy > 0 ? free(level, current.x, current.y + dy, current.z) : walkable(level, current.x, current.y + dy, current.z))) continue;
-                    relax(current, candidate, CLIMB_COST);
+                    int ny = current.y + dy;
+                    if (!(dy > 0 ? free(level, current.x, ny, current.z) : walkable(level, current.x, ny, current.z))) continue;
+                    relax(current, here.above(dy), CLIMB_COST);
                 }
             }
 
-            if (teleportBudget > 0 && grounded(level, here)) {
+            if (allowSwimming && inFluid) {
+                if (free(level, current.x, current.y + 1, current.z) && fluid(level, current.x, current.y + 1, current.z)) {
+                    relax(current, here.above(), 1.0f + WATER_COST);
+                }
+                if (walkable(level, current.x, current.y - 1, current.z)) {
+                    relax(current, here.below(), 1.0f + WATER_COST);
+                }
+            }
+
+            if (allowTeleport && teleportBudget > 0 && grounded(level, current.x, current.y, current.z)) {
                 teleportBudget--;
                 teleportEdges(current);
             }
@@ -637,21 +668,13 @@ public final class Navigator {
 
         private void teleportEdges(Node current) {
             BlockPos here = current.pos();
+            RaycastUtil.CellPredicate loaded = (x, y, z) -> level.hasChunkAt(SCRATCH.set(x, y, z));
+            RaycastUtil.CellPredicate passable = (x, y, z) -> free(level, x, y, z);
+            RaycastUtil.CellPredicate target = (x, y, z) -> grounded(level, x, y, z);
             for (int[][] ray : RAY_STEPS) {
-                BlockPos previous = here;
-                for (int[] offset : ray) {
-                    BlockPos cell = here.offset(offset[0], offset[1], offset[2]);
-                    if (!level.hasChunkAt(cell)) {
-                        previous = cell;
-                        continue;
-                    }
-                    if (!free(level, cell)) break;
-                    if (!clearCorner(level, previous, cell.getX() - previous.getX(), cell.getZ() - previous.getZ())) break;
-                    if (grounded(level, cell)) {
-                        relax(current, cell, (float) (Math.sqrt(here.distSqr(cell)) * TELEPORT_FACTOR + TELEPORT_PENALTY), true);
-                        break;
-                    }
-                    previous = cell;
+                BlockPos cell = RaycastUtil.firstTarget(here, ray, loaded, passable, target);
+                if (cell != null) {
+                    relax(current, cell, (float) (Math.sqrt(here.distSqr(cell)) * TELEPORT_FACTOR + TELEPORT_PENALTY), true);
                 }
             }
         }
