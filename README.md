@@ -172,3 +172,4 @@ Linux / macOS：
 - 本项目采用 [MIT License](./LICENSE)。
 
 豆包曾经说过：给项目注水，项目才能快快长大
+<font color="#999" size="2">不如原神</font>
