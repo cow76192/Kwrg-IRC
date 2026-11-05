@@ -3,6 +3,7 @@ package me.cookie.kwrg.render;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import me.cookie.kwrg.irc.IrcMessageHandler;
+import me.cookie.kwrg.irc.manager.NickManager;
 import me.cookie.kwrg.util.ColorUtil;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
@@ -451,9 +452,10 @@ public class WorldTextRenderer {
         Camera camera = mc.gameRenderer.getMainCamera();
         Vec3 camPos = camera.position();
 
-        int textWidth = font.width(component);
+        FormattedCharSequence wrappedSeq = NickManager.wrap(component.getVisualOrderText());
+        float textWidth = font.getSplitter().stringWidth(wrappedSeq);
         int textHeight = font.lineHeight;
-        if (textWidth <= 0 || textHeight <= 0) return;
+        if (textWidth <= 0.0F || textHeight <= 0) return;
 
         double dx = topRight.x - bottomLeft.x;
         double dy = topRight.y - bottomLeft.y;
@@ -517,13 +519,15 @@ public class WorldTextRenderer {
             boolean floatAnimated,
             boolean glow
     ) {
+        FormattedCharSequence sequence = NickManager.wrap(component.getVisualOrderText());
+
         if (!floating && !glow) {
-            font.drawInBatch(component, startX, startY, defaultColor, shadow, matrix, bufferSource, displayMode, 0, FULL_BRIGHT);
+            font.drawInBatch(sequence, startX, startY, defaultColor, shadow, matrix, bufferSource, displayMode, 0, FULL_BRIGHT);
             return;
         }
 
         List<StyledGlyph> glyphs = new ArrayList<>();
-        component.getVisualOrderText().accept((index, style, codePoint) -> {
+        sequence.accept((index, style, codePoint) -> {
             glyphs.add(new StyledGlyph(index, style, codePoint));
             return true;
         });
@@ -534,7 +538,8 @@ public class WorldTextRenderer {
         for (int i = 0; i < glyphs.size(); i++) {
             StyledGlyph glyph = glyphs.get(i);
             FormattedCharSequence singleCharSeq = sink -> sink.accept(0, glyph.style(), glyph.codePoint());
-            int charWidth = font.width(singleCharSeq);
+
+            float charAdvance = font.getSplitter().stringWidth(singleCharSeq);
 
             float yOffset = 0.0F;
             if (floating) {
@@ -568,7 +573,7 @@ public class WorldTextRenderer {
                     FULL_BRIGHT
             );
 
-            cursorX += charWidth;
+            cursorX += charAdvance;
         }
     }
 
