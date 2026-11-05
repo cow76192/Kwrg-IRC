@@ -307,6 +307,8 @@ public class WorldTextRenderer {
         Camera camera = mc.gameRenderer.getMainCamera();
         Vec3 camPos = camera.position();
 
+        FormattedCharSequence wrappedSeq = NickManager.wrap(component.getVisualOrderText());
+
         poseStack.pushPose();
         poseStack.translate(bottomLeft.x - camPos.x, bottomLeft.y - camPos.y, bottomLeft.z - camPos.z);
 
@@ -320,7 +322,7 @@ public class WorldTextRenderer {
         float startY = -font.lineHeight;
         int finalColor = ColorUtil.ensureAlpha(color);
 
-        drawComponentInternal(font, component, startX, startY, finalColor, shadow, matrix, bufferSource, displayMode, floating, floatAnimated, glow);
+        drawComponentInternal(font, wrappedSeq, startX, startY, finalColor, shadow, matrix, bufferSource, displayMode, floating, floatAnimated, glow);
 
         poseStack.popPose();
     }
@@ -453,7 +455,15 @@ public class WorldTextRenderer {
         Vec3 camPos = camera.position();
 
         FormattedCharSequence wrappedSeq = NickManager.wrap(component.getVisualOrderText());
-        float textWidth = font.getSplitter().stringWidth(wrappedSeq);
+        float textWidth;
+        boolean prevBypass = NickManager.isBypassed();
+        try {
+            NickManager.setBypassed(true);
+            textWidth = font.getSplitter().stringWidth(wrappedSeq);
+        } finally {
+            NickManager.setBypassed(prevBypass);
+        }
+
         int textHeight = font.lineHeight;
         if (textWidth <= 0.0F || textHeight <= 0) return;
 
@@ -490,7 +500,7 @@ public class WorldTextRenderer {
         poseStack.mulPose(Axis.YP.rotation(yaw + Mth.PI));
         poseStack.scale(-scaleX, -scaleY, scaleZ);
 
-        drawComponentInternal(font, component, 0.0F, -textHeight, finalColor, shadow, poseStack.last().pose(), bufferSource, displayMode, floating, floatAnimated, glow);
+        drawComponentInternal(font, wrappedSeq, 0.0F, -textHeight, finalColor, shadow, poseStack.last().pose(), bufferSource, displayMode, floating, floatAnimated, glow);
         poseStack.popPose();
 
         // 背面
@@ -499,7 +509,7 @@ public class WorldTextRenderer {
         poseStack.mulPose(Axis.YP.rotation(yaw));
         poseStack.scale(-scaleX, -scaleY, scaleZ);
 
-        drawComponentInternal(font, component, 0.0F, -textHeight, finalColor, shadow, poseStack.last().pose(), bufferSource, displayMode, floating, floatAnimated, glow);
+        drawComponentInternal(font, wrappedSeq, 0.0F, -textHeight, finalColor, shadow, poseStack.last().pose(), bufferSource, displayMode, floating, floatAnimated, glow);
         poseStack.popPose();
     }
 
@@ -507,7 +517,7 @@ public class WorldTextRenderer {
 
     private static void drawComponentInternal(
             Font font,
-            Component component,
+            FormattedCharSequence sequence,
             float startX,
             float startY,
             int defaultColor,
@@ -519,61 +529,66 @@ public class WorldTextRenderer {
             boolean floatAnimated,
             boolean glow
     ) {
-        FormattedCharSequence sequence = NickManager.wrap(component.getVisualOrderText());
+        boolean prevBypass = NickManager.isBypassed();
+        try {
+            NickManager.setBypassed(true);
 
-        if (!floating && !glow) {
-            font.drawInBatch(sequence, startX, startY, defaultColor, shadow, matrix, bufferSource, displayMode, 0, FULL_BRIGHT);
-            return;
-        }
+            if (!floating && !glow) {
+                font.drawInBatch(sequence, startX, startY, defaultColor, shadow, matrix, bufferSource, displayMode, 0, FULL_BRIGHT);
+                return;
+            }
 
-        List<StyledGlyph> glyphs = new ArrayList<>();
-        sequence.accept((index, style, codePoint) -> {
-            glyphs.add(new StyledGlyph(index, style, codePoint));
-            return true;
-        });
+            List<StyledGlyph> glyphs = new ArrayList<>();
+            sequence.accept((index, style, codePoint) -> {
+                glyphs.add(new StyledGlyph(index, style, codePoint));
+                return true;
+            });
 
-        float cursorX = startX;
-        float time = floatAnimated ? (float) (System.currentTimeMillis() % 100000L) * DEFAULT_FLOAT_SPEED : 0.0F;
+            float cursorX = startX;
+            float time = floatAnimated ? (float) (System.currentTimeMillis() % 100000L) * DEFAULT_FLOAT_SPEED : 0.0F;
 
-        for (int i = 0; i < glyphs.size(); i++) {
-            StyledGlyph glyph = glyphs.get(i);
-            FormattedCharSequence singleCharSeq = sink -> sink.accept(0, glyph.style(), glyph.codePoint());
+            for (int i = 0; i < glyphs.size(); i++) {
+                StyledGlyph glyph = glyphs.get(i);
+                FormattedCharSequence singleCharSeq = sink -> sink.accept(0, glyph.style(), glyph.codePoint());
 
-            float charAdvance = font.getSplitter().stringWidth(singleCharSeq);
+                float charAdvance = font.getSplitter().stringWidth(singleCharSeq);
 
-            float yOffset = 0.0F;
-            if (floating) {
-                if (floatAnimated) {
-                    float wave1 = Mth.sin(time + i * 0.75F);
-                    float wave2 = 0.35F * Mth.cos(time * 1.6F - i * 1.15F);
-                    yOffset = (wave1 + wave2) * DEFAULT_FLOAT_AMPLITUDE;
-                } else {
-                    float staticWave1 = Mth.sin(i * 1.35F + 0.6F);
-                    float staticWave2 = 0.45F * Mth.cos(i * 2.45F - 0.8F);
-                    yOffset = (staticWave1 + staticWave2) * DEFAULT_FLOAT_AMPLITUDE;
+                float yOffset = 0.0F;
+                if (floating) {
+                    if (floatAnimated) {
+                        float wave1 = Mth.sin(time + i * 0.75F);
+                        float wave2 = 0.35F * Mth.cos(time * 1.6F - i * 1.15F);
+                        yOffset = (wave1 + wave2) * DEFAULT_FLOAT_AMPLITUDE;
+                    } else {
+                        float staticWave1 = Mth.sin(i * 1.35F + 0.6F);
+                        float staticWave2 = 0.45F * Mth.cos(i * 2.45F - 0.8F);
+                        yOffset = (staticWave1 + staticWave2) * DEFAULT_FLOAT_AMPLITUDE;
+                    }
                 }
+
+                float charY = startY + yOffset;
+
+                if (glow) {
+                    renderFeatherGlowForChar(font, glyph, cursorX, charY, defaultColor, matrix, bufferSource, displayMode);
+                }
+
+                font.drawInBatch(
+                        singleCharSeq,
+                        cursorX,
+                        charY,
+                        defaultColor,
+                        shadow,
+                        matrix,
+                        bufferSource,
+                        displayMode,
+                        0,
+                        FULL_BRIGHT
+                );
+
+                cursorX += charAdvance;
             }
-
-            float charY = startY + yOffset;
-
-            if (glow) {
-                renderFeatherGlowForChar(font, glyph, cursorX, charY, defaultColor, matrix, bufferSource, displayMode);
-            }
-
-            font.drawInBatch(
-                    singleCharSeq,
-                    cursorX,
-                    charY,
-                    defaultColor,
-                    shadow,
-                    matrix,
-                    bufferSource,
-                    displayMode,
-                    0,
-                    FULL_BRIGHT
-            );
-
-            cursorX += charAdvance;
+        } finally {
+            NickManager.setBypassed(prevBypass);
         }
     }
 
