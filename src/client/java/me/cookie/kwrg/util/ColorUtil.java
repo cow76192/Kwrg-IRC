@@ -471,4 +471,21 @@ public class ColorUtil {
             return Float.NaN;
         }
     }
+
+    public static int brightenRgb(int rgb, float factor) {
+        int r = (rgb >> 16) & 0xFF;
+        int g = (rgb >> 8) & 0xFF;
+        int b = rgb & 0xFF;
+        r = Math.min(255, (int) (r + (255 - r) * factor));
+        g = Math.min(255, (int) (g + (255 - g) * factor));
+        b = Math.min(255, (int) (b + (255 - b) * factor));
+        return (r << 16) | (g << 8) | b;
+    }
+
+    public static int ensureAlpha(int color) {
+        if ((color & 0xFF000000) == 0) {
+            return color | 0xFF000000;
+        }
+        return color;
+    }
 }
