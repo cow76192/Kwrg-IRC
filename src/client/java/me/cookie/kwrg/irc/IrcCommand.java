@@ -24,6 +24,7 @@ import me.cookie.kwrg.module.modules.play.PlayModule;
 import me.cookie.kwrg.module.modules.style.MessageStyleModule;
 import me.cookie.kwrg.module.modules.style.NameStyleModule;
 import me.cookie.kwrg.module.modules.style.RankModule;
+import me.cookie.kwrg.render.WorldTextRenderer;
 import me.cookie.kwrg.util.*;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
@@ -352,6 +353,8 @@ public class IrcCommand {
                                 .executes(context -> RouteEditor.setEnabled(BoolArgumentType.getBool(context, "enabled")))))
 //                .then(routeCommand())
                 .then(literal("debug")
+                        .then(literal("wordTextRenderTest")
+                                .executes(context -> WorldTextRenderer.toggleDebugTest()))
                         .then(literal("clearImgCache")
                                 .executes(context -> ClearIndexCacheModule.handleClearImgCache()))
                         .then(literal("connect")
