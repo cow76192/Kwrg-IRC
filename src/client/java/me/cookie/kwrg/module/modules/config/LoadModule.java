@@ -10,10 +10,11 @@ import me.cookie.kwrg.gui.component.pane.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
-import me.cookie.kwrg.irc.config.ConfigMigrator;
 import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
+import me.cookie.kwrg.module.modules.functions.ChannelModule;
+import me.cookie.kwrg.module.modules.functions.GlowColorModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
@@ -30,7 +31,7 @@ public class LoadModule extends Module {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Pattern ILLEGAL_CHARS_PATTERN = Pattern.compile("[\\\\/:*?\"<>|\\x00-\\x1F]");
 
-    private String pendingImportJson = null;
+    private IrcConfig pendingImport = null;
 
     private static final Set<String> WINDOWS_RESERVED_NAMES = Set.of(
             "CON", "PRN", "AUX", "NUL",
@@ -47,7 +48,7 @@ public class LoadModule extends Module {
 
     @Override
     public void buildTertiaryUI(TertiaryPanelComponent panel) {
-        this.pendingImportJson = null; // 打开时重置导入暂存
+        this.pendingImport = null; // 打开时重置导入暂存
         renderConfigManagerUI(panel, null);
     }
 
@@ -82,7 +83,7 @@ public class LoadModule extends Module {
     private void renderConfigManagerUI(TertiaryPanelComponent panel, String newlyAddedProfile) {
         panel.clearChildren();
 
-        String placeholder = this.pendingImportJson != null
+        String placeholder = this.pendingImport != null
                 ? "已读取剪贴板！输入名称按回车保存..."
                 : "输入配置名称 (回车新建 / 右键导入)...";
 
@@ -96,24 +97,20 @@ public class LoadModule extends Module {
                 return;
             }
 
-            if (this.pendingImportJson != null) {
+            if (this.pendingImport != null) {
                 try {
-                    Path dir = IrcConfig.getKwrgDir();
-                    Files.createDirectories(dir);
-                    Path filePath = dir.resolve(cleanName + ".json");
-
-                    Files.writeString(filePath, this.pendingImportJson);
-                    this.pendingImportJson = null;
-
-                    IrcConfig.loadProfile(cleanName, true);
+                    IrcConfig.importProfile(cleanName, this.pendingImport);
+                    this.pendingImport = null;
                     ChatNotifier.send("§a[IRC] 成功从剪贴板导入并创建配置: §f" + cleanName + ".json", NotificationType.SUCCESS);
                     renderConfigManagerUI(panel, cleanName);
                 } catch (Exception e) {
                     ChatNotifier.send("§c[IRC] 保存导入配置失败: " + e.getMessage(), NotificationType.ERR);
                 }
             } else {
-                IrcConfig.createProfile(cleanName);
-                IrcConfig.save();
+                if (!IrcConfig.createProfile(cleanName) || !IrcConfig.save()) {
+                    ChatNotifier.send("§c[IRC] 新建配置失败：配置文件无法保存。", NotificationType.ERR);
+                    return;
+                }
                 ChatNotifier.send("§a[IRC] 已新建并切换至配置: §f" + cleanName + ".json", NotificationType.SUCCESS);
                 renderConfigManagerUI(panel, cleanName);
             }
@@ -128,27 +125,27 @@ public class LoadModule extends Module {
 
             try {
                 JsonObject rawConfig = JsonParser.parseString(clipboard.trim()).getAsJsonObject();
-                ConfigMigrator.migrate(rawConfig);
-                IrcConfig parsed = GSON.fromJson(rawConfig, IrcConfig.class);
-                if (parsed == null || parsed.glowColor == null) {
+                IrcConfig parsed = IrcConfig.parse(rawConfig);
+                if (parsed.settings(GlowColorModule.CONFIG).glowColor == null) {
                     throw new IllegalArgumentException("配置缺少关键字段");
                 }
 
-                if (parsed.savedChannels == null) {
-                    parsed.savedChannels = new ArrayList<>();
+                ChannelModule.Settings channel = parsed.settings(ChannelModule.CONFIG);
+                if (channel.savedChannels == null) {
+                    channel.savedChannels = new ArrayList<>();
                 }
-                if (parsed.currentChannel == null) {
-                    parsed.currentChannel = "";
+                if (channel.currentChannel == null) {
+                    channel.currentChannel = "";
                 }
 
-                this.pendingImportJson = GSON.toJson(parsed);
+                this.pendingImport = parsed;
 
                 ChatNotifier.send("§a[IRC] 剪贴板 JSON 解析成功！", NotificationType.SUCCESS);
                 ChatNotifier.send("§e[IRC] 请在输入框输入该配置文件的名称，按回车键完成保存。", NotificationType.INFO);
 
                 renderConfigManagerUI(panel, null);
             } catch (Exception e) {
-                this.pendingImportJson = null;
+                this.pendingImport = null;
                 ChatNotifier.send("§c[IRC] 剪贴板内容不是有效的配置 JSON！解析失败。", NotificationType.ERR);
             }
         });
@@ -190,8 +187,7 @@ public class LoadModule extends Module {
 
                             btn.dismiss(() -> {
                                 try {
-                                    Path filePath = IrcConfig.getKwrgDir().resolve(profileName + ".json");
-                                    Files.deleteIfExists(filePath);
+                                    IrcConfig.deleteProfile(profileName);
                                     ChatNotifier.send("§e[IRC] 已删除配置文件: §f" + profileName + ".json", NotificationType.SUCCESS);
 
                                     if (profileName.equalsIgnoreCase(IrcConfig.getCurrentProfileName())) {
@@ -260,7 +256,10 @@ public class LoadModule extends Module {
             return 0;
         }
 
-        IrcConfig.createProfile(cleanName);
+        if (!IrcConfig.createProfile(cleanName)) {
+            IrcMessageHandler.printMessage("§c[IRC] 创建失败：当前配置无法保存。");
+            return 0;
+        }
         IrcMessageHandler.printMessage("§a[IRC] 已新建配置: §f" + IrcConfig.getCurrentProfileName() + " §7(注意: 调整好设置后输入 §e/irc cfg save §7保存)");
         return 1;
     }

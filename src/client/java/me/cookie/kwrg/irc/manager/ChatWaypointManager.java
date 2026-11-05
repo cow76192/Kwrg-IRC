@@ -1,8 +1,8 @@
 package me.cookie.kwrg.irc.manager;
 
 import me.cookie.kwrg.gui.notification.NotificationType;
-import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.IrcMessageHandler;
+import me.cookie.kwrg.module.modules.debug.NavigatorWeightModule;
 import me.cookie.kwrg.render.WaypointRenderer;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.Navigator;
@@ -70,7 +70,7 @@ public final class ChatWaypointManager {
     }
 
     public static void init() {
-        Navigator.setHeuristicWeight(IrcConfig.get().navigatorWeight);
+        Navigator.setHeuristicWeight(NavigatorWeightModule.CONFIG.get().navigatorWeight);
         LevelRenderEvents.BEFORE_GIZMOS.register(ChatWaypointManager::render);
         ClientTickEvents.END_CLIENT_TICK.register(ChatWaypointManager::onTick);
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> POINTS.clear());

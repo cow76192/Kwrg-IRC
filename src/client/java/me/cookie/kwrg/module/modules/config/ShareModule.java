@@ -1,6 +1,5 @@
 package me.cookie.kwrg.module.modules.config;
 
-import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import me.cookie.kwrg.gui.component.PanelItemComponent;
@@ -11,10 +10,13 @@ import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.config.IrcConfig;
-import me.cookie.kwrg.irc.config.ConfigMigrator;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.module.ModuleManager;
+import me.cookie.kwrg.module.modules.functions.ChannelModule;
+import me.cookie.kwrg.module.modules.style.FontModule;
+import me.cookie.kwrg.module.modules.style.MessageStyleModule;
+import me.cookie.kwrg.module.modules.style.NameStyleModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
 import net.minecraft.client.Minecraft;
@@ -25,8 +27,6 @@ import java.nio.file.Path;
 import java.util.List;
 
 public class ShareModule extends Module {
-
-    private static final Gson GSON = new Gson();
 
     public static class PendingShare {
         public String sender;
@@ -101,7 +101,7 @@ public class ShareModule extends Module {
 
             panel.child(new PanelItemComponent("NameStyle", () -> {
                 state.selectedCategory = "ns";
-                state.payload = IrcConfig.get().namestyle;
+                state.payload = NameStyleModule.CONFIG.get().namestyle;
                 state.targetPlayer = "";
                 state.isCatOpen = false;
                 state.isPlayerPickerOpen = true;
@@ -110,7 +110,7 @@ public class ShareModule extends Module {
 
             panel.child(new PanelItemComponent("MessageStyle", () -> {
                 state.selectedCategory = "ms";
-                state.payload = IrcConfig.get().chatstyle;
+                state.payload = MessageStyleModule.CONFIG.get().chatstyle;
                 state.targetPlayer = "";
                 state.isCatOpen = false;
                 state.isPlayerPickerOpen = true;
@@ -157,7 +157,7 @@ public class ShareModule extends Module {
                         }
                     }
                 } else {
-                    List<String> channels = IrcConfig.get().savedChannels;
+                    List<String> channels = ChannelModule.CONFIG.get().savedChannels;
                     if (channels != null && !channels.isEmpty()) {
                         for (String ch : channels) {
                             panel.child(new PanelItemComponent("#" + ch, () -> {
@@ -255,12 +255,12 @@ public class ShareModule extends Module {
                 }
             }
             case "ns" -> {
-                String ns = IrcConfig.get().namestyle;
+                String ns = NameStyleModule.CONFIG.get().namestyle;
                 IrcClient.sendShare(targetPlayer, "share", "ns", ns);
                 ChatNotifier.send("§a[Share] 已向 §f" + targetPlayer + " §a发送 NameStyle 样式", NotificationType.SUCCESS);
             }
             case "ms" -> {
-                String ms = IrcConfig.get().chatstyle;
+                String ms = MessageStyleModule.CONFIG.get().chatstyle;
                 IrcClient.sendShare(targetPlayer, "share", "ms", ms);
                 ChatNotifier.send("§a[Share] 已向 §f" + targetPlayer + " §a发送 MessageStyle 样式", NotificationType.SUCCESS);
             }
@@ -384,18 +384,18 @@ public class ShareModule extends Module {
 
         switch (pending.shareType.toLowerCase()) {
             case "ns" -> {
-                IrcConfig.get().namestyle = cleanData;
+                NameStyleModule.CONFIG.get().namestyle = cleanData;
                 IrcConfig.save();
                 ChatNotifier.send("§a[Share] 已成功导入 NameStyle: §f" + cleanData, NotificationType.SUCCESS);
             }
             case "ms" -> {
-                IrcConfig.get().chatstyle = cleanData;
+                MessageStyleModule.CONFIG.get().chatstyle = cleanData;
                 IrcConfig.save();
                 ChatNotifier.send("§a[Share] 已成功导入 MessageStyle: §f" + cleanData, NotificationType.SUCCESS);
             }
             case "channel" -> {
                 String ch = cleanData.replace("#", "").trim();
-                IrcConfig cfg = IrcConfig.get();
+                ChannelModule.Settings cfg = ChannelModule.CONFIG.get();
                 if (!cfg.savedChannels.contains(ch)) {
                     cfg.savedChannels.add(ch);
                 }
@@ -414,37 +414,35 @@ public class ShareModule extends Module {
                     String fontHash = obj.has("__fontHash") ? obj.get("__fontHash").getAsString() : null;
                     obj.remove("__fontHash");
 
-                    ConfigMigrator.migrate(obj);
-                    IrcConfig imported = GSON.fromJson(obj, IrcConfig.class);
+                    IrcConfig imported = IrcConfig.parse(obj);
+                    FontModule.Settings font = imported.settings(FontModule.CONFIG);
 
                     boolean fontMatched = true;
-                    String originalFont = imported.guiFont;
+                    String originalFont = font.guiFont;
 
                     if (originalFont != null && !originalFont.isBlank() && !FontManagerHelper.DEFAULT_FONT.equalsIgnoreCase(originalFont)) {
                         if (fontHash != null && !fontHash.isBlank()) {
                             String localMatchedFont = FontManagerHelper.findFontByHash(fontHash);
                             if (localMatchedFont != null) {
-                                imported.guiFont = localMatchedFont;
+                                font.guiFont = localMatchedFont;
                             } else {
                                 fontMatched = false;
-                                imported.guiFont = IrcConfig.get().guiFont;
+                                font.guiFont = FontModule.CONFIG.get().guiFont;
                             }
                         } else {
                             Path localPath = IrcConfig.getFontDir().resolve(originalFont);
                             if (!Files.exists(localPath)) {
                                 fontMatched = false;
-                                imported.guiFont = IrcConfig.get().guiFont;
+                                font.guiFont = FontModule.CONFIG.get().guiFont;
                             }
                         }
                     }
 
-                    IrcConfig.getKwrgDir().toFile().mkdirs();
-                    Files.writeString(IrcConfig.getKwrgDir().resolve(name + ".json"), GSON.toJson(imported));
-                    IrcConfig.loadProfile(name, false);
+                    IrcConfig.importProfile(name, imported);
 
                     if (fontMatched) {
-                        if (imported.guiFont != null && !FontManagerHelper.DEFAULT_FONT.equalsIgnoreCase(imported.guiFont)) {
-                            FontManagerHelper.applyFont(imported.guiFont);
+                        if (font.guiFont != null && !FontManagerHelper.DEFAULT_FONT.equalsIgnoreCase(font.guiFont)) {
+                            FontManagerHelper.applyFont(font.guiFont);
                         }
                         ChatNotifier.send("§a[Share] 配置文件 §e" + name + ".json §a导入并加载成功！", NotificationType.SUCCESS);
                     } else {

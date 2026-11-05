@@ -8,14 +8,33 @@ import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
 
 public class HudEditorModule extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class, Settings::sanitize);
+
+    public static final class Settings {
+        public Map<String, HudElement.State> hudElements = new LinkedHashMap<>();
+
+        private void sanitize() {
+            if (hudElements == null) {
+                hudElements = new LinkedHashMap<>();
+            } else {
+                hudElements.values().removeIf(Objects::isNull);
+                hudElements.values().forEach(HudElement.State::sanitize);
+            }
+        }
+    }
+
     public HudEditorModule() {
-        super("hudEditor", Category.STYLE, PanelItemComponent.ItemType.TRIGGER);
+        super("hudEditor", Category.STYLE, PanelItemComponent.ItemType.TRIGGER, CONFIG);
     }
 
     @Override

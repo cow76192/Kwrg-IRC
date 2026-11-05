@@ -32,11 +32,11 @@ public final class WaypointFiles {
 
     public static boolean external(Path path) { return !path.toAbsolutePath().normalize().getParent().equals(getDir().toAbsolutePath().normalize()); }
 
-    public static boolean initialize(Map<String, IrcConfig.WaypointEntry> legacy) {
+    public static boolean initialize(Map<String, WaypointManager.WaypointEntry> legacy) {
         return initialize(IrcConfig.getKwrgDir().resolve("wayPoints"), RouteManager.getDir(), legacy);
     }
 
-    static boolean initialize(Path pointDirectory, Path routeDirectory, Map<String, IrcConfig.WaypointEntry> legacy) {
+    static boolean initialize(Path pointDirectory, Path routeDirectory, Map<String, WaypointManager.WaypointEntry> legacy) {
         directory = pointDirectory;
         WaypointFiles.routeDirectory = routeDirectory;
         FILES.clear();
@@ -211,7 +211,7 @@ public final class WaypointFiles {
         }
     }
 
-    public static boolean saveDefault(Map<String, IrcConfig.WaypointEntry> saved) {
+    public static boolean saveDefault(Map<String, WaypointManager.WaypointEntry> saved) {
         ensure();
         Collection defaults = FILES.get(defaultFile());
         // Incomplete rows cannot be represented by the legacy numeric editor; preserve them.
@@ -220,7 +220,7 @@ public final class WaypointFiles {
         return save(defaultFile());
     }
 
-    private static PointEntry fromSaved(String id, IrcConfig.WaypointEntry saved) {
+    private static PointEntry fromSaved(String id, WaypointManager.WaypointEntry saved) {
         PointEntry entry = new PointEntry(saved.name, WaypointManager.formatCoord(saved.x), WaypointManager.formatCoord(saved.y), WaypointManager.formatCoord(saved.z));
         entry.id = id;
         entry.visible = saved.enabled;

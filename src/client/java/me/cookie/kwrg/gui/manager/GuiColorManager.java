@@ -3,6 +3,7 @@ package me.cookie.kwrg.gui.manager;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.module.modules.style.GuiStyleModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
 
@@ -13,7 +14,7 @@ public class GuiColorManager {
     static { refresh(); }
 
     public static void refresh() {
-        IrcConfig config = IrcConfig.get();
+        GuiStyleModule.Settings config = GuiStyleModule.CONFIG.get();
         if (config.guiColor == null || config.guiColor.isEmpty()) config.guiColor = DEFAULT_COLOR;
 
         java.awt.Color c = ColorUtil.parseSingleColor(config.guiColor);
@@ -24,7 +25,7 @@ public class GuiColorManager {
     }
 
     public static String getGuiColorStr() {
-        IrcConfig config = IrcConfig.get();
+        GuiStyleModule.Settings config = GuiStyleModule.CONFIG.get();
         return (config.guiColor != null && !config.guiColor.isEmpty()) ? config.guiColor : DEFAULT_COLOR;
     }
 
@@ -36,7 +37,7 @@ public class GuiColorManager {
         }
         GuiThemeService.setPanelBg((c.getRed() << 16) | (c.getGreen() << 8) | c.getBlue());
 
-        IrcConfig config = IrcConfig.get();
+        GuiStyleModule.Settings config = GuiStyleModule.CONFIG.get();
         config.guiColor = colorStr;
         IrcConfig.saveDelayed(800L);
         return 1;
@@ -44,7 +45,7 @@ public class GuiColorManager {
 
     public static void setGuiOpacity(float opacity) {
         GuiThemeService.setOpacity(opacity);
-        IrcConfig.get().guiOpacity = GuiThemeService.opacity();
+        GuiStyleModule.CONFIG.get().guiOpacity = GuiThemeService.opacity();
         IrcConfig.saveDelayed(800L);
     }
 
@@ -52,7 +53,7 @@ public class GuiColorManager {
         GuiThemeService.setPanelBg(GuiThemeService.DEFAULT_PANEL_BG);
         GuiThemeService.setOpacity(1.0f);
 
-        IrcConfig config = IrcConfig.get();
+        GuiStyleModule.Settings config = GuiStyleModule.CONFIG.get();
         config.guiColor = DEFAULT_COLOR;
         config.guiOpacity = 1.0f;
         IrcConfig.save();

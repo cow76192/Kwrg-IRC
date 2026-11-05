@@ -5,6 +5,7 @@ import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.irc.manager.IrcGlowManager;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -13,8 +14,15 @@ import me.cookie.kwrg.util.ColorUtil;
 
 public class GlowColorModule extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public boolean glowEnabled = true;
+        public String glowColor = "#00FF88";
+    }
+
     public GlowColorModule() {
-        super("glowColor", Category.FUNCTIONS, PanelItemComponent.ItemType.TOGGLE, () -> IrcGlowManager.isGlowEnabled());
+        super("glowColor", Category.FUNCTIONS, PanelItemComponent.ItemType.TOGGLE, () -> IrcGlowManager.isGlowEnabled(), CONFIG);
     }
 
     @Override
@@ -26,11 +34,11 @@ public class GlowColorModule extends Module {
 
     @Override
     public void buildTertiaryUI(TertiaryPanelComponent panel) {
-        panel.child(new ColorSettingComponent(IrcConfig.get().glowColor, TertiaryPanelComponent::setGlowColor));
+        panel.child(new ColorSettingComponent(CONFIG.get().glowColor, TertiaryPanelComponent::setGlowColor));
     }
 
     public static int showGlowColor() {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         ChatNotifier.sendInChatScreen("§6[IRC] 当前glow颜色: §f" + config.glowColor + " §7(用法: /irc functions glowColor #HEX 或 rgb(...))");
         return 1;
     }
@@ -42,7 +50,7 @@ public class GlowColorModule extends Module {
             return 0;
         }
 
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         config.glowColor = colorStr;
         IrcConfig.saveDelayed(800L);
 

@@ -1,7 +1,8 @@
 package me.cookie.kwrg.irc.manager;
 
 import me.cookie.kwrg.gui.notification.NotificationType;
-import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.module.modules.functions.ImportantPlayerModule;
+import me.cookie.kwrg.module.modules.functions.PlayerFinderModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
 import me.cookie.kwrg.util.PlayerFinderChatState;
@@ -35,22 +36,18 @@ public class PlayerFinderManager {
 
     public static void reloadFromConfig() {
         PERSISTENT_TARGETS.clear();
-        IrcConfig config = IrcConfig.get();
-        if (config != null && config.playerFinderTargets != null) {
-            for (String name : config.playerFinderTargets) {
-                if (name != null && !name.isBlank()) {
-                    String clean = name.trim();
-                    PERSISTENT_TARGETS.put(clean.toLowerCase(Locale.ROOT), clean);
-                }
+        PlayerFinderModule.Settings config = PlayerFinderModule.CONFIG.get();
+        for (String name : config.playerFinderTargets) {
+            if (name != null && !name.isBlank()) {
+                String clean = name.trim();
+                PERSISTENT_TARGETS.put(clean.toLowerCase(Locale.ROOT), clean);
             }
         }
     }
 
     private static void saveToConfig() {
-        IrcConfig config = IrcConfig.get();
-        if (config == null) return;
-        config.playerFinderTargets = new ArrayList<>(PERSISTENT_TARGETS.values());
-        IrcConfig.saveDelayed(600L);
+        PlayerFinderModule.CONFIG.updateDelayed(600L,
+                settings -> settings.playerFinderTargets = new ArrayList<>(PERSISTENT_TARGETS.values()));
     }
 
     public static void addPlayer(String username) {
@@ -58,9 +55,12 @@ public class PlayerFinderManager {
         String original = username.trim();
         String lower = original.toLowerCase(Locale.ROOT);
 
-        TEMP_TARGETS.remove(lower);
-        if (PERSISTENT_TARGETS.put(lower, original) == null || !PERSISTENT_TARGETS.get(lower).equals(original)) {
+        boolean removedTemp = TEMP_TARGETS.remove(lower) != null;
+        boolean changed = !original.equals(PERSISTENT_TARGETS.put(lower, original));
+        if (changed) {
             saveToConfig();
+        }
+        if (removedTemp || changed) {
             notifyTargetsChanged();
         }
     }
@@ -179,7 +179,7 @@ public class PlayerFinderManager {
 
         if (!PERSISTENT_TARGETS.containsKey(lower) && TEMP_TARGETS.put(lower, name) == null) {
             boolean starred = false;
-            IrcConfig config = IrcConfig.get();
+            ImportantPlayerModule.Settings config = ImportantPlayerModule.CONFIG.get();
             if (config.importantPlayers != null && config.importantPlayers.stream().anyMatch(name::equalsIgnoreCase)) {
                 STARRED_PLAYERS.add(lower);
                 starred = true;
@@ -271,7 +271,7 @@ public class PlayerFinderManager {
         }
 
         boolean starredChanged = false;
-        IrcConfig config = IrcConfig.get();
+        ImportantPlayerModule.Settings config = ImportantPlayerModule.CONFIG.get();
         if (config.importantPlayers != null) {
             for (String member : members) {
                 boolean isImportant = config.importantPlayers.stream().anyMatch(imp -> imp.equalsIgnoreCase(member));
@@ -324,17 +324,18 @@ public class PlayerFinderManager {
     }
 
     public static int getGlowColorRgb() {
-        String colorStr = IrcConfig.get().playerFinderColor;
+        String colorStr = PlayerFinderModule.CONFIG.get().playerFinderColor;
         java.awt.Color c = ColorUtil.parseSingleColor(colorStr);
         return c != null ? (c.getRGB() & 0xFFFFFF) : 0xFF3333;
     }
 
     public static void clear() {
+        boolean hadPersistentTargets = !PERSISTENT_TARGETS.isEmpty();
         PERSISTENT_TARGETS.clear();
         TEMP_TARGETS.clear();
         STARRED_PLAYERS.clear();
         partyTracking = false;
-        saveToConfig();
+        if (hadPersistentTargets) saveToConfig();
         notifyTargetsChanged();
     }
 }

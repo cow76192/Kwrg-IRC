@@ -7,7 +7,7 @@ import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
-import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.irc.manager.WaypointManager;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -16,18 +16,31 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 public class WaypointModule extends Module {
+
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public Map<String, WaypointManager.WaypointEntry> waypoints = new LinkedHashMap<>();
+    }
 
     private String currentName = "";
     private String[] currentValues = {"", "", ""};
     private int editingIndex = -1;
 
     public WaypointModule() {
-        super("waypoint", Category.FUNCTIONS, PanelItemComponent.ItemType.TRIGGER);
+        super("waypoint", Category.FUNCTIONS, PanelItemComponent.ItemType.TRIGGER, CONFIG);
+    }
+
+    @Override
+    protected void onConfigLoaded() {
+        WaypointManager.reloadFromConfig();
     }
 
     @Override
@@ -75,12 +88,12 @@ public class WaypointModule extends Module {
         inputHolder[0].onLeftChanged(name -> {
             this.currentName = name;
             if (this.editingIndex < 0) return;
-            List<IrcConfig.WaypointEntry> current = WaypointManager.savedEntries();
+            List<WaypointManager.WaypointEntry> current = WaypointManager.savedEntries();
             if (this.editingIndex >= current.size()) {
                 this.editingIndex = -1;
                 return;
             }
-            IrcConfig.WaypointEntry editing = current.get(this.editingIndex);
+            WaypointManager.WaypointEntry editing = current.get(this.editingIndex);
             if (editing == null) {
                 this.editingIndex = -1;
             }
@@ -89,7 +102,7 @@ public class WaypointModule extends Module {
         panel.child(TextInfoPaneComponent.header("名字 / X / Y / Z (Enter 保存)"));
         panel.child(inputHolder[0]);
 
-        List<IrcConfig.WaypointEntry> list = WaypointManager.savedEntries();
+        List<WaypointManager.WaypointEntry> list = WaypointManager.savedEntries();
         int count = list.size();
         panel.child(TextInfoPaneComponent.header("已保存坐标 (" + count + ")"));
 
@@ -100,7 +113,7 @@ public class WaypointModule extends Module {
 
         for (int index = 0; index < list.size(); index++) {
             final int entryIndex = index;
-            IrcConfig.WaypointEntry entry = list.get(index);
+            WaypointManager.WaypointEntry entry = list.get(index);
             if (entry == null || entry.name == null) continue;
 
             String coords = WaypointManager.formatCoord(entry.x)
@@ -110,7 +123,7 @@ public class WaypointModule extends Module {
                     + "§f" + entry.name
                     + " §7(" + coords + ")";
             BooleanSupplier shown = () -> {
-                List<IrcConfig.WaypointEntry> current = WaypointManager.savedEntries();
+                List<WaypointManager.WaypointEntry> current = WaypointManager.savedEntries();
                 return entryIndex < current.size() && current.get(entryIndex).enabled;
             };
 

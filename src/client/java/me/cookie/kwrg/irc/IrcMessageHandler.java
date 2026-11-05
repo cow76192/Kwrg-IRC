@@ -3,9 +3,9 @@ package me.cookie.kwrg.irc;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.manager.HideArmorManager;
 import me.cookie.kwrg.irc.manager.IrcGlowManager;
+import me.cookie.kwrg.module.modules.functions.ImportantPlayerModule;
 import me.cookie.kwrg.module.modules.style.ChatModule;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -380,7 +380,7 @@ public class IrcMessageHandler {
         ChatNotifier.sendAnimatedInChatScreen(segments);
         ChatModule.playConfiguredSound();
 
-        for (String target : IrcConfig.get().importantPlayers) {
+        for (String target : ImportantPlayerModule.CONFIG.get().importantPlayers) {
             if (target.equalsIgnoreCase(username)) {
                 showImportantTitle(rank, nameStyle, username, chatStyle, body);
                 break;

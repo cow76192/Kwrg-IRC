@@ -6,6 +6,7 @@ import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInputPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -14,20 +15,37 @@ import me.cookie.kwrg.util.ColorUtil;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class PlayerFinderModule extends Module {
+
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class, Settings::sanitize);
+
+    public static final class Settings {
+        public String playerFinderColor = "#FF3333";
+        public List<String> playerFinderTargets = new ArrayList<>();
+
+        private void sanitize() {
+            if (playerFinderTargets == null) playerFinderTargets = new ArrayList<>();
+        }
+    }
 
     private String currentInputText = "";
     private TertiaryPanelComponent activePanel = null;
 
     public PlayerFinderModule() {
-        super("playerFinder", Category.FUNCTIONS, PanelItemComponent.ItemType.TRIGGER);
+        super("playerFinder", Category.FUNCTIONS, PanelItemComponent.ItemType.TRIGGER, CONFIG);
         PlayerFinderManager.setOnTargetsChangedListener(() -> {
             if (this.activePanel != null) {
                 renderFinderUI(this.activePanel, null);
             }
         });
+    }
+
+    @Override
+    protected void onConfigLoaded() {
+        PlayerFinderManager.reloadFromConfig();
     }
 
     @Override
@@ -71,7 +89,7 @@ public class PlayerFinderModule extends Module {
                 PlayerFinderManager::isPartyTracking
         ));
 
-        panel.child(new ColorSettingComponent(IrcConfig.get().playerFinderColor, PlayerFinderModule::setFinderColor, false));
+        panel.child(new ColorSettingComponent(CONFIG.get().playerFinderColor, PlayerFinderModule::setFinderColor, false));
 
         panel.child(TextInfoPaneComponent.header("目标列表\n（Shift左键移除 | Ctrl左键星标）"));
 
@@ -131,7 +149,7 @@ public class PlayerFinderModule extends Module {
         java.awt.Color c = ColorUtil.parseSingleColor(colorStr);
         if (c == null) return 0;
 
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         config.playerFinderColor = colorStr;
         IrcConfig.saveDelayed(800L);
         return 1;

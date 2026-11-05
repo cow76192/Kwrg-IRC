@@ -6,8 +6,10 @@ import me.cookie.kwrg.gui.component.pane.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
+import me.cookie.kwrg.module.modules.style.MessageStyleModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
 import net.minecraft.client.Minecraft;
@@ -22,6 +24,16 @@ import java.util.function.Consumer;
 
 public class ChatSuffixModule extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public boolean chatSuffixEnabled = false;
+        public String chatSuffixPrefix = "";
+        public String chatSuffix = "喵~";
+        public boolean chatSuffixFollowMessageStyle = false;
+        public boolean chatSuffixPublicChat = false;
+    }
+
     public record IrcDecoration(String content, String prefix, String suffix) {
         public static IrcDecoration plain(String content) {
             return new IrcDecoration(content, "", "");
@@ -32,8 +44,6 @@ public class ChatSuffixModule extends Module {
 
     private static boolean failureReported = false;
 
-    private static final Minecraft mc = Minecraft.getInstance();
-    private static final String SAMPLE_MESSAGE = mc.player != null ? mc.player.getName().getString() : "Player";
     private static final String ENGLISH_SUFFIX = "&o&d meow~";
     private static final String STYLE_RESET = "§r";
 
@@ -53,12 +63,12 @@ public class ChatSuffixModule extends Module {
     };
 
     public ChatSuffixModule() {
-        super("chatSuffix", Category.FUNCTIONS, PanelItemComponent.ItemType.TOGGLE, () -> IrcConfig.get().chatSuffixEnabled);
+        super("chatSuffix", Category.FUNCTIONS, PanelItemComponent.ItemType.TOGGLE, () -> CONFIG.get().chatSuffixEnabled, CONFIG);
     }
 
     @Override
     public void onExecute() {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         config.chatSuffixEnabled = !config.chatSuffixEnabled;
         IrcConfig.save();
 
@@ -81,7 +91,7 @@ public class ChatSuffixModule extends Module {
                 "公屏前后缀同步",
                 PanelItemComponent.ItemType.TOGGLE,
                 (btn, click) -> {
-                    IrcConfig config = IrcConfig.get();
+                    Settings config = CONFIG.get();
                     config.chatSuffixPublicChat = !config.chatSuffixPublicChat;
                     IrcConfig.save();
                     btn.setToggled(config.chatSuffixPublicChat);
@@ -90,12 +100,12 @@ public class ChatSuffixModule extends Module {
                             : "§e 公屏前后缀同步", NotificationType.INFO);
                 },
                 null,
-                () -> IrcConfig.get().chatSuffixPublicChat
+                () -> CONFIG.get().chatSuffixPublicChat
         ));
 
         panel.child(createValuePane("前缀值", "前缀", getConfiguredPrefix(),
                 value -> {
-                    IrcConfig.get().chatSuffixPrefix = value;
+                    CONFIG.get().chatSuffixPrefix = value;
                     IrcConfig.save();
                 },
                 value -> editingPrefix[0] = value));
@@ -108,7 +118,7 @@ public class ChatSuffixModule extends Module {
 
         TextInputPaneComponent suffixPane = createValuePane("后缀值", "后缀", getConfiguredSuffix(),
                 value -> {
-                    IrcConfig.get().chatSuffix = value;
+                    CONFIG.get().chatSuffix = value;
                     IrcConfig.save();
                 },
                 value -> editingSuffix[0] = value);
@@ -124,7 +134,7 @@ public class ChatSuffixModule extends Module {
                 "跟随 messageStyle",
                 PanelItemComponent.ItemType.TOGGLE,
                 (btn, click) -> {
-                    IrcConfig config = IrcConfig.get();
+                    Settings config = CONFIG.get();
                     config.chatSuffixFollowMessageStyle = !config.chatSuffixFollowMessageStyle;
                     IrcConfig.save();
                     btn.setToggled(config.chatSuffixFollowMessageStyle);
@@ -133,7 +143,7 @@ public class ChatSuffixModule extends Module {
                             : "§e 语气词已使用自身颜色", NotificationType.INFO);
                 },
                 null,
-                () -> IrcConfig.get().chatSuffixFollowMessageStyle
+                () -> CONFIG.get().chatSuffixFollowMessageStyle
         ));
 
         panel.child(TextInfoPaneComponent.header("预设后缀"));
@@ -145,7 +155,7 @@ public class ChatSuffixModule extends Module {
                     (clicked, click) -> {
                         suffixPane.setText(preset);
                         editingSuffix[0] = preset;
-                        IrcConfig.get().chatSuffix = preset;
+                        CONFIG.get().chatSuffix = preset;
                         IrcConfig.save();
                         ChatNotifier.send("§a 已应用后缀预设: §f" + preset, NotificationType.SUCCESS);
                     },
@@ -187,31 +197,34 @@ public class ChatSuffixModule extends Module {
     }
 
     private static String getConfiguredPrefix() {
-        String value = IrcConfig.get().chatSuffixPrefix;
+        String value = CONFIG.get().chatSuffixPrefix;
         return value != null ? value : "";
     }
 
     private static String getConfiguredSuffix() {
-        String value = IrcConfig.get().chatSuffix;
+        String value = CONFIG.get().chatSuffix;
         return value != null ? value : "";
     }
 
     private static Component buildPreview(String prefixValue, String suffixValue) {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
+        Minecraft mc = Minecraft.getInstance();
+        String sampleMessage = mc.player != null ? mc.player.getName().getString() : "Player";
         String prefix = prefixValue == null ? "" : prefixValue;
         String suffix = suffixValue == null ? "" : suffixValue;
-        String messageStyle = config.chatstyle != null ? config.chatstyle : "";
+        String messageStyle = MessageStyleModule.CONFIG.get().chatstyle;
+        if (messageStyle == null) messageStyle = "";
         String suffixText = convertCodes(suffix, false);
-        String gap = needsSpace(SAMPLE_MESSAGE, suffixText) ? " " : "";
+        String gap = needsSpace(sampleMessage, suffixText) ? " " : "";
 
         if (config.chatSuffixFollowMessageStyle) {
-            String line = convertCodes(prefix, false) + SAMPLE_MESSAGE + gap + suffixText;
+            String line = convertCodes(prefix, false) + sampleMessage + gap + suffixText;
             return ColorUtil.applyStyle(line, messageStyle);
         }
 
         return Component.empty()
                 .append(legacyComponent(prefix))
-                .append(ColorUtil.applyStyle(SAMPLE_MESSAGE, messageStyle))
+                .append(ColorUtil.applyStyle(sampleMessage, messageStyle))
                 .append(legacyComponent(gap + suffix));
     }
 
@@ -259,7 +272,7 @@ public class ChatSuffixModule extends Module {
         if (message == null || message.isBlank()) return message;
         if (message.startsWith("/")) return message;
 
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         if (!config.chatSuffixEnabled || !config.chatSuffixPublicChat) return message;
 
         return decoratePlain(config, message);
@@ -268,7 +281,7 @@ public class ChatSuffixModule extends Module {
     public static String applyPublicCommandSuffix(String command) {
         if (command == null || command.isEmpty()) return command;
 
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         if (!config.chatSuffixEnabled || !config.chatSuffixPublicChat) return command;
 
         String lower = command.toLowerCase(Locale.ROOT);
@@ -282,7 +295,7 @@ public class ChatSuffixModule extends Module {
         return decorated.equals(text) ? command : command.substring(0, space + 1) + decorated;
     }
 
-    private static String resolveSuffixValue(IrcConfig config, String message) {
+    private static String resolveSuffixValue(Settings config, String message) {
         if (isPureEnglish(message) && isMeowSuffix(config.chatSuffix)) return ENGLISH_SUFFIX;
         return config.chatSuffix;
     }
@@ -292,7 +305,7 @@ public class ChatSuffixModule extends Module {
         return convertCodes(value, false).trim().equals("喵~");
     }
 
-    private static String decoratePlain(IrcConfig config, String message) {
+    private static String decoratePlain(Settings config, String message) {
         String suffixValue = resolveSuffixValue(config, message);
         String prefix = convertCodes(config.chatSuffixPrefix, false);
         String suffix = convertCodes(suffixValue, false);
@@ -321,7 +334,7 @@ public class ChatSuffixModule extends Module {
         if (message == null || message.isBlank()) return IrcDecoration.plain(message);
         if (message.startsWith("/")) return IrcDecoration.plain(message);
 
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         if (!config.chatSuffixEnabled) return IrcDecoration.plain(message);
 
         String suffixValue = resolveSuffixValue(config, message);

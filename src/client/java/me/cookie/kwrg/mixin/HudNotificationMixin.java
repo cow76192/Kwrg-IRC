@@ -2,7 +2,7 @@ package me.cookie.kwrg.mixin;
 
 import me.cookie.kwrg.gui.notification.NotificationManager;
 import me.cookie.kwrg.irc.IrcMessageHandler;
-import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.module.modules.functions.ImportantPlayerModule;
 import me.cookie.kwrg.render.*;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -29,7 +29,7 @@ public abstract class HudNotificationMixin {
 
     @Inject(method = "extractRenderState", at = @At("HEAD"))
     private void kwrg$onUpdateAnimatedTitle(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker, CallbackInfo ci) {
-        if (this.titleTime > 0 && IrcMessageHandler.ImportantTitleManager.isShowing() && IrcConfig.get().importantPlayer) {
+        if (this.titleTime > 0 && IrcMessageHandler.ImportantTitleManager.isShowing() && ImportantPlayerModule.CONFIG.get().importantPlayer) {
             this.title = IrcMessageHandler.ImportantTitleManager.getAnimatedTitle();
             this.subtitle = IrcMessageHandler.ImportantTitleManager.getAnimatedSubtitle();
         } else if (this.titleTime <= 0) {

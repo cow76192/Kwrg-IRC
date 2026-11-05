@@ -6,6 +6,7 @@ import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -19,8 +20,14 @@ import java.util.List;
 
 public class FontModule extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public String guiFont = "default";
+    }
+
     public FontModule() {
-        super("font", Category.STYLE, PanelItemComponent.ItemType.TRIGGER);
+        super("font", Category.STYLE, PanelItemComponent.ItemType.TRIGGER, CONFIG);
     }
 
     @Override
@@ -50,7 +57,7 @@ public class FontModule extends Module {
             }
         }));
 
-        String currentFont = IrcConfig.get().guiFont != null ? IrcConfig.get().guiFont : FontManagerHelper.DEFAULT_FONT;
+        String currentFont = CONFIG.get().guiFont != null ? CONFIG.get().guiFont : FontManagerHelper.DEFAULT_FONT;
         panel.child(new TextInfoPaneComponent(
                 "当前生效",
                 () -> Component.literal("§b" + (FontManagerHelper.DEFAULT_FONT.equalsIgnoreCase(currentFont) ? "原版默认 (Default)" : currentFont)),
@@ -87,7 +94,7 @@ public class FontModule extends Module {
                     (btn, click) -> {
                         boolean success = FontManagerHelper.applyFont(fontName);
                         if (success) {
-                            IrcConfig.get().guiFont = fontName;
+                            CONFIG.get().guiFont = fontName;
                             IrcConfig.save();
                             ChatNotifier.send("§a[IRC] 已应用并切换字体: §f" + fontName, NotificationType.SUCCESS);
                             renderFontUI(panel);
@@ -96,7 +103,7 @@ public class FontModule extends Module {
                         }
                     },
                     null,
-                    () -> fontName.equalsIgnoreCase(IrcConfig.get().guiFont)
+                    () -> fontName.equalsIgnoreCase(CONFIG.get().guiFont)
             );
 
             panel.child(item);

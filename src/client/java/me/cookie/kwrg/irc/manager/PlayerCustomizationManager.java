@@ -7,6 +7,8 @@ import com.mojang.blaze3d.textures.GpuSampler;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.mixin.accessor.NativeImageAccessor;
+import me.cookie.kwrg.module.modules.functions.CustomCapeModule;
+import me.cookie.kwrg.module.modules.functions.ModelScaleModule;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
@@ -88,7 +90,7 @@ public class PlayerCustomizationManager {
     private static volatile String activeCapeName = null;
     private static volatile String loadingCapeName = null;
 
-    public static float getMyScale() { return IrcConfig.get().myScale; }
+    public static float getMyScale() { return ModelScaleModule.CONFIG.get().myScale; }
 
     public static Identifier peekCapePreview(String fileName) {
         CapePreview p = CAPE_PREVIEW_CACHE.get(fileName);
@@ -232,7 +234,7 @@ public class PlayerCustomizationManager {
     }
 
     public static void setMyScale(float scale) {
-        IrcConfig.get().myScale = scale;
+        ModelScaleModule.CONFIG.get().myScale = scale;
         IrcConfig.save();
         IrcClient.sendScaleSync(scale);
     }
@@ -389,13 +391,13 @@ public class PlayerCustomizationManager {
     }
 
     public static String getMyCape() {
-        String cape = IrcConfig.get().myCape;
+        String cape = CustomCapeModule.CONFIG.get().myCape;
         return (cape != null && !cape.isBlank()) ? cape : null;
     }
 
     public static void setMyCape(String fileName) {
         String target = (fileName != null && !fileName.isBlank()) ? fileName : "";
-        IrcConfig.get().myCape = target;
+        CustomCapeModule.CONFIG.get().myCape = target;
         IrcConfig.save();
 
         if (target.isBlank()) {
@@ -732,7 +734,7 @@ public class PlayerCustomizationManager {
         List<BufferedImage> blocks = new ArrayList<>();
 
         boolean isRemote = fileName != null && fileName.startsWith("cache/");
-        int block = isRemote ? IrcConfig.get().remoteCapeCanvasSize : IrcConfig.get().capeCanvasSize;
+        int block = isRemote ? CustomCapeModule.CONFIG.get().remoteCapeCanvasSize : CustomCapeModule.CONFIG.get().capeCanvasSize;
 
         int srcW = src.getWidth();
         int srcH = src.getHeight();
@@ -816,7 +818,7 @@ public class PlayerCustomizationManager {
 
     private static List<BufferedImage> layoutGifFrames(Path file, String fileName) throws Exception {
         boolean isRemote = fileName != null && fileName.startsWith("cache/");
-        int block = isRemote ? Math.min(IrcConfig.get().remoteCapeCanvasSize, 512) : Math.min(IrcConfig.get().capeCanvasSize, 1024);
+        int block = isRemote ? Math.min(CustomCapeModule.CONFIG.get().remoteCapeCanvasSize, 512) : Math.min(CustomCapeModule.CONFIG.get().capeCanvasSize, 1024);
         int faceW = block * 10 / 64;
         int faceH = block * 16 / 64;
 
@@ -1000,7 +1002,7 @@ public class PlayerCustomizationManager {
     }
 
     public static int clampFps(int fps) {
-        return Math.max(1, Math.min(fps, IrcConfig.get().capeRenderMaxFps));
+        return Math.max(1, Math.min(fps, CustomCapeModule.CONFIG.get().capeRenderMaxFps));
     }
 
     public static void refreshFrameTiming() {
@@ -1015,7 +1017,7 @@ public class PlayerCustomizationManager {
             Integer nativeFps = CAPE_NATIVE_FPS.get(capeName);
             if (nativeFps != null) return nativeFps;
         }
-        return clampFps(IrcConfig.get().capeAnimFps);
+        return clampFps(CustomCapeModule.CONFIG.get().capeAnimFps);
     }
 
     private static BufferedImage paintBlock(BufferedImage face, int block, int faceW, int faceH) {

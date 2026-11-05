@@ -5,6 +5,7 @@ import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.pane.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.irc.manager.HypixelRank;
 import me.cookie.kwrg.irc.manager.NickManager;
 import me.cookie.kwrg.module.Category;
@@ -14,12 +15,23 @@ import net.minecraft.network.chat.Component;
 
 public class NickModule extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public boolean nickEnabled = false;
+        public String customNick = "";
+        public String nickRank = "MVP+";
+        public String nickPlusColor = "RED";
+        public String nickTagColor = "GOLD";
+    }
+
     public NickModule() {
         super(
                 "Nick",
                 Category.FUNCTIONS,
                 PanelItemComponent.ItemType.TOGGLE,
-                NickManager::isEnabled
+                NickManager::isEnabled,
+                CONFIG
         );
     }
 

@@ -13,29 +13,16 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
 
 public final class ConfigMigrator {
 
-    private static final Set<String> KNOWN_CONFIG_KEYS = new HashSet<>();
     private static final Gson BACKUP_GSON = new GsonBuilder().setPrettyPrinting().create();
-
-    static {
-        for (Field field : IrcConfig.class.getDeclaredFields()) {
-            int mods = field.getModifiers();
-            if (!Modifier.isStatic(mods) && !Modifier.isTransient(mods)) {
-                KNOWN_CONFIG_KEYS.add(field.getName());
-            }
-        }
-    }
 
     private ConfigMigrator() {
     }
@@ -75,6 +62,7 @@ public final class ConfigMigrator {
         migrateTabOpacity(jsonObj);
         migrateElementAppearance(jsonObj);
         migrateHideArmorParts(jsonObj);
+        migrateWaypointList(jsonObj);
 
         // 5. 校验未知字段
         checkUnknownFields(jsonObj, originalConfig);
@@ -90,7 +78,7 @@ public final class ConfigMigrator {
     private static void checkUnknownFields(JsonObject jsonObj, JsonObject originalConfig) {
         Set<String> unknownKeys = new LinkedHashSet<>();
         for (String key : jsonObj.keySet()) {
-            if (!KNOWN_CONFIG_KEYS.contains(key)) {
+            if (!IrcConfig.isKnownKey(key)) {
                 unknownKeys.add(key);
             }
         }
@@ -186,6 +174,19 @@ public final class ConfigMigrator {
             jsonObj.addProperty(partKey, true);
             notifyMigration("hideArmor", partKey, true);
         }
+    }
+
+    private static void migrateWaypointList(JsonObject jsonObj) {
+        JsonElement waypoints = jsonObj.get("waypoints");
+        if (waypoints == null || !waypoints.isJsonArray()) return;
+
+        // Older profiles stored an ordered array before waypoints had IDs.
+        JsonObject savedWaypoints = new JsonObject();
+        int index = 0;
+        for (JsonElement entry : waypoints.getAsJsonArray()) {
+            savedWaypoints.add("legacy-" + index++, entry);
+        }
+        jsonObj.add("waypoints", savedWaypoints);
     }
 
     private static void moveIntoElement(JsonObject jsonObj, String legacyKey, String elementId, String stateKey) {

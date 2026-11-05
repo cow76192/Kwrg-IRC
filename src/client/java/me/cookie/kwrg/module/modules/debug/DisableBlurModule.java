@@ -7,6 +7,7 @@ import me.cookie.kwrg.gui.component.pane.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -16,8 +17,16 @@ import java.util.Locale;
 
 public class DisableBlurModule extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public boolean disableBlur = false;
+        public float blurQuality = 8.0f;
+        public float blurSize = 16.0f;
+    }
+
     public DisableBlurModule() {
-        super("disableBlur", Category.DEBUG, PanelItemComponent.ItemType.TOGGLE, () -> IrcConfig.get().disableBlur);
+        super("disableBlur", Category.DEBUG, PanelItemComponent.ItemType.TOGGLE, () -> CONFIG.get().disableBlur, CONFIG);
     }
 
     /**
@@ -25,7 +34,7 @@ public class DisableBlurModule extends Module {
      */
     @Override
     public void onExecute() {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         config.disableBlur = !config.disableBlur;
         IrcConfig.save();
 
@@ -46,15 +55,15 @@ public class DisableBlurModule extends Module {
     private void renderTertiaryUI(TertiaryPanelComponent panel) {
         panel.clearChildren();
 
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
 
         panel.child(new TextInfoPaneComponent(
                 "当前参数",
                 () -> {
-                    if (IrcConfig.get().disableBlur) {
+                    if (CONFIG.get().disableBlur) {
                         return Component.literal("§c已禁用 (透明)");
                     }
-                    return Component.literal(String.format(Locale.ROOT, "§bQ: %.1f §7| §bS: %.1f", IrcConfig.get().blurQuality, IrcConfig.get().blurSize));
+                    return Component.literal(String.format(Locale.ROOT, "§bQ: %.1f §7| §bS: %.1f", CONFIG.get().blurQuality, CONFIG.get().blurSize));
                 },
                 false
         ));
@@ -66,7 +75,7 @@ public class DisableBlurModule extends Module {
                 PanelItemComponent.ItemType.TOGGLE,
                 () -> applyPreset(3.0f, 16.0f, "Balanced", panel),
                 null,
-                () -> !IrcConfig.get().disableBlur && Math.abs(IrcConfig.get().blurQuality - 3.0f) < 0.05f && Math.abs(IrcConfig.get().blurSize - 16.0f) < 0.05f
+                () -> !CONFIG.get().disableBlur && Math.abs(CONFIG.get().blurQuality - 3.0f) < 0.05f && Math.abs(CONFIG.get().blurSize - 16.0f) < 0.05f
         ));
 
         panel.child(new PanelItemComponent(
@@ -74,7 +83,7 @@ public class DisableBlurModule extends Module {
                 PanelItemComponent.ItemType.TOGGLE,
                 () -> applyPreset(2.0f, 14.0f, "Performance", panel),
                 null,
-                () -> !IrcConfig.get().disableBlur && Math.abs(IrcConfig.get().blurQuality - 2.0f) < 0.05f && Math.abs(IrcConfig.get().blurSize - 14.0f) < 0.05f
+                () -> !CONFIG.get().disableBlur && Math.abs(CONFIG.get().blurQuality - 2.0f) < 0.05f && Math.abs(CONFIG.get().blurSize - 14.0f) < 0.05f
         ));
 
         panel.child(new PanelItemComponent(
@@ -82,7 +91,7 @@ public class DisableBlurModule extends Module {
                 PanelItemComponent.ItemType.TOGGLE,
                 () -> applyPreset(8.0f, 16.0f, "Ultra", panel),
                 null,
-                () -> !IrcConfig.get().disableBlur && Math.abs(IrcConfig.get().blurQuality - 8.0f) < 0.05f && Math.abs(IrcConfig.get().blurSize - 16.0f) < 0.05f
+                () -> !CONFIG.get().disableBlur && Math.abs(CONFIG.get().blurQuality - 8.0f) < 0.05f && Math.abs(CONFIG.get().blurSize - 16.0f) < 0.05f
         ));
 
         panel.child(TextInfoPaneComponent.header("自定义数值 (回车保存)"));
@@ -94,8 +103,8 @@ public class DisableBlurModule extends Module {
                     ChatNotifier.send("§c模糊质量建议在 0.5 ~ 32.0 之间", NotificationType.WARN);
                     return;
                 }
-                IrcConfig.get().blurQuality = q;
-                IrcConfig.get().disableBlur = false;
+                CONFIG.get().blurQuality = q;
+                CONFIG.get().disableBlur = false;
                 IrcConfig.save();
                 ChatNotifier.send("§a模糊质量已更新为: §f" + q, NotificationType.SUCCESS);
                 refreshScreenSurface();
@@ -114,8 +123,8 @@ public class DisableBlurModule extends Module {
                     ChatNotifier.send("§c半径数值建议在 1.0 ~ 64.0 之间", NotificationType.WARN);
                     return;
                 }
-                IrcConfig.get().blurSize = s;
-                IrcConfig.get().disableBlur = false;
+                CONFIG.get().blurSize = s;
+                CONFIG.get().disableBlur = false;
                 IrcConfig.save();
                 ChatNotifier.send("§a模糊半径已更新为: §f" + s, NotificationType.SUCCESS);
                 refreshScreenSurface();
@@ -129,7 +138,7 @@ public class DisableBlurModule extends Module {
     }
 
     private static void applyPreset(float quality, float size, String name, TertiaryPanelComponent panel) {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         config.disableBlur = false;
         config.blurQuality = quality;
         config.blurSize = size;

@@ -1,6 +1,6 @@
 package me.cookie.kwrg.gui.util;
 
-import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.module.modules.debug.GuiFpsModule;
 import java.util.concurrent.locks.LockSupport;
 
 public class GuiFpsLimiter {
@@ -9,7 +9,7 @@ public class GuiFpsLimiter {
     private static long lastThrottledNanoTime = 0;
 
     public static void apply() {
-        int maxFps = IrcConfig.get().guiFpsLimit;
+        int maxFps = GuiFpsModule.CONFIG.get().guiFpsLimit;
         if (maxFps <= 0) return;
 
         long now = System.nanoTime();

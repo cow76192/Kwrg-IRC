@@ -6,6 +6,7 @@ import me.cookie.kwrg.gui.component.pane.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -14,8 +15,14 @@ import net.minecraft.util.Mth;
 
 public class DynamicIslandAAValve extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public float dynamicIslandAAValue = 0.35f;
+    }
+
     public DynamicIslandAAValve() {
-        super("DynamicIslandAAValve", Category.DEBUG, PanelItemComponent.ItemType.TRIGGER);
+        super("DynamicIslandAAValve", Category.DEBUG, PanelItemComponent.ItemType.TRIGGER, CONFIG);
     }
 
     @Override
@@ -31,13 +38,13 @@ public class DynamicIslandAAValve extends Module {
 
         panel.child(new TextInfoPaneComponent(
                 "当前 AA 值",
-                () -> Component.literal("§b" + IrcConfig.get().dynamicIslandAAValue),
+                () -> Component.literal("§b" + CONFIG.get().dynamicIslandAAValue),
                 true
         ));
 
         final TextInputPaneComponent[] aaInputHolder = new TextInputPaneComponent[1];
         aaInputHolder[0] = new TextInputPaneComponent("AA 值 (例如: 0.6 或 0.75)", input -> {
-            IrcConfig config = IrcConfig.get();
+            Settings config = CONFIG.get();
             if (input == null || input.isBlank()) return;
 
             try {
@@ -58,14 +65,14 @@ public class DynamicIslandAAValve extends Module {
             }
         });
 
-        aaInputHolder[0].setText(String.valueOf(IrcConfig.get().dynamicIslandAAValue));
+        aaInputHolder[0].setText(String.valueOf(CONFIG.get().dynamicIslandAAValue));
         panel.child(aaInputHolder[0]);
 
         panel.child(new PanelItemComponent(
                 "重置为默认值 (0.35)",
                 PanelItemComponent.ItemType.TRIGGER,
                 (btn, click) -> {
-                    IrcConfig.get().dynamicIslandAAValue = 0.35f;
+                    CONFIG.get().dynamicIslandAAValue = 0.35f;
                     IrcConfig.save();
                     aaInputHolder[0].setText("0.35");
                     ChatNotifier.send("§a[IRC] 已重置 DynamicIsland AA 值为 0.35", NotificationType.SUCCESS);

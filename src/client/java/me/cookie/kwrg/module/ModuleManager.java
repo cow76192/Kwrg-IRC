@@ -69,7 +69,12 @@ public class ModuleManager {
         register(new ExperimentsModule());
     }
 
+    public static void init() {
+        // Calling this method runs the static module registrations before the profile is loaded.
+    }
+
     public static void register(Module module) {
+        module.registerConfig();
         MODULES.put(module.getName().toLowerCase(Locale.ROOT), module);
     }
 

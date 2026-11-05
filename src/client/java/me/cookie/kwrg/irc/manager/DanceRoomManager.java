@@ -2,6 +2,7 @@ package me.cookie.kwrg.irc.manager;
 
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.module.modules.cheat.DanceRoomModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.MovementUtil;
 import net.minecraft.client.Minecraft;
@@ -68,25 +69,25 @@ public final class DanceRoomManager {
     }
 
     public static boolean isClockwise() {
-        return IrcConfig.get().danceRoomClockwise;
+        return DanceRoomModule.CONFIG.get().danceRoomClockwise;
     }
 
     public static void toggleClockwise() {
-        IrcConfig config = IrcConfig.get();
+        DanceRoomModule.Settings config = DanceRoomModule.CONFIG.get();
         config.danceRoomClockwise = !config.danceRoomClockwise;
         IrcConfig.saveDelayed(500);
     }
 
     public static int getJumpCountdownTick() {
-        return IrcConfig.get().danceRoomJumpTick;
+        return DanceRoomModule.CONFIG.get().danceRoomJumpTick;
     }
 
     public static int getPunchCountdownTick() {
-        return IrcConfig.get().danceRoomPunchTick;
+        return DanceRoomModule.CONFIG.get().danceRoomPunchTick;
     }
 
     public static double getIgnoreDriftDeadzone() {
-        return IrcConfig.get().danceRoomDeadzone;
+        return DanceRoomModule.CONFIG.get().danceRoomDeadzone;
     }
 
     public static boolean saveTimingSettings(String[] values) {
@@ -99,7 +100,7 @@ public final class DanceRoomManager {
             int j = (int) Math.round(jRaw);
             int p = (int) Math.round(pRaw);
 
-            IrcConfig config = IrcConfig.get();
+            DanceRoomModule.Settings config = DanceRoomModule.CONFIG.get();
             config.danceRoomJumpTick = Mth.clamp(j, 1, 18);
             config.danceRoomPunchTick = Mth.clamp(p, 1, 18);
             IrcConfig.save();
@@ -115,7 +116,7 @@ public final class DanceRoomManager {
             double d = Double.parseDouble(values[0].trim());
             if (!Double.isFinite(d)) return false;
 
-            IrcConfig config = IrcConfig.get();
+            DanceRoomModule.Settings config = DanceRoomModule.CONFIG.get();
             config.danceRoomDeadzone = Mth.clamp(d, 0.25, 0.90);
             IrcConfig.save();
             return true;

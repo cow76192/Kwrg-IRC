@@ -3,25 +3,21 @@ package me.cookie.kwrg.irc.config;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
-import me.cookie.kwrg.gui.hud.HudElement;
-import me.cookie.kwrg.gui.manager.GuiColorManager;
-import me.cookie.kwrg.gui.theme.GuiThemeService;
-import me.cookie.kwrg.irc.manager.PlayerFinderManager;
-import me.cookie.kwrg.irc.manager.RouteManager;
-import me.cookie.kwrg.irc.manager.WaypointManager;
-import me.cookie.kwrg.util.Navigator;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -31,121 +27,79 @@ public class IrcConfig {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("kwrg-irc-config");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Map<ModuleConfig<?>, Runnable> MODULE_CONFIGS = new LinkedHashMap<>();
+    private static final Set<String> KNOWN_KEYS = new HashSet<>();
 
     private static final ScheduledExecutorService SAVE_EXECUTOR = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "kwrg-config-saver");
         t.setDaemon(true);
         return t;
     });
-    private static ScheduledFuture<?> pendingSaveTask = null;
+    private static ScheduledFuture<?> pendingSaveTask;
+    private static long saveGeneration;
+    private static boolean dirty;
 
-    public String rank = "&7[Member&7]";
-    public String namestyle = "";
-    public String chatstyle = "";
-    public boolean hideArmor = false;
-    public boolean hideArmorHead = false;
-    public boolean hideArmorChest = false;
-    public boolean hideArmorLegs = false;
-    public boolean hideArmorFeet = false;
-    public boolean glowEnabled = true;
-    public String glowColor = "#00FF88";
-    public List<String> importantPlayers = new ArrayList<>();
-    public Map<String, WaypointEntry> waypoints = new LinkedHashMap<>();
-    public String currentRouteFileName = "";
+    private static volatile IrcConfig instance = new IrcConfig(null);
+    private static volatile String currentProfileName = "default";
+    private static boolean profileLoaded;
 
-    public boolean chat = true;
-    public String chatSound = "CAT_AMBIENT_BABY";
+    private final JsonObject source;
+    private final Map<ModuleConfig<?>, Object> settings = new ConcurrentHashMap<>();
 
-    public boolean importantPlayer = true;
-    public String playerFinderColor = "#FF3333";
+    private IrcConfig(JsonObject source) {
+        this.source = source;
+    }
 
-    public boolean channelEnabled = false;
-    public String currentChannel = "";
-    public List<String> savedChannels = new ArrayList<>();
+    public static synchronized void register(ModuleConfig<?> config, Runnable onLoad) {
+        if (!MODULE_CONFIGS.containsKey(config)) {
+            Set<String> keys = config.keys();
+            for (String key : keys) {
+                if (KNOWN_KEYS.contains(key)) throw new IllegalArgumentException("Duplicate config key: " + key);
+            }
+            instance.settings(config);
+            KNOWN_KEYS.addAll(keys);
+        }
+        MODULE_CONFIGS.put(config, onLoad);
+        if (profileLoaded) notifyLoaded(onLoad);
+    }
 
-    public List<String> playerFinderTargets = new ArrayList<>();
+    static synchronized boolean isKnownKey(String key) {
+        return KNOWN_KEYS.contains(key);
+    }
 
-    public float myScale = 1.0f;
-    public String myCape = "";
-
-    public int remoteCapeCanvasSize = 1024;
-    public int capeCanvasSize = 2048;
-    public int capeAnimFps = 10;
-    public int capeRenderMaxFps = 120;
-
-    public boolean islandShowFps = true;
-    public boolean islandShowPing = true;
-    public boolean islandShowTps = true;
-    public boolean islandShowRam = false;
-    public boolean islandShowGpu = false;
-    public boolean islandShowCpu = false;
-    public float tabOpacity = 1.0f;
-    public boolean dynamicTab = true;
-    public boolean islandPosAffectsTab = true;
-    public boolean scoreboardHideScores = false;
-    public Map<String, HudElement.State> hudElements = new LinkedHashMap<>();
-
-    public boolean disableBlur = false;
-    public float blurQuality = 8.0f;
-    public float blurSize = 16.0f;
-
-    public float navigatorWeight = 1.0f;
-    public boolean navigatorAllowSwimming = true;
-    public boolean navigatorAllowJumping = true;
-    public boolean navigatorAllowTeleport = true;
-    public boolean navigatorAllowClimbing = true;
-
-    public int guiFpsLimit = 60;
-
-    public float dynamicIslandAAValue = 0.35f;
-    public boolean islandShowServerPing = true;
-
-    public boolean connectPublicChannelFirst = true;
-
-    public String guiFont = "default";
-    public String guiColor = "#11161F";
-    public float guiOpacity = 1.0f;
-    public float guiScale = 1.0f;
-
-    public boolean nickEnabled = false;
-    public String customNick = "";
-    public String nickRank = "MVP+";
-    public String nickPlusColor = "RED";
-    public String nickTagColor = "GOLD";
-
-    public boolean chatSuffixEnabled = false;
-    public String chatSuffixPrefix = "";
-    public String chatSuffix = "喵~";
-    public boolean chatSuffixFollowMessageStyle = false;
-    public boolean chatSuffixPublicChat = false;
-
-    public boolean inventoryHudFollowGlobal = false;
-    public float inventoryHudOpacity = 0.75f;
-    public float inventoryHudSlotOpacity = 0.65f;
-    public boolean inventoryHudShowHotbar = false;
-    public boolean inventoryHudShowSlotBg = true;
-    public boolean inventoryHudFollowTheme = true;
-    public boolean inventoryHudHideEmpty = false;
-    public int inventoryHudSlotSpacing = 2;
-    public float inventoryHudCornerRadius = 10.0f;
-
-    public boolean playerDollFollowGlobal = false;
-    public float playerDollOpacity = 1.0f;
-
-    public boolean danceRoomClockwise = false;
-    public int danceRoomJumpTick = 7;
-    public int danceRoomPunchTick = 5;
-    public double danceRoomDeadzone = 0.50;
-
-    public boolean experimentsEnabled = false;
-    public int experimentsBaseDelay = 300;
-    public int experimentsRandomDelay = 65;
-
-    private static IrcConfig instance = new IrcConfig();
-    private static String currentProfileName = "default";
-
-    public static IrcConfig get() {
+    public static IrcConfig current() {
         return instance;
+    }
+
+    public <T> T settings(ModuleConfig<T> config) {
+        return config.cast(settings.computeIfAbsent(config, key -> key.read(source)));
+    }
+
+    public static synchronized IrcConfig parse(JsonObject json) {
+        JsonObject source = json.deepCopy();
+        ConfigMigrator.migrate(source);
+        return readSettings(source);
+    }
+
+    private static IrcConfig readSettings(JsonObject source) {
+        IrcConfig profile = new IrcConfig(source);
+        // Validate every module's settings before replacing the active profile.
+        MODULE_CONFIGS.keySet().forEach(profile::settings);
+        return profile;
+    }
+
+    public String toJson() {
+        synchronized (IrcConfig.class) {
+            return GSON.toJson(toJsonObject());
+        }
+    }
+
+    private JsonObject toJsonObject() {
+        JsonObject json = new JsonObject();
+        for (ModuleConfig<?> config : MODULE_CONFIGS.keySet()) {
+            GSON.toJsonTree(settings(config)).getAsJsonObject().asMap().forEach(json::add);
+        }
+        return json;
     }
 
     public static String getCurrentProfileName() {
@@ -177,109 +131,44 @@ public class IrcConfig {
         String selected = "default";
     }
 
-    public static void load() {
+    public static synchronized void load() {
         try {
             Path metaPath = getMetaPath();
             String selected = "default";
 
             if (Files.exists(metaPath)) {
-                String metaJson = Files.readString(metaPath);
-                ProfileSelector selector = GSON.fromJson(metaJson, ProfileSelector.class);
+                ProfileSelector selector = GSON.fromJson(Files.readString(metaPath), ProfileSelector.class);
                 if (selector != null && selector.selected != null && !selector.selected.isBlank()) {
                     selected = sanitizeProfileName(selector.selected);
                 }
             }
 
-            loadProfile(selected, true);
+            if (loadProfile(selected, true)) return;
         } catch (Exception e) {
             LOGGER.error("[Kwrg] 初始化读取配置文件失败，启用内存默认配置", e);
-            instance = new IrcConfig();
-            currentProfileName = "default";
         }
+        activate(new IrcConfig(null), "default");
     }
 
-    public static boolean loadProfile(String profileName, boolean createIfMissing) {
+    public static synchronized boolean loadProfile(String profileName, boolean createIfMissing) {
         String cleanName = sanitizeProfileName(profileName);
-        Path profilePath = getProfilePath(cleanName);
-
         try {
+            Path profilePath = getProfilePath(cleanName);
+            if (!Files.exists(profilePath) && !createIfMissing) return false;
+            if (!flushPendingSave()) return false;
+
             if (Files.exists(profilePath)) {
-                String json = Files.readString(profilePath);
-
-                JsonObject jsonObj = GSON.fromJson(json, JsonObject.class);
-                ConfigMigrator.migrate(jsonObj);
-                if (jsonObj.has("waypoints") && jsonObj.get("waypoints").isJsonArray()) {
-                    JsonObject savedWaypoints = new JsonObject();
-                    int index = 0;
-                    for (var entry : jsonObj.getAsJsonArray("waypoints")) {
-                        savedWaypoints.add("legacy-" + index++, entry);
-                    }
-                    jsonObj.add("waypoints", savedWaypoints);
-                }
-                IrcConfig loaded = GSON.fromJson(jsonObj, IrcConfig.class);
-
-                if (loaded == null) loaded = new IrcConfig();
-                if (loaded.importantPlayers == null) loaded.importantPlayers = new ArrayList<>();
-                if (loaded.playerFinderTargets == null) loaded.playerFinderTargets = new ArrayList<>();
-                if (loaded.myCape == null) loaded.myCape = "";
-
-                if (loaded.myScale <= 0.0f || Float.isNaN(loaded.myScale)) loaded.myScale = 1.0f;
-                if (!Float.isFinite(loaded.guiOpacity)) loaded.guiOpacity = 1.0f;
-                loaded.guiOpacity = Math.clamp(loaded.guiOpacity, GuiThemeService.MIN_OPACITY, 1.0f);
-                if (loaded.capeCanvasSize < 64) loaded.capeCanvasSize = 4096;
-                if (loaded.capeAnimFps <= 0) loaded.capeAnimFps = 10;
-                if (loaded.capeRenderMaxFps <= 0) loaded.capeRenderMaxFps = 120;
-                if (loaded.capeRenderMaxFps > me.cookie.kwrg.irc.manager.PlayerCustomizationManager.CAPE_MAX_FPS_LIMIT) {
-                    loaded.capeRenderMaxFps = me.cookie.kwrg.irc.manager.PlayerCustomizationManager.CAPE_MAX_FPS_LIMIT;
-                }
-                if (loaded.capeAnimFps > loaded.capeRenderMaxFps) loaded.capeAnimFps = loaded.capeRenderMaxFps;
-
-                if (loaded.hudElements == null) {
-                    loaded.hudElements = new LinkedHashMap<>();
-                } else {
-                    loaded.hudElements.values().removeIf(Objects::isNull);
-                    loaded.hudElements.values().forEach(HudElement.State::sanitize);
-                }
-
-                if (loaded.danceRoomJumpTick <= 0) loaded.danceRoomJumpTick = 7;
-                loaded.danceRoomJumpTick = Math.clamp(loaded.danceRoomJumpTick, 1, 18);
-
-                if (loaded.danceRoomPunchTick <= 0) loaded.danceRoomPunchTick = 5;
-                loaded.danceRoomPunchTick = Math.clamp(loaded.danceRoomPunchTick, 1, 18);
-
-                if (!Double.isFinite(loaded.danceRoomDeadzone) || loaded.danceRoomDeadzone <= 0.0) {
-                    loaded.danceRoomDeadzone = 0.50;
-                } else {
-                    loaded.danceRoomDeadzone = Math.clamp(loaded.danceRoomDeadzone, 0.25, 0.90);
-                }
-
-                if (loaded.experimentsBaseDelay < 50) loaded.experimentsBaseDelay = 200;
-                loaded.experimentsBaseDelay = Math.clamp(loaded.experimentsBaseDelay, 50, 1000);
-
-                if (loaded.experimentsRandomDelay < 0) loaded.experimentsRandomDelay = 50;
-                loaded.experimentsRandomDelay = Math.clamp(loaded.experimentsRandomDelay, 0, 500);
-
-                instance = loaded;
-                currentProfileName = cleanName;
-                GuiColorManager.refresh();
+                IrcConfig loaded = parse(GSON.fromJson(Files.readString(profilePath), JsonObject.class));
+                activate(loaded, cleanName);
                 saveSelectorMeta(cleanName);
-
-                PlayerFinderManager.reloadFromConfig();
-                WaypointManager.reloadFromConfig();
-                RouteManager.reloadFromConfig();
-                IrcConfig.syncNavigator();
-
                 LOGGER.info("[Kwrg] 已加载配置文件: {}.json", cleanName);
                 return true;
-            } else if (createIfMissing) {
-                instance = new IrcConfig();
-                currentProfileName = cleanName;
-                GuiColorManager.refresh();
-                WaypointManager.reloadFromConfig();
-                RouteManager.reloadFromConfig();
-                IrcConfig.syncNavigator();
-
-                save();
+            }
+            if (createIfMissing) {
+                IrcConfig profile = new IrcConfig(null);
+                writeProfile(cleanName, profile.toJson());
+                activate(profile, cleanName);
+                saveSelectorMeta(cleanName);
                 return true;
             }
         } catch (Exception e) {
@@ -288,47 +177,92 @@ public class IrcConfig {
         return false;
     }
 
-    public static void createProfile(String profileName) {
+    public static synchronized boolean createProfile(String profileName) {
         String cleanName = sanitizeProfileName(profileName);
-        instance = new IrcConfig();
-        currentProfileName = cleanName;
-        GuiColorManager.refresh();
-        WaypointManager.reloadFromConfig();
-        RouteManager.reloadFromConfig();
-        syncNavigator();
+        if (!currentProfileName.equalsIgnoreCase(cleanName) && !flushPendingSave()) return false;
+
+        activate(new IrcConfig(null), cleanName);
         LOGGER.info("[Kwrg] 已在内存中新建配置 [{}]（尚未保存到磁盘）", cleanName);
+        return true;
+    }
+
+    public static synchronized void importProfile(String profileName, IrcConfig profile) throws IOException {
+        String cleanName = sanitizeProfileName(profileName);
+        JsonObject json = profile.toJsonObject();
+        // Activate the same values a later reload will see, including defaults for omitted null fields.
+        IrcConfig imported = readSettings(json);
+        if (!currentProfileName.equalsIgnoreCase(cleanName) && !flushPendingSave()) {
+            throw new IOException("当前配置保存失败: " + currentProfileName + ".json");
+        }
+        writeProfile(cleanName, GSON.toJson(json));
+        activate(imported, cleanName);
+        saveSelectorMeta(cleanName);
+    }
+
+    public static synchronized void deleteProfile(String profileName) throws IOException {
+        Files.deleteIfExists(getProfilePath(profileName));
+        if (profileName.equalsIgnoreCase(currentProfileName)) {
+            cancelPendingSave();
+            dirty = false;
+        }
+    }
+
+    private static void activate(IrcConfig profile, String name) {
+        cancelPendingSave();
+        dirty = false;
+        instance = profile;
+        currentProfileName = name;
+        profileLoaded = true;
+        MODULE_CONFIGS.values().forEach(IrcConfig::notifyLoaded);
+    }
+
+    private static void notifyLoaded(Runnable onLoad) {
+        try {
+            onLoad.run();
+        } catch (RuntimeException e) {
+            LOGGER.error("[Kwrg] 同步模块配置失败", e);
+        }
     }
 
     public static synchronized boolean save() {
-        if (pendingSaveTask != null && !pendingSaveTask.isDone()) {
-            pendingSaveTask.cancel(false);
-        }
-
+        cancelPendingSave();
         try {
-            Path dir = getKwrgDir();
-            Files.createDirectories(dir);
-
-            Path profilePath = getProfilePath(currentProfileName);
-            Files.writeString(profilePath, GSON.toJson(instance));
-
+            writeProfile(currentProfileName, instance.toJson());
+            dirty = false;
             saveSelectorMeta(currentProfileName);
-
             LOGGER.info("[Kwrg] 配置已成功保存至: {}.json", currentProfileName);
             return true;
         } catch (Exception e) {
+            dirty = true;
             LOGGER.error("[Kwrg] 保存配置文件失败", e);
             return false;
         }
     }
 
-    public static synchronized void saveDelayed(long delayMs) {
-        if (pendingSaveTask != null && !pendingSaveTask.isDone()) {
-            pendingSaveTask.cancel(false);
-        }
+    private static void writeProfile(String name, String json) throws IOException {
+        Files.createDirectories(getKwrgDir());
+        Files.writeString(getProfilePath(name), json);
+    }
 
+    private static boolean flushPendingSave() {
+        return !dirty || save();
+    }
+
+    private static void cancelPendingSave() {
+        saveGeneration++;
+        if (pendingSaveTask != null) {
+            pendingSaveTask.cancel(false);
+            pendingSaveTask = null;
+        }
+    }
+
+    public static synchronized void saveDelayed(long delayMs) {
+        cancelPendingSave();
+        dirty = true;
+        long generation = saveGeneration;
         pendingSaveTask = SAVE_EXECUTOR.schedule(() -> {
             synchronized (IrcConfig.class) {
-                save();
+                if (generation == saveGeneration) save();
             }
         }, delayMs, TimeUnit.MILLISECONDS);
     }
@@ -362,33 +296,6 @@ public class IrcConfig {
         }
         return list;
     }
-
-    public static class WaypointEntry {
-        public String name = "";
-        public double x;
-        public double y;
-        public double z;
-        public boolean enabled = true;
-
-        public WaypointEntry() {
-        }
-
-        public WaypointEntry(String name, double x, double y, double z) {
-            this.name = name;
-            this.x = x;
-            this.y = y;
-            this.z = z;
-        }
-    }
-
-    private static void syncNavigator() {
-        Navigator.setHeuristicWeight(instance.navigatorWeight);
-        Navigator.setAllowSwimming(instance.navigatorAllowSwimming);
-        Navigator.setAllowJumping(instance.navigatorAllowJumping);
-        Navigator.setAllowTeleport(instance.navigatorAllowTeleport);
-        Navigator.setAllowClimbing(instance.navigatorAllowClimbing);
-    }
-
 
     public static Path getFontDir() {
         return getKwrgDir().resolve("font");

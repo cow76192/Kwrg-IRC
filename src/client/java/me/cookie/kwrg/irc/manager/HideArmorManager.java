@@ -1,6 +1,6 @@
 package me.cookie.kwrg.irc.manager;
 
-import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.module.modules.functions.HideArmorModule;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -25,7 +25,7 @@ public class HideArmorManager {
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.getUser() != null && cleanName.equalsIgnoreCase(mc.getUser().getName())) {
-            return IrcConfig.get().hideArmor && isPartHidden(slot);
+            return HideArmorModule.CONFIG.get().hideArmor && isPartHidden(slot);
         }
 
         Set<EquipmentSlot> hidden = HIDDEN_ARMOR_PLAYERS.get(cleanName.toLowerCase(Locale.ROOT));
@@ -33,7 +33,7 @@ public class HideArmorManager {
     }
 
     public static boolean isPartHidden(EquipmentSlot slot) {
-        IrcConfig config = IrcConfig.get();
+        HideArmorModule.Settings config = HideArmorModule.CONFIG.get();
         return switch (slot) {
             case HEAD -> config.hideArmorHead;
             case CHEST -> config.hideArmorChest;
@@ -44,7 +44,7 @@ public class HideArmorManager {
     }
 
     public static void setPartHidden(EquipmentSlot slot, boolean hidden) {
-        IrcConfig config = IrcConfig.get();
+        HideArmorModule.Settings config = HideArmorModule.CONFIG.get();
         switch (slot) {
             case HEAD -> config.hideArmorHead = hidden;
             case CHEST -> config.hideArmorChest = hidden;

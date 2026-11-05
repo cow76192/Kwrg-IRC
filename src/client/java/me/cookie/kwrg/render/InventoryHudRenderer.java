@@ -7,7 +7,7 @@ import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;
-import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.module.modules.style.dynamic.InventoryHudModule;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -66,7 +66,7 @@ public final class InventoryHudRenderer {
             return;
         }
 
-        IrcConfig config = IrcConfig.get();
+        InventoryHudModule.Settings config = InventoryHudModule.CONFIG.get();
         boolean followGlobal = config.inventoryHudFollowGlobal;
 
         // 解析缩放比例与内边距
@@ -168,7 +168,7 @@ public final class InventoryHudRenderer {
             GuiGraphicsExtractor graphics,
             Minecraft mc,
             Inventory inventory,
-            IrcConfig config,
+            InventoryHudModule.Settings config,
             float panelX, float panelY, float totalW, float totalH,
             int padding, int spacing, boolean showHotbar, boolean followGlobal,
             boolean hasAnyItem, float panelOpacity, float slotOpacity, float contentAlpha

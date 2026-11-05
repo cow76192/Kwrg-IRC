@@ -7,6 +7,7 @@ import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -20,16 +21,27 @@ import java.util.List;
 
 public class ImportantPlayerModule extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class, Settings::sanitize);
+
+    public static final class Settings {
+        public boolean importantPlayer = true;
+        public List<String> importantPlayers = new ArrayList<>();
+
+        private void sanitize() {
+            if (importantPlayers == null) importantPlayers = new ArrayList<>();
+        }
+    }
+
     private String currentInputText = "";
     private boolean isOnlinePickerOpen = false;
 
     public ImportantPlayerModule() {
-        super("importantPlayer", Category.FUNCTIONS, PanelItemComponent.ItemType.TOGGLE, () -> IrcConfig.get().importantPlayer);
+        super("importantPlayer", Category.FUNCTIONS, PanelItemComponent.ItemType.TOGGLE, () -> CONFIG.get().importantPlayer, CONFIG);
     }
 
     @Override
     public void onExecute() {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         config.importantPlayer = !config.importantPlayer;
         IrcConfig.save();
     }
@@ -91,7 +103,7 @@ public class ImportantPlayerModule extends Module {
 
         panel.child(TextInfoPaneComponent.header("当前关注玩家 (Shift+左键取关)"));
 
-        List<String> list = IrcConfig.get().importantPlayers;
+        List<String> list = CONFIG.get().importantPlayers;
         if (list == null || list.isEmpty()) {
             panel.child(new PanelItemComponent("暂无关注玩家"));
         } else {
@@ -125,7 +137,7 @@ public class ImportantPlayerModule extends Module {
     }
 
     private static void toggleImportantWithGui(String player) {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         if (config.importantPlayers == null) config.importantPlayers = new ArrayList<>();
 
         boolean removed = config.importantPlayers.removeIf(p -> p.equalsIgnoreCase(player));
@@ -144,7 +156,7 @@ public class ImportantPlayerModule extends Module {
     }
 
     public static int toggleImportant(String player) {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         boolean removed = config.importantPlayers.removeIf(p -> p.equalsIgnoreCase(player));
         if (removed) {
             IrcConfig.save();
@@ -162,7 +174,7 @@ public class ImportantPlayerModule extends Module {
     }
 
     public static int listImportant() {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         if (config.importantPlayers == null || config.importantPlayers.isEmpty()) {
             ChatNotifier.sendInChatScreen("§c[IRC] 当前关注名单为空。用法: /irc important <玩家名>");
         } else {

@@ -1,6 +1,6 @@
 package me.cookie.kwrg.gui.util;
 
-import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.module.modules.style.dynamic.DynamicIslandModule;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.PlayerInfo;
@@ -24,8 +24,8 @@ public class ServerLatencyTracker {
     private static final long ACTIVE_INTERVAL_MS = 1000L;
 
     public static boolean isTrackingActive() {
-        IrcConfig config = IrcConfig.get();
-        if (config == null || !config.islandShowServerPing) {
+        DynamicIslandModule.Settings config = DynamicIslandModule.CONFIG.get();
+        if (!config.islandShowServerPing) {
             return false;
         }
         return DynamicIslandRenderer.isEnabled();

@@ -9,11 +9,19 @@ import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
 
 public class PlayerDollHudModule extends Module {
+
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public boolean playerDollFollowGlobal = false;
+        public float playerDollOpacity = 1.0f;
+    }
 
     private static final float DEFAULT_OPACITY = 1.0f;
     private static final float DEFAULT_SCALE = 1.0f;
@@ -23,7 +31,8 @@ public class PlayerDollHudModule extends Module {
                 "playerDollHud",
                 Category.STYLE,
                 PanelItemComponent.ItemType.TOGGLE,
-                () -> HudElementRegistry.isEnabled(HudElementRegistry.PLAYER_DOLL)
+                () -> HudElementRegistry.isEnabled(HudElementRegistry.PLAYER_DOLL),
+                CONFIG
         );
     }
 
@@ -50,7 +59,7 @@ public class PlayerDollHudModule extends Module {
                 "沿用全局 HUD 配置",
                 PanelItemComponent.ItemType.TOGGLE,
                 (btn, click) -> {
-                    IrcConfig config = IrcConfig.get();
+                    Settings config = CONFIG.get();
                     config.playerDollFollowGlobal = !config.playerDollFollowGlobal;
                     IrcConfig.saveDelayed(400L);
                     btn.setToggled(config.playerDollFollowGlobal);
@@ -62,7 +71,7 @@ public class PlayerDollHudModule extends Module {
                     );
                 },
                 null,
-                () -> IrcConfig.get().playerDollFollowGlobal
+                () -> CONFIG.get().playerDollFollowGlobal
         );
         panel.child(followGlobalToggle);
 
@@ -70,9 +79,9 @@ public class PlayerDollHudModule extends Module {
                 .range(0.05f, 1.0f)
                 .defaultValue(DEFAULT_OPACITY)
                 .step(0.01f)
-                .getter(() -> IrcConfig.get().playerDollOpacity)
+                .getter(() -> CONFIG.get().playerDollOpacity)
                 .setter(val -> {
-                    IrcConfig config = IrcConfig.get();
+                    Settings config = CONFIG.get();
                     config.playerDollOpacity = val;
                     HudElementRegistry.state(HudElementRegistry.PLAYER_DOLL).opacity = val;
                     if (config.playerDollFollowGlobal) {
@@ -93,7 +102,7 @@ public class PlayerDollHudModule extends Module {
                     state.scale = val;
                     state.sanitize();
 
-                    IrcConfig config = IrcConfig.get();
+                    Settings config = CONFIG.get();
                     if (config.playerDollFollowGlobal) {
                         config.playerDollFollowGlobal = false;
                         followGlobalToggle.setToggled(false);

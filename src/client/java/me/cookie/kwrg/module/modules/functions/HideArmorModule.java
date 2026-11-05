@@ -6,6 +6,7 @@ import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.irc.manager.HideArmorManager;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -18,6 +19,16 @@ import java.util.Map;
 
 public class HideArmorModule extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public boolean hideArmor = false;
+        public boolean hideArmorHead = false;
+        public boolean hideArmorChest = false;
+        public boolean hideArmorLegs = false;
+        public boolean hideArmorFeet = false;
+    }
+
     public static final Map<String, EquipmentSlot> PARTS = Map.of(
             "head", EquipmentSlot.HEAD,
             "chest", EquipmentSlot.CHEST,
@@ -26,19 +37,19 @@ public class HideArmorModule extends Module {
     );
 
     public HideArmorModule() {
-        super("hideArmor", Category.FUNCTIONS, PanelItemComponent.ItemType.TOGGLE, () -> IrcConfig.get().hideArmor);
+        super("hideArmor", Category.FUNCTIONS, PanelItemComponent.ItemType.TOGGLE, () -> CONFIG.get().hideArmor, CONFIG);
     }
 
     @Override
     public void onExecute() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.getUser() != null) {
-            setHideArmor(!IrcConfig.get().hideArmor);
+            setHideArmor(!CONFIG.get().hideArmor);
         }
     }
 
     public static int setHideArmor(boolean enabled) {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         config.hideArmor = enabled;
 
         if (enabled && !HideArmorManager.hasAnyPartHidden()) {
@@ -52,7 +63,7 @@ public class HideArmorModule extends Module {
     }
 
     public static int setHideArmorPart(EquipmentSlot slot, boolean hidden) {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         HideArmorManager.setPartHidden(slot, hidden);
 
         if (hidden) {
@@ -68,7 +79,7 @@ public class HideArmorModule extends Module {
     }
 
     public static int showHideArmor() {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         StringBuilder status = new StringBuilder("§6[IRC] hideArmor: ").append(config.hideArmor ? "§a开启" : "§c关闭");
 
         PARTS.values().forEach(slot -> status.append(" §7| ").append(slotName(slot))

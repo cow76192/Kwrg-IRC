@@ -4,27 +4,36 @@ import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
 import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.util.Mth;
 
 public class DynamicTabModule extends DynamicModule {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public float tabOpacity = 1.0f;
+        public boolean dynamicTab = true;
+        public boolean islandPosAffectsTab = true;
+    }
+
     public DynamicTabModule() {
-        super("dynamicTab", HudElementRegistry.ISLAND);
+        super("dynamicTab", HudElementRegistry.ISLAND, CONFIG);
     }
 
     @Override
     public boolean isActive() {
-        return config().dynamicTab;
+        return CONFIG.get().dynamicTab;
     }
 
     @Override
     public void onExecute() {
-        config().dynamicTab = !config().dynamicTab;
+        CONFIG.get().dynamicTab = !CONFIG.get().dynamicTab;
         save();
 
-        ChatNotifier.send(config().dynamicTab ? "§adynamicTab 已: §a开启" : "§edynamicTab 已: §c关闭",
-                config().dynamicTab ? NotificationType.SUCCESS : NotificationType.ERR);
+        ChatNotifier.send(CONFIG.get().dynamicTab ? "§adynamicTab 已: §a开启" : "§edynamicTab 已: §c关闭",
+                CONFIG.get().dynamicTab ? NotificationType.SUCCESS : NotificationType.ERR);
     }
 
     @Override
@@ -34,12 +43,12 @@ public class DynamicTabModule extends DynamicModule {
         panel.child(header("Tab 面板透明度 (0 = 完全透明)"));
         panel.child(new SlotInputPaneComponent(
                 "透明度",
-                new String[]{String.valueOf(Math.round(config().tabOpacity * 100.0f))},
+                new String[]{String.valueOf(Math.round(CONFIG.get().tabOpacity * 100.0f))},
                 new String[]{"%"},
                 values -> {
                     try {
                         int percent = Math.round(Mth.clamp(Float.parseFloat(values[0].trim()), 0.0f, 100.0f));
-                        config().tabOpacity = percent / 100.0f;
+                        CONFIG.get().tabOpacity = percent / 100.0f;
                         save();
                         ChatNotifier.send("§aTab 面板透明度: §e" + percent + "%", NotificationType.SUCCESS);
                     } catch (NumberFormatException e) {
@@ -48,7 +57,7 @@ public class DynamicTabModule extends DynamicModule {
                 },
                 values -> {
                     try {
-                        config().tabOpacity = Mth.clamp(Float.parseFloat(values[0].trim()), 0.0f, 100.0f) / 100.0f;
+                        CONFIG.get().tabOpacity = Mth.clamp(Float.parseFloat(values[0].trim()), 0.0f, 100.0f) / 100.0f;
                         saveDelayed();
                     } catch (NumberFormatException ignored) {
                     }
@@ -56,15 +65,15 @@ public class DynamicTabModule extends DynamicModule {
         ).bounds(new int[][]{{0, 100}}).dragStep(5).precision(0).dragSensitivity(6.0));
 
         panel.child(header("展开行为"));
-        panel.child(toggle("Follow Island Position", () -> config().islandPosAffectsTab, this::toggleFollowIslandPosition));
+        panel.child(toggle("Follow Island Position", () -> CONFIG.get().islandPosAffectsTab, this::toggleFollowIslandPosition));
 
         panel.child(header("Position"));
         panel.child(row("Link to HudEditor", this::openEditor));
     }
 
     private void toggleFollowIslandPosition() {
-        if (config().islandPosAffectsTab) {
-            config().islandPosAffectsTab = false;
+        if (CONFIG.get().islandPosAffectsTab) {
+            CONFIG.get().islandPosAffectsTab = false;
             save();
             return;
         }
@@ -75,7 +84,7 @@ public class DynamicTabModule extends DynamicModule {
             return;
         }
 
-        config().islandPosAffectsTab = true;
+        CONFIG.get().islandPosAffectsTab = true;
         save();
     }
 }

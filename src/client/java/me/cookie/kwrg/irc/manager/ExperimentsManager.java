@@ -1,7 +1,7 @@
 package me.cookie.kwrg.irc.manager;
 
 import me.cookie.kwrg.gui.notification.NotificationType;
-import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.module.modules.cheat.ExperimentsModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -59,12 +59,12 @@ public class ExperimentsManager {
     private static long nextClickTimeMs = 0L;
 
     public static boolean isEnabled() {
-        return IrcConfig.get().experimentsEnabled;
+        return ExperimentsModule.CONFIG.get().experimentsEnabled;
     }
 
     public static void toggle() {
         boolean nextState = !isEnabled();
-        IrcConfig.get().experimentsEnabled = nextState;
+        ExperimentsModule.CONFIG.get().experimentsEnabled = nextState;
         resetState();
         ChatNotifier.send(
                 nextState ? "§a[Experiments] 自动实验桌小游戏已开启" : "§c[Experiments] 自动实验桌小游戏已关闭",
@@ -73,11 +73,11 @@ public class ExperimentsManager {
     }
 
     public static int getBaseDelay() {
-        return IrcConfig.get().experimentsBaseDelay;
+        return ExperimentsModule.CONFIG.get().experimentsBaseDelay;
     }
 
     public static int getRandomDelay() {
-        return IrcConfig.get().experimentsRandomDelay;
+        return ExperimentsModule.CONFIG.get().experimentsRandomDelay;
     }
 
     public static void resetState() {

@@ -7,7 +7,14 @@ import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.manager.HideArmorManager;
 import me.cookie.kwrg.irc.manager.IrcGlowManager;
+import me.cookie.kwrg.module.modules.functions.ChannelModule;
 import me.cookie.kwrg.module.modules.functions.ChatSuffixModule;
+import me.cookie.kwrg.module.modules.functions.HideArmorModule;
+import me.cookie.kwrg.module.modules.functions.ImportantPlayerModule;
+import me.cookie.kwrg.module.modules.functions.ModelScaleModule;
+import me.cookie.kwrg.module.modules.style.MessageStyleModule;
+import me.cookie.kwrg.module.modules.style.NameStyleModule;
+import me.cookie.kwrg.module.modules.style.RankModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.EmojiUtil;
 import net.minecraft.client.Minecraft;
@@ -133,13 +140,13 @@ public class IrcClient {
                 joinJson.addProperty("type", "join");
                 joinJson.addProperty("senderId", Minecraft.getInstance().getUser().getProfileId().toString());
                 joinJson.addProperty("username", Minecraft.getInstance().getUser().getName());
-                joinJson.addProperty("rank", IrcConfig.get().rank);
+                joinJson.addProperty("rank", RankModule.CONFIG.get().rank);
                 sendRaw(GSON.toJson(joinJson));
 
                 sendHideArmorSync();
-                sendScaleSync(IrcConfig.get().myScale);
+                sendScaleSync(ModelScaleModule.CONFIG.get().myScale);
                 me.cookie.kwrg.irc.manager.IrcCapeManager.syncMyCape();
-                sendChannelSync(IrcConfig.get().currentChannel, IrcConfig.get().channelEnabled, IrcConfig.get().savedChannels);
+                sendChannelSync(ChannelModule.CONFIG.get().currentChannel, ChannelModule.CONFIG.get().channelEnabled, ChannelModule.CONFIG.get().savedChannels);
                 queryOnline();
                 startHeartbeat();
                 sendImportantPlayersSync();
@@ -285,7 +292,10 @@ public class IrcClient {
         String username = mc.getUser().getName();
         String senderId = mc.player.getStringUUID();
 
-        IrcConfig config = IrcConfig.get();
+        IrcConfig profile = IrcConfig.current();
+        String rank = profile.settings(RankModule.CONFIG).rank;
+        String nameStyle = profile.settings(NameStyleModule.CONFIG).namestyle;
+        String chatStyle = profile.settings(MessageStyleModule.CONFIG).chatstyle;
 
         // 语气词装饰统一在此处理，覆盖聊天框输入与 /ic、/icall 等所有 IRC 发送路径
         content = EmojiUtil.replaceShortcodes(content);
@@ -295,9 +305,9 @@ public class IrcClient {
         JsonObject json = new JsonObject();
         json.addProperty("senderId", senderId);
         json.addProperty("username", username);
-        json.addProperty("rank", config.rank);
-        json.addProperty("namestyle", config.namestyle);
-        json.addProperty("chatstyle", config.chatstyle);
+        json.addProperty("rank", rank);
+        json.addProperty("namestyle", nameStyle);
+        json.addProperty("chatstyle", chatStyle);
         json.addProperty("content", decoration.content());
         if (!decoration.prefix().isEmpty()) {
             json.addProperty("prefix", decoration.prefix());
@@ -306,13 +316,14 @@ public class IrcClient {
             json.addProperty("suffix", decoration.suffix());
         }
 
+        ChannelModule.Settings channelConfig = profile.settings(ChannelModule.CONFIG);
         String channel = "";
-        if (config.channelEnabled && config.currentChannel != null && !config.currentChannel.isBlank()) {
-            channel = config.currentChannel;
+        if (channelConfig.channelEnabled && channelConfig.currentChannel != null && !channelConfig.currentChannel.isBlank()) {
+            channel = channelConfig.currentChannel;
             json.addProperty("channel", channel);
         }
 
-        IrcMessageHandler.displayFormattedMessage(channel, config.rank, config.namestyle, username, config.chatstyle,
+        IrcMessageHandler.displayFormattedMessage(channel, rank, nameStyle, username, chatStyle,
                 decoration.content(), decoration.prefix(), decoration.suffix());
 
         if (isRunning) {
@@ -351,7 +362,10 @@ public class IrcClient {
         String username = mc.getUser().getName();
         String senderId = mc.player.getStringUUID();
 
-        IrcConfig config = IrcConfig.get();
+        IrcConfig profile = IrcConfig.current();
+        String rank = profile.settings(RankModule.CONFIG).rank;
+        String nameStyle = profile.settings(NameStyleModule.CONFIG).namestyle;
+        String chatStyle = profile.settings(MessageStyleModule.CONFIG).chatstyle;
 
         content = ChatNotifier.expandCoordsShortcut(content);
         ChatSuffixModule.IrcDecoration decoration = ChatSuffixModule.decorateIrcSafely(content);
@@ -359,9 +373,9 @@ public class IrcClient {
         JsonObject json = new JsonObject();
         json.addProperty("senderId", senderId);
         json.addProperty("username", username);
-        json.addProperty("rank", config.rank);
-        json.addProperty("namestyle", config.namestyle);
-        json.addProperty("chatstyle", config.chatstyle);
+        json.addProperty("rank", rank);
+        json.addProperty("namestyle", nameStyle);
+        json.addProperty("chatstyle", chatStyle);
         json.addProperty("content", decoration.content());
         if (!decoration.prefix().isEmpty()) {
             json.addProperty("prefix", decoration.prefix());
@@ -371,7 +385,7 @@ public class IrcClient {
         }
         json.addProperty("channel", "");
 
-        IrcMessageHandler.displayFormattedMessage("", config.rank, config.namestyle, username, config.chatstyle,
+        IrcMessageHandler.displayFormattedMessage("", rank, nameStyle, username, chatStyle,
                 decoration.content(), decoration.prefix(), decoration.suffix());
 
         if (isRunning) {
@@ -417,7 +431,7 @@ public class IrcClient {
         Minecraft mc = Minecraft.getInstance();
         if (mc.getUser() == null) return;
 
-        IrcConfig config = IrcConfig.get();
+        HideArmorModule.Settings config = HideArmorModule.CONFIG.get();
         JsonArray parts = new JsonArray();
         if (config.hideArmor) {
             for (EquipmentSlot slot : List.of(EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET)) {
@@ -465,7 +479,7 @@ public class IrcClient {
     }
 
     public static void sendChannelSync(String channel, boolean enabled) {
-        sendChannelSync(channel, enabled, IrcConfig.get().savedChannels);
+        sendChannelSync(channel, enabled, ChannelModule.CONFIG.get().savedChannels);
     }
 
     /**
@@ -574,7 +588,7 @@ public class IrcClient {
         json.addProperty("username", mc.getUser().getName());
 
         JsonArray array = new JsonArray();
-        List<String> list = IrcConfig.get().importantPlayers;
+        List<String> list = ImportantPlayerModule.CONFIG.get().importantPlayers;
         if (list != null) {
             for (String p : list) {
                 if (p != null && !p.isBlank()) {
