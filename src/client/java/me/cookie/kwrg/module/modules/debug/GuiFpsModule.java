@@ -6,13 +6,20 @@ import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInputPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationManager;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 
 public class GuiFpsModule extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public int guiFpsLimit = 60;
+    }
+
     public GuiFpsModule() {
-        super("FPSLimit", Category.DEBUG, PanelItemComponent.ItemType.TRIGGER);
+        super("FPSLimit", Category.DEBUG, PanelItemComponent.ItemType.TRIGGER, CONFIG);
     }
 
     @Override
@@ -20,14 +27,14 @@ public class GuiFpsModule extends Module {
     }
 
     private void saveConfig(int fpsLimit) {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         config.guiFpsLimit = fpsLimit;
         IrcConfig.save();
     }
 
     @Override
     public void buildTertiaryUI(TertiaryPanelComponent panel) {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
 
         panel.child(new TextInfoPaneComponent("当前 GUI 帧率限制", () -> {
             int limit = config.guiFpsLimit;

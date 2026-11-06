@@ -7,6 +7,7 @@ import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -18,13 +19,22 @@ import java.util.List;
 
 public class ChannelModule extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public boolean channelEnabled = false;
+        public String currentChannel = "";
+        public List<String> savedChannels = new ArrayList<>();
+        public boolean connectPublicChannelFirst = true;
+    }
+
     public ChannelModule() {
-        super("channel", Category.FUNCTIONS, PanelItemComponent.ItemType.TOGGLE, () -> IrcConfig.get().channelEnabled);
+        super("channel", Category.FUNCTIONS, PanelItemComponent.ItemType.TOGGLE, () -> CONFIG.get().channelEnabled, CONFIG);
     }
 
     @Override
     public void onExecute() {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         config.channelEnabled = !config.channelEnabled;
         IrcConfig.save();
 
@@ -57,7 +67,7 @@ public class ChannelModule extends Module {
         panel.child(new TextInfoPaneComponent(
                 "当前发言目标",
                 () -> {
-                    IrcConfig cfg = IrcConfig.get();
+                    Settings cfg = CONFIG.get();
                     if (cfg.channelEnabled && cfg.currentChannel != null && !cfg.currentChannel.isBlank()) {
                         return Component.literal("§b#" + cfg.currentChannel);
                     }
@@ -69,15 +79,15 @@ public class ChannelModule extends Module {
         panel.child(TextInfoPaneComponent.header("使用 ci 指令行为"));
 
         panel.child(new PanelItemComponent("直接连接公共频道", PanelItemComponent.ItemType.TOGGLE, (btn, click) -> {
-            IrcConfig config = IrcConfig.get();
+            Settings config = CONFIG.get();
             config.connectPublicChannelFirst = !config.connectPublicChannelFirst;
             IrcConfig.save();
             btn.setToggled(config.connectPublicChannelFirst);
-        }, null, () -> IrcConfig.get().connectPublicChannelFirst));
+        }, null, () -> CONFIG.get().connectPublicChannelFirst));
 
         panel.child(TextInfoPaneComponent.header("已保存频道"));
 
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         List<String> channels = config.savedChannels != null ? config.savedChannels : new ArrayList<>();
 
         if (channels.isEmpty()) {
@@ -101,7 +111,7 @@ public class ChannelModule extends Module {
                             }
                         },
                         null,
-                        () -> ch.equalsIgnoreCase(IrcConfig.get().currentChannel) && IrcConfig.get().channelEnabled
+                        () -> ch.equalsIgnoreCase(CONFIG.get().currentChannel) && CONFIG.get().channelEnabled
                 );
 
                 if (newlyAddedChannel != null && ch.equalsIgnoreCase(newlyAddedChannel)) {
@@ -114,7 +124,7 @@ public class ChannelModule extends Module {
     }
 
     private static void toggleSpeakingChannel(String channelName) {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
 
         if (channelName.equalsIgnoreCase(config.currentChannel) && config.channelEnabled) {
             config.currentChannel = "";
@@ -130,7 +140,7 @@ public class ChannelModule extends Module {
     }
 
     private static void addSavedChannel(String channelName) {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         if (config.savedChannels == null) config.savedChannels = new ArrayList<>();
 
         boolean exists = config.savedChannels.stream().anyMatch(c -> c.equalsIgnoreCase(channelName));
@@ -145,7 +155,7 @@ public class ChannelModule extends Module {
     }
 
     private static void deleteChannel(String channelName) {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         if (config.savedChannels != null) {
             config.savedChannels.removeIf(c -> c.equalsIgnoreCase(channelName));
         }

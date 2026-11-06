@@ -6,6 +6,7 @@ import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -16,16 +17,27 @@ import java.util.Locale;
 
 public class NavigatorWeightModule extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public float navigatorWeight = 1.0f;
+    }
+
     private static final float MIN_WEIGHT = 0.8f;
     private static final float MAX_WEIGHT = 2.2f;
 
     public NavigatorWeightModule() {
-        super("navigatorWeight", Category.DEBUG, PanelItemComponent.ItemType.TRIGGER);
+        super("navigatorWeight", Category.DEBUG, PanelItemComponent.ItemType.TRIGGER, CONFIG);
+    }
+
+    @Override
+    protected void onConfigLoaded() {
+        Navigator.setHeuristicWeight(CONFIG.get().navigatorWeight);
     }
 
     @Override
     public void onExecute() {
-        ChatNotifier.sendInChatScreen("§6[IRC] 寻路启发式权重: §f" + format(IrcConfig.get().navigatorWeight) + " §7(右键调节)");
+        ChatNotifier.sendInChatScreen("§6[IRC] 寻路启发式权重: §f" + format(CONFIG.get().navigatorWeight) + " §7(右键调节)");
     }
 
     @Override
@@ -35,7 +47,7 @@ public class NavigatorWeightModule extends Module {
         panel.child(TextInfoPaneComponent.header("寻路启发式权重 (1.0 = 最稳定解)"));
         panel.child(new SlotInputPaneComponent(
                 "权重 w",
-                new String[]{format(IrcConfig.get().navigatorWeight)},
+                new String[]{format(CONFIG.get().navigatorWeight)},
                 new String[]{""},
                 values -> apply(values[0], true),
                 values -> apply(values[0], false)
@@ -54,7 +66,7 @@ public class NavigatorWeightModule extends Module {
             if (notify) ChatNotifier.send("§c请输入 0.8 ~ 2.2 之间的数字", NotificationType.WARN);
             return;
         }
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         config.navigatorWeight = weight;
         IrcConfig.save();
         Navigator.setHeuristicWeight(weight);

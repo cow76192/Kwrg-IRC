@@ -5,6 +5,7 @@ import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.irc.manager.DanceRoomManager;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -14,8 +15,29 @@ import java.util.Locale;
 
 public class DanceRoomModule extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class, Settings::sanitize);
+
+    public static final class Settings {
+        public boolean danceRoomClockwise = false;
+        public int danceRoomJumpTick = 7;
+        public int danceRoomPunchTick = 5;
+        public double danceRoomDeadzone = 0.50;
+
+        private void sanitize() {
+            if (danceRoomJumpTick <= 0) danceRoomJumpTick = 7;
+            danceRoomJumpTick = Math.clamp(danceRoomJumpTick, 1, 18);
+            if (danceRoomPunchTick <= 0) danceRoomPunchTick = 5;
+            danceRoomPunchTick = Math.clamp(danceRoomPunchTick, 1, 18);
+            if (!Double.isFinite(danceRoomDeadzone) || danceRoomDeadzone <= 0.0) {
+                danceRoomDeadzone = 0.50;
+            } else {
+                danceRoomDeadzone = Math.clamp(danceRoomDeadzone, 0.25, 0.90);
+            }
+        }
+    }
+
     public DanceRoomModule() {
-        super("danceroom", Category.CHEAT, PanelItemComponent.ItemType.TOGGLE, DanceRoomManager::isEnabled);
+        super("danceroom", Category.CHEAT, PanelItemComponent.ItemType.TOGGLE, DanceRoomManager::isEnabled, CONFIG);
     }
 
     @Override

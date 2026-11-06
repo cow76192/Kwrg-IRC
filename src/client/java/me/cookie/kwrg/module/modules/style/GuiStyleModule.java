@@ -7,7 +7,7 @@ import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.manager.GuiColorManager;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.gui.theme.GuiThemeService;
-import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -19,14 +19,31 @@ import java.awt.Color;
 
 public class GuiStyleModule extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class, Settings::sanitize);
+
+    public static final class Settings {
+        public String guiColor = "#11161F";
+        public float guiOpacity = 1.0f;
+
+        private void sanitize() {
+            if (!Float.isFinite(guiOpacity)) guiOpacity = 1.0f;
+            guiOpacity = Math.clamp(guiOpacity, GuiThemeService.MIN_OPACITY, 1.0f);
+        }
+    }
+
     public GuiStyleModule() {
-        super("guiStyle", Category.STYLE, PanelItemComponent.ItemType.TRIGGER);
+        super("guiStyle", Category.STYLE, PanelItemComponent.ItemType.TRIGGER, CONFIG);
+    }
+
+    @Override
+    protected void onConfigLoaded() {
+        GuiColorManager.refresh();
     }
 
     @Override
     public void onExecute() {
         ChatNotifier.send("§6[IRC] 当前 GUI 样式: §f" + GuiColorManager.getGuiColorStr()
-                + " §7/ 透明度: §f" + Math.round(IrcConfig.get().guiOpacity * 100.0f) + "% §7(右键打开调色盘)",
+                + " §7/ 透明度: §f" + Math.round(CONFIG.get().guiOpacity * 100.0f) + "% §7(右键打开调色盘)",
                 NotificationType.INFO);
     }
 
@@ -101,7 +118,7 @@ public class GuiStyleModule extends Module {
 
         panel.child(new SlotInputPaneComponent(
                 "GUI 透明度",
-                new String[]{String.valueOf(Math.round(IrcConfig.get().guiOpacity * 100.0f))},
+                new String[]{String.valueOf(Math.round(CONFIG.get().guiOpacity * 100.0f))},
                 new String[]{"%"},
                 values -> {
                     float parsed = ColorUtil.parseOpacityPercent(values[0]);

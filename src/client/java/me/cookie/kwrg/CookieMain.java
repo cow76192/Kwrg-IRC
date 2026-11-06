@@ -6,6 +6,8 @@ import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcCommand;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.manager.*;
+import me.cookie.kwrg.module.ModuleManager;
+import me.cookie.kwrg.module.modules.style.FontModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.EmojiUtil;
 import me.cookie.kwrg.util.GreetingManager;
@@ -37,6 +39,7 @@ public class CookieMain implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         LOGGER.info(":D");
+        ModuleManager.init();
         IrcConfig.load();
         IrcCommand.register();
         WaypointManager.init();
@@ -63,7 +66,7 @@ public class CookieMain implements ClientModInitializer {
             GreetingManager.onSessionJoin();
             IrcClient.connect();
             DanceRoomManager.resetStateAndRelease();
-            String configuredFont = IrcConfig.get().guiFont;
+            String configuredFont = FontModule.CONFIG.get().guiFont;
             if (configuredFont != null && !configuredFont.isBlank() && !me.cookie.kwrg.gui.util.FontManagerHelper.DEFAULT_FONT.equalsIgnoreCase(configuredFont)) {
                 me.cookie.kwrg.gui.util.FontManagerHelper.applyFont(configuredFont);
             }

@@ -6,6 +6,7 @@ import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInputPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -17,6 +18,12 @@ import java.util.List;
 
 public class MessageStyleModule extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public String chatstyle = "";
+    }
+
     private static final List<String> MODIFIERS = List.of("bold", "underline", "italic", "strikethrough", "obfuscated", "flow");
 
     private static final String[] PRESETS = new String[]{
@@ -26,7 +33,7 @@ public class MessageStyleModule extends Module {
     };
 
     public MessageStyleModule() {
-        super("messageStyle", Category.STYLE, PanelItemComponent.ItemType.TRIGGER);
+        super("messageStyle", Category.STYLE, PanelItemComponent.ItemType.TRIGGER, CONFIG);
     }
 
     @Override
@@ -36,7 +43,7 @@ public class MessageStyleModule extends Module {
     public void buildTertiaryUI(TertiaryPanelComponent panel) {
         panel.clearChildren();
 
-        String initialStyle = IrcConfig.get().chatstyle != null ? IrcConfig.get().chatstyle : "";
+        String initialStyle = CONFIG.get().chatstyle != null ? CONFIG.get().chatstyle : "";
         String[] currentEditingStyle = new String[]{ initialStyle };
         String sampleMessage = "Hello, Kwrg IRC!";
 
@@ -48,7 +55,7 @@ public class MessageStyleModule extends Module {
                 return;
             }
 
-            IrcConfig.get().chatstyle = clean;
+            CONFIG.get().chatstyle = clean;
             IrcConfig.save();
             ChatNotifier.send("§a[IRC] 已保存 MessageStyle: §f" + clean, NotificationType.SUCCESS);
         });
@@ -103,7 +110,7 @@ public class MessageStyleModule extends Module {
                         }
                         inputPane.setText(newStyle);
                         currentEditingStyle[0] = newStyle;
-                        IrcConfig.get().chatstyle = newStyle;
+                        CONFIG.get().chatstyle = newStyle;
                         IrcConfig.save();
                         ChatNotifier.send("§a[IRC] 已应用 MessageStyle: §f" + newStyle, NotificationType.SUCCESS);
                     },
@@ -116,7 +123,7 @@ public class MessageStyleModule extends Module {
     }
 
     public static int setChatStyle(String style) {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         config.chatstyle = style;
         IrcConfig.save();
 
@@ -130,7 +137,7 @@ public class MessageStyleModule extends Module {
     }
 
     public static int showChatStyle() {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         String currentStyle = config.chatstyle != null ? config.chatstyle : "";
 
         List<ChatNotifier.AnimatedSegment> segments = new ArrayList<>();

@@ -12,7 +12,8 @@ import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.SmoothScrollbar;
 import me.cookie.kwrg.gui.notification.NotificationManager;
 import me.cookie.kwrg.gui.util.AnimationUtil;
-import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.module.modules.debug.DisableBlurModule;
+import me.cookie.kwrg.module.modules.style.GuiScaleModule;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -66,7 +67,7 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
     public IrcScreen() {
         super(Component.literal("Kwrg IRC"));
-        float initialScale = Mth.clamp(IrcConfig.get().guiScale, 0.5f, 2.0f);
+        float initialScale = Mth.clamp(GuiScaleModule.CONFIG.get().guiScale, 0.5f, 2.0f);
         this.currentScale = initialScale;
         this.fromScale = initialScale;
         this.targetScale = initialScale;
@@ -198,7 +199,7 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
     }
 
     public float getAnimatedScale() {
-        float configTarget = Mth.clamp(IrcConfig.get().guiScale, 0.5f, 2.0f);
+        float configTarget = Mth.clamp(GuiScaleModule.CONFIG.get().guiScale, 0.5f, 2.0f);
         long now = System.currentTimeMillis();
 
         if (Math.abs(configTarget - this.targetScale) > 0.001f) {
@@ -255,7 +256,7 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
 
         OwoUIGraphics owoGraphics = OwoUIGraphics.of(graphics);
 
-        if (this.fullscreenBlurSurface != null && !IrcConfig.get().disableBlur && this.rootLayout != null) {
+        if (this.fullscreenBlurSurface != null && !DisableBlurModule.CONFIG.get().disableBlur && this.rootLayout != null) {
             this.fullscreenBlurSurface.draw(owoGraphics, this.rootLayout);
         }
         this.particleBackground.drawDirect(owoGraphics, a);
@@ -429,11 +430,11 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
         if (this.rootLayout != null) {
            this.rootLayout.surface(Surface.BLANK);
 
-            if (IrcConfig.get().disableBlur) {
+            if (DisableBlurModule.CONFIG.get().disableBlur) {
                 this.fullscreenBlurSurface = null;
             } else {
-                float q = Math.max(0.5f, IrcConfig.get().blurQuality);
-                float s = Math.max(1.0f, IrcConfig.get().blurSize);
+                float q = Math.max(0.5f, DisableBlurModule.CONFIG.get().blurQuality);
+                float s = Math.max(1.0f, DisableBlurModule.CONFIG.get().blurSize);
                 this.fullscreenBlurSurface = Surface.blur(q, s);
             }
         }

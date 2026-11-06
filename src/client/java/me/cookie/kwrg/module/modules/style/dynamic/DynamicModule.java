@@ -6,6 +6,7 @@ import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 
@@ -15,13 +16,9 @@ public abstract class DynamicModule extends Module {
 
     private final String elementId;
 
-    protected DynamicModule(String name, String elementId, PanelItemComponent.ItemType type) {
-        super(name, Category.STYLE, type);
+    protected DynamicModule(String name, String elementId, ModuleConfig<?> config) {
+        super(name, Category.STYLE, PanelItemComponent.ItemType.TOGGLE, config);
         this.elementId = elementId;
-    }
-
-    protected DynamicModule(String name, String elementId) {
-        this(name, elementId, PanelItemComponent.ItemType.TOGGLE);
     }
 
     @Override
@@ -55,10 +52,6 @@ public abstract class DynamicModule extends Module {
 
     protected HudElement.State elementState() {
         return HudElementRegistry.state(elementId);
-    }
-
-    protected static IrcConfig config() {
-        return IrcConfig.get();
     }
 
     protected static void save() {

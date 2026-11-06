@@ -1,11 +1,11 @@
 package me.cookie.kwrg.irc.manager;
 
+import me.cookie.kwrg.module.modules.functions.WaypointModule;
 import me.cookie.kwrg.util.PointEntry;
 import me.cookie.kwrg.util.WaypointFiles;
 import me.cookie.kwrg.util.SkyblockLocation;
 import me.cookie.kwrg.render.WaypointRenderer;
 
-import me.cookie.kwrg.irc.config.IrcConfig;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
@@ -30,14 +30,14 @@ public final class WaypointManager {
     private static final GizmoStyle BLOCK_STYLE = GizmoStyle.strokeAndFill(0xFF00FF88, 1.0f, 0x8000FF88);
     private static final int TEXT_COLOR = 0xFF00FF88;
 
-    private static final Map<String, IrcConfig.WaypointEntry> SAVED_WAYPOINTS = new LinkedHashMap<>();
+    private static final Map<String, WaypointEntry> SAVED_WAYPOINTS = new LinkedHashMap<>();
 
     private WaypointManager() {
     }
 
     public static void reloadFromConfig() {
-        IrcConfig config = IrcConfig.get();
-        Map<String, IrcConfig.WaypointEntry> normalized = normalize(config.waypoints);
+        WaypointModule.Settings config = WaypointModule.CONFIG.get();
+        Map<String, WaypointEntry> normalized = normalize(config.waypoints);
         SAVED_WAYPOINTS.clear();
         SAVED_WAYPOINTS.putAll(normalized);
         if (WaypointFiles.initialize(normalized)) config.waypoints = new LinkedHashMap<>();
@@ -47,18 +47,18 @@ public final class WaypointManager {
         SAVED_WAYPOINTS.clear();
         for (PointEntry point : points) {
             if (!point.valid()) continue;
-            IrcConfig.WaypointEntry entry = new IrcConfig.WaypointEntry(sanitizeName(point.name), Double.parseDouble(point.x), Double.parseDouble(point.y), Double.parseDouble(point.z));
+            WaypointEntry entry = new WaypointEntry(sanitizeName(point.name), Double.parseDouble(point.x), Double.parseDouble(point.y), Double.parseDouble(point.z));
             entry.enabled = point.visible;
             SAVED_WAYPOINTS.put(point.id, entry);
         }
     }
 
-    private static Map<String, IrcConfig.WaypointEntry> normalize(Map<String, IrcConfig.WaypointEntry> input) {
-        Map<String, IrcConfig.WaypointEntry> result = new LinkedHashMap<>();
+    private static Map<String, WaypointEntry> normalize(Map<String, WaypointEntry> input) {
+        Map<String, WaypointEntry> result = new LinkedHashMap<>();
         if (input == null) return result;
 
-        for (Map.Entry<String, IrcConfig.WaypointEntry> item : input.entrySet()) {
-            IrcConfig.WaypointEntry entry = item.getValue();
+        for (Map.Entry<String, WaypointEntry> item : input.entrySet()) {
+            WaypointEntry entry = item.getValue();
             if (entry == null || !isValidCoord(entry.x, entry.y, entry.z)) continue;
             entry.name = sanitizeName(entry.name);
             result.put(item.getKey(), entry);
@@ -79,7 +79,7 @@ public final class WaypointManager {
         LevelRenderEvents.BEFORE_GIZMOS.register(WaypointManager::renderWaypoints);
     }
 
-    public static List<IrcConfig.WaypointEntry> savedEntries() {
+    public static List<WaypointEntry> savedEntries() {
         return new ArrayList<>(SAVED_WAYPOINTS.values());
     }
 
@@ -104,14 +104,14 @@ public final class WaypointManager {
 
         List<String> keys = new ArrayList<>(SAVED_WAYPOINTS.keySet());
         if (editIndex >= 0 && editIndex < keys.size()) {
-            IrcConfig.WaypointEntry entry = SAVED_WAYPOINTS.get(keys.get(editIndex));
+            WaypointEntry entry = SAVED_WAYPOINTS.get(keys.get(editIndex));
             entry.name = cleanName;
             entry.x = x;
             entry.y = y;
             entry.z = z;
         } else {
             if (SAVED_WAYPOINTS.size() >= MAX_WAYPOINTS) return false;
-            SAVED_WAYPOINTS.put(UUID.randomUUID().toString(), new IrcConfig.WaypointEntry(cleanName, x, y, z));
+            SAVED_WAYPOINTS.put(UUID.randomUUID().toString(), new WaypointEntry(cleanName, x, y, z));
         }
 
         return WaypointFiles.saveDefault(SAVED_WAYPOINTS);
@@ -127,7 +127,7 @@ public final class WaypointManager {
     public static boolean toggleAt(int index) {
         List<String> keys = new ArrayList<>(SAVED_WAYPOINTS.keySet());
         if (index < 0 || index >= keys.size()) return false;
-        IrcConfig.WaypointEntry entry = SAVED_WAYPOINTS.get(keys.get(index));
+        WaypointEntry entry = SAVED_WAYPOINTS.get(keys.get(index));
         if (entry == null) return false;
         entry.enabled = !entry.enabled;
         return WaypointFiles.saveDefault(SAVED_WAYPOINTS);
@@ -168,5 +168,23 @@ public final class WaypointManager {
         }
 
         renderer.draw();
+    }
+
+    public static class WaypointEntry {
+        public String name = "";
+        public double x;
+        public double y;
+        public double z;
+        public boolean enabled = true;
+
+        public WaypointEntry() {
+        }
+
+        public WaypointEntry(String name, double x, double y, double z) {
+            this.name = name;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+        }
     }
 }

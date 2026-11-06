@@ -9,6 +9,7 @@ import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -16,6 +17,20 @@ import me.cookie.kwrg.util.ChatNotifier;
 import java.util.List;
 
 public class InventoryHudModule extends Module {
+
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public boolean inventoryHudFollowGlobal = false;
+        public float inventoryHudOpacity = 0.75f;
+        public float inventoryHudSlotOpacity = 0.65f;
+        public boolean inventoryHudShowHotbar = false;
+        public boolean inventoryHudShowSlotBg = true;
+        public boolean inventoryHudFollowTheme = true;
+        public boolean inventoryHudHideEmpty = false;
+        public int inventoryHudSlotSpacing = 2;
+        public float inventoryHudCornerRadius = 10.0f;
+    }
 
     private static final float DEFAULT_OPACITY = 0.75f;
     private static final float DEFAULT_SLOT_OPACITY = 0.65f;
@@ -29,7 +44,8 @@ public class InventoryHudModule extends Module {
                 "inventoryHud",
                 Category.STYLE,
                 PanelItemComponent.ItemType.TOGGLE,
-                () -> HudElementRegistry.isEnabled(HudElementRegistry.INVENTORY)
+                () -> HudElementRegistry.isEnabled(HudElementRegistry.INVENTORY),
+                CONFIG
         );
     }
 
@@ -56,7 +72,7 @@ public class InventoryHudModule extends Module {
                 "沿用全局 HUD 配置",
                 PanelItemComponent.ItemType.TOGGLE,
                 (btn, click) -> {
-                    IrcConfig config = IrcConfig.get();
+                    Settings config = CONFIG.get();
                     config.inventoryHudFollowGlobal = !config.inventoryHudFollowGlobal;
                     IrcConfig.saveDelayed(400L);
                     btn.setToggled(config.inventoryHudFollowGlobal);
@@ -68,7 +84,7 @@ public class InventoryHudModule extends Module {
                     );
                 },
                 null,
-                () -> IrcConfig.get().inventoryHudFollowGlobal
+                () -> CONFIG.get().inventoryHudFollowGlobal
         );
         panel.child(followGlobalToggle);
 
@@ -76,9 +92,9 @@ public class InventoryHudModule extends Module {
                 .range(0.0f, 1.0f)
                 .defaultValue(DEFAULT_OPACITY)
                 .step(0.01f)
-                .getter(() -> IrcConfig.get().inventoryHudOpacity)
+                .getter(() -> CONFIG.get().inventoryHudOpacity)
                 .setter(val -> {
-                    IrcConfig config = IrcConfig.get();
+                    Settings config = CONFIG.get();
                     config.inventoryHudOpacity = val;
                     HudElementRegistry.state(HudElementRegistry.INVENTORY).opacity = val;
                     if (config.inventoryHudFollowGlobal) {
@@ -93,9 +109,9 @@ public class InventoryHudModule extends Module {
                 .range(0.0f, 1.0f)
                 .defaultValue(DEFAULT_SLOT_OPACITY)
                 .step(0.01f)
-                .getter(() -> IrcConfig.get().inventoryHudSlotOpacity)
+                .getter(() -> CONFIG.get().inventoryHudSlotOpacity)
                 .setter(val -> {
-                    IrcConfig config = IrcConfig.get();
+                    Settings config = CONFIG.get();
                     config.inventoryHudSlotOpacity = val;
                     if (config.inventoryHudFollowGlobal) {
                         config.inventoryHudFollowGlobal = false;
@@ -117,7 +133,7 @@ public class InventoryHudModule extends Module {
                     state.scale = val;
                     state.sanitize();
 
-                    IrcConfig config = IrcConfig.get();
+                    Settings config = CONFIG.get();
                     if (config.inventoryHudFollowGlobal) {
                         config.inventoryHudFollowGlobal = false;
                         followGlobalToggle.setToggled(false);
@@ -131,8 +147,8 @@ public class InventoryHudModule extends Module {
                 () -> HudElementRegistry.state(HudElementRegistry.INVENTORY).padding,
                 val -> {
                     HudElementRegistry.state(HudElementRegistry.INVENTORY).padding = val;
-                    if (IrcConfig.get().inventoryHudFollowGlobal) {
-                        IrcConfig.get().inventoryHudFollowGlobal = false;
+                    if (CONFIG.get().inventoryHudFollowGlobal) {
+                        CONFIG.get().inventoryHudFollowGlobal = false;
                         followGlobalToggle.setToggled(false);
                     }
                 },
@@ -142,8 +158,8 @@ public class InventoryHudModule extends Module {
         SliderPaneComponent spacingSlider = SliderPaneComponent.ofInt(
                 "槽位格间距",
                 0, 6, DEFAULT_SLOT_SPACING,
-                () -> IrcConfig.get().inventoryHudSlotSpacing,
-                val -> IrcConfig.get().inventoryHudSlotSpacing = val,
+                () -> CONFIG.get().inventoryHudSlotSpacing,
+                val -> CONFIG.get().inventoryHudSlotSpacing = val,
                 val -> val + " px"
         );
 
@@ -151,8 +167,8 @@ public class InventoryHudModule extends Module {
                 .range(2.0f, 16.0f)
                 .defaultValue(DEFAULT_CORNER_RADIUS)
                 .step(0.5f)
-                .getter(() -> IrcConfig.get().inventoryHudCornerRadius)
-                .setter(val -> IrcConfig.get().inventoryHudCornerRadius = val)
+                .getter(() -> CONFIG.get().inventoryHudCornerRadius)
+                .setter(val -> CONFIG.get().inventoryHudCornerRadius = val)
                 .formatter(val -> String.format("%.1f px", val));
 
         List<SliderPaneComponent> layoutSliders = List.of(
@@ -168,52 +184,52 @@ public class InventoryHudModule extends Module {
                 "显示槽位背景格",
                 PanelItemComponent.ItemType.TOGGLE,
                 (btn, click) -> {
-                    IrcConfig config = IrcConfig.get();
+                    Settings config = CONFIG.get();
                     config.inventoryHudShowSlotBg = !config.inventoryHudShowSlotBg;
                     IrcConfig.saveDelayed(400L);
                     btn.setToggled(config.inventoryHudShowSlotBg);
                 },
                 null,
-                () -> IrcConfig.get().inventoryHudShowSlotBg
+                () -> CONFIG.get().inventoryHudShowSlotBg
         ));
 
         panel.child(new PanelItemComponent(
                 "跟随 GUI 配色",
                 PanelItemComponent.ItemType.TOGGLE,
                 (btn, click) -> {
-                    IrcConfig config = IrcConfig.get();
+                    Settings config = CONFIG.get();
                     config.inventoryHudFollowTheme = !config.inventoryHudFollowTheme;
                     IrcConfig.saveDelayed(400L);
                     btn.setToggled(config.inventoryHudFollowTheme);
                 },
                 null,
-                () -> IrcConfig.get().inventoryHudFollowTheme
+                () -> CONFIG.get().inventoryHudFollowTheme
         ));
 
         panel.child(new PanelItemComponent(
                 "包含快捷栏",
                 PanelItemComponent.ItemType.TOGGLE,
                 (btn, click) -> {
-                    IrcConfig config = IrcConfig.get();
+                    Settings config = CONFIG.get();
                     config.inventoryHudShowHotbar = !config.inventoryHudShowHotbar;
                     IrcConfig.saveDelayed(400L);
                     btn.setToggled(config.inventoryHudShowHotbar);
                 },
                 null,
-                () -> IrcConfig.get().inventoryHudShowHotbar
+                () -> CONFIG.get().inventoryHudShowHotbar
         ));
 
         panel.child(new PanelItemComponent(
                 "背包为空时自动隐藏",
                 PanelItemComponent.ItemType.TOGGLE,
                 (btn, click) -> {
-                    IrcConfig config = IrcConfig.get();
+                    Settings config = CONFIG.get();
                     config.inventoryHudHideEmpty = !config.inventoryHudHideEmpty;
                     IrcConfig.saveDelayed(400L);
                     btn.setToggled(config.inventoryHudHideEmpty);
                 },
                 null,
-                () -> IrcConfig.get().inventoryHudHideEmpty
+                () -> CONFIG.get().inventoryHudHideEmpty
         ));
 
         panel.child(TextInfoPaneComponent.header("布局管理"));

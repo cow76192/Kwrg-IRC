@@ -6,6 +6,7 @@ import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.irc.manager.ExperimentsManager;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -13,8 +14,23 @@ import me.cookie.kwrg.util.ChatNotifier;
 
 public class ExperimentsModule extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class, Settings::sanitize);
+
+    public static final class Settings {
+        public boolean experimentsEnabled = false;
+        public int experimentsBaseDelay = 300;
+        public int experimentsRandomDelay = 65;
+
+        private void sanitize() {
+            if (experimentsBaseDelay < 50) experimentsBaseDelay = 200;
+            experimentsBaseDelay = Math.clamp(experimentsBaseDelay, 50, 1000);
+            if (experimentsRandomDelay < 0) experimentsRandomDelay = 50;
+            experimentsRandomDelay = Math.clamp(experimentsRandomDelay, 0, 500);
+        }
+    }
+
     public ExperimentsModule() {
-        super("experiments", Category.CHEAT, PanelItemComponent.ItemType.TOGGLE, ExperimentsManager::isEnabled);
+        super("experiments", Category.CHEAT, PanelItemComponent.ItemType.TOGGLE, ExperimentsManager::isEnabled, CONFIG);
     }
 
     @Override
@@ -31,8 +47,8 @@ public class ExperimentsModule extends Module {
             if (base < 50 || base > 1000 || rand < 0 || rand > 500) {
                 return false;
             }
-            IrcConfig.get().experimentsBaseDelay = base;
-            IrcConfig.get().experimentsRandomDelay = rand;
+            CONFIG.get().experimentsBaseDelay = base;
+            CONFIG.get().experimentsRandomDelay = rand;
             saveConfig();
             return true;
         } catch (NumberFormatException e) {

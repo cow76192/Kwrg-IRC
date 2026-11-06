@@ -1,6 +1,6 @@
 package me.cookie.kwrg.irc.manager;
 
-import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.module.modules.functions.GlowColorModule;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
 
@@ -16,12 +16,11 @@ public class IrcGlowManager {
      * 读取持久化在 IrcConfig 中的开关状态
      */
     public static boolean isGlowEnabled() {
-        return IrcConfig.get().glowEnabled;
+        return GlowColorModule.CONFIG.get().glowEnabled;
     }
 
     public static void setGlowEnabled(boolean enabled) {
-        IrcConfig.get().glowEnabled = enabled;
-        IrcConfig.save(); // 单次点击切换立即保存
+        GlowColorModule.CONFIG.update(settings -> settings.glowEnabled = enabled);
     }
 
     public static void addPlayer(String username) {
@@ -62,7 +61,7 @@ public class IrcGlowManager {
     }
 
     public static int getGlowColorRgb() {
-        String colorStr = IrcConfig.get().glowColor;
+        String colorStr = GlowColorModule.CONFIG.get().glowColor;
         java.awt.Color c = me.cookie.kwrg.util.ColorUtil.parseSingleColor(colorStr);
         return c != null ? (c.getRGB() & 0xFFFFFF) : 0x00FF88;
     }

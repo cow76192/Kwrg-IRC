@@ -3,6 +3,10 @@ package me.cookie.kwrg.gui.hud;
 import me.cookie.kwrg.gui.notification.NotificationManager;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.module.modules.style.GuiScaleModule;
+import me.cookie.kwrg.module.modules.style.HudEditorModule;
+import me.cookie.kwrg.module.modules.style.dynamic.InventoryHudModule;
+import me.cookie.kwrg.module.modules.style.dynamic.PlayerDollHudModule;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import me.cookie.kwrg.render.InventoryHudRenderer;
 import me.cookie.kwrg.render.PlayerDollHudRenderer;
@@ -86,8 +90,8 @@ public final class HudElementRegistry {
         inventoryDefault.padding = 6;
 
         register(new HudElement(INVENTORY, "背包显示", inventoryDefault)
-                .followGlobal(() -> IrcConfig.get().inventoryHudFollowGlobal,
-                        value -> IrcConfig.get().inventoryHudFollowGlobal = value)
+                .followGlobal(() -> InventoryHudModule.CONFIG.get().inventoryHudFollowGlobal,
+                        value -> InventoryHudModule.CONFIG.get().inventoryHudFollowGlobal = value)
                 .enabled(() -> state(INVENTORY).enabled, value -> {
                     state(INVENTORY).enabled = value;
                     IrcConfig.save();
@@ -104,8 +108,8 @@ public final class HudElementRegistry {
         playerDollDefault.opacity = 1.0f;
 
         register(new HudElement(PLAYER_DOLL, "玩家模型", playerDollDefault)
-                .followGlobal(() -> IrcConfig.get().playerDollFollowGlobal,
-                        value -> IrcConfig.get().playerDollFollowGlobal = value)
+                .followGlobal(() -> PlayerDollHudModule.CONFIG.get().playerDollFollowGlobal,
+                        value -> PlayerDollHudModule.CONFIG.get().playerDollFollowGlobal = value)
                 .enabled(() -> state(PLAYER_DOLL).enabled, value -> {
                     state(PLAYER_DOLL).enabled = value;
                     IrcConfig.save();
@@ -130,7 +134,7 @@ public final class HudElementRegistry {
     }
 
     public static HudElement.State state(String id) {
-        IrcConfig config = IrcConfig.get();
+        HudEditorModule.Settings config = HudEditorModule.CONFIG.get();
         if (config.hudElements == null) {
             config.hudElements = new LinkedHashMap<>();
         }
@@ -149,7 +153,7 @@ public final class HudElementRegistry {
         HudElement element = get(id);
         if (element != null && !element.supportsScale()) return 1.0f;
         if (element != null && element.followsGlobal()) {
-            float scale = IrcConfig.get().guiScale;
+            float scale = GuiScaleModule.CONFIG.get().guiScale;
             return Mth.clamp(Float.isFinite(scale) ? scale : 1.0f,
                     HudElement.State.MIN_SCALE, HudElement.State.MAX_SCALE);
         }

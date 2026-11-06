@@ -5,7 +5,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.gui.hud.HudElementRegistry;
-import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.module.modules.style.dynamic.DynamicScoreboardModule;
 import me.cookie.kwrg.render.ScoreboardIslandRenderer;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.Gui;
@@ -134,7 +134,7 @@ public abstract class VanillaScoreboardMixin {
         if (kwrg$collectingScoreboard) {
             String raw = text.getString().trim();
 
-            if (IrcConfig.get().scoreboardHideScores && kwrg$scoreNumber.matcher(raw).matches()) {
+            if (DynamicScoreboardModule.CONFIG.get().scoreboardHideScores && kwrg$scoreNumber.matcher(raw).matches()) {
                 return;
             }
 

@@ -4,6 +4,7 @@ import me.cookie.kwrg.gui.component.*;
 import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -11,8 +12,18 @@ import me.cookie.kwrg.util.ChatNotifier;
 
 public class ModelScaleModule extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class, Settings::sanitize);
+
+    public static final class Settings {
+        public float myScale = 1.0f;
+
+        private void sanitize() {
+            if (myScale <= 0.0f || Float.isNaN(myScale)) myScale = 1.0f;
+        }
+    }
+
     public ModelScaleModule() {
-        super("modelScale", Category.FUNCTIONS, PanelItemComponent.ItemType.TRIGGER);
+        super("modelScale", Category.FUNCTIONS, PanelItemComponent.ItemType.TRIGGER, CONFIG);
     }
 
     @Override

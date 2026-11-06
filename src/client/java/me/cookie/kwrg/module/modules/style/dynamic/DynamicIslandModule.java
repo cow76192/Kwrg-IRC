@@ -4,13 +4,26 @@ import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
 import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.util.Mth;
 
 public class DynamicIslandModule extends DynamicModule {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public boolean islandShowFps = true;
+        public boolean islandShowPing = true;
+        public boolean islandShowTps = true;
+        public boolean islandShowRam = false;
+        public boolean islandShowGpu = false;
+        public boolean islandShowCpu = false;
+        public boolean islandShowServerPing = true;
+    }
+
     public DynamicIslandModule() {
-        super("dynamicIsland", HudElementRegistry.ISLAND);
+        super("dynamicIsland", HudElementRegistry.ISLAND, CONFIG);
     }
 
     @Override
@@ -55,34 +68,34 @@ public class DynamicIslandModule extends DynamicModule {
         }));
 
         panel.child(header("基础数据"));
-        panel.child(toggle("FPS", () -> config().islandShowFps, () -> {
-            config().islandShowFps = !config().islandShowFps;
+        panel.child(toggle("FPS", () -> CONFIG.get().islandShowFps, () -> {
+            CONFIG.get().islandShowFps = !CONFIG.get().islandShowFps;
             save();
         }));
-        panel.child(toggle("Ping (IRC)", () -> config().islandShowPing, () -> {
-            config().islandShowPing = !config().islandShowPing;
+        panel.child(toggle("Ping (IRC)", () -> CONFIG.get().islandShowPing, () -> {
+            CONFIG.get().islandShowPing = !CONFIG.get().islandShowPing;
             save();
         }));
-        panel.child(toggle("Ping (Server)", () -> config().islandShowServerPing, () -> {
-            config().islandShowServerPing = !config().islandShowServerPing;
+        panel.child(toggle("Ping (Server)", () -> CONFIG.get().islandShowServerPing, () -> {
+            CONFIG.get().islandShowServerPing = !CONFIG.get().islandShowServerPing;
             save();
         }));
-        panel.child(toggle("TPS", () -> config().islandShowTps, () -> {
-            config().islandShowTps = !config().islandShowTps;
+        panel.child(toggle("TPS", () -> CONFIG.get().islandShowTps, () -> {
+            CONFIG.get().islandShowTps = !CONFIG.get().islandShowTps;
             save();
         }));
 
         panel.child(header("硬件监控"));
-        panel.child(toggle("RAM", () -> config().islandShowRam, () -> {
-            config().islandShowRam = !config().islandShowRam;
+        panel.child(toggle("RAM", () -> CONFIG.get().islandShowRam, () -> {
+            CONFIG.get().islandShowRam = !CONFIG.get().islandShowRam;
             save();
         }));
-        panel.child(toggle("GPU", () -> config().islandShowGpu, () -> {
-            config().islandShowGpu = !config().islandShowGpu;
+        panel.child(toggle("GPU", () -> CONFIG.get().islandShowGpu, () -> {
+            CONFIG.get().islandShowGpu = !CONFIG.get().islandShowGpu;
             save();
         }));
-        panel.child(toggle("CPU", () -> config().islandShowCpu, () -> {
-            config().islandShowCpu = !config().islandShowCpu;
+        panel.child(toggle("CPU", () -> CONFIG.get().islandShowCpu, () -> {
+            CONFIG.get().islandShowCpu = !CONFIG.get().islandShowCpu;
             save();
         }));
 

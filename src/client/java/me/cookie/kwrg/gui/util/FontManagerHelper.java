@@ -5,6 +5,7 @@ import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.mixin.accessor.FontManagerAccessor;
 import me.cookie.kwrg.mixin.accessor.FontSetAccessor;
 import me.cookie.kwrg.mixin.accessor.MinecraftAccessor;
+import me.cookie.kwrg.module.modules.style.FontModule;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GlyphSource;
@@ -87,7 +88,7 @@ public class FontManagerHelper {
     }
 
     public static Style getGuiStyle() {
-        String selected = IrcConfig.get().guiFont;
+        String selected = FontModule.CONFIG.get().guiFont;
         if (selected == null || selected.isBlank() || DEFAULT_FONT.equalsIgnoreCase(selected)) {
             return Style.EMPTY;
         }
@@ -115,7 +116,7 @@ public class FontManagerHelper {
         currentActiveProvider = null;
         currentLoadedFontName = null;
 
-        String configuredFont = IrcConfig.get().guiFont;
+        String configuredFont = FontModule.CONFIG.get().guiFont;
         if (configuredFont != null && !configuredFont.isBlank() && !DEFAULT_FONT.equalsIgnoreCase(configuredFont)) {
             applyFontInternal(configuredFont, true);
         }
@@ -126,7 +127,7 @@ public class FontManagerHelper {
     }
 
     public static boolean reloadCurrentFont() {
-        return applyFontInternal(IrcConfig.get().guiFont, true);
+        return applyFontInternal(FontModule.CONFIG.get().guiFont, true);
     }
 
     private static boolean applyFontInternal(String fontFileName, boolean forceReload) {

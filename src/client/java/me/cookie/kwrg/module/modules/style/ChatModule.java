@@ -6,6 +6,7 @@ import me.cookie.kwrg.gui.component.pane.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -18,6 +19,13 @@ import java.util.List;
 import java.util.Locale;
 
 public class ChatModule extends Module {
+
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public boolean chat = true;
+        public String chatSound = "CAT_AMBIENT_BABY";
+    }
 
     private static final List<String> SOUND_OPTIONS = List.of(
             "CAT_AMBIENT_BABY",
@@ -32,12 +40,12 @@ public class ChatModule extends Module {
     private boolean isDropdownOpen = false;
 
     public ChatModule() {
-        super("chat", Category.STYLE, PanelItemComponent.ItemType.TOGGLE, () -> IrcConfig.get().chat);
+        super("chat", Category.STYLE, PanelItemComponent.ItemType.TOGGLE, () -> CONFIG.get().chat, CONFIG);
     }
 
     @Override
     public void onExecute() {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         config.chat = !config.chat;
         IrcConfig.save();
         ChatNotifier.send("§a[IRC] 聊天提示音 (Chat) 已: " + (config.chat ? "§a开启" : "§c关闭"),(config.chat ? NotificationType.SUCCESS : NotificationType.ERR));
@@ -54,7 +62,7 @@ public class ChatModule extends Module {
     private void renderChatUI(TertiaryPanelComponent panel) {
         panel.clearChildren();
 
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         String currentSound = (config.chatSound != null && !config.chatSound.isBlank()) ? config.chatSound : "CAT_AMBIENT_BABY";
 
         String displayText = "提示音: " + currentSound;
@@ -72,7 +80,7 @@ public class ChatModule extends Module {
                         soundKey,
                         PanelItemComponent.ItemType.TRIGGER,
                         () -> {
-                            IrcConfig.get().chatSound = soundKey;
+                            CONFIG.get().chatSound = soundKey;
                             IrcConfig.save();
 
                             playSound(soundKey);
@@ -82,7 +90,7 @@ public class ChatModule extends Module {
                             renderChatUI(panel);
                         },
                         null,
-                        () -> soundKey.equalsIgnoreCase(IrcConfig.get().chatSound)
+                        () -> soundKey.equalsIgnoreCase(CONFIG.get().chatSound)
                 ).withSpawnAnimation());
             }
         }
@@ -91,7 +99,7 @@ public class ChatModule extends Module {
     }
 
     public static void playConfiguredSound() {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         if (!config.chat) return;
 
         String soundKey = config.chatSound;

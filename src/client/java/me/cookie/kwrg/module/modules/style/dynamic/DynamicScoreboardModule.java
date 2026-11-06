@@ -4,13 +4,20 @@ import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
 import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.util.Mth;
 
 public class DynamicScoreboardModule extends DynamicModule {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public boolean scoreboardHideScores = false;
+    }
+
     public DynamicScoreboardModule() {
-        super("dynamicScoreboard", HudElementRegistry.SCOREBOARD);
+        super("dynamicScoreboard", HudElementRegistry.SCOREBOARD, CONFIG);
     }
 
     @Override
@@ -26,8 +33,8 @@ public class DynamicScoreboardModule extends DynamicModule {
         panel.clearChildren();
 
         panel.child(header("显示"));
-        panel.child(toggle("隐藏分数数字", () -> config().scoreboardHideScores, () -> {
-            config().scoreboardHideScores = !config().scoreboardHideScores;
+        panel.child(toggle("隐藏分数数字", () -> CONFIG.get().scoreboardHideScores, () -> {
+            CONFIG.get().scoreboardHideScores = !CONFIG.get().scoreboardHideScores;
             save();
         }));
 

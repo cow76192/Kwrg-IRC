@@ -17,6 +17,7 @@ import me.cookie.kwrg.irc.manager.RouteEditor;
 import me.cookie.kwrg.irc.manager.RouteManager;
 import me.cookie.kwrg.irc.manager.WaypointManager;
 import me.cookie.kwrg.module.modules.debug.ClearIndexCacheModule;
+import me.cookie.kwrg.module.modules.functions.ChannelModule;
 import me.cookie.kwrg.module.modules.functions.GlowColorModule;
 import me.cookie.kwrg.module.modules.functions.HideArmorModule;
 import me.cookie.kwrg.module.modules.functions.ImportantPlayerModule;
@@ -115,7 +116,7 @@ public class IrcCommand {
                 .then(literal("all")
                         .executes(context -> {
                             IrcClient.isIrcChatActive = true;
-                            IrcConfig config = IrcConfig.get();
+                            ChannelModule.Settings config = ChannelModule.CONFIG.get();
                             config.currentChannel = "";
                             IrcConfig.save();
                             IrcClient.sendChannelSync(config.currentChannel, config.channelEnabled, config.savedChannels);
@@ -131,7 +132,7 @@ public class IrcCommand {
                                 .executes(context -> {
                                     String name = StringArgumentType.getString(context, "name");
                                     IrcClient.isIrcChatActive = true;
-                                    IrcConfig config = IrcConfig.get();
+                                    ChannelModule.Settings config = ChannelModule.CONFIG.get();
 
                                     if (!config.savedChannels.contains(name)) {
                                         config.savedChannels.add(name);
@@ -149,7 +150,7 @@ public class IrcCommand {
                                 }))
                         .executes(context -> {
                             IrcClient.isIrcChatActive = true;
-                            IrcConfig config = IrcConfig.get();
+                            ChannelModule.Settings config = ChannelModule.CONFIG.get();
 
                             if (config.currentChannel == null || config.currentChannel.isBlank()) {
                                 if (config.savedChannels != null && !config.savedChannels.isEmpty()) {
@@ -172,7 +173,7 @@ public class IrcCommand {
                         }))
                 .executes(context -> {
                     IrcClient.isIrcChatActive = true;
-                    IrcConfig config = IrcConfig.get();
+                    ChannelModule.Settings config = ChannelModule.CONFIG.get();
 
                     if (config.savedChannels != null && !config.savedChannels.isEmpty()  && !config.connectPublicChannelFirst) {
                         config.currentChannel = config.savedChannels.get(0);

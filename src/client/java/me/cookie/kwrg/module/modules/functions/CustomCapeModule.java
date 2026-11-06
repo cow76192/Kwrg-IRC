@@ -5,6 +5,7 @@ import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
@@ -18,8 +19,27 @@ import java.util.List;
 
 public class CustomCapeModule extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class, Settings::sanitize);
+
+    public static final class Settings {
+        public String myCape = "";
+        public int remoteCapeCanvasSize = 1024;
+        public int capeCanvasSize = 2048;
+        public int capeAnimFps = 10;
+        public int capeRenderMaxFps = 120;
+
+        private void sanitize() {
+            if (myCape == null) myCape = "";
+            if (capeCanvasSize < 64) capeCanvasSize = 4096;
+            if (capeAnimFps <= 0) capeAnimFps = 10;
+            if (capeRenderMaxFps <= 0) capeRenderMaxFps = 120;
+            capeRenderMaxFps = Math.min(capeRenderMaxFps, PlayerCustomizationManager.CAPE_MAX_FPS_LIMIT);
+            capeAnimFps = Math.min(capeAnimFps, capeRenderMaxFps);
+        }
+    }
+
     public CustomCapeModule() {
-        super("customCape", Category.FUNCTIONS, PanelItemComponent.ItemType.TRIGGER);
+        super("customCape", Category.FUNCTIONS, PanelItemComponent.ItemType.TRIGGER, CONFIG);
     }
 
     @Override
@@ -38,7 +58,7 @@ public class CustomCapeModule extends Module {
 
         panel.child(new SlotInputPaneComponent(
                 "画布尺寸",
-                new String[]{String.valueOf(IrcConfig.get().capeCanvasSize)},
+                new String[]{String.valueOf(CONFIG.get().capeCanvasSize)},
                 new String[]{"px"},
                 values -> {
                     try {
@@ -55,7 +75,7 @@ public class CustomCapeModule extends Module {
                         }
                         closest = Math.max(64, Math.min(8192, closest));
 
-                        IrcConfig.get().capeCanvasSize = closest;
+                        CONFIG.get().capeCanvasSize = closest;
                         IrcConfig.save();
                         PlayerCustomizationManager.reloadCurrentCape();
                         PlayerCustomizationManager.setMyCape(PlayerCustomizationManager.getMyCape());
@@ -70,7 +90,7 @@ public class CustomCapeModule extends Module {
 
         panel.child(new SlotInputPaneComponent(
                 "其余玩家画布尺寸",
-                new String[]{String.valueOf(IrcConfig.get().remoteCapeCanvasSize)},
+                new String[]{String.valueOf(CONFIG.get().remoteCapeCanvasSize)},
                 new String[]{"px"},
                 values -> {
                     try {
@@ -87,7 +107,7 @@ public class CustomCapeModule extends Module {
                         }
                         closest = Math.max(64, Math.min(4096, closest));
 
-                        IrcConfig.get().remoteCapeCanvasSize = closest;
+                        CONFIG.get().remoteCapeCanvasSize = closest;
                         IrcConfig.save();
                         PlayerCustomizationManager.reloadRemoteCapes();
                         ChatNotifier.send("§a[Cape] 其余玩家画布尺寸已设为: §f" + closest + "px", NotificationType.SUCCESS);
@@ -101,12 +121,12 @@ public class CustomCapeModule extends Module {
 
         panel.child(new SlotInputPaneComponent(
                 "披风未指定帧率时动画帧率",
-                new String[]{String.valueOf(IrcConfig.get().capeAnimFps)},
+                new String[]{String.valueOf(CONFIG.get().capeAnimFps)},
                 new String[]{"FPS"},
                 values -> {
                     try {
                         int v = PlayerCustomizationManager.clampFps(Integer.parseInt(values[0].trim()));
-                        IrcConfig.get().capeAnimFps = v;
+                        CONFIG.get().capeAnimFps = v;
                         IrcConfig.save();
                         PlayerCustomizationManager.refreshFrameTiming();
                         ChatNotifier.send("§e[Cape] 动画帧率已设为: §f" + v + " FPS", NotificationType.INFO);
@@ -116,18 +136,18 @@ public class CustomCapeModule extends Module {
                     } catch (Exception ignored) {}
                 },
                 null
-        ).bounds(new int[][]{{1, IrcConfig.get().capeRenderMaxFps}}));
+        ).bounds(new int[][]{{1, CONFIG.get().capeRenderMaxFps}}));
 
         panel.child(new SlotInputPaneComponent(
                 "全局披风渲染最大帧率",
-                new String[]{String.valueOf(IrcConfig.get().capeRenderMaxFps)},
+                new String[]{String.valueOf(CONFIG.get().capeRenderMaxFps)},
                 new String[]{"FPS"},
                 values -> {
                     try {
                         int v = Integer.parseInt(values[0].trim());
                         v = Math.max(1, Math.min(PlayerCustomizationManager.CAPE_MAX_FPS_LIMIT, v));
-                        IrcConfig.get().capeRenderMaxFps = v;
-                        if (IrcConfig.get().capeAnimFps > v) IrcConfig.get().capeAnimFps = v;
+                        CONFIG.get().capeRenderMaxFps = v;
+                        if (CONFIG.get().capeAnimFps > v) CONFIG.get().capeAnimFps = v;
                         IrcConfig.save();
                         PlayerCustomizationManager.refreshFrameTiming();
                         ChatNotifier.send("§e[Cape] 全局披风渲染最大帧率已设为: §f" + v + " FPS", NotificationType.INFO);

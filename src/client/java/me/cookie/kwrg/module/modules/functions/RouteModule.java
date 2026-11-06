@@ -3,6 +3,8 @@ package me.cookie.kwrg.module.modules.functions;
 import me.cookie.kwrg.gui.RouteScreen;
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
+import me.cookie.kwrg.irc.config.ModuleConfig;
+import me.cookie.kwrg.irc.manager.RouteManager;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 
@@ -10,8 +12,19 @@ import java.util.function.Consumer;
 
 public class RouteModule extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public String currentRouteFileName = "";
+    }
+
     public RouteModule() {
-        super("route", Category.FUNCTIONS, PanelItemComponent.ItemType.TRIGGER);
+        super("route", Category.FUNCTIONS, PanelItemComponent.ItemType.TRIGGER, CONFIG);
+    }
+
+    @Override
+    protected void onConfigLoaded() {
+        RouteManager.reloadFromConfig();
     }
 
     @Override

@@ -6,6 +6,7 @@ import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInputPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -17,6 +18,12 @@ import java.util.List;
 
 public class NameStyleModule extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public String namestyle = "";
+    }
+
     private static final List<String> MODIFIERS = List.of("bold", "underline", "italic", "strikethrough", "obfuscated", "flow");
 
     private static final String[] PRESETS = new String[]{
@@ -26,7 +33,7 @@ public class NameStyleModule extends Module {
     };
 
     public NameStyleModule() {
-        super("nameStyle", Category.STYLE, PanelItemComponent.ItemType.TRIGGER);
+        super("nameStyle", Category.STYLE, PanelItemComponent.ItemType.TRIGGER, CONFIG);
     }
 
     @Override
@@ -36,7 +43,7 @@ public class NameStyleModule extends Module {
     public void buildTertiaryUI(TertiaryPanelComponent panel) {
         panel.clearChildren();
 
-        String initialStyle = IrcConfig.get().namestyle != null ? IrcConfig.get().namestyle : "";
+        String initialStyle = CONFIG.get().namestyle != null ? CONFIG.get().namestyle : "";
         String[] currentEditingStyle = new String[]{ initialStyle };
 
         Minecraft mc = Minecraft.getInstance();
@@ -50,7 +57,7 @@ public class NameStyleModule extends Module {
                 return;
             }
 
-            IrcConfig.get().namestyle = clean;
+            CONFIG.get().namestyle = clean;
             IrcConfig.save();
             ChatNotifier.send("§a[IRC] 已保存 NameStyle: §f" + clean, NotificationType.SUCCESS);
         });
@@ -108,7 +115,7 @@ public class NameStyleModule extends Module {
 
                         inputPane.setText(newStyle);
                         currentEditingStyle[0] = newStyle;
-                        IrcConfig.get().namestyle = newStyle;
+                        CONFIG.get().namestyle = newStyle;
                         IrcConfig.save();
                         ChatNotifier.send("§a[IRC] 已应用 NameStyle: §f" + newStyle, NotificationType.SUCCESS);
                     },
@@ -121,7 +128,7 @@ public class NameStyleModule extends Module {
     }
 
     public static int setNameStyle(String style) {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         config.namestyle = style;
         IrcConfig.save();
 
@@ -138,7 +145,7 @@ public class NameStyleModule extends Module {
     }
 
     public static int showNameStyle() {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         String currentStyle = config.namestyle != null ? config.namestyle : "";
 
         Minecraft mc = Minecraft.getInstance();

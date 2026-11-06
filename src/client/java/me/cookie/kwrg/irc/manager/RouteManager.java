@@ -1,5 +1,6 @@
 package me.cookie.kwrg.irc.manager;
 
+import me.cookie.kwrg.module.modules.functions.RouteModule;
 import me.cookie.kwrg.render.RouteLineRenderer;
 import me.cookie.kwrg.util.PointEntry;
 
@@ -66,7 +67,7 @@ public final class RouteManager {
     public static void reloadFromConfig() {
         migrateLegacyDir();
         seedDefaultRoute();
-        String savedName = IrcConfig.get().currentRouteFileName;
+        String savedName = RouteModule.CONFIG.get().currentRouteFileName;
         if (savedName != null && !savedName.isBlank()) {
             Path savedFile = resolveSavedFile(getDir(), savedName);
             if (savedFile != null && Files.isRegularFile(savedFile)) {
@@ -80,7 +81,7 @@ public final class RouteManager {
         visible = true;
         showLine = false;
         if (savedName != null && !savedName.isBlank()) {
-            IrcConfig.get().currentRouteFileName = "";
+            RouteModule.CONFIG.get().currentRouteFileName = "";
         }
     }
 
@@ -100,7 +101,7 @@ public final class RouteManager {
         currentFile = null;
         loadedContent = null;
         conflictReported = false;
-        IrcConfig.get().currentRouteFileName = "";
+        RouteModule.CONFIG.get().currentRouteFileName = "";
     }
 
     private static void seedDefaultRoute() {
@@ -254,7 +255,7 @@ public final class RouteManager {
             currentFile = target;
             loadedContent = content;
             conflictReported = false;
-            IrcConfig.get().currentRouteFileName = currentFileName();
+            RouteModule.CONFIG.get().currentRouteFileName = currentFileName();
             IrcConfig.save();
         }
         return target;
@@ -405,8 +406,8 @@ public final class RouteManager {
         loadedContent = json ? text : readFile(currentFile);
         conflictReported = false;
         if (!json && !saveCurrent(interactive)) return false;
-        boolean selectionChanged = !currentFileName().equals(IrcConfig.get().currentRouteFileName);
-        IrcConfig.get().currentRouteFileName = currentFileName();
+        boolean selectionChanged = !currentFileName().equals(RouteModule.CONFIG.get().currentRouteFileName);
+        RouteModule.CONFIG.get().currentRouteFileName = currentFileName();
         if (interactive) {
             if (selectionChanged) IrcConfig.save();
             ChatNotifier.send("§a[Route] 已导入 | " + fileName(path) + " (" + ENTRIES.size() + " 条)", NotificationType.SUCCESS);
@@ -419,7 +420,7 @@ public final class RouteManager {
         currentFile = null;
         loadedContent = null;
         conflictReported = false;
-        IrcConfig.get().currentRouteFileName = "";
+        RouteModule.CONFIG.get().currentRouteFileName = "";
         IrcConfig.save();
     }
 

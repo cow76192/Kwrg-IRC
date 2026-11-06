@@ -7,14 +7,21 @@ import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.IrcMessageHandler;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
 
 public class RankModule extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public String rank = "&7[Member&7]";
+    }
+
     public RankModule() {
-        super("rank", Category.STYLE, PanelItemComponent.ItemType.TRIGGER);
+        super("rank", Category.STYLE, PanelItemComponent.ItemType.TRIGGER, CONFIG);
     }
 
     @Override
@@ -25,8 +32,8 @@ public class RankModule extends Module {
     public void buildTertiaryUI(TertiaryPanelComponent panel) {
         panel.clearChildren();
 
-        String initialRank = (IrcConfig.get().rank != null && !IrcConfig.get().rank.isBlank())
-                ? IrcConfig.get().rank
+        String initialRank = (CONFIG.get().rank != null && !CONFIG.get().rank.isBlank())
+                ? CONFIG.get().rank
                 : "&7[Member&7]";
 
         String[] lastValidDisplay = new String[]{ formatRankSafe(initialRank) };
@@ -42,7 +49,7 @@ public class RankModule extends Module {
             try {
                 String formatted = formatRankSafe(clean);
                 if (formatted != null && !formatted.isEmpty()) {
-                    IrcConfig.get().rank = clean;
+                    CONFIG.get().rank = clean;
                     IrcConfig.save();
                     ChatNotifier.send("§a[IRC] 已成功保存 Rank: §r" + formatted, NotificationType.SUCCESS);
                 } else {
@@ -91,7 +98,7 @@ public class RankModule extends Module {
     }
 
     public static int setRank(String newRank) {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         config.rank = newRank;
         IrcConfig.save();
         ChatNotifier.sendInChatScreen("§a[IRC] Rank 称号已更新为: " + IrcMessageHandler.formatRankWithBrackets(newRank));
@@ -115,7 +122,7 @@ public class RankModule extends Module {
     }
 
     public static int showRank() {
-        IrcConfig config = IrcConfig.get();
+        Settings config = CONFIG.get();
         ChatNotifier.sendInChatScreen("§c[IRC] 当前 Rank: " + IrcMessageHandler.formatRankWithBrackets(config.rank) + "§c, 用法: /irc r <称号>");
         return 0;
     }

@@ -10,7 +10,9 @@ import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.gui.util.ServerLatencyTracker;
 import me.cookie.kwrg.gui.util.TpsTracker;
 import me.cookie.kwrg.irc.IrcClient;
-import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.module.modules.debug.GuiFpsModule;
+import me.cookie.kwrg.module.modules.style.dynamic.DynamicIslandModule;
+import me.cookie.kwrg.module.modules.style.dynamic.DynamicTabModule;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -128,7 +130,7 @@ public class DynamicIslandRenderer {
         return lines;
     }
 
-    private static boolean checkIsLowTps(Minecraft mc, IrcConfig config) {
+    private static boolean checkIsLowTps(Minecraft mc, DynamicIslandModule.Settings config) {
         float tps = TpsTracker.getTps();
         if (tps < 15.5f) isLaggingState = true;
         else if (tps > 16.5f) isLaggingState = false;
@@ -227,7 +229,7 @@ public class DynamicIslandRenderer {
     private static float currentTabEase = 0.0f;
 
     public static boolean isTabFeatureOn() {
-        return IrcConfig.get().dynamicTab;
+        return DynamicTabModule.CONFIG.get().dynamicTab;
     }
 
     public static boolean isEnabled() {
@@ -338,12 +340,12 @@ public class DynamicIslandRenderer {
         lastUpdateFrameTime = nowTime;
         dt = Mth.clamp(dt, 0.001f, 0.04f);
 
-        IrcConfig config = IrcConfig.get();
-        currentTabEase = updateTabAnimation(dt, config);
+        DynamicIslandModule.Settings config = DynamicIslandModule.CONFIG.get();
+        currentTabEase = updateTabAnimation(dt);
         updateRenderRect(currentTabEase, dt, config);
     }
 
-    private static float updateTabAnimation(float dt, IrcConfig config) {
+    private static float updateTabAnimation(float dt) {
         Minecraft mc = Minecraft.getInstance();
 
         if (tabWidthTimer < 1.0f) {
@@ -362,7 +364,7 @@ public class DynamicIslandRenderer {
 
         smoothTabY = Mth.lerp(dt * 10.0f, smoothTabY, targetTabY);
 
-        boolean isTabKeyDown = !editorPreview && IrcConfig.get().dynamicTab && mc.options.keyPlayerList.isDown() && mc.player != null;
+        boolean isTabKeyDown = !editorPreview && DynamicTabModule.CONFIG.get().dynamicTab && mc.options.keyPlayerList.isDown() && mc.player != null;
         float targetTab = isTabKeyDown ? 1.0f : 0.0f;
         float tabSpeed = isTabKeyDown ? (1.0f / TAB_ANIM_DURATION) : (1.0f / (TAB_ANIM_DURATION * 0.85f));
 
@@ -396,18 +398,18 @@ public class DynamicIslandRenderer {
         return total;
     }
 
-    private static boolean shouldIslandShow(IrcConfig config) {
+    private static boolean shouldIslandShow(DynamicIslandModule.Settings config) {
         boolean hasAnyOption = (config.islandShowFps || config.islandShowPing || config.islandShowServerPing
                 || config.islandShowTps || config.islandShowRam || config.islandShowGpu || config.islandShowCpu);
         boolean hasCustomNotices = !CUSTOM_NOTICES.isEmpty();
         boolean islandWanted = (DynamicIslandRenderer.isEnabled() || editorPreview) && (hasAnyOption || hasCustomNotices || editorPreview);
-        boolean tabWanted = config.dynamicTab && tabProgress > 0.005f;
+        boolean tabWanted = DynamicTabModule.CONFIG.get().dynamicTab && tabProgress > 0.005f;
 
         return islandWanted || tabWanted;
     }
 
     private static void updateTabShift(float screenW, float screenH) {
-        if (!IrcConfig.get().islandPosAffectsTab || !DynamicIslandRenderer.isEnabled()) {
+        if (!DynamicTabModule.CONFIG.get().islandPosAffectsTab || !DynamicIslandRenderer.isEnabled()) {
             tabTargetShiftX = 0.0f;
             tabTargetShiftY = 0.0f;
             return;
@@ -434,7 +436,7 @@ public class DynamicIslandRenderer {
         tabTargetShiftY = shiftY;
     }
 
-    private static void updateRenderRect(float tabEase, float dt, IrcConfig config) {
+    private static void updateRenderRect(float tabEase, float dt, DynamicIslandModule.Settings config) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.getWindow() == null) return;
 
@@ -493,9 +495,10 @@ public class DynamicIslandRenderer {
         tabShiftX = centerX - screenW / 2.0f;
         tabShiftY = curRenderY - smoothTabY;
 
+        float tabOpacity = DynamicTabModule.CONFIG.get().tabOpacity;
         float effectiveOpacity = DynamicIslandRenderer.isEnabled()
-                ? Mth.lerp(tabEase, HudElementRegistry.state(HudElementRegistry.ISLAND).opacity, config.tabOpacity)
-                : config.tabOpacity;
+                ? Mth.lerp(tabEase, HudElementRegistry.state(HudElementRegistry.ISLAND).opacity, tabOpacity)
+                : tabOpacity;
         float expectedTargetAlpha = shouldShow ? (openEase * effectiveOpacity) : 0.0f;
         updateAlphaAnimation(expectedTargetAlpha, dt);
 
@@ -742,12 +745,12 @@ public class DynamicIslandRenderer {
     public static void render(GuiGraphicsExtractor extractor, float ignoredDelta) {
         currentFrameExtractor = extractor;
 
-        IrcConfig config = IrcConfig.get();
+        DynamicIslandModule.Settings config = DynamicIslandModule.CONFIG.get();
         Minecraft mc = Minecraft.getInstance();
         if (mc.getWindow() == null || mc.font == null) return;
 
         long now = System.currentTimeMillis();
-        int targetFps = IrcConfig.get().guiFpsLimit;
+        int targetFps = GuiFpsModule.CONFIG.get().guiFpsLimit;
         long minIntervalMs = targetFps > 0 ? (1000L / targetFps) : 0;
 
         if (now - lastIslandThrottleTime >= minIntervalMs) {

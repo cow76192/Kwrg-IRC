@@ -6,6 +6,7 @@ import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInputPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
@@ -13,8 +14,14 @@ import net.minecraft.util.Mth;
 
 public class GuiScaleModule extends Module {
 
+    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
+
+    public static final class Settings {
+        public float guiScale = 1.0f;
+    }
+
     public GuiScaleModule() {
-        super("GuiScale", Category.STYLE, PanelItemComponent.ItemType.TRIGGER, () -> true);
+        super("GuiScale", Category.STYLE, PanelItemComponent.ItemType.TRIGGER, () -> true, CONFIG);
     }
 
     @Override
@@ -29,11 +36,11 @@ public class GuiScaleModule extends Module {
     private void renderScaleUI(TertiaryPanelComponent panel) {
         panel.clearChildren();
 
-        panel.child(new TextInfoPaneComponent("当前缩放", () -> (int) (IrcConfig.get().guiScale * 100) + "%"));
+        panel.child(new TextInfoPaneComponent("当前缩放", () -> (int) (CONFIG.get().guiScale * 100) + "%"));
 
         panel.child(new SlotInputPaneComponent(
                 "自定义缩放",
-                new String[]{String.valueOf((int) (IrcConfig.get().guiScale * 100))},
+                new String[]{String.valueOf((int) (CONFIG.get().guiScale * 100))},
                 new String[]{"%"},
                 values -> {
                     try {
@@ -57,9 +64,9 @@ public class GuiScaleModule extends Module {
     }
 
     private void setScale(TertiaryPanelComponent panel, float scale) {
-        IrcConfig.get().guiScale = Mth.clamp(scale, 0.5f, 2.0f);
+        CONFIG.get().guiScale = Mth.clamp(scale, 0.5f, 2.0f);
         IrcConfig.save();
-        ChatNotifier.send("§aGUI 缩放已设为: §f" + (int) (IrcConfig.get().guiScale * 100) + "%", NotificationType.SUCCESS);
+        ChatNotifier.send("§aGUI 缩放已设为: §f" + (int) (CONFIG.get().guiScale * 100) + "%", NotificationType.SUCCESS);
         renderScaleUI(panel);
     }
 }

@@ -2,6 +2,7 @@ package me.cookie.kwrg.irc.manager;
 
 import com.mojang.authlib.GameProfile;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.module.modules.functions.NickModule;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
@@ -27,7 +28,7 @@ public class NickManager {
 
     public static boolean isEnabled() {
         if (isBypassed()) return false;
-        return IrcConfig.get().nickEnabled;
+        return NickModule.CONFIG.get().nickEnabled;
     }
 
     public static String getEffectiveNick() {
@@ -36,56 +37,56 @@ public class NickManager {
     }
 
     public static void setEnabled(boolean state) {
-        IrcConfig.get().nickEnabled = state;
+        NickModule.CONFIG.get().nickEnabled = state;
         IrcConfig.saveDelayed(300);
     }
 
     public static String getCustomNick() {
-        return IrcConfig.get().customNick != null ? IrcConfig.get().customNick : "";
+        return NickModule.CONFIG.get().customNick != null ? NickModule.CONFIG.get().customNick : "";
     }
 
     public static void setCustomNick(String nick) {
-        IrcConfig.get().customNick = nick != null ? nick.trim() : "";
+        NickModule.CONFIG.get().customNick = nick != null ? nick.trim() : "";
         IrcConfig.saveDelayed(500);
     }
 
     public static HypixelRank getRank() {
         try {
-            return HypixelRank.valueOf(IrcConfig.get().nickRank);
+            return HypixelRank.valueOf(NickModule.CONFIG.get().nickRank);
         } catch (Exception e) {
             return HypixelRank.MVP_PLUS;
         }
     }
 
     public static void setRank(HypixelRank rank) {
-        IrcConfig.get().nickRank = rank.name();
+        NickModule.CONFIG.get().nickRank = rank.name();
         IrcConfig.saveDelayed(300);
     }
 
     public static HypixelRank.PlusColor getPlusColor() {
         try {
-            if ("GRAY".equals(IrcConfig.get().nickPlusColor)) return HypixelRank.PlusColor.DARK_GRAY;
-            return HypixelRank.PlusColor.valueOf(IrcConfig.get().nickPlusColor);
+            if ("GRAY".equals(NickModule.CONFIG.get().nickPlusColor)) return HypixelRank.PlusColor.DARK_GRAY;
+            return HypixelRank.PlusColor.valueOf(NickModule.CONFIG.get().nickPlusColor);
         } catch (Exception e) {
             return HypixelRank.PlusColor.RED;
         }
     }
 
     public static void setPlusColor(HypixelRank.PlusColor color) {
-        IrcConfig.get().nickPlusColor = color.name();
+        NickModule.CONFIG.get().nickPlusColor = color.name();
         IrcConfig.saveDelayed(300);
     }
 
     public static HypixelRank.TagColor getTagColor() {
         try {
-            return HypixelRank.TagColor.valueOf(IrcConfig.get().nickTagColor);
+            return HypixelRank.TagColor.valueOf(NickModule.CONFIG.get().nickTagColor);
         } catch (Exception e) {
             return HypixelRank.TagColor.GOLD;
         }
     }
 
     public static void setTagColor(HypixelRank.TagColor color) {
-        IrcConfig.get().nickTagColor = color.name();
+        NickModule.CONFIG.get().nickTagColor = color.name();
         IrcConfig.saveDelayed(300);
     }
 

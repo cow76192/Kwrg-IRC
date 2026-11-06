@@ -9,6 +9,7 @@ import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.module.ModuleManager;
+import me.cookie.kwrg.module.modules.functions.GlowColorModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
 import net.minecraft.client.Minecraft;
@@ -85,7 +86,7 @@ public class TertiaryPanelComponent extends FlowLayout {
             return 0;
         }
 
-        IrcConfig config = IrcConfig.get();
+        GlowColorModule.Settings config = GlowColorModule.CONFIG.get();
         config.glowColor = colorStr;
         IrcConfig.save();
 

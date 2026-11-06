@@ -6,8 +6,8 @@ import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;
-import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
+import me.cookie.kwrg.module.modules.style.dynamic.PlayerDollHudModule;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -88,7 +88,7 @@ public final class PlayerDollHudRenderer {
             return;
         }
 
-        IrcConfig config = IrcConfig.get();
+        PlayerDollHudModule.Settings config = PlayerDollHudModule.CONFIG.get();
         boolean followGlobal = config.playerDollFollowGlobal;
 
         float scale = HudElementRegistry.resolveScale(HudElementRegistry.PLAYER_DOLL);
