@@ -8,7 +8,6 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
-import com.mojang.brigadier.tree.CommandNode;
 import me.cookie.kwrg.gui.IrcScreen;
 import me.cookie.kwrg.gui.hud.HudEditorScreen;
 import me.cookie.kwrg.gui.notification.NotificationType;
@@ -33,23 +32,12 @@ import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.Minecraft;
 import net.minecraft.commands.CommandBuildContext;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import static me.cookie.kwrg.irc.manager.ChatWaypointManager.MAX_COORD;
 import static me.cookie.kwrg.module.modules.config.LoadModule.*;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.argument;
 import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal;
 
 public class IrcCommand {
-
-    private static final List<CommandNode<FabricClientCommandSource>> HELP_ROOTS = new ArrayList<>();
-    private static final int HELP_MAX_DEPTH = 3;
-
-    private static void registerRoot(CommandDispatcher<FabricClientCommandSource> dispatcher,
-                                     LiteralArgumentBuilder<FabricClientCommandSource> root) {
-        HELP_ROOTS.add(dispatcher.register(root));
-    }
 
     private static final SuggestionProvider<FabricClientCommandSource> STYLE_SUGGESTIONS = (context, builder) -> {
         String[] presets = new String[]{
@@ -189,7 +177,7 @@ public class IrcCommand {
     }
 
     private static void registerCommands(CommandDispatcher<FabricClientCommandSource> dispatcher, CommandBuildContext buildContext) {
-        registerRoot(dispatcher, literal("ci")
+        dispatcher.register(literal("ci")
                 .then(literal("all")
                         .executes(context -> {
                             IrcClient.isIrcChatActive = true;
@@ -198,7 +186,7 @@ public class IrcCommand {
                             IrcConfig.save();
                             IrcClient.sendChannelSync(config.currentChannel, config.channelEnabled, config.savedChannels);
 
-                            IrcMessageHandler.printMessage("§a[IRC] 已切换至 §e公共大厅发言 §a模式");
+                            ChatNotifier.sendInChatScreen("§a[IRC] 已切换至 §e公共大厅发言 §a模式");
                             if (!IrcClient.isIrcConnect) {
                                 IrcClient.connect();
                             }
@@ -219,7 +207,7 @@ public class IrcCommand {
                                     IrcConfig.save();
                                     IrcClient.sendChannelSync(config.currentChannel, config.channelEnabled, config.savedChannels);
 
-                                    IrcMessageHandler.printMessage("§a[IRC] 已切换至 §b[#" + name + "] §a频道发言模式！");
+                                    ChatNotifier.sendInChatScreen("§a[IRC] 已切换至 §b[#" + name + "] §a频道发言模式！");
                                     if (!IrcClient.isIrcConnect) {
                                         IrcClient.connect();
                                     }
@@ -233,7 +221,7 @@ public class IrcCommand {
                                 if (config.savedChannels != null && !config.savedChannels.isEmpty()) {
                                     config.currentChannel = config.savedChannels.get(0);
                                 } else {
-                                    IrcMessageHandler.printMessage("§c[IRC] 你尚未保存任何频道！用法: /ci channel <频道名>");
+                                    ChatNotifier.sendInChatScreen("§c[IRC] 你尚未保存任何频道！用法: /ci channel <频道名>");
                                     return 0;
                                 }
                             }
@@ -242,7 +230,7 @@ public class IrcCommand {
                             IrcConfig.save();
                             IrcClient.sendChannelSync(config.currentChannel, true, config.savedChannels);
 
-                            IrcMessageHandler.printMessage("§a[IRC] 已切换至 §b[#" + config.currentChannel + "] §a频道发言模式！");
+                            ChatNotifier.sendInChatScreen("§a[IRC] 已切换至 §b[#" + config.currentChannel + "] §a频道发言模式！");
                             if (!IrcClient.isIrcConnect) {
                                 IrcClient.connect();
                             }
@@ -255,15 +243,15 @@ public class IrcCommand {
                     if (config.savedChannels != null && !config.savedChannels.isEmpty()  && !config.connectPublicChannelFirst) {
                         config.currentChannel = config.savedChannels.get(0);
                         config.channelEnabled = true;
-                        IrcMessageHandler.printMessage("§a[IRC] 快捷切换发言模式: §b[#" + config.currentChannel + "]");
+                        ChatNotifier.sendInChatScreen("§a[IRC] 快捷切换发言模式: §b[#" + config.currentChannel + "]");
 
                     } else if (config.channelEnabled && config.currentChannel != null && !config.currentChannel.isBlank()) {
                         config.currentChannel = "";
-                        IrcMessageHandler.printMessage("§a[IRC] 快捷切换发言模式: §e公共大厅");
+                        ChatNotifier.sendInChatScreen("§a[IRC] 快捷切换发言模式: §e公共大厅");
                     }
 
                      else {
-                        IrcMessageHandler.printMessage("§a[IRC] 当前处于: §e公共大厅发言");
+                        ChatNotifier.sendInChatScreen("§a[IRC] 当前处于: §e公共大厅发言");
                     }
 
                     IrcConfig.save();
@@ -276,7 +264,7 @@ public class IrcCommand {
                 })
         );
 
-        registerRoot(dispatcher, literal("ic")
+        dispatcher.register(literal("ic")
                 .then(argument("message", StringArgumentType.greedyString())
                         .executes(context -> {
                             String message = StringArgumentType.getString(context, "message");
@@ -285,12 +273,12 @@ public class IrcCommand {
                         })
                 )
                 .executes(context -> {
-                    IrcMessageHandler.printMessage("§c[IRC] 用法: /ic <消息内容>");
+                    ChatNotifier.sendInChatScreen("§c[IRC] 用法: /ic <消息内容>");
                     return 0;
                 })
         );
 
-        registerRoot(dispatcher, literal("icall")
+        dispatcher.register(literal("icall")
                 .then(argument("message", StringArgumentType.greedyString())
                         .executes(context -> {
                             String processed = StringArgumentType.getString(context, "message");
@@ -300,7 +288,7 @@ public class IrcCommand {
                         })
                 )
                 .executes(context -> {
-                    IrcMessageHandler.printMessage("§c[IRC] 用法: /icall <消息内容> (强制发送至公共大厅)");
+                    ChatNotifier.sendInChatScreen("§c[IRC] 用法: /icall <消息内容> (强制发送至公共大厅)");
                     return 0;
                 })
         );
@@ -335,7 +323,7 @@ public class IrcCommand {
                         .executes(context -> {
                             Minecraft mc = Minecraft.getInstance();
                             if (mc.player == null) {
-                                IrcMessageHandler.printMessage("§c[IRC] 当前不在世界中");
+                                ChatNotifier.sendInChatScreen("§c[IRC] 当前不在世界中");
                                 return 0;
                             }
                             var pos = mc.player.blockPosition();
@@ -381,7 +369,7 @@ public class IrcCommand {
                         .then(literal("disconnect")
                                 .executes(context -> {
                                     IrcClient.disconnect();
-                                    IrcMessageHandler.printMessage("§c[IRC] 已断开 IRC 连接");
+                                    ChatNotifier.sendInChatScreen("§c[IRC] 已断开 IRC 连接");
                                     return 1;
                                 }))
                         .then(literal("clearIndexCache")
@@ -424,13 +412,13 @@ public class IrcCommand {
                                                         DoubleArgumentType.getDouble(context, "delay"),
                                                         StringArgumentType.getString(context, "duration"))))))
                         .executes(context -> {
-                            IrcMessageHandler.printMessage("§c[IRC] 用法: /irc getBan <类型> [触发延迟(秒)] [自定义时长]");
+                            ChatNotifier.sendInChatScreen("§c[IRC] 用法: /irc getBan <类型> [触发延迟(秒)] [自定义时长]");
                             return 0;
                         }));
 
 
-        registerRoot(dispatcher, ircRoot);
-        registerRoot(dispatcher, routeCommand());
+        dispatcher.register(ircRoot);
+        dispatcher.register(routeCommand());
     }
 
     private static LiteralArgumentBuilder<FabricClientCommandSource> hudEditorAlias(String alias) {
@@ -512,20 +500,25 @@ public class IrcCommand {
     }
 
     private static void sendHelp() {
-        IrcMessageHandler.printMessage("§6===== [Kwrg IRC 帮助] =====");
-        IrcMessageHandler.printMessage("§e/ci §7或 §e/chat irc §7- 切换 IRC 聊天频道");
-        for (CommandNode<FabricClientCommandSource> root : HELP_ROOTS) {
-            printHelp("/" + root.getName(), root, 0);
-        }
-    }
-
-    private static void printHelp(String path, CommandNode<FabricClientCommandSource> node, int depth) {
-        for (CommandNode<FabricClientCommandSource> child : node.getChildren()) {
-            String usage = path + " " + child.getUsageText();
-            IrcMessageHandler.printMessage("§e" + usage);
-            if (depth + 1 < HELP_MAX_DEPTH) {
-                printHelp(usage, child, depth + 1);
-            }
-        }
+        ChatNotifier.sendInChatScreen("§6===== [Kwrg IRC 帮助] =====");
+        ChatNotifier.sendInChatScreen("§e/ci §7或 §e/chat irc §7- 切换 IRC 聊天频道");
+        ChatNotifier.sendInChatScreen("§e/ic <消息> §7- 快捷发送一条 IRC 消息");
+        ChatNotifier.sendInChatScreen("§e/irc r <称号> §7- 设置称号 (如 /irc r &6VIP&b+)");
+        ChatNotifier.sendInChatScreen("§e/irc ns <样式> §7- 设置名字样式 (支持彩虹、渐变、CSS)");
+        ChatNotifier.sendInChatScreen("§e/irc ms <样式> §7- 设置消息样式 (支持彩虹、渐变、CSS)");
+        ChatNotifier.sendInChatScreen("§e/irc important/imp [玩家名] §7- 添加/移除关注玩家 (不区分大小写)");
+        ChatNotifier.sendInChatScreen("§e/irc config/cfg load/create <配置名> §7- 加载/新建配置");
+        ChatNotifier.sendInChatScreen("§e/irc config/cfg save §7- 保存当前配置至文件(只有新建的配置文件才需要保存)");
+        ChatNotifier.sendInChatScreen("§e/irc play/p <玩家名> <物品ID> §7- 向指定玩家发送 Totem 动画效果");
+        ChatNotifier.sendInChatScreen("§e/irc online §7- 查看当前 IRC 在线玩家列表");
+        ChatNotifier.sendInChatScreen("§e/irc routeEdit [true/false] §7- 切换或指定快速编辑状态，开启后 Alt＋左键方块添加节点");
+        ChatNotifier.sendInChatScreen("§e/route show §7- 查看当前路线节点（索引从 1 开始）");
+        ChatNotifier.sendInChatScreen("§e/route add <节点名> [<x> <y> <z>] §7- 在末尾添加节点，省略坐标时使用当前位置");
+        ChatNotifier.sendInChatScreen("§e/route ins/insert <节点名> <前索引> <后索引> §7- 在相邻节点间插入当前位置");
+        ChatNotifier.sendInChatScreen("§e/route del/delete <索引> §7- 删除指定节点");
+        ChatNotifier.sendInChatScreen("§e/irc hudeditor §7或 §e/irc hud §7- 打开 HUD 布局编辑器");
+        ChatNotifier.sendInChatScreen("§e/irc functions §7- 查看功能列表");
+        ChatNotifier.sendInChatScreen("§e/irc debug  §7- 查看调试选项");
+        ChatNotifier.sendInChatScreen("§e/irc getBan <类型> [触发延迟(秒)] [自定义时长] §7- 触发封禁");
     }
 }

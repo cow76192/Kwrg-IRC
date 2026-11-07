@@ -12,7 +12,6 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
-import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
@@ -559,7 +558,7 @@ public final class RouteManager {
 
     public static void showInChat() {
         if (ENTRIES.isEmpty()) {
-            IrcMessageHandler.printMessage("§c[Route] 当前路线为空");
+            ChatNotifier.sendInChatScreen("§c[Route] 当前路线为空");
             return;
         }
 
@@ -574,7 +573,7 @@ public final class RouteManager {
                     .append("] [").append(value(entry.z))
                     .append(']');
         }
-        IrcMessageHandler.printMessage("§b[Route] §f" + builder);
+        ChatNotifier.sendInChatScreen("§b[Route] §f" + builder);
     }
 
     private static List<Entry> parseTxt(String text) {
