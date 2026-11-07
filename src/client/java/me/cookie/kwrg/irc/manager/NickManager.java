@@ -53,7 +53,7 @@ public class NickManager {
     public static HypixelRank getRank() {
         try {
             return HypixelRank.valueOf(NickModule.CONFIG.get().nickRank);
-        } catch (Exception e) {
+        } catch (IllegalArgumentException e) {
             return HypixelRank.MVP_PLUS;
         }
     }
@@ -67,7 +67,7 @@ public class NickManager {
         try {
             if ("GRAY".equals(NickModule.CONFIG.get().nickPlusColor)) return HypixelRank.PlusColor.DARK_GRAY;
             return HypixelRank.PlusColor.valueOf(NickModule.CONFIG.get().nickPlusColor);
-        } catch (Exception e) {
+        } catch (IllegalArgumentException e) {
             return HypixelRank.PlusColor.RED;
         }
     }
@@ -80,7 +80,7 @@ public class NickManager {
     public static HypixelRank.TagColor getTagColor() {
         try {
             return HypixelRank.TagColor.valueOf(NickModule.CONFIG.get().nickTagColor);
-        } catch (Exception e) {
+        } catch (IllegalArgumentException e) {
             return HypixelRank.TagColor.GOLD;
         }
     }
@@ -253,7 +253,12 @@ public class NickManager {
                             removeCount--;
                         }
 
-                        buildRankPrefixChars(result);
+                        for (HypixelRank.PrefixPart part : getRank().getPrefixParts(getPlusColor(), getTagColor())) {
+                            Style partStyle = Style.EMPTY.withColor(TextColor.fromRgb(part.rgb()));
+                            for (int cp : part.text().codePoints().toArray()) {
+                                result.add(new StyledChar(cp, partStyle));
+                            }
+                        }
 
                         int nameColor = getRankNameColorRgb();
                         Style nameStyle = Style.EMPTY.withColor(TextColor.fromRgb(nameColor));
@@ -286,44 +291,6 @@ public class NickManager {
             }
             return true;
         };
-    }
-
-    private static void buildRankPrefixChars(List<StyledChar> list) {
-        HypixelRank rank = getRank();
-        if (rank == HypixelRank.NONE) return;
-
-        HypixelRank.PlusColor plus = getPlusColor();
-
-        switch (rank) {
-            case VIP -> appendChars(list, "[VIP] ", 0x55FF55);
-            case VIP_PLUS -> {
-                appendChars(list, "[VIP", 0x55FF55);
-                appendChars(list, "+", 0xFFAA00); // VIP+ 的加号固定金色
-                appendChars(list, "] ", 0x55FF55);
-            }
-            case MVP -> appendChars(list, "[MVP] ", 0x55FFFF);
-            case MVP_PLUS -> {
-                appendChars(list, "[MVP", 0x55FFFF);
-                appendChars(list, "+", plus.rgb); // 自定义加号颜色
-                appendChars(list, "] ", 0x55FFFF);
-            }
-            case MVP_PLUS_PLUS -> {
-                int tagColor = rank.getNameColorRgb(getTagColor());
-                appendChars(list, "[MVP", tagColor);
-                appendChars(list, "++", plus.rgb); // 自定义加号颜色
-                appendChars(list, "] ", tagColor);
-            }
-            case ADMIN -> appendChars(list, "[ADMIN] ", 0xFF5555);
-            case OWNER -> appendChars(list, "[OWNER] ", 0xFF5555);
-            case YOUTUBE ->  appendChars(list, "[YOUTUBE] ", 0xFF5555);
-        }
-    }
-
-    private static void appendChars(List<StyledChar> list, String text, int rgb) {
-        Style style = Style.EMPTY.withColor(TextColor.fromRgb(rgb));
-        for (int cp : text.codePoints().toArray()) {
-            list.add(new StyledChar(cp, style));
-        }
     }
 
     private static boolean matches(List<StyledChar> chars, int start, int[] target) {

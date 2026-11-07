@@ -44,7 +44,7 @@ public final class EmojiUtil {
             emojiMap = Map.copyOf(tempMap);
             LOGGER.info("[KWRG] 成功加载 Emoji 映射，共 " + emojiMap.size() + " 项");
 
-        } catch (Exception e) {
+        } catch (java.io.IOException | RuntimeException e) {
             LOGGER.error("[KWRG] 解析 emoji_shortcode.json 失败: " + e.getMessage());
             e.printStackTrace();
         }

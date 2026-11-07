@@ -99,7 +99,7 @@ public class AccountUtil {
                 } else {
                     return new LoginResult(false, null, "验证失败 (HTTP 状态码: " + response.statusCode() + ")");
                 }
-            } catch (Exception e) {
+            } catch (java.io.IOException | InterruptedException | RuntimeException e) {
                 CookieMain.LOGGER.error("Token 验证出错", e);
                 return new LoginResult(false, null, "网络请求异常: " + e.getMessage());
             }

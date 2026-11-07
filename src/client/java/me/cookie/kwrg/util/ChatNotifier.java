@@ -67,7 +67,7 @@ public class ChatNotifier {
             try {
                 URI uri = URI.create(cleanUrl);
                 ranges.add(new UrlRange(matcher.start(), matcher.end(), cleanUrl, uri));
-            } catch (Exception ignored) {
+            } catch (IllegalArgumentException ignored) {
             }
         }
 

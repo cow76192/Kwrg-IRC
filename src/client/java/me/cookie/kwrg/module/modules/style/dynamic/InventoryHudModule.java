@@ -10,13 +10,11 @@ import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.config.ModuleConfig;
-import me.cookie.kwrg.module.Category;
-import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
 
 import java.util.List;
 
-public class InventoryHudModule extends Module {
+public class InventoryHudModule extends DynamicModule {
 
     public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
 
@@ -40,22 +38,14 @@ public class InventoryHudModule extends Module {
     private static final float DEFAULT_CORNER_RADIUS = 10.0f;
 
     public InventoryHudModule() {
-        super(
-                "inventoryHud",
-                Category.STYLE,
-                PanelItemComponent.ItemType.TOGGLE,
-                () -> HudElementRegistry.isEnabled(HudElementRegistry.INVENTORY),
-                CONFIG
-        );
+        super("inventoryHud", HudElementRegistry.INVENTORY, CONFIG);
     }
 
     @Override
     public void onExecute() {
-        HudElement.State state = HudElementRegistry.state(HudElementRegistry.INVENTORY);
-        state.enabled = !state.enabled;
-        IrcConfig.saveDelayed(400L);
+        boolean enabled = toggleElement();
 
-        if (state.enabled) {
+        if (enabled) {
             ChatNotifier.send("§a[HUD] 背包显示已开启", NotificationType.SUCCESS);
         } else {
             ChatNotifier.send("§e[HUD] 背包显示已关闭", NotificationType.INFO);

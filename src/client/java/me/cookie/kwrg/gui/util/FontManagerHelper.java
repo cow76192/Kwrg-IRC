@@ -6,6 +6,7 @@ import me.cookie.kwrg.mixin.accessor.FontManagerAccessor;
 import me.cookie.kwrg.mixin.accessor.FontSetAccessor;
 import me.cookie.kwrg.mixin.accessor.MinecraftAccessor;
 import me.cookie.kwrg.module.modules.style.FontModule;
+import me.cookie.kwrg.util.SafePaths;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GlyphSource;
@@ -82,7 +83,7 @@ public class FontManagerHelper {
                 for (Path p : stream) {
                     list.add(p.getFileName().toString());
                 }
-            } catch (Exception ignored) {}
+            } catch (IOException | RuntimeException ignored) {}
         }
         return list;
     }
@@ -165,7 +166,11 @@ public class FontManagerHelper {
             return true;
         }
 
-        Path fontFile = ensureFontDir().resolve(fontFileName);
+        Path fontFile = SafePaths.resolveUnder(ensureFontDir(), fontFileName);
+        if (fontFile == null) {
+            LOGGER.warn("[Kwrg] 字体文件名非法: {}", fontFileName);
+            return false;
+        }
         if (!Files.exists(fontFile)) {
             LOGGER.warn("[Kwrg] 目标字体文件不存在: {}", fontFile);
             return false;
@@ -216,7 +221,7 @@ public class FontManagerHelper {
             currentLoadedFontName = fontFileName;
             LOGGER.info("[Kwrg] 成功无缝装载外部字体: {}", fontFileName);
             return true;
-        } catch (Exception e) {
+        } catch (IOException | RuntimeException e) {
             LOGGER.error("[Kwrg] 加载外部字体失败: " + fontFileName, e);
             return false;
         }
@@ -226,7 +231,7 @@ public class FontManagerHelper {
         if (currentActiveProvider != null) {
             try {
                 currentActiveProvider.close();
-            } catch (Exception ignored) {}
+            } catch (RuntimeException ignored) {}
             currentActiveProvider = null;
         }
     }
@@ -248,7 +253,7 @@ public class FontManagerHelper {
                 sb.append(String.format("%02x", b));
             }
             return sb.toString();
-        } catch (Exception e) {
+        } catch (java.security.NoSuchAlgorithmException | IOException | RuntimeException e) {
             return "";
         }
     }
@@ -265,7 +270,7 @@ public class FontManagerHelper {
                     return p.getFileName().toString();
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (IOException | RuntimeException ignored) {}
         return null;
     }
 }

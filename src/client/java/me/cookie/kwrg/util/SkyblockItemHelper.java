@@ -99,7 +99,7 @@ public class SkyblockItemHelper {
                 LOGGER.info("[Kwrg] 成功加载物品: {}", sbId);
                 return stack;
             }
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             LOGGER.error("[Kwrg] 解析物品失败: " + sbId, e);
             ChatNotifier.sendInChatScreen("§c[Kwrg] 解析物品失败: " + sbId);
         }
@@ -156,7 +156,7 @@ public class SkyblockItemHelper {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (java.io.IOException | RuntimeException e) {
             ChatNotifier.sendInChatScreen("§c[Kwrg] 索引 items.min.json 失败");
             LOGGER.error("[Kwrg] 索引 items.min.json 失败", e);
         }
@@ -199,7 +199,7 @@ public class SkyblockItemHelper {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (java.io.IOException | RuntimeException e) {
             ChatNotifier.sendInChatScreen("§c[Kwrg] 索引 attributes.min.json 失败");
             LOGGER.error("[Kwrg] 索引 attributes.min.json 失败", e);
         }
@@ -254,7 +254,7 @@ public class SkyblockItemHelper {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (java.io.IOException | RuntimeException e) {
             ChatNotifier.sendInChatScreen("§c[Kwrg] 索引 pets.min.json 失败");
             LOGGER.error("[Kwrg] 索引 pets.min.json 失败", e);
         }
@@ -322,7 +322,7 @@ public class SkyblockItemHelper {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (java.io.IOException | RuntimeException e) {
             ChatNotifier.sendInChatScreen("§c[Kwrg] 索引 enchantments.min.json 失败");
             LOGGER.error("[Kwrg] 索引 enchantments.min.json 失败", e);
         }
@@ -384,7 +384,7 @@ public class SkyblockItemHelper {
                     }
                 }
             }
-        } catch (Exception e) {
+        } catch (java.io.IOException | RuntimeException e) {
             ChatNotifier.sendInChatScreen("§c[Kwrg] 索引 runes.min.json 失败");
             LOGGER.error("[Kwrg] 索引 runes.min.json 失败", e);
         }

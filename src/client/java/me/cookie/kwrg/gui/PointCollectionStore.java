@@ -2,6 +2,7 @@ package me.cookie.kwrg.gui;
 
 import me.cookie.kwrg.util.PointEntry;
 import me.cookie.kwrg.util.WaypointRouteUpdate;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
@@ -31,9 +32,9 @@ public interface PointCollectionStore {
 
     default void discardCurrentEdits() {}
 
-    Path createRoute(String name) throws Exception;
+    Path createRoute(String name) throws IOException;
 
-    Path renameRoute(Path path, String name) throws Exception;
+    Path renameRoute(Path path, String name) throws IOException;
 
     boolean deleteFile(Path path);
 
@@ -80,9 +81,9 @@ public interface PointCollectionStore {
 
     default boolean setRegions(Path path, Set<String> regions) { return false; }
 
-    default void importExternal(Path path) throws Exception {}
+    default void importExternal(Path path) throws IOException {}
 
     default String externalActionLabel(Path path) { return "导入"; }
 
-    default WaypointRouteUpdate prepareExternalUpdate(Path path) throws Exception { return null; }
+    default WaypointRouteUpdate prepareExternalUpdate(Path path) throws IOException { return null; }
 }

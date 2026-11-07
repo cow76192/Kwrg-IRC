@@ -32,7 +32,11 @@ public class TpsTracker {
 
         long timeDiff = now - lastCheckTimestamp;
 
-        if (timeDiff >= 1000L) {
+        if (timeDiff > 3500L) {
+            currentTps = 0.0f;
+            lastGameTime = gameTime;
+            lastCheckTimestamp = now;
+        } else if (timeDiff >= 1000L) {
             long ticksDiff = gameTime - lastGameTime;
 
             if (ticksDiff >= 0) {
@@ -54,8 +58,6 @@ public class TpsTracker {
 
             lastGameTime = gameTime;
             lastCheckTimestamp = now;
-        } else if (timeDiff > 3500L) {
-            currentTps = 0.0f;
         }
     }
 

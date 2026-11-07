@@ -9,6 +9,7 @@ import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.mixin.accessor.NativeImageAccessor;
 import me.cookie.kwrg.module.modules.functions.CustomCapeModule;
 import me.cookie.kwrg.module.modules.functions.ModelScaleModule;
+import me.cookie.kwrg.util.SafePaths;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
@@ -146,7 +147,7 @@ public class PlayerCustomizationManager {
         long modified;
         try {
             modified = Files.getLastModifiedTime(file).toMillis();
-        } catch (Exception e) {
+        } catch (java.io.IOException | RuntimeException e) {
             return;
         }
 
@@ -201,7 +202,7 @@ public class PlayerCustomizationManager {
                         mc.getTextureManager().register(id,
                                 new DynamicTexture(() -> "kwrg_cape_preview", finalImg));
                         CAPE_PREVIEW_CACHE.put(fileName, new CapePreview(id, modified));
-                    } catch (Exception e) {
+                    } catch (RuntimeException e) {
                         e.printStackTrace();
                         finalImg.close();
                     } finally {
@@ -209,7 +210,7 @@ public class PlayerCustomizationManager {
                     }
                 });
                 handedOver = true;
-            } catch (Exception e) {
+            } catch (java.io.IOException | RuntimeException e) {
                 System.err.println("[KWRG Preview] load failed: " + fileName);
                 e.printStackTrace();
             } finally {
@@ -297,7 +298,7 @@ public class PlayerCustomizationManager {
                         return lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".gif");
                     })
                     .collect(Collectors.toList());
-        } catch (Exception e) {
+        } catch (java.io.IOException | RuntimeException e) {
             return new ArrayList<>();
         }
     }
@@ -503,8 +504,8 @@ public class PlayerCustomizationManager {
             List<NativeImage> frames = new ArrayList<>();
             NativeImage activeImage = null;
             try {
-                Path file = getCapeDir().resolve(value);
-                if (!Files.exists(file) || token != CURRENT_LOAD_TOKEN.get()) {
+                Path file = SafePaths.resolveInside(getCapeDir(), getCapeDir().resolve(value));
+                if (file == null || !Files.exists(file) || token != CURRENT_LOAD_TOKEN.get()) {
                     cleanupLoading(token);
                     return;
                 }
@@ -631,7 +632,7 @@ public class PlayerCustomizationManager {
                         CAPE_LAST_FRAME_TIME.put(value, System.currentTimeMillis());
 
                         activeCapeName = value;
-                    } catch (Exception e) {
+                    } catch (RuntimeException e) {
                         if (finalActive != frames.get(0)) finalActive.close();
                         frames.forEach(NativeImage::close);
                     } finally {
@@ -639,7 +640,7 @@ public class PlayerCustomizationManager {
                     }
                 });
 
-            } catch (Exception e) {
+            } catch (java.io.IOException | RuntimeException e) {
                 if (activeImage != null && (frames.isEmpty() || activeImage != frames.get(0))) activeImage.close();
                 frames.forEach(NativeImage::close);
                 cleanupLoading(token);
@@ -783,7 +784,7 @@ public class PlayerCustomizationManager {
             StringBuilder hex = new StringBuilder();
             for (int i = 0; i < Math.min(read, 8); i++) hex.append(String.format("%02X", header[i]));
             return "raw:" + hex;
-        } catch (Exception e) {
+        } catch (java.io.IOException | RuntimeException e) {
             return "unreadable";
         }
     }
@@ -794,7 +795,7 @@ public class PlayerCustomizationManager {
             int read = in.read(chunk);
             if (read <= 0) return false;
             return new String(chunk, 0, read, StandardCharsets.ISO_8859_1).contains("acTL");
-        } catch (Exception e) {
+        } catch (java.io.IOException | RuntimeException e) {
             return false;
         }
     }
@@ -816,7 +817,7 @@ public class PlayerCustomizationManager {
         return true;
     }
 
-    private static List<BufferedImage> layoutGifFrames(Path file, String fileName) throws Exception {
+    private static List<BufferedImage> layoutGifFrames(Path file, String fileName) throws java.io.IOException {
         boolean isRemote = fileName != null && fileName.startsWith("cache/");
         int block = isRemote ? Math.min(CustomCapeModule.CONFIG.get().remoteCapeCanvasSize, 512) : Math.min(CustomCapeModule.CONFIG.get().capeCanvasSize, 1024);
         int faceW = block * 10 / 64;
@@ -903,7 +904,7 @@ public class PlayerCustomizationManager {
 
         try {
             gifCollect(metadata.getAsTree(format), info);
-        } catch (Exception ignored) {}
+        } catch (RuntimeException ignored) {}
         return info;
     }
 
@@ -928,7 +929,7 @@ public class PlayerCustomizationManager {
         if (value == null) return fallback;
         try {
             return Integer.parseInt(value.getNodeValue().trim());
-        } catch (Exception ignored) {
+        } catch (RuntimeException ignored) {
             return fallback;
         }
     }
@@ -974,7 +975,7 @@ public class PlayerCustomizationManager {
         try {
             int n = Integer.parseInt(num);
             return n >= 2 ? n : 1;
-        } catch (Exception ignored) {
+        } catch (RuntimeException ignored) {
             return 1;
         }
     }
@@ -996,7 +997,7 @@ public class PlayerCustomizationManager {
         try {
             int n = Integer.parseInt(num);
             return n >= 1 ? clampFps(n) : -1;
-        } catch (Exception ignored) {
+        } catch (RuntimeException ignored) {
             return -1;
         }
     }

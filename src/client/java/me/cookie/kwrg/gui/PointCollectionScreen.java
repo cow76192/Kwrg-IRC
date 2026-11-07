@@ -932,7 +932,7 @@ public abstract class PointCollectionScreen {
                             refreshFiles();
                             ChatNotifier.send("§a[Waypoint] 已导入为独立点位集", NotificationType.SUCCESS);
                         }
-                    } catch (Exception e) {
+                    } catch (java.io.IOException | RuntimeException e) {
                         ChatNotifier.send("§c[Waypoint] " + row.externalAction + "失败 | " + e.getMessage(), NotificationType.ERR);
                     }
                 }
@@ -1297,7 +1297,7 @@ public abstract class PointCollectionScreen {
             closeRouteNaming();
         } catch (IllegalArgumentException e) {
             routeNameError = e.getMessage();
-        } catch (Exception e) {
+        } catch (java.io.IOException | RuntimeException e) {
             routeNameError = "保存失败，请检查文件权限或名称是否重复";
         }
     }
@@ -1500,7 +1500,7 @@ public abstract class PointCollectionScreen {
         try {
             Files.createDirectories(store.getDir());
             net.minecraft.util.Util.getPlatform().openPath(store.getDir());
-        } catch (Exception e) { ChatNotifier.send("§c[Route] 打开目录失败 | " + e.getMessage(), NotificationType.ERR); }
+        } catch (java.io.IOException | RuntimeException e) { ChatNotifier.send("§c[Route] 打开目录失败 | " + e.getMessage(), NotificationType.ERR); }
     }
 
     private final class FileRow {
