@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import me.cookie.kwrg.gui.util.TpsTracker;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcCommand;
+import me.cookie.kwrg.irc.cheatmanager.*;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.manager.*;
 import me.cookie.kwrg.module.ModuleManager;

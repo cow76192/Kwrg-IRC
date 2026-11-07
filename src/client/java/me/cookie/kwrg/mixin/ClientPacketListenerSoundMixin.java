@@ -1,6 +1,6 @@
 package me.cookie.kwrg.mixin;
 
-import me.cookie.kwrg.irc.manager.DanceRoomManager;
+import me.cookie.kwrg.irc.cheatmanager.DanceRoomManager;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
