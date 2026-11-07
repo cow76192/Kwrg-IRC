@@ -12,6 +12,7 @@ import me.cookie.kwrg.render.GemstoneESPRenderer.CompiledMesh;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ChunkyUtil;
 import me.cookie.kwrg.util.ChunkyUtil.ChunkSnapshot;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.hypixel.modapi.HypixelModAPI;
 import net.hypixel.modapi.packet.impl.clientbound.event.ClientboundLocationPacket;
 import net.minecraft.ChatFormatting;
@@ -109,7 +110,6 @@ public final class GemstoneESPManager {
     });
 
     private static final AtomicBoolean INITIALIZED = new AtomicBoolean(false);
-    private static final AtomicBoolean WORKER_BUSY = new AtomicBoolean(false);
     private static final AtomicInteger SCAN_GENERATION = new AtomicInteger(0);
 
     private static volatile boolean inCrystalHollows = false;
@@ -117,6 +117,8 @@ public final class GemstoneESPManager {
     private static BlockPos lastCompiledPlayerPos = BlockPos.ZERO;
 
     private static final Queue<Long> pendingChunkQueue = new ArrayDeque<>();
+    private static final LongOpenHashSet pendingUnloadedChunks = new LongOpenHashSet();
+    private static boolean workerBusy = false;
     private static int tickCounter = 0;
     private static int cooldownTicks = 0;
 
@@ -130,6 +132,12 @@ public final class GemstoneESPManager {
         if (!INITIALIZED.compareAndSet(false, true)) return;
 
         registerHypixelLocationListener();
+        ClientChunkEvents.CHUNK_UNLOAD.register((level, chunk) -> {
+            if (level == lastObservedLevel && shouldRender()) {
+                var pos = chunk.getPos();
+                pendingUnloadedChunks.add(ChunkyUtil.packChunkPos(pos.x(), pos.z()));
+            }
+        });
         GemstoneESPRenderer.init();
     }
 
@@ -138,7 +146,7 @@ public final class GemstoneESPManager {
             HypixelModAPI.getInstance().subscribeToEventPacket(ClientboundLocationPacket.class);
             HypixelModAPI.getInstance().createHandler(ClientboundLocationPacket.class, packet -> {
                 String mode = packet.getMode().orElse("");
-                updateCrystalHollowsState("crystal_hollows".equalsIgnoreCase(mode));
+                Minecraft.getInstance().execute(() -> updateCrystalHollowsState("crystal_hollows".equalsIgnoreCase(mode)));
             });
         } catch (Throwable t) {
             LOGGER.warn("[Kwrg] 注册 HypixelModAPI LocationPacket 监听失败", t);
@@ -301,18 +309,14 @@ public final class GemstoneESPManager {
     }
 
     public static void requestImmediateRescan() {
-        SCAN_GENERATION.incrementAndGet();
-        pendingChunkQueue.clear();
+        clearAll();
         cooldownTicks = 0;
-        SCAN_EXECUTOR.execute(() -> {
-            asyncChunkCache.clear();
-            activeMesh = CompiledMesh.EMPTY;
-        });
     }
 
     public static void clearAll() {
         SCAN_GENERATION.incrementAndGet();
         pendingChunkQueue.clear();
+        pendingUnloadedChunks.clear();
         activeMesh = CompiledMesh.EMPTY;
         SCAN_EXECUTOR.execute(asyncChunkCache::clear);
     }
@@ -352,56 +356,62 @@ public final class GemstoneESPManager {
             return;
         }
 
-        if (WORKER_BUSY.get()) return;
+        if (workerBusy) return;
 
         int range = getScanRange();
         BlockPos playerPos = player.blockPosition();
         int playerChunkX = playerPos.getX() >> 4;
         int playerChunkZ = playerPos.getZ() >> 4;
-        boolean movedSignificantly = playerPos.distSqr(lastCompiledPlayerPos) > 16.0;
+        boolean forceMeshUpdate = playerPos.distSqr(lastCompiledPlayerPos) > 16.0;
 
         // 玩家身边 3x3 区块
+        List<ChunkSnapshot> slice = List.of();
         if (tickCounter % NEARBY_REFRESH_INTERVAL == 0) {
-            List<ChunkSnapshot> nearbySlice = ChunkyUtil.collectNearbySnapshots(
-                    level, playerChunkX, playerChunkZ, 1, playerPos.getY(), range
+            slice = ChunkyUtil.collectNearbySnapshots(
+                    level, playerChunkX, playerChunkZ, 1, playerPos.getY(), range, GemstoneESPManager::isAnyGemstoneBlock
             );
-            if (!nearbySlice.isEmpty()) {
-                dispatchSliceToWorker(nearbySlice, playerPos, range, movedSignificantly);
-                return;
-            }
         }
 
         // 若队列为空，按距离由近到远生成新一轮区块分片队列
-        if (pendingChunkQueue.isEmpty()) {
-            if (cooldownTicks > 0) {
+        if (slice.isEmpty()) {
+            if (pendingChunkQueue.isEmpty() && cooldownTicks > 0) {
                 cooldownTicks--;
-                return;
+            } else {
+                if (pendingChunkQueue.isEmpty()) {
+                    ChunkyUtil.enqueueChunksSortedByDistance(pendingChunkQueue, playerPos, range);
+                    cooldownTicks = FULL_CYCLE_COOLDOWN_TICKS;
+                }
+                slice = ChunkyUtil.pollLoadedChunkSlice(
+                        level, pendingChunkQueue, CHUNKS_PER_SLICE, playerPos.getY(), range,
+                        GemstoneESPManager::isAnyGemstoneBlock
+                );
+                forceMeshUpdate |= pendingChunkQueue.isEmpty();
             }
-            ChunkyUtil.enqueueChunksSortedByDistance(pendingChunkQueue, playerChunkX, playerChunkZ, range);
-            cooldownTicks = FULL_CYCLE_COOLDOWN_TICKS;
         }
 
-        // 最多 CHUNKS_PER_SLICE 个已加载区块快照并交由异步线程扫描
-        List<ChunkSnapshot> slice = ChunkyUtil.pollLoadedChunkSlice(
-                level, pendingChunkQueue, CHUNKS_PER_SLICE, playerPos.getY(), range
-        );
-        if (!slice.isEmpty()) {
-            boolean cycleComplete = pendingChunkQueue.isEmpty();
-            dispatchSliceToWorker(slice, playerPos, range, cycleComplete || movedSignificantly);
+        if (!slice.isEmpty() || !pendingUnloadedChunks.isEmpty()) {
+            dispatchSliceToWorker(mc, slice, playerPos, range, forceMeshUpdate);
         }
     }
 
     private static void dispatchSliceToWorker(
-            List<ChunkSnapshot> slice, BlockPos playerPos, int range, boolean forceMeshUpdate
+            Minecraft mc, List<ChunkSnapshot> slice, BlockPos playerPos, int range, boolean forceMeshUpdate
     ) {
         int gen = SCAN_GENERATION.get();
         int mask = buildEnabledGemstoneMask();
-        WORKER_BUSY.set(true);
+        long[] unloadedChunks = pendingUnloadedChunks.toLongArray();
+        pendingUnloadedChunks.clear();
+        workerBusy = true;
 
         SCAN_EXECUTOR.execute(() -> {
+            CompiledMesh updatedMesh = null;
             try {
-                if (gen != SCAN_GENERATION.get() || mask == 0) {
-                    if (mask == 0) activeMesh = CompiledMesh.EMPTY;
+                if (gen != SCAN_GENERATION.get()) return;
+                for (long key : unloadedChunks) {
+                    asyncChunkCache.remove(key);
+                }
+                if (mask == 0) {
+                    updatedMesh = CompiledMesh.EMPTY;
                     return;
                 }
 
@@ -410,9 +420,7 @@ public final class GemstoneESPManager {
                     if (gen != SCAN_GENERATION.get()) return;
 
                     Long2ByteOpenHashMap scanned = ChunkyUtil.scanChunkSnapshot(
-                            snapshot,
-                            GemstoneESPManager::isAnyGemstoneBlock,
-                            state -> classifyEnabledBlock(state, mask)
+                            snapshot, state -> classifyEnabledBlock(state, mask)
                     );
                     Long2ByteOpenHashMap previous = asyncChunkCache.put(snapshot.chunkKey(), scanned);
                     if (previous == null ? !scanned.isEmpty() : !previous.equals(scanned)) {
@@ -420,18 +428,23 @@ public final class GemstoneESPManager {
                     }
                 }
 
-                if (ChunkyUtil.pruneOutOfRangeChunks(asyncChunkCache, playerPos.getX() >> 4, playerPos.getZ() >> 4, range)) {
-                    anyChanged = true;
-                }
+                anyChanged |= ChunkyUtil.pruneOutOfRangeChunks(asyncChunkCache, playerPos, range);
 
-                if (anyChanged || forceMeshUpdate) {
-                    lastCompiledPlayerPos = playerPos;
-                    activeMesh = compileConnectedMesh(playerPos, range, mask);
+                if (anyChanged || forceMeshUpdate || unloadedChunks.length != 0) {
+                    updatedMesh = compileConnectedMesh(playerPos, range, mask);
                 }
             } catch (Throwable t) {
                 LOGGER.error("[Kwrg] GemstoneESP 扫描异常", t);
             } finally {
-                WORKER_BUSY.set(false);
+                CompiledMesh result = updatedMesh;
+                mc.execute(() -> {
+                    // 卸载发生在扫描期间时，由下一批任务清理缓存并重新生成网格。
+                    if (result != null && gen == SCAN_GENERATION.get() && pendingUnloadedChunks.isEmpty()) {
+                        lastCompiledPlayerPos = playerPos;
+                        activeMesh = result;
+                    }
+                    workerBusy = false;
+                });
             }
         });
     }

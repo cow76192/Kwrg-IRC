@@ -70,7 +70,7 @@ public abstract class ClientPacketListenerMixin {
     private void onHandleSystemChat(ClientboundSystemChatPacket packet, CallbackInfo ci) {
         if (packet == null || packet.content() == null) return;
 
-        AutoPurchasePassModule.onSystemChat(packet.content());
+        AutoPurchasePassModule.onSystemChat((ClientPacketListener) (Object) this, packet.content());
 
         if (PlayerFinderManager.processSystemChat(packet.content().getString())) {
             ci.cancel();
