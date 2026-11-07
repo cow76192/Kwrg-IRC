@@ -11,7 +11,7 @@ import me.cookie.kwrg.module.modules.style.FontModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.EmojiUtil;
 import me.cookie.kwrg.util.GreetingManager;
-import me.cookie.kwrg.util.SkyblockItemHelper;
+import me.cookie.kwrg.util.skyblock.SkyblockItemHelper;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;

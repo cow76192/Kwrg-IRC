@@ -1,9 +1,9 @@
 package me.cookie.kwrg.irc.manager;
 
 import me.cookie.kwrg.module.modules.functions.WaypointModule;
-import me.cookie.kwrg.util.PointEntry;
+import me.cookie.kwrg.util.skyblock.PointEntry;
 import me.cookie.kwrg.util.WaypointFiles;
-import me.cookie.kwrg.util.SkyblockLocation;
+import me.cookie.kwrg.util.skyblock.SkyblockLocation;
 import me.cookie.kwrg.render.WaypointRenderer;
 
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;

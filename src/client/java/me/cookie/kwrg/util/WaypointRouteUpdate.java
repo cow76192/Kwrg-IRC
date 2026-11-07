@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.*;
 import java.util.*;
+import me.cookie.kwrg.util.skyblock.PointEntry;
 
 /** Computes a non-destructive route merge; writes only after every ambiguous change has a decision. */
 public final class WaypointRouteUpdate {
