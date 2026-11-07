@@ -52,7 +52,7 @@ public class ModelScaleModule extends Module {
                         renderScaleUI(panel);
                     } catch (NumberFormatException e) {
                         ChatNotifier.send("§c[Scale] 请输入有效的数字", NotificationType.ERR);
-                    } catch (Exception ignored) {}
+                    } catch (RuntimeException ignored) {}
                 },
                 null
         ).bounds(new int[][]{{10, 500}}).dragStep(5).precision(0).dragSensitivity(8.0));

@@ -24,14 +24,6 @@ public class NameStyleModule extends Module {
         public String namestyle = "";
     }
 
-    private static final List<String> MODIFIERS = List.of("bold", "underline", "italic", "strikethrough", "obfuscated", "flow");
-
-    private static final String[] PRESETS = new String[]{
-            "rainbow", "sunset", "ocean", "fire", "sakura", "neon", "gold", "purple",
-            "bold", "underline", "italic", "strikethrough", "obfuscated", "flow",
-            "rainbow bold", "#FF55AA", "rgb(255,100,50)", "gradient(#ff758c,#ff7eb3)", "gradient(#00f2fe,#4facfe,#00ff87)"
-    };
-
     public NameStyleModule() {
         super("nameStyle", Category.STYLE, PanelItemComponent.ItemType.TRIGGER, CONFIG);
     }
@@ -80,39 +72,14 @@ public class NameStyleModule extends Module {
         ));
         panel.child(TextInfoPaneComponent.header("预设样式"));
 
-        for (String preset : PRESETS) {
+        for (String preset : ColorUtil.STYLE_PRESETS) {
             panel.child(new PanelItemComponent(
                     preset,
                     PanelItemComponent.ItemType.TRIGGER,
                     (item, click) -> {
-                        String current = inputPane.getText().trim();
-                        String newStyle;
-
-                        if (MODIFIERS.contains(preset.toLowerCase())) {
-                            if (current.toLowerCase().contains(preset.toLowerCase())) {
-                                newStyle = current.replaceAll("(?i)\\b" + preset + "\\b", "").trim().replaceAll(" +", " ");
-                            } else {
-                                newStyle = current.isEmpty() ? preset : current + " " + preset;
-                            }
-                        } else {
-                            // ★ 提取当前输入框中已启用的所有修饰词（如 bold, italic, underline 等） ★
-                            java.util.List<String> currentMods = new java.util.ArrayList<>();
-                            for (String mod : MODIFIERS) {
-                                if (current.toLowerCase().matches(".*\\b" + mod + "\\b.*")) {
-                                    currentMods.add(mod);
-                                }
-                            }
-
-                            // ★ 保留修饰词，仅替换主要样式（自动避免重复叠加） ★
-                            StringBuilder sb = new StringBuilder(preset);
-                            for (String mod : currentMods) {
-                                if (!preset.toLowerCase().matches(".*\\b" + mod + "\\b.*")) {
-                                    sb.append(" ").append(mod);
-                                }
-                            }
-                            newStyle = sb.toString().trim();
-                        }
-
+                        // ★ 提取当前输入框中已启用的所有修饰词（如 bold, italic, underline 等） ★
+                        // ★ 保留修饰词，仅替换主要样式（自动避免重复叠加） ★
+                        String newStyle = ColorUtil.mergePreset(inputPane.getText().trim(), preset);
                         inputPane.setText(newStyle);
                         currentEditingStyle[0] = newStyle;
                         CONFIG.get().namestyle = newStyle;

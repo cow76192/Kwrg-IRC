@@ -699,7 +699,7 @@ public final class RouteManager {
                 object.addProperty(key, coordinate);
                 return;
             }
-        } catch (Exception ignored) {
+        } catch (NumberFormatException ignored) {
         }
         object.addProperty(key, value == null ? "" : value);
     }

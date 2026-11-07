@@ -1,15 +1,17 @@
 package me.cookie.kwrg.irc.manager;
 
+import java.util.List;
+
 public enum HypixelRank {
     NONE("NONE (普通玩家)", "", 0xAAAAAA, false),
-    VIP("VIP", "§a[VIP] ", 0x55FF55, false),
-    VIP_PLUS("VIP+", "§a[VIP§6+§a] ", 0x55FF55, false),
-    MVP("MVP", "§b[MVP] ", 0x55FFFF, false),
+    VIP("VIP", "[VIP] ", 0x55FF55, false),
+    VIP_PLUS("VIP+", "[VIP+] ", 0x55FF55, false),
+    MVP("MVP", "[MVP] ", 0x55FFFF, false),
     MVP_PLUS("MVP+", "", 0x55FFFF, true),
     MVP_PLUS_PLUS("MVP++", "", 0xFFAA00, true),
-    ADMIN("ADMIN", "§c[ADMIN] ", 0xFF5555, false),
-    OWNER("OWNER", "§c[OWNER] ", 0xFF5555, false),
-    YOUTUBE("YOUTUBE","§c[YOUTUBE] ", 0xFF5555, false);
+    ADMIN("ADMIN", "[ADMIN] ", 0xFF5555, false),
+    OWNER("OWNER", "[OWNER] ", 0xFF5555, false),
+    YOUTUBE("YOUTUBE","[YOUTUBE] ", 0xFF5555, false);
 
     private final String displayName;
     private final String staticPrefix;
@@ -58,17 +60,76 @@ public enum HypixelRank {
     }
 
     public String getFormattedPrefix(PlusColor plusColor, TagColor tagColor) {
-        if (this == NONE) return "";
-        if (!supportsPlusColor) return staticPrefix;
-
-        String plus = plusColor != null ? plusColor.code : "§c";
-        if (this == MVP_PLUS) {
-            return "§b[MVP" + plus + "+§b] ";
-        } else if (this == MVP_PLUS_PLUS) {
-            String tag = effectiveTagColor(tagColor).code;
-            return tag + "[MVP" + plus + "++" + tag + "] ";
+        List<PrefixPart> parts = getPrefixParts(plusColor, tagColor);
+        if (parts.isEmpty()) {
+            return "";
         }
-        return staticPrefix;
+        StringBuilder out = new StringBuilder();
+        for (PrefixPart part : parts) {
+            out.append(codeFor(part.rgb())).append(part.text());
+        }
+        return out.toString();
+    }
+
+    private static String codeFor(int rgb) {
+        for (PlusColor color : PlusColor.values()) {
+            if (color.rgb == rgb) {
+                return color.code;
+            }
+        }
+        for (TagColor color : TagColor.values()) {
+            if (color.rgb == rgb) {
+                return color.code;
+            }
+        }
+        return "§f";
+    }
+
+    public record PrefixPart(String text, int rgb) {
+    }
+
+    public List<PrefixPart> getPrefixParts(PlusColor plusColor, TagColor tagColor) {
+        if (this == NONE) {
+            return List.of();
+        }
+        if (!supportsPlusColor) {
+            return staticParts();
+        }
+        int plusRgb = plusColor != null ? plusColor.rgb : PlusColor.RED.rgb;
+        if (this == MVP_PLUS) {
+            return List.of(new PrefixPart("[MVP", nameColorRgb), new PrefixPart("+", plusRgb), new PrefixPart("] ", nameColorRgb));
+        }
+        if (this == MVP_PLUS_PLUS) {
+            TagColor tag = effectiveTagColor(tagColor);
+            return List.of(new PrefixPart("[MVP", tag.rgb), new PrefixPart("++", plusRgb), new PrefixPart("] ", tag.rgb));
+        }
+        return staticParts();
+    }
+
+    private List<PrefixPart> staticPartsCache;
+
+    private List<PrefixPart> staticParts() {
+        if (staticPartsCache == null) {
+            staticPartsCache = buildStaticParts();
+        }
+        return staticPartsCache;
+    }
+
+    private List<PrefixPart> buildStaticParts() {
+        String text = staticPrefix;
+        if (text.isEmpty()) {
+            return List.of();
+        }
+        if (this == VIP_PLUS) {
+            int plus = text.indexOf('+');
+            if (plus >= 0) {
+                return List.of(
+                        new PrefixPart(text.substring(0, plus), nameColorRgb),
+                        new PrefixPart("+", TagColor.GOLD.rgb),
+                        new PrefixPart(text.substring(plus + 1), nameColorRgb));
+            }
+        }
+        return List.of(new PrefixPart(text, nameColorRgb));
     }
 
     public enum TagColor {

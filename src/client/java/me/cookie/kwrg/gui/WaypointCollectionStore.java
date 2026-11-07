@@ -3,6 +3,7 @@ package me.cookie.kwrg.gui;
 import me.cookie.kwrg.util.PointEntry;
 import me.cookie.kwrg.util.WaypointFiles;
 import me.cookie.kwrg.util.WaypointRouteUpdate;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
@@ -26,9 +27,9 @@ final class WaypointCollectionStore implements PointCollectionStore {
 
     public void discardCurrentEdits() { WaypointFiles.discardCurrentEdits(); }
 
-    public Path createRoute(String name) throws Exception { return WaypointFiles.create(name); }
+    public Path createRoute(String name) throws IOException { return WaypointFiles.create(name); }
 
-    public Path renameRoute(Path path, String name) throws Exception { return WaypointFiles.rename(path, name); }
+    public Path renameRoute(Path path, String name) throws IOException { return WaypointFiles.rename(path, name); }
 
     public boolean deleteFile(Path path) { return WaypointFiles.delete(path); }
 
@@ -98,9 +99,9 @@ final class WaypointCollectionStore implements PointCollectionStore {
         return false;
     }
 
-    public void importExternal(Path path) throws Exception { WaypointFiles.importRoute(path); }
+    public void importExternal(Path path) throws IOException { WaypointFiles.importRoute(path); }
 
     public String externalActionLabel(Path path) { return WaypointFiles.importedFile(path) == null ? "导入" : "更新"; }
 
-    public WaypointRouteUpdate prepareExternalUpdate(Path path) throws Exception { return WaypointFiles.prepareUpdate(path); }
+    public WaypointRouteUpdate prepareExternalUpdate(Path path) throws IOException { return WaypointFiles.prepareUpdate(path); }
 }

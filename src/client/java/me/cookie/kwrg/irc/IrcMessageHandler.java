@@ -316,7 +316,7 @@ public class IrcMessageHandler {
             String suffix = obj.has("suffix") ? obj.get("suffix").getAsString() : "";
 
             displayFormattedMessage(channel, rank, nameStyle, username, chatStyle, content, prefix, suffix);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             e.printStackTrace();
         }
     }

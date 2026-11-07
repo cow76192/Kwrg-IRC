@@ -40,11 +40,7 @@ import static net.fabricmc.fabric.api.client.command.v2.ClientCommands.literal;
 public class IrcCommand {
 
     private static final SuggestionProvider<FabricClientCommandSource> STYLE_SUGGESTIONS = (context, builder) -> {
-        String[] presets = new String[]{
-                "rainbow", "sunset", "ocean", "fire", "sakura", "neon", "gold", "purple", "bold", "underline", "italic", "strikethrough", "obfuscated",
-                "rainbow bold", "#FF55AA", "rgb(255,100,50)", "gradient(#ff758c,#ff7eb3)", "gradient(#00f2fe,#4facfe,#00ff87)"
-        };
-        for (String p : presets) {
+        for (String p : me.cookie.kwrg.util.ColorUtil.STYLE_PRESETS) {
             builder.suggest(p);
         }
         return builder.buildFuture();

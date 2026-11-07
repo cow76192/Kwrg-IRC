@@ -72,7 +72,7 @@ public final class RouteUpdatePane {
             applied.run();
             ChatNotifier.send("§a[Waypoint] 更新完成 | " + summary.describe(), NotificationType.SUCCESS);
             close();
-        } catch (Exception e) {
+        } catch (java.io.IOException | RuntimeException e) {
             error = e.getMessage() == null ? "更新失败，请重新打开窗口" : e.getMessage();
         }
     }
