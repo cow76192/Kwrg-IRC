@@ -1,4 +1,4 @@
-package me.cookie.kwrg.util.skyblock;
+package me.cookie.kwrg.util;
 
 import me.cookie.kwrg.irc.manager.WaypointManager;
 

@@ -5,7 +5,6 @@ import me.cookie.kwrg.irc.manager.RouteManager;
 
 import com.google.gson.*;
 import me.cookie.kwrg.irc.config.IrcConfig;
-import me.cookie.kwrg.util.skyblock.PointEntry;
 import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.*;

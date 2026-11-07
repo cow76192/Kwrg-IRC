@@ -2,7 +2,7 @@ package me.cookie.kwrg.irc.manager;
 
 import me.cookie.kwrg.module.modules.functions.RouteModule;
 import me.cookie.kwrg.render.RouteLineRenderer;
-import me.cookie.kwrg.util.skyblock.PointEntry;
+import me.cookie.kwrg.util.PointEntry;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
