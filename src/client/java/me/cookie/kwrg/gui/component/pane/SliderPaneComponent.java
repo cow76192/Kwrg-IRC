@@ -1,7 +1,8 @@
-package me.cookie.kwrg.gui.component;
+package me.cookie.kwrg.gui.component.pane;
 
 import io.wispforest.owo.ui.core.OwoUIGraphics;
 import io.wispforest.owo.ui.core.Sizing;
+import me.cookie.kwrg.gui.component.BaseGuiComponent;
 import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.RenderUtil;

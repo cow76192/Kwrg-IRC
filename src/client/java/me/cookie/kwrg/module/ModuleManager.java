@@ -1,8 +1,8 @@
 package me.cookie.kwrg.module;
 
-import me.cookie.kwrg.module.modules.cheat.AutoPurchasePassModule;
 import me.cookie.kwrg.module.modules.cheat.DanceRoomModule;
 import me.cookie.kwrg.module.modules.cheat.ExperimentsModule;
+import me.cookie.kwrg.module.modules.cheat.GemstoneESPModule;
 import me.cookie.kwrg.module.modules.config.LoadModule;
 import me.cookie.kwrg.module.modules.config.ShareModule;
 import me.cookie.kwrg.module.modules.debug.*;
@@ -32,6 +32,8 @@ public class ModuleManager {
         // --- CONFIG 模块 ---
         register(new LoadModule());
         register(new ShareModule());
+        register(new GemstoneESPModule());
+
         // --- FUNCTIONS 模块 ---
         register(new HideArmorModule());
         register(new GlowColorModule());

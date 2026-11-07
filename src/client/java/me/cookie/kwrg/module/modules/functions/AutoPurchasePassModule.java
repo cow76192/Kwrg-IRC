@@ -1,4 +1,4 @@
-package me.cookie.kwrg.module.modules.cheat;
+package me.cookie.kwrg.module.modules.functions;
 
 import me.cookie.kwrg.gui.component.PanelItemComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
@@ -15,6 +15,12 @@ import net.minecraft.network.chat.Style;
 import java.util.Locale;
 
 public class AutoPurchasePassModule extends Module {
+    private static final java.util.concurrent.ScheduledExecutorService DELAY_EXECUTOR =
+            java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread t = new Thread(r, "kwrg-pass-delay");
+                t.setDaemon(true);
+                return t;
+            });
 
     public static class Settings {
         public boolean autoPurchasePass = false;
@@ -85,19 +91,23 @@ public class AutoPurchasePassModule extends Module {
     }
 
     private static void executeClickCommand(String rawCommand) {
-        Minecraft mc = Minecraft.getInstance();
-        mc.execute(() -> {
-            if (mc.getConnection() == null) return;
+        // 模拟人类点击聊天栏的反应时间：350ms ~ 850ms 随机波动
+        long humanDelayMs = java.util.concurrent.ThreadLocalRandom.current().nextLong(350L, 850L);
 
-            String cleanCmd = rawCommand.trim();
-            if (cleanCmd.startsWith("/")) {
-                cleanCmd = cleanCmd.substring(1);
-            }
+        DELAY_EXECUTOR.schedule(() -> {
+            Minecraft mc = Minecraft.getInstance();
+            mc.execute(() -> {
+                if (mc.getConnection() == null || mc.player == null) return;
+                String cleanCmd = rawCommand.trim();
+                if (cleanCmd.startsWith("/")) {
+                    cleanCmd = cleanCmd.substring(1);
+                }
 
-            if (!cleanCmd.isEmpty()) {
-                mc.getConnection().sendCommand(cleanCmd);
-                ChatNotifier.send("§a[AutoPurchasePass] 已购买新通行证", NotificationType.SUCCESS);
-            }
-        });
+                if (!cleanCmd.isEmpty()) {
+                    mc.getConnection().sendCommand(cleanCmd);
+                    ChatNotifier.send("§a[AutoPurchasePass] 已自动触发购买新通行证! (" + humanDelayMs + "ms)", NotificationType.SUCCESS);
+                }
+            });
+        }, humanDelayMs, java.util.concurrent.TimeUnit.MILLISECONDS);
     }
 }
