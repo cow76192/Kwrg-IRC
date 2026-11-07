@@ -1,5 +1,6 @@
 package me.cookie.kwrg.module;
 
+import me.cookie.kwrg.module.modules.cheat.AutoPurchasePassModule;
 import me.cookie.kwrg.module.modules.cheat.DanceRoomModule;
 import me.cookie.kwrg.module.modules.cheat.ExperimentsModule;
 import me.cookie.kwrg.module.modules.config.LoadModule;
@@ -45,6 +46,7 @@ public class ModuleManager {
         register(new NickModule());
         register(new ChatSuffixModule());
         register(new NavigatorModule());
+        register(new AutoPurchasePassModule());
 
         // --- STYLE 模块 ---
         register(new RankModule());
