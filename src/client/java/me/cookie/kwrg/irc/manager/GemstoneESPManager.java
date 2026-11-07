@@ -12,6 +12,7 @@ import me.cookie.kwrg.render.GemstoneESPRenderer.CompiledMesh;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ChunkyUtil;
 import me.cookie.kwrg.util.ChunkyUtil.ChunkSnapshot;
+import me.cookie.kwrg.util.ChunkyUtil.ScannedChunk;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientChunkEvents;
 import net.hypixel.modapi.HypixelModAPI;
 import net.hypixel.modapi.packet.impl.clientbound.event.ClientboundLocationPacket;
@@ -22,6 +23,7 @@ import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.renderer.gizmos.DrawableGizmoPrimitives;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -31,8 +33,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -44,41 +50,54 @@ public final class GemstoneESPManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("kwrg-gemstone-esp");
 
     public enum GemstoneType {
-        RUBY((byte) 1, "Ruby",
+        RUBY("Ruby",
                 Blocks.RED_STAINED_GLASS, Blocks.RED_STAINED_GLASS_PANE,
                 0xF0FF3B3B,
                 0x42FF7A7A
         ),
-        AMBER((byte) 2, "Amber",
+        AMBER("Amber",
                 Blocks.ORANGE_STAINED_GLASS, Blocks.ORANGE_STAINED_GLASS_PANE,
                 0xF0FF9E22,
                 0x42FFC266
         ),
-        JADE((byte) 3, "Jade",
+        JADE("Jade",
                 Blocks.LIME_STAINED_GLASS, Blocks.LIME_STAINED_GLASS_PANE,
                 0xF048FF48,
                 0x428AFF8A
         ),
-        JASPER((byte) 4, "Jasper",
+        JASPER("Jasper",
                 Blocks.MAGENTA_STAINED_GLASS, Blocks.MAGENTA_STAINED_GLASS_PANE,
                 0xF0FF44CC,
                 0x42FF88DF
         ),
-        AMETHYST((byte) 5, "Amethyst",
+        AMETHYST("Amethyst",
                 Blocks.PURPLE_STAINED_GLASS, Blocks.PURPLE_STAINED_GLASS_PANE,
                 0xF0A844FF,
                 0x42C888FF
+        ),
+        TOPAZ("Topaz",
+                Blocks.YELLOW_STAINED_GLASS, Blocks.YELLOW_STAINED_GLASS_PANE,
+                0xF0FFDE3B,
+                0x42FFF28A
         );
 
-        public final byte id;
-        public final String displayName;
-        public final Block glassBlock;
-        public final Block paneBlock;
-        public final int lineColorArgb;
-        public final int fillColorArgb;
+        private static final GemstoneType[] TYPES = values();
+        private static final Map<Block, GemstoneType> BY_BLOCK = new IdentityHashMap<>();
 
-        GemstoneType(byte id, String displayName, Block glassBlock, Block paneBlock, int lineColorArgb, int fillColorArgb) {
-            this.id = id;
+        static {
+            for (GemstoneType type : TYPES) {
+                BY_BLOCK.put(type.glassBlock, type);
+                BY_BLOCK.put(type.paneBlock, type);
+            }
+        }
+
+        public final String displayName;
+        private final Block glassBlock;
+        private final Block paneBlock;
+        private final int lineColorArgb;
+        private final int fillColorArgb;
+
+        GemstoneType(String displayName, Block glassBlock, Block paneBlock, int lineColorArgb, int fillColorArgb) {
             this.displayName = displayName;
             this.glassBlock = glassBlock;
             this.paneBlock = paneBlock;
@@ -86,15 +105,12 @@ public final class GemstoneESPManager {
             this.fillColorArgb = fillColorArgb;
         }
 
-        public static GemstoneType byId(byte id) {
-            return switch (id) {
-                case 1 -> RUBY;
-                case 2 -> AMBER;
-                case 3 -> JADE;
-                case 4 -> JASPER;
-                case 5 -> AMETHYST;
-                default -> null;
-            };
+        private byte id() {
+            return (byte) (ordinal() + 1);
+        }
+
+        private static GemstoneType byId(byte id) {
+            return TYPES[Byte.toUnsignedInt(id) - 1];
         }
     }
 
@@ -102,6 +118,8 @@ public final class GemstoneESPManager {
     private static final int CHUNKS_PER_SLICE = 16;          // 每 Tick 分片采集的最大区块数
     private static final int NEARBY_REFRESH_INTERVAL = 6;    // 近处 3x3 区块刷新间隔
     private static final int FULL_CYCLE_COOLDOWN_TICKS = 10; // 完整扫描轮次冷却
+    // 轮廓会查询沿面相邻的方块，以及它在面法线方向上的邻居。
+    private static final int MESH_NEIGHBOR_MARGIN = 2;
 
     private static final ExecutorService SCAN_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "kwrg-gemstone-esp-scanner");
@@ -120,9 +138,10 @@ public final class GemstoneESPManager {
     private static final LongOpenHashSet pendingUnloadedChunks = new LongOpenHashSet();
     private static boolean workerBusy = false;
     private static int tickCounter = 0;
+    private static int lastNearbyRefreshTick = 0;
     private static int cooldownTicks = 0;
 
-    private static final Long2ObjectMap<Long2ByteOpenHashMap> asyncChunkCache = new Long2ObjectOpenHashMap<>();
+    private static final Long2ObjectMap<ScannedChunk> asyncChunkCache = new Long2ObjectOpenHashMap<>();
     private static volatile CompiledMesh activeMesh = CompiledMesh.EMPTY;
 
     private GemstoneESPManager() {
@@ -271,48 +290,13 @@ public final class GemstoneESPManager {
         settings().gemstoneEspOpacity = Mth.clamp(opacity, 0, 100);
     }
 
-    public static boolean isRubyEnabled() {
-        return settings().gemstoneEspRuby;
+    public static boolean isGemstoneEnabled(GemstoneType type) {
+        return !settings().gemstoneEspDisabledTypes.contains(type);
     }
 
-    public static void toggleRuby() {
-        settings().gemstoneEspRuby = !settings().gemstoneEspRuby;
-        requestImmediateRescan();
-    }
-
-    public static boolean isAmberEnabled() {
-        return settings().gemstoneEspAmber;
-    }
-
-    public static void toggleAmber() {
-        settings().gemstoneEspAmber = !settings().gemstoneEspAmber;
-        requestImmediateRescan();
-    }
-
-    public static boolean isJadeEnabled() {
-        return settings().gemstoneEspJade;
-    }
-
-    public static void toggleJade() {
-        settings().gemstoneEspJade = !settings().gemstoneEspJade;
-        requestImmediateRescan();
-    }
-
-    public static boolean isJasperEnabled() {
-        return settings().gemstoneEspJasper;
-    }
-
-    public static void toggleJasper() {
-        settings().gemstoneEspJasper = !settings().gemstoneEspJasper;
-        requestImmediateRescan();
-    }
-
-    public static boolean isAmethystEnabled() {
-        return settings().gemstoneEspAmethyst;
-    }
-
-    public static void toggleAmethyst() {
-        settings().gemstoneEspAmethyst = !settings().gemstoneEspAmethyst;
+    public static void toggleGemstone(GemstoneType type) {
+        var disabledTypes = settings().gemstoneEspDisabledTypes;
+        if (!disabledTypes.remove(type)) disabledTypes.add(type);
         requestImmediateRescan();
     }
 
@@ -325,6 +309,7 @@ public final class GemstoneESPManager {
         SCAN_GENERATION.incrementAndGet();
         pendingChunkQueue.clear();
         pendingUnloadedChunks.clear();
+        lastNearbyRefreshTick = tickCounter;
         activeMesh = CompiledMesh.EMPTY;
         SCAN_EXECUTOR.execute(asyncChunkCache::clear);
     }
@@ -367,46 +352,51 @@ public final class GemstoneESPManager {
         if (workerBusy) return;
 
         int range = getScanRange();
+        int scanRange = range + MESH_NEIGHBOR_MARGIN;
         BlockPos playerPos = player.blockPosition();
         int playerChunkX = playerPos.getX() >> 4;
         int playerChunkZ = playerPos.getZ() >> 4;
         boolean forceMeshUpdate = playerPos.distSqr(lastCompiledPlayerPos) > 16.0;
 
-        // 玩家身边 3x3 区块
-        List<ChunkSnapshot> slice = List.of();
-        if (tickCounter % NEARBY_REFRESH_INTERVAL == 0) {
-            slice = ChunkyUtil.collectNearbySnapshots(
-                    level, playerChunkX, playerChunkZ, 1, playerPos.getY(), range, GemstoneESPManager::isAnyGemstoneBlock
-            );
+        // 附近刷新最多占 9 个名额，其余名额继续推进全量队列。
+        List<ChunkSnapshot> slice = new ArrayList<>(CHUNKS_PER_SLICE);
+        if (tickCounter - lastNearbyRefreshTick >= NEARBY_REFRESH_INTERVAL) {
+            slice.addAll(ChunkyUtil.collectNearbySnapshots(
+                    level, playerChunkX, playerChunkZ, 1, playerPos.getY(), scanRange, GemstoneESPManager::isAnyGemstoneBlock
+            ));
+            if (!slice.isEmpty()) lastNearbyRefreshTick = tickCounter;
         }
 
-        // 若队列为空，按距离由近到远生成新一轮区块分片队列
-        if (slice.isEmpty()) {
-            if (pendingChunkQueue.isEmpty() && cooldownTicks > 0) {
-                cooldownTicks--;
-            } else {
-                if (pendingChunkQueue.isEmpty()) {
-                    ChunkyUtil.enqueueChunksSortedByDistance(pendingChunkQueue, playerPos, range);
-                    cooldownTicks = FULL_CYCLE_COOLDOWN_TICKS;
-                }
-                slice = ChunkyUtil.pollLoadedChunkSlice(
-                        level, pendingChunkQueue, CHUNKS_PER_SLICE, playerPos.getY(), range,
-                        GemstoneESPManager::isAnyGemstoneBlock
-                );
-                forceMeshUpdate |= pendingChunkQueue.isEmpty();
+        if (pendingChunkQueue.isEmpty() && cooldownTicks > 0) {
+            cooldownTicks--;
+        } else {
+            if (pendingChunkQueue.isEmpty()) {
+                ChunkyUtil.enqueueChunksSortedByDistance(pendingChunkQueue, playerPos, scanRange);
+                cooldownTicks = FULL_CYCLE_COOLDOWN_TICKS;
             }
+            for (ChunkSnapshot snapshot : slice) {
+                pendingChunkQueue.remove(snapshot.chunkKey());
+            }
+            slice.addAll(ChunkyUtil.pollLoadedChunkSlice(
+                    level, pendingChunkQueue, CHUNKS_PER_SLICE - slice.size(), playerPos.getY(), scanRange,
+                    GemstoneESPManager::isAnyGemstoneBlock
+            ));
+            forceMeshUpdate |= pendingChunkQueue.isEmpty();
         }
 
         if (!slice.isEmpty() || !pendingUnloadedChunks.isEmpty()) {
-            dispatchSliceToWorker(mc, slice, playerPos, range, forceMeshUpdate);
+            var height = LevelHeightAccessor.create(level.getMinY(), level.getHeight());
+            dispatchSliceToWorker(mc, slice, playerPos, range, height, forceMeshUpdate);
         }
     }
 
     private static void dispatchSliceToWorker(
-            Minecraft mc, List<ChunkSnapshot> slice, BlockPos playerPos, int range, boolean forceMeshUpdate
+            Minecraft mc, List<ChunkSnapshot> slice, BlockPos playerPos, int range,
+            LevelHeightAccessor height, boolean forceMeshUpdate
     ) {
         int gen = SCAN_GENERATION.get();
-        int mask = buildEnabledGemstoneMask();
+        var enabledTypes = EnumSet.allOf(GemstoneType.class);
+        enabledTypes.removeAll(settings().gemstoneEspDisabledTypes);
         long[] unloadedChunks = pendingUnloadedChunks.toLongArray();
         pendingUnloadedChunks.clear();
         workerBusy = true;
@@ -418,7 +408,7 @@ public final class GemstoneESPManager {
                 for (long key : unloadedChunks) {
                     asyncChunkCache.remove(key);
                 }
-                if (mask == 0) {
+                if (enabledTypes.isEmpty()) {
                     updatedMesh = CompiledMesh.EMPTY;
                     return;
                 }
@@ -427,19 +417,16 @@ public final class GemstoneESPManager {
                 for (ChunkSnapshot snapshot : slice) {
                     if (gen != SCAN_GENERATION.get()) return;
 
-                    Long2ByteOpenHashMap scanned = ChunkyUtil.scanChunkSnapshot(
-                            snapshot, state -> classifyEnabledBlock(state, mask)
+                    ScannedChunk scanned = ChunkyUtil.scanChunkSnapshot(
+                            snapshot, state -> classifyEnabledBlock(state, enabledTypes)
                     );
-                    Long2ByteOpenHashMap previous = asyncChunkCache.put(snapshot.chunkKey(), scanned);
-                    if (previous == null ? !scanned.isEmpty() : !previous.equals(scanned)) {
-                        anyChanged = true;
-                    }
+                    anyChanged |= !scanned.equals(asyncChunkCache.put(snapshot.chunkKey(), scanned));
                 }
 
-                anyChanged |= ChunkyUtil.pruneOutOfRangeChunks(asyncChunkCache, playerPos, range);
+                anyChanged |= ChunkyUtil.pruneOutOfRangeChunks(asyncChunkCache, playerPos, range + MESH_NEIGHBOR_MARGIN);
 
                 if (anyChanged || forceMeshUpdate || unloadedChunks.length != 0) {
-                    updatedMesh = compileConnectedMesh(playerPos, range, mask);
+                    updatedMesh = compileConnectedMesh(playerPos, range, height);
                 }
             } catch (Throwable t) {
                 LOGGER.error("[Kwrg] GemstoneESP 扫描异常", t);
@@ -457,57 +444,24 @@ public final class GemstoneESPManager {
         });
     }
 
-    private static int buildEnabledGemstoneMask() {
-        GemstoneESPModule.Settings s = settings();
-        int mask = 0;
-        if (s.gemstoneEspRuby) mask |= (1 << GemstoneType.RUBY.id);
-        if (s.gemstoneEspAmber) mask |= (1 << GemstoneType.AMBER.id);
-        if (s.gemstoneEspJade) mask |= (1 << GemstoneType.JADE.id);
-        if (s.gemstoneEspJasper) mask |= (1 << GemstoneType.JASPER.id);
-        if (s.gemstoneEspAmethyst) mask |= (1 << GemstoneType.AMETHYST.id);
-        return mask;
-    }
-
     private static boolean isAnyGemstoneBlock(BlockState state) {
-        return classifyBlock(state.getBlock()) != 0;
+        return GemstoneType.BY_BLOCK.containsKey(state.getBlock());
     }
 
-    private static byte classifyEnabledBlock(BlockState state, int enabledMask) {
-        byte typeId = classifyBlock(state.getBlock());
-        return (typeId != 0 && (enabledMask & (1 << typeId)) != 0) ? typeId : 0;
+    private static byte classifyEnabledBlock(BlockState state, EnumSet<GemstoneType> enabledTypes) {
+        GemstoneType type = GemstoneType.BY_BLOCK.get(state.getBlock());
+        return enabledTypes.contains(type) ? type.id() : 0;
     }
 
-    private static byte classifyBlock(Block block) {
-        if (block == Blocks.RED_STAINED_GLASS || block == Blocks.RED_STAINED_GLASS_PANE) {
-            return GemstoneType.RUBY.id;
-        }
-        if (block == Blocks.ORANGE_STAINED_GLASS || block == Blocks.ORANGE_STAINED_GLASS_PANE) {
-            return GemstoneType.AMBER.id;
-        }
-        if (block == Blocks.LIME_STAINED_GLASS || block == Blocks.LIME_STAINED_GLASS_PANE) {
-            return GemstoneType.JADE.id;
-        }
-        if (block == Blocks.MAGENTA_STAINED_GLASS || block == Blocks.MAGENTA_STAINED_GLASS_PANE) {
-            return GemstoneType.JASPER.id;
-        }
-        if (block == Blocks.PURPLE_STAINED_GLASS || block == Blocks.PURPLE_STAINED_GLASS_PANE) {
-            return GemstoneType.AMETHYST.id;
-        }
-        return 0;
-    }
-
-    private static CompiledMesh compileConnectedMesh(BlockPos playerPos, int range, int enabledMask) {
+    private static CompiledMesh compileConnectedMesh(BlockPos playerPos, int range, LevelHeightAccessor height) {
         double maxDistSq = (double) range * (double) range;
         double px = playerPos.getX() + 0.5;
         double py = playerPos.getY() + 0.5;
         double pz = playerPos.getZ() + 0.5;
 
         Long2ByteOpenHashMap worldGemstones = new Long2ByteOpenHashMap(2048);
-        for (Long2ByteOpenHashMap chunkMap : asyncChunkCache.values()) {
-            for (Long2ByteMap.Entry entry : chunkMap.long2ByteEntrySet()) {
-                byte typeId = entry.getByteValue();
-                if ((enabledMask & (1 << typeId)) == 0) continue;
-
+        for (ScannedChunk chunk : asyncChunkCache.values()) {
+            for (Long2ByteMap.Entry entry : chunk.gemstones().long2ByteEntrySet()) {
                 long posLong = entry.getLongKey();
                 int bx = BlockPos.getX(posLong);
                 int by = BlockPos.getY(posLong);
@@ -517,7 +471,7 @@ public final class GemstoneESPManager {
                 double dy = (by + 0.5) - py;
                 double dz = (bz + 0.5) - pz;
                 if (dx * dx + dy * dy + dz * dz <= maxDistSq) {
-                    worldGemstones.put(posLong, typeId);
+                    worldGemstones.put(posLong, entry.getByteValue());
                 }
             }
         }
@@ -529,7 +483,9 @@ public final class GemstoneESPManager {
         DrawableGizmoPrimitives quadPrimitives = new DrawableGizmoPrimitives();
         DrawableGizmoPrimitives linePrimitives = new DrawableGizmoPrimitives();
 
-        LongOpenHashSet[] edgeDedup = new LongOpenHashSet[24];
+        // 用完整缓存判断连通性，显示半径外的同类邻居仍能挡住内部面。
+        MeshNeighborhood neighborhood = new MeshNeighborhood(asyncChunkCache, height);
+        LongOpenHashSet[] edgeDedup = new LongOpenHashSet[3 * GemstoneType.TYPES.length];
         for (int i = 0; i < edgeDedup.length; i++) {
             edgeDedup[i] = new LongOpenHashSet();
         }
@@ -538,8 +494,6 @@ public final class GemstoneESPManager {
             long pos = entry.getLongKey();
             byte typeId = entry.getByteValue();
             GemstoneType type = GemstoneType.byId(typeId);
-            if (type == null) continue;
-
             int x = BlockPos.getX(pos);
             int y = BlockPos.getY(pos);
             int z = BlockPos.getZ(pos);
@@ -547,7 +501,7 @@ public final class GemstoneESPManager {
             int lineArgb = type.lineColorArgb;
 
             // 1. DOWN (-Y)
-            if (isFaceExposed(worldGemstones, x, y - 1, z, typeId)) {
+            if (neighborhood.isFaceExposed(x, y - 1, z, typeId)) {
                 GemstoneESPRenderer.addQuadFace(
                         quadPrimitives,
                         x, y, z,
@@ -556,22 +510,22 @@ public final class GemstoneESPManager {
                         x, y, z + 1,
                         fillArgb
                 );
-                if (!hasSameExposedFace(worldGemstones, x, y, z - 1, 0, -1, 0, typeId)) {
+                if (neighborhood.isOutlineEdge(x, y, z - 1, 0, -1, 0, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 0, typeId, x, y, z, lineArgb);
                 }
-                if (!hasSameExposedFace(worldGemstones, x, y, z + 1, 0, -1, 0, typeId)) {
+                if (neighborhood.isOutlineEdge(x, y, z + 1, 0, -1, 0, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 0, typeId, x, y, z + 1, lineArgb);
                 }
-                if (!hasSameExposedFace(worldGemstones, x - 1, y, z, 0, -1, 0, typeId)) {
+                if (neighborhood.isOutlineEdge(x - 1, y, z, 0, -1, 0, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 2, typeId, x, y, z, lineArgb);
                 }
-                if (!hasSameExposedFace(worldGemstones, x + 1, y, z, 0, -1, 0, typeId)) {
+                if (neighborhood.isOutlineEdge(x + 1, y, z, 0, -1, 0, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 2, typeId, x + 1, y, z, lineArgb);
                 }
             }
 
             // 2. UP (+Y)
-            if (isFaceExposed(worldGemstones, x, y + 1, z, typeId)) {
+            if (neighborhood.isFaceExposed(x, y + 1, z, typeId)) {
                 GemstoneESPRenderer.addQuadFace(
                         quadPrimitives,
                         x, y + 1, z,
@@ -580,22 +534,22 @@ public final class GemstoneESPManager {
                         x + 1, y + 1, z,
                         fillArgb
                 );
-                if (!hasSameExposedFace(worldGemstones, x, y, z - 1, 0, 1, 0, typeId)) {
+                if (neighborhood.isOutlineEdge(x, y, z - 1, 0, 1, 0, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 0, typeId, x, y + 1, z, lineArgb);
                 }
-                if (!hasSameExposedFace(worldGemstones, x, y, z + 1, 0, 1, 0, typeId)) {
+                if (neighborhood.isOutlineEdge(x, y, z + 1, 0, 1, 0, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 0, typeId, x, y + 1, z + 1, lineArgb);
                 }
-                if (!hasSameExposedFace(worldGemstones, x - 1, y, z, 0, 1, 0, typeId)) {
+                if (neighborhood.isOutlineEdge(x - 1, y, z, 0, 1, 0, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 2, typeId, x, y + 1, z, lineArgb);
                 }
-                if (!hasSameExposedFace(worldGemstones, x + 1, y, z, 0, 1, 0, typeId)) {
+                if (neighborhood.isOutlineEdge(x + 1, y, z, 0, 1, 0, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 2, typeId, x + 1, y + 1, z, lineArgb);
                 }
             }
 
             // 3. NORTH (-Z)
-            if (isFaceExposed(worldGemstones, x, y, z - 1, typeId)) {
+            if (neighborhood.isFaceExposed(x, y, z - 1, typeId)) {
                 GemstoneESPRenderer.addQuadFace(
                         quadPrimitives,
                         x, y, z,
@@ -604,22 +558,22 @@ public final class GemstoneESPManager {
                         x + 1, y, z,
                         fillArgb
                 );
-                if (!hasSameExposedFace(worldGemstones, x, y - 1, z, 0, 0, -1, typeId)) {
+                if (neighborhood.isOutlineEdge(x, y - 1, z, 0, 0, -1, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 0, typeId, x, y, z, lineArgb);
                 }
-                if (!hasSameExposedFace(worldGemstones, x, y + 1, z, 0, 0, -1, typeId)) {
+                if (neighborhood.isOutlineEdge(x, y + 1, z, 0, 0, -1, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 0, typeId, x, y + 1, z, lineArgb);
                 }
-                if (!hasSameExposedFace(worldGemstones, x - 1, y, z, 0, 0, -1, typeId)) {
+                if (neighborhood.isOutlineEdge(x - 1, y, z, 0, 0, -1, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 1, typeId, x, y, z, lineArgb);
                 }
-                if (!hasSameExposedFace(worldGemstones, x + 1, y, z, 0, 0, -1, typeId)) {
+                if (neighborhood.isOutlineEdge(x + 1, y, z, 0, 0, -1, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 1, typeId, x + 1, y, z, lineArgb);
                 }
             }
 
             // 4. SOUTH (+Z)
-            if (isFaceExposed(worldGemstones, x, y, z + 1, typeId)) {
+            if (neighborhood.isFaceExposed(x, y, z + 1, typeId)) {
                 GemstoneESPRenderer.addQuadFace(
                         quadPrimitives,
                         x, y, z + 1,
@@ -628,22 +582,22 @@ public final class GemstoneESPManager {
                         x, y + 1, z + 1,
                         fillArgb
                 );
-                if (!hasSameExposedFace(worldGemstones, x, y - 1, z, 0, 0, 1, typeId)) {
+                if (neighborhood.isOutlineEdge(x, y - 1, z, 0, 0, 1, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 0, typeId, x, y, z + 1, lineArgb);
                 }
-                if (!hasSameExposedFace(worldGemstones, x, y + 1, z, 0, 0, 1, typeId)) {
+                if (neighborhood.isOutlineEdge(x, y + 1, z, 0, 0, 1, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 0, typeId, x, y + 1, z + 1, lineArgb);
                 }
-                if (!hasSameExposedFace(worldGemstones, x - 1, y, z, 0, 0, 1, typeId)) {
+                if (neighborhood.isOutlineEdge(x - 1, y, z, 0, 0, 1, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 1, typeId, x, y, z + 1, lineArgb);
                 }
-                if (!hasSameExposedFace(worldGemstones, x + 1, y, z, 0, 0, 1, typeId)) {
+                if (neighborhood.isOutlineEdge(x + 1, y, z, 0, 0, 1, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 1, typeId, x + 1, y, z + 1, lineArgb);
                 }
             }
 
             // 5. WEST (-X)
-            if (isFaceExposed(worldGemstones, x - 1, y, z, typeId)) {
+            if (neighborhood.isFaceExposed(x - 1, y, z, typeId)) {
                 GemstoneESPRenderer.addQuadFace(
                         quadPrimitives,
                         x, y, z,
@@ -652,22 +606,22 @@ public final class GemstoneESPManager {
                         x, y + 1, z,
                         fillArgb
                 );
-                if (!hasSameExposedFace(worldGemstones, x, y - 1, z, -1, 0, 0, typeId)) {
+                if (neighborhood.isOutlineEdge(x, y - 1, z, -1, 0, 0, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 2, typeId, x, y, z, lineArgb);
                 }
-                if (!hasSameExposedFace(worldGemstones, x, y + 1, z, -1, 0, 0, typeId)) {
+                if (neighborhood.isOutlineEdge(x, y + 1, z, -1, 0, 0, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 2, typeId, x, y + 1, z, lineArgb);
                 }
-                if (!hasSameExposedFace(worldGemstones, x, y, z - 1, -1, 0, 0, typeId)) {
+                if (neighborhood.isOutlineEdge(x, y, z - 1, -1, 0, 0, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 1, typeId, x, y, z, lineArgb);
                 }
-                if (!hasSameExposedFace(worldGemstones, x, y, z + 1, -1, 0, 0, typeId)) {
+                if (neighborhood.isOutlineEdge(x, y, z + 1, -1, 0, 0, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 1, typeId, x, y, z + 1, lineArgb);
                 }
             }
 
             // 6. EAST (+X)
-            if (isFaceExposed(worldGemstones, x + 1, y, z, typeId)) {
+            if (neighborhood.isFaceExposed(x + 1, y, z, typeId)) {
                 GemstoneESPRenderer.addQuadFace(
                         quadPrimitives,
                         x + 1, y, z,
@@ -676,16 +630,16 @@ public final class GemstoneESPManager {
                         x + 1, y, z + 1,
                         fillArgb
                 );
-                if (!hasSameExposedFace(worldGemstones, x, y - 1, z, 1, 0, 0, typeId)) {
+                if (neighborhood.isOutlineEdge(x, y - 1, z, 1, 0, 0, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 2, typeId, x + 1, y, z, lineArgb);
                 }
-                if (!hasSameExposedFace(worldGemstones, x, y + 1, z, 1, 0, 0, typeId)) {
+                if (neighborhood.isOutlineEdge(x, y + 1, z, 1, 0, 0, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 2, typeId, x + 1, y + 1, z, lineArgb);
                 }
-                if (!hasSameExposedFace(worldGemstones, x, y, z - 1, 1, 0, 0, typeId)) {
+                if (neighborhood.isOutlineEdge(x, y, z - 1, 1, 0, 0, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 1, typeId, x + 1, y, z, lineArgb);
                 }
-                if (!hasSameExposedFace(worldGemstones, x, y, z + 1, 1, 0, 0, typeId)) {
+                if (neighborhood.isOutlineEdge(x, y, z + 1, 1, 0, 0, typeId)) {
                     addUniqueUnitEdge(edgeDedup, linePrimitives, 1, typeId, x + 1, y, z + 1, lineArgb);
                 }
             }
@@ -694,22 +648,33 @@ public final class GemstoneESPManager {
         return new CompiledMesh(quadPrimitives, linePrimitives);
     }
 
-    private static boolean isFaceExposed(Long2ByteOpenHashMap map, int nx, int ny, int nz, byte typeId) {
-        return map.get(BlockPos.asLong(nx, ny, nz)) != typeId;
-    }
+    private record MeshNeighborhood(Long2ObjectMap<ScannedChunk> chunks, LevelHeightAccessor height) {
+        private static final byte UNKNOWN = -1;
 
-    private static boolean hasSameExposedFace(
-            Long2ByteOpenHashMap map, int bx, int by, int bz, int nx, int ny, int nz, byte typeId
-    ) {
-        if (map.get(BlockPos.asLong(bx, by, bz)) != typeId) return false;
-        return map.get(BlockPos.asLong(bx + nx, by + ny, bz + nz)) != typeId;
+        private byte gemstoneAt(int x, int y, int z) {
+            if (height.isOutsideBuildHeight(y)) return 0;
+            ScannedChunk chunk = chunks.get(ChunkyUtil.packChunkPos(x >> 4, z >> 4));
+            if (chunk == null || !chunk.coversY(y)) return UNKNOWN;
+            return chunk.gemstones().get(BlockPos.asLong(x, y, z));
+        }
+
+        private boolean isFaceExposed(int x, int y, int z, byte typeId) {
+            byte neighbor = gemstoneAt(x, y, z);
+            return neighbor != UNKNOWN && neighbor != typeId;
+        }
+
+        private boolean isOutlineEdge(int x, int y, int z, int nx, int ny, int nz, byte typeId) {
+            byte neighbor = gemstoneAt(x, y, z);
+            // 同类邻居延续当前面，除非它的面被同类方块挡住，形成凹边。
+            return neighbor != UNKNOWN && (neighbor != typeId || gemstoneAt(x + nx, y + ny, z + nz) == typeId);
+        }
     }
 
     private static void addUniqueUnitEdge(
             LongOpenHashSet[] edgeDedup, DrawableGizmoPrimitives linePrimitives,
             int axis, byte typeId, int vx, int vy, int vz, int colorArgb
     ) {
-        int bucket = axis * 8 + typeId;
+        int bucket = axis * GemstoneType.TYPES.length + Byte.toUnsignedInt(typeId) - 1;
         if (edgeDedup[bucket].add(BlockPos.asLong(vx, vy, vz))) {
             int x2 = vx + (axis == 0 ? 1 : 0);
             int y2 = vy + (axis == 1 ? 1 : 0);

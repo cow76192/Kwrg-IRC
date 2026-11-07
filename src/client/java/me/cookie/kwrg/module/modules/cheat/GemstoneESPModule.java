@@ -7,8 +7,12 @@ import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.irc.manager.GemstoneESPManager;
+import me.cookie.kwrg.irc.manager.GemstoneESPManager.GemstoneType;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
+
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 public class GemstoneESPModule extends Module {
 
@@ -18,16 +22,14 @@ public class GemstoneESPModule extends Module {
         public boolean gemstoneEspEnabled = false;
         public int gemstoneEspRange = 64;
         public int gemstoneEspOpacity = 100;
-        public boolean gemstoneEspRuby = true;
-        public boolean gemstoneEspAmber = true;
-        public boolean gemstoneEspJade = true;
-        public boolean gemstoneEspJasper = true;
-        public boolean gemstoneEspAmethyst = true;
+        public Set<GemstoneType> gemstoneEspDisabledTypes = new LinkedHashSet<>();
 
         private void sanitize() {
             if (gemstoneEspRange < 16) gemstoneEspRange = 64;
             gemstoneEspRange = Math.clamp(gemstoneEspRange, 16, 128);
             gemstoneEspOpacity = Math.clamp(gemstoneEspOpacity, 0, 100);
+            if (gemstoneEspDisabledTypes == null) gemstoneEspDisabledTypes = new LinkedHashSet<>();
+            gemstoneEspDisabledTypes.remove(null);
         }
     }
 
@@ -83,59 +85,17 @@ public class GemstoneESPModule extends Module {
 
         panel.child(TextInfoPaneComponent.header("宝石种类"));
 
-        panel.child(new PanelItemComponent(
-                "Ruby",
-                PanelItemComponent.ItemType.TOGGLE,
-                () -> {
-                    GemstoneESPManager.toggleRuby();
-                    saveConfig();
-                },
-                null,
-                GemstoneESPManager::isRubyEnabled
-        ));
-
-        panel.child(new PanelItemComponent(
-                "Amber",
-                PanelItemComponent.ItemType.TOGGLE,
-                () -> {
-                    GemstoneESPManager.toggleAmber();
-                    saveConfig();
-                },
-                null,
-                GemstoneESPManager::isAmberEnabled
-        ));
-
-        panel.child(new PanelItemComponent(
-                "Jade",
-                PanelItemComponent.ItemType.TOGGLE,
-                () -> {
-                    GemstoneESPManager.toggleJade();
-                    saveConfig();
-                },
-                null,
-                GemstoneESPManager::isJadeEnabled
-        ));
-
-        panel.child(new PanelItemComponent(
-                "Jasper",
-                PanelItemComponent.ItemType.TOGGLE,
-                () -> {
-                    GemstoneESPManager.toggleJasper();
-                    saveConfig();
-                },
-                null,
-                GemstoneESPManager::isJasperEnabled
-        ));
-
-        panel.child(new PanelItemComponent(
-                "Amethyst",
-                PanelItemComponent.ItemType.TOGGLE,
-                () -> {
-                    GemstoneESPManager.toggleAmethyst();
-                    saveConfig();
-                },
-                null,
-                GemstoneESPManager::isAmethystEnabled
-        ));
+        for (GemstoneType type : GemstoneType.values()) {
+            panel.child(new PanelItemComponent(
+                    type.displayName,
+                    PanelItemComponent.ItemType.TOGGLE,
+                    () -> {
+                        GemstoneESPManager.toggleGemstone(type);
+                        saveConfig();
+                    },
+                    null,
+                    () -> GemstoneESPManager.isGemstoneEnabled(type)
+            ));
+        }
     }
 }

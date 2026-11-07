@@ -35,11 +35,21 @@ public final class ChunkyUtil {
             long chunkKey,
             int baseX,
             int baseZ,
+            int firstSectionY,
+            int lastSectionY,
             List<SectionSnapshot> sections
     ) {
     }
 
     private record SectionSnapshot(int baseY, PalettedContainerRO<BlockState> states) {
+    }
+
+    /** 覆盖范围包括调色板预检确认没有宝石的区块段。 */
+    public record ScannedChunk(int firstSectionY, int lastSectionY, Long2ByteOpenHashMap gemstones) {
+        public boolean coversY(int blockY) {
+            int sectionY = blockY >> 4;
+            return sectionY >= firstSectionY && sectionY <= lastSectionY;
+        }
     }
 
     // ==================== 区块坐标位运算打包 / 解包 ====================
@@ -104,7 +114,7 @@ public final class ChunkyUtil {
         List<ChunkSnapshot> slice = new ArrayList<>(maxSliceSize);
         int minSectionY = level.getMinSectionY();
         int minY = Math.max(level.getMinY(), centerY - rangeBlocks);
-        int maxY = Math.min(level.getMaxY() - 1, centerY + rangeBlocks);
+        int maxY = Math.min(level.getMaxY(), centerY + rangeBlocks);
 
         while (slice.size() < maxSliceSize && !pendingQueue.isEmpty()) {
             long chunkKey = pendingQueue.poll();
@@ -131,7 +141,7 @@ public final class ChunkyUtil {
         List<ChunkSnapshot> list = new ArrayList<>(side * side);
         int minSectionY = level.getMinSectionY();
         int minY = Math.max(level.getMinY(), centerY - rangeBlocks);
-        int maxY = Math.min(level.getMaxY() - 1, centerY + rangeBlocks);
+        int maxY = Math.min(level.getMaxY(), centerY + rangeBlocks);
 
         for (int dx = -chunkRadius; dx <= chunkRadius; dx++) {
             for (int dz = -chunkRadius; dz <= chunkRadius; dz++) {
@@ -163,13 +173,14 @@ public final class ChunkyUtil {
             if (section == null || section.hasOnlyAir() || !section.maybeHas(paletteFilter)) continue;
             snapshots.add(new SectionSnapshot((i + minSectionY) << 4, section.getStates().copy()));
         }
-        return new ChunkSnapshot(packChunkPos(cx, cz), cx << 4, cz << 4, snapshots);
+        return new ChunkSnapshot(packChunkPos(cx, cz), cx << 4, cz << 4,
+                minSectionY + startSecIdx, minSectionY + endSecIdx, snapshots);
     }
 
     /**
      * 在后台线程扫描已复制的区块段。
      */
-    public static Long2ByteOpenHashMap scanChunkSnapshot(
+    public static ScannedChunk scanChunkSnapshot(
             ChunkSnapshot snapshot,
             BlockClassifier classifier
     ) {
@@ -190,7 +201,7 @@ public final class ChunkyUtil {
                 }
             }
         }
-        return found;
+        return new ScannedChunk(snapshot.firstSectionY, snapshot.lastSectionY, found);
     }
 
     /**
