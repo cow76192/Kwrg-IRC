@@ -6,7 +6,6 @@ import me.cookie.kwrg.gui.component.pane.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcClient;
-import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.module.ModuleManager;
@@ -124,7 +123,7 @@ public class PlayModule extends Module {
 
     public static int handlePlayCommand(String targetPlayer, String itemId) {
         IrcClient.sendPlayEffect(targetPlayer, itemId);
-        IrcMessageHandler.printMessage("§a[IRC] 已向玩家 §f" + targetPlayer + " §a发送动画效果 (§e" + itemId + "§a)！");
+        ChatNotifier.sendInChatScreen("§a[IRC] 已向玩家 §f" + targetPlayer + " §a发送动画效果 (§e" + itemId + "§a)！");
         return 1;
     }
 

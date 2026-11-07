@@ -10,7 +10,6 @@ import me.cookie.kwrg.gui.component.pane.TextInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
-import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.module.modules.functions.ChannelModule;
@@ -241,9 +240,9 @@ public class LoadModule extends Module {
     public static int loadConfig(String name) {
         boolean success = IrcConfig.loadProfile(name, false);
         if (success) {
-            IrcMessageHandler.printMessage("§a[IRC] 已成功加载配置文件: §f" + IrcConfig.getCurrentProfileName() + ".json");
+            ChatNotifier.sendInChatScreen("§a[IRC] 已成功加载配置文件: §f" + IrcConfig.getCurrentProfileName() + ".json");
         } else {
-            IrcMessageHandler.printMessage("§c[IRC] 配置文件 §f" + name + ".json §c不存在！可使用 /irc cfg create " + name + " 创建");
+            ChatNotifier.sendInChatScreen("§c[IRC] 配置文件 §f" + name + ".json §c不存在！可使用 /irc cfg create " + name + " 创建");
         }
         return success ? 1 : 0;
     }
@@ -252,33 +251,33 @@ public class LoadModule extends Module {
         String cleanName = name.trim();
         String error = validateProfileName(cleanName);
         if (error != null) {
-            IrcMessageHandler.printMessage("§c[IRC] 创建失败: " + error);
+            ChatNotifier.sendInChatScreen("§c[IRC] 创建失败: " + error);
             return 0;
         }
 
         if (!IrcConfig.createProfile(cleanName)) {
-            IrcMessageHandler.printMessage("§c[IRC] 创建失败：当前配置无法保存。");
+            ChatNotifier.sendInChatScreen("§c[IRC] 创建失败：当前配置无法保存。");
             return 0;
         }
-        IrcMessageHandler.printMessage("§a[IRC] 已新建配置: §f" + IrcConfig.getCurrentProfileName() + " §7(注意: 调整好设置后输入 §e/irc cfg save §7保存)");
+        ChatNotifier.sendInChatScreen("§a[IRC] 已新建配置: §f" + IrcConfig.getCurrentProfileName() + " §7(注意: 调整好设置后输入 §e/irc cfg save §7保存)");
         return 1;
     }
 
     public static int saveConfig() {
         boolean success = IrcConfig.save();
         if (success) {
-            IrcMessageHandler.printMessage("§a[IRC] 当前配置已成功保存至 §f" + IrcConfig.getCurrentProfileName() + ".json");
+            ChatNotifier.sendInChatScreen("§a[IRC] 当前配置已成功保存至 §f" + IrcConfig.getCurrentProfileName() + ".json");
         } else {
-            IrcMessageHandler.printMessage("§c[IRC] 配置文件保存失败");
+            ChatNotifier.sendInChatScreen("§c[IRC] 配置文件保存失败");
         }
         return success ? 1 : 0;
     }
 
     public static int showCurrentConfig() {
-        IrcMessageHandler.printMessage("§6[IRC] 当前生效的配置: §f" + IrcConfig.getCurrentProfileName() + ".json");
+        ChatNotifier.sendInChatScreen("§6[IRC] 当前生效的配置: §f" + IrcConfig.getCurrentProfileName() + ".json");
         List<String> all = IrcConfig.listExistingProfiles();
-        IrcMessageHandler.printMessage("§7已有配置文件列表: " + (all.isEmpty() ? "无" : String.join(", ", all)));
-        IrcMessageHandler.printMessage("§7用法: /irc cfg load <配置名> | /irc cfg create <配置名> | /irc cfg save");
+        ChatNotifier.sendInChatScreen("§7已有配置文件列表: " + (all.isEmpty() ? "无" : String.join(", ", all)));
+        ChatNotifier.sendInChatScreen("§7用法: /irc cfg load <配置名> | /irc cfg create <配置名> | /irc cfg save");
         return 1;
     }
 }
