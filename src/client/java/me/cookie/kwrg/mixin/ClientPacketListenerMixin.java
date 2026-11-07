@@ -3,7 +3,7 @@ package me.cookie.kwrg.mixin;
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
-import me.cookie.kwrg.module.modules.cheat.AutoPurchasePassModule;
+import me.cookie.kwrg.module.modules.functions.AutoPurchasePassModule;
 import me.cookie.kwrg.module.modules.functions.ChatSuffixModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.EmojiUtil; // 导入新工具类
@@ -70,7 +70,7 @@ public abstract class ClientPacketListenerMixin {
     private void onHandleSystemChat(ClientboundSystemChatPacket packet, CallbackInfo ci) {
         if (packet == null || packet.content() == null) return;
 
-        AutoPurchasePassModule.onSystemChat(packet.content());
+        AutoPurchasePassModule.onSystemChat((ClientPacketListener) (Object) this, packet.content());
 
         if (PlayerFinderManager.processSystemChat(packet.content().getString())) {
             ci.cancel();
