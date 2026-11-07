@@ -1,7 +1,7 @@
 package me.cookie.kwrg.module.modules.style.dynamic;
 
 import me.cookie.kwrg.gui.component.PanelItemComponent;
-import me.cookie.kwrg.gui.component.SliderPaneComponent;
+import me.cookie.kwrg.gui.component.pane.SliderPaneComponent;
 import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.hud.HudEditorScreen;

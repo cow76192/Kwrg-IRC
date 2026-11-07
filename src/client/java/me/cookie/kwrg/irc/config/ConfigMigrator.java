@@ -2,12 +2,14 @@ package me.cookie.kwrg.irc.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import me.cookie.kwrg.gui.hud.HudElement;
 import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.irc.manager.GemstoneESPManager.GemstoneType;
 import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -17,6 +19,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.LinkedHashSet;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
@@ -63,6 +66,7 @@ public final class ConfigMigrator {
         migrateElementAppearance(jsonObj);
         migrateHideArmorParts(jsonObj);
         migrateWaypointList(jsonObj);
+        migrateGemstoneToggles(jsonObj);
 
         // 5. 校验未知字段
         checkUnknownFields(jsonObj, originalConfig);
@@ -187,6 +191,21 @@ public final class ConfigMigrator {
             savedWaypoints.add("legacy-" + index++, entry);
         }
         jsonObj.add("waypoints", savedWaypoints);
+    }
+
+    private static void migrateGemstoneToggles(JsonObject jsonObj) {
+        JsonArray disabled = new JsonArray();
+        for (GemstoneType type : GemstoneType.values()) {
+            String name = type.name();
+            String legacyKey = "gemstoneEsp" + name.charAt(0) + name.substring(1).toLowerCase(Locale.ROOT);
+            JsonElement legacy = jsonObj.remove(legacyKey);
+            if (legacy instanceof JsonPrimitive value && (value.isBoolean() || value.isString()) && !value.getAsBoolean()) {
+                disabled.add(name);
+            }
+        }
+        if (!jsonObj.has("gemstoneEspDisabledTypes") && !disabled.isEmpty()) {
+            jsonObj.add("gemstoneEspDisabledTypes", disabled);
+        }
     }
 
     private static void moveIntoElement(JsonObject jsonObj, String legacyKey, String elementId, String stateKey) {
