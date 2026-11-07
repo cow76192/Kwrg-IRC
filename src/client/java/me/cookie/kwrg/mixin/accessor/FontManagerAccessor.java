@@ -1,6 +1,7 @@
 package me.cookie.kwrg.mixin.accessor;
 
 import com.mojang.blaze3d.font.GlyphProvider;
+import net.minecraft.client.Options;
 import net.minecraft.client.gui.font.FontManager;
 import net.minecraft.client.gui.font.FontOption;
 import net.minecraft.client.gui.font.FontSet;
@@ -24,4 +25,9 @@ public interface FontManagerAccessor {
 
     @Invoker("createFontSet")
     FontSet kwrg$createFontSet(Identifier id, List<GlyphProvider.Conditional> providers, Set<FontOption> options);
+
+    @Invoker("getFontOptions")
+    static Set<FontOption> kwrg$getFontOptions(Options options) {
+        throw new AssertionError();
+    }
 }
