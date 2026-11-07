@@ -16,6 +16,7 @@ import net.minecraft.client.renderer.gizmos.DrawableGizmoPrimitives;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,6 +84,8 @@ public final class GemstoneESPRenderer {
 
     private static void onWorldRender(LevelRenderContext context) {
         if (!GemstoneESPManager.shouldRender()) return;
+        float opacity = GemstoneESPManager.getOpacity() / 100.0f;
+        if (opacity == 0.0f) return;
 
         CompiledMesh mesh = GemstoneESPManager.getActiveMesh();
         if (mesh == null || mesh.isEmpty()) return;
@@ -100,16 +103,65 @@ public final class GemstoneESPRenderer {
 
         // 边缘面半透明淡化填充
         if (!mesh.quadPrimitives().isEmpty()) {
-            VertexConsumer quadVertices = buffers.getBuffer(RenderTypeHolder.QUADS);
+            VertexConsumer quadVertices = new OpacityVertexConsumer(buffers.getBuffer(RenderTypeHolder.QUADS), opacity);
             mesh.quadPrimitives().render(poseStack, ignored -> quadVertices, camera, camera.viewRotationMatrix);
             buffers.endBatch(RenderTypeHolder.QUADS);
         }
 
         // 外轮廓线条
         if (!mesh.linePrimitives().isEmpty()) {
-            VertexConsumer lineVertices = buffers.getBuffer(RenderTypeHolder.LINES);
+            VertexConsumer lineVertices = new OpacityVertexConsumer(buffers.getBuffer(RenderTypeHolder.LINES), opacity);
             mesh.linePrimitives().render(poseStack, ignored -> lineVertices, camera, camera.viewRotationMatrix);
             buffers.endBatch(RenderTypeHolder.LINES);
+        }
+    }
+
+    private record OpacityVertexConsumer(VertexConsumer delegate, float opacity) implements VertexConsumer {
+        @Override
+        public VertexConsumer addVertex(float x, float y, float z) {
+            delegate.addVertex(x, y, z);
+            return this;
+        }
+
+        @Override
+        public VertexConsumer setColor(int red, int green, int blue, int alpha) {
+            return setColor(ARGB.color(alpha, red, green, blue));
+        }
+
+        @Override
+        public VertexConsumer setColor(int argb) {
+            delegate.setColor(ARGB.multiplyAlpha(argb, opacity));
+            return this;
+        }
+
+        @Override
+        public VertexConsumer setUv(float u, float v) {
+            delegate.setUv(u, v);
+            return this;
+        }
+
+        @Override
+        public VertexConsumer setUv1(int u, int v) {
+            delegate.setUv1(u, v);
+            return this;
+        }
+
+        @Override
+        public VertexConsumer setUv2(int u, int v) {
+            delegate.setUv2(u, v);
+            return this;
+        }
+
+        @Override
+        public VertexConsumer setNormal(float x, float y, float z) {
+            delegate.setNormal(x, y, z);
+            return this;
+        }
+
+        @Override
+        public VertexConsumer setLineWidth(float width) {
+            delegate.setLineWidth(width);
+            return this;
         }
     }
 

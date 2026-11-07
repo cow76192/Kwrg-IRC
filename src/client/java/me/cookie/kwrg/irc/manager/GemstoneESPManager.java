@@ -263,6 +263,14 @@ public final class GemstoneESPManager {
         }
     }
 
+    public static int getOpacity() {
+        return Mth.clamp(settings().gemstoneEspOpacity, 0, 100);
+    }
+
+    public static void setOpacity(int opacity) {
+        settings().gemstoneEspOpacity = Mth.clamp(opacity, 0, 100);
+    }
+
     public static boolean isRubyEnabled() {
         return settings().gemstoneEspRuby;
     }

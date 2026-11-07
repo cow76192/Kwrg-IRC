@@ -17,6 +17,7 @@ public class GemstoneESPModule extends Module {
     public static final class Settings {
         public boolean gemstoneEspEnabled = false;
         public int gemstoneEspRange = 64;
+        public int gemstoneEspOpacity = 100;
         public boolean gemstoneEspRuby = true;
         public boolean gemstoneEspAmber = true;
         public boolean gemstoneEspJade = true;
@@ -26,6 +27,7 @@ public class GemstoneESPModule extends Module {
         private void sanitize() {
             if (gemstoneEspRange < 16) gemstoneEspRange = 64;
             gemstoneEspRange = Math.clamp(gemstoneEspRange, 16, 128);
+            gemstoneEspOpacity = Math.clamp(gemstoneEspOpacity, 0, 100);
         }
     }
 
@@ -67,6 +69,17 @@ public class GemstoneESPModule extends Module {
                 val -> val + " 格"
         );
         panel.child(rangeSlider);
+
+        panel.child(TextInfoPaneComponent.header("显示配置 (右键重置)"));
+        panel.child(SliderPaneComponent.ofInt(
+                "ESP 不透明度",
+                0,
+                100,
+                100,
+                GemstoneESPManager::getOpacity,
+                GemstoneESPManager::setOpacity,
+                val -> val + "%"
+        ));
 
         panel.child(TextInfoPaneComponent.header("宝石种类"));
 
