@@ -1,4 +1,4 @@
-package me.cookie.kwrg.util;
+package me.cookie.kwrg.util.skyblock;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -7,6 +7,7 @@ import com.google.gson.JsonParser;
 import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.JsonOps;
 import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.util.ChatNotifier;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;

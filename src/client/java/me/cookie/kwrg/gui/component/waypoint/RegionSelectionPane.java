@@ -8,7 +8,7 @@ import me.cookie.kwrg.gui.theme.GuiThemeService;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
-import me.cookie.kwrg.util.SkyblockIsland;
+import me.cookie.kwrg.util.skyblock.SkyblockIsland;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.input.*;
 import net.minecraft.network.chat.Component;
