@@ -13,6 +13,8 @@ layout(std140) uniform LoadingFrame {
     vec4 Theme; // Solo, network, settings, and quit weights.
     vec4 Browser; // Camera push, network mode, world model, growth.
     vec4 Flight; // Dive, selected beacon, beacon count, projection grid line count.
+    vec4 Switch; // Camera approach, reverse assembly (-1 outside reverse), panorama zoom, panorama collapse.
+    vec4 Warp; // RGB separation, shake, time since the camera locked.
     ivec4 Signals[8]; // Four bits per beacon. Each ivec4 describes 32 cells.
 };
 
@@ -37,6 +39,7 @@ struct Camera {
 };
 
 float releasePulse() {
+    if (Switch.y >= 0.0) return 0.0;
     return smoothstep(0.0, 0.028, Burst) * exp2(-9.0 * Burst);
 }
 
@@ -45,9 +48,11 @@ vec2 screenShift() {
     vec2 menuOffset = mix(vec2(0.43, -0.07), vec2(0.38, 0.17), Menu.w) * Menu.y;
     vec2 base = vec2(0.0, 0.11) + menuOffset;
     vec2 board = mix(vec2(0.52, -0.07), vec2(0.52, -0.16), Menu.w);
-    return mix(mix(base, board, Browser.x), vec2(0.0), smoothstep(0.0, 0.9, Flight.x))
+    vec2 shift = mix(mix(base, board, Browser.x), vec2(0.0), smoothstep(0.0, 0.9, Flight.x))
             - Viewport.zw * mix(vec2(0.033, 0.025), vec2(0.013), Browser.x)
             + shake * (0.016 * releasePulse());
+    float lockOn = Switch.y >= 0.0 ? Switch.x / 0.82 : max(Switch.x, smoothstep(0.0, 0.14, Warp.z));
+    return mix(shift, vec2(0.0), lockOn);
 }
 
 float chargeStrength() {
@@ -59,9 +64,10 @@ float blockScale() {
 }
 
 Camera sceneCamera() {
-    float orbit = 0.64 + Time * 0.22 + Menu.z + Viewport.z * mix(0.15, 0.087, Menu.y);
+    float cameraTime = Time - Warp.z;
+    float orbit = 0.64 + cameraTime * 0.22 + Menu.z + Viewport.z * mix(0.15, 0.087, Menu.y);
     orbit += 0.38 * Browser.x;
-    float pitch = mix(atan(0.43 + 0.045 * sin(Time * 0.37) + Viewport.w * mix(0.12, 0.087, Menu.y)),
+    float pitch = mix(atan(0.43 + 0.045 * sin(cameraTime * 0.37) + Viewport.w * mix(0.12, 0.087, Menu.y)),
             0.785398 + Viewport.w * 0.025, Browser.x);
     float dive = smoothstep(0.0, 1.0, Flight.x);
     pitch = mix(pitch, 1.50, dive);
@@ -71,6 +77,8 @@ Camera sceneCamera() {
     float lens = 2.13 * min(1.0, aspect / 0.83) * (1.0 + 0.11 * chargeStrength() - 0.24 * releasePulse());
     float distance = mix(mix(EYE_DISTANCE, mix(5.65, 6.18, Menu.w), Browser.x), 0.47, dive);
     float targetY = mix(0.64 * Browser.x, HALF_EDGE * blockScale() + 0.28, dive);
+    distance = mix(distance, Switch.y >= 0.0 ? 1.70 : 0.14, Switch.x);
+    targetY = mix(targetY, Menu.y * sin(cameraTime * 0.94) * 0.065, Switch.x);
     vec3 eye = back * distance + vec3(0.0, targetY, 0.0);
     return Camera(back, right, cross(back, right), screenShift(), vec2(lens / aspect, lens), eye);
 }

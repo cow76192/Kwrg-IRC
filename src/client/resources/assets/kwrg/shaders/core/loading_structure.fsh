@@ -17,6 +17,8 @@ out vec4 fragColor;
 void main() {
 #ifdef HOLOGRAM
     float fade = Opacity * (Menu.x > 0.5 ? 1.0 : 1.0 - smoothstep(0.01, 0.46, Burst));
+    if (Switch.y >= 0.0) fade *= smoothstep(0.01, 0.55, Switch.y);
+    else if (Warp.z > 0.0) fade *= 1.0 - smoothstep(0.0, 0.70, Burst);
     if (kind == 1) {
         float defocus = max(1.0 - smoothstep(0.9, 4.2, depth), smoothstep(6.8, 19.0, depth));
         float radius = length(faceUv - 0.5) * 2.0;

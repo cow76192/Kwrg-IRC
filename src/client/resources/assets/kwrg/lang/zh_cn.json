@@ -1,6 +1,8 @@
 {
-  "kwrg.title.name": "创世之核",
-  "kwrg.title.subtitle": "Kwrg Client",
+  "kwrg.title.name": "Kwrg Client",
+  "kwrg.title.subtitle": "Hello World",
+  "kwrg.title.open_classic": "进入主菜单",
+  "kwrg.title.open_custom": "返回 3D 主菜单",
   "kwrg.title.board": "KWRG / 生态沙盘",
   "kwrg.title.matrix": "KWRG / 通讯矩阵",
   "kwrg.title.empty": "暂无存档"

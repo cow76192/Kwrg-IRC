@@ -40,9 +40,9 @@ public final class TitleMenuUi {
     private float typing;
     private float time;
 
-    public void begin(TitleScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY, TitleBrowser browser) {
+    public void begin(TitleScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY, TitleBrowser browser,
+                      TitleModeTransition mode, boolean customUi) {
         Minecraft game = Minecraft.getInstance();
-        Font font = game.font;
 
         long now = Util.getMillis();
         float dt = lastFrame == 0L ? 0.016f : Math.clamp((now - lastFrame) * 0.001f, 0.0f, 0.05f);
@@ -50,7 +50,7 @@ public final class TitleMenuUi {
         time = (now - CLOCK_START) * 0.001f;
 
         float startupReveal = LoadingOverlayRenderer.titleReveal();
-        reveal = startupReveal * browser.menuVisibility();
+        reveal = startupReveal * browser.menuVisibility() * mode.customUi();
 
         if (startupReveal > 0.02f) {
             typing += dt;
@@ -58,6 +58,30 @@ public final class TitleMenuUi {
             typing = 0.0f;
         }
 
+        Theme selected = customUi ? layout(screen, graphics, mouseX, mouseY, dt) : Theme.IDLE;
+        float blend = 1.0f - (float) Math.exp(-6.5f * dt);
+        solo = Mth.lerp(blend, solo, selected == Theme.SOLO ? 1.0f : 0.0f);
+        network = Mth.lerp(blend, network, selected == Theme.NETWORK ? 1.0f : 0.0f);
+        settings = Mth.lerp(blend, settings, selected == Theme.SETTINGS ? 1.0f : 0.0f);
+        quit = Mth.lerp(blend, quit, selected == Theme.QUIT ? 1.0f : 0.0f);
+
+        int width = screen.width;
+        int height = screen.height;
+        if (!mode.switching() || mode.classic()) {
+            orbit += network * dt * 0.27f;
+            var window = game.getWindow();
+            double x = game.mouseHandler.getScaledXPos(window);
+            double y = game.mouseHandler.getScaledYPos(window);
+            pointerX = Mth.lerp(blend, pointerX, (float) Math.clamp(2.0 * x / width - 1.0, -1.0, 1.0));
+            pointerY = Mth.lerp(blend, pointerY, (float) Math.clamp(1.0 - 2.0 * y / height, -1.0, 1.0));
+        }
+
+        float compact = Math.clamp((1.48f - (float) width / height) * 1.8f, 0.0f, 1.0f);
+        LoadingOverlayRenderer.submitTitle(new LoadingOverlayRenderer.TitleFrame(time, pointerX, pointerY, orbit,
+                compact, solo, network, settings, quit, browser.scene(), mode.scene()));
+    }
+
+    private Theme layout(TitleScreen screen, GuiGraphicsExtractor graphics, int mouseX, int mouseY, float dt) {
         actions.clear();
         shortcuts.clear();
 
@@ -65,7 +89,8 @@ public final class TitleMenuUi {
         slots.keySet().removeIf(button -> !children.contains(button));
 
         for (var child : children) {
-            if (child instanceof AbstractButton button && button.visible && !isCopyright(button, screen.height)) {
+            if (child instanceof AbstractButton button && !(button instanceof TitleModeButton)
+                    && button.visible && !isCopyright(button, screen.height)) {
                 if (button instanceof SpriteIconButton) {
                     shortcuts.add(button);
                 } else {
@@ -129,30 +154,11 @@ public final class TitleMenuUi {
             slots.get(button).update(button, x, shortcutY, 25, 18, hover || focus, ease, Theme.SETTINGS, true);
         }
 
-        if (selected == Theme.IDLE) selected = focused;
-        float blend = 1.0f - (float) Math.exp(-6.5f * dt);
-
-        solo = Mth.lerp(blend, solo, selected == Theme.SOLO ? 1.0f : 0.0f);
-        network = Mth.lerp(blend, network, selected == Theme.NETWORK ? 1.0f : 0.0f);
-        settings = Mth.lerp(blend, settings, selected == Theme.SETTINGS ? 1.0f : 0.0f);
-        quit = Mth.lerp(blend, quit, selected == Theme.QUIT ? 1.0f : 0.0f);
-        orbit += network * dt * 0.27f;
-
-        var window = game.getWindow();
-        double x = game.mouseHandler.getScaledXPos(window);
-        double y = game.mouseHandler.getScaledYPos(window);
-
-        pointerX = Mth.lerp(blend, pointerX, (float) Math.clamp(2.0 * x / width - 1.0, -1.0, 1.0));
-        pointerY = Mth.lerp(blend, pointerY, (float) Math.clamp(1.0 - 2.0 * y / height, -1.0, 1.0));
-
-        float compact = Math.clamp((1.48f - (float) width / height) * 1.8f, 0.0f, 1.0f);
-
-        LoadingOverlayRenderer.submitTitle(new LoadingOverlayRenderer.TitleFrame(time, pointerX, pointerY, orbit,
-                compact, solo, network, settings, quit, browser.scene()));
-
         if (reveal > 0.001f) {
-            drawHeader(graphics, font, left, header, top, panelWidth, game.options.hideSplashTexts().get());
+            Minecraft game = Minecraft.getInstance();
+            drawHeader(graphics, game.font, left, header, top, panelWidth, game.options.hideSplashTexts().get());
         }
+        return selected == Theme.IDLE ? focused : selected;
     }
 
     public TitleMenuUi activate() {

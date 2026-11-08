@@ -12,9 +12,11 @@ import com.mojang.blaze3d.preprocessor.GlslPreprocessor;
 import com.mojang.blaze3d.shaders.ShaderSource;
 import com.mojang.blaze3d.shaders.ShaderType;
 import com.mojang.blaze3d.shaders.UniformType;
+import com.mojang.blaze3d.systems.CommandEncoder;
 import com.mojang.blaze3d.systems.GpuDevice;
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.textures.GpuTextureView;
 import com.mojang.blaze3d.textures.TextureFormat;
@@ -53,7 +55,7 @@ public final class LoadingOverlayRenderer {
     private static final float BUILD_START = 0.30f;
     private static final float BUILD_END = 0.80f;
     private static final int CUBE_INDICES = 36;
-    private static final int FRAME_UNIFORM_BYTES = 256;
+    private static final int FRAME_UNIFORM_BYTES = 288;
     private static final String FRAME_UNIFORM = "LoadingFrame";
     private static final ColorTargetState BLEND = new ColorTargetState(
             Optional.of(BlendFunction.TRANSLUCENT), ColorTargetState.WRITE_COLOR);
@@ -61,9 +63,15 @@ public final class LoadingOverlayRenderer {
     private static final RenderPipeline BACKGROUND = pipeline("loading_background", "loading_background")
             .withCull(false)
             .build();
+    private static final RenderPipeline TITLE_WARP = pipeline("title_warp", "loading_background")
+            .withCull(false)
+            .withShaderDefine("PANORAMA_WARP")
+            .withSampler("PanoramaSampler")
+            .build();
     private static final DepthStencilState SOLID_DEPTH = new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true);
     private static final RenderPipeline VOXELS = pipeline("loading_voxels", "loading_voxels")
             .withShaderDefine("ASSEMBLY_INFLOW", ASSEMBLY_INFLOW)
+            .withShaderDefine("MENU_VOXELS", MENU_VOXELS)
             .withDepthStencilState(SOLID_DEPTH)
             .build();
     private static final RenderPipeline SHELL = pipeline("loading_shell", "loading_structure")
@@ -113,6 +121,8 @@ public final class LoadingOverlayRenderer {
     private static MappableRingBuffer uniforms;
     private static GpuTexture depth;
     private static GpuTextureView depthView;
+    private static GpuTexture panorama;
+    private static GpuTextureView panoramaView;
     private static boolean shaderFailureLogged;
 
     private LoadingOverlayRenderer() {
@@ -154,6 +164,14 @@ public final class LoadingOverlayRenderer {
 
     public static boolean prepareBrowser() {
         return prepare() && RenderSystem.getDevice().precompilePipeline(TITLE_PROJECTION, SHADERS).isValid();
+    }
+
+    public static boolean prepareSwitch() {
+        return prepare() && RenderSystem.getDevice().precompilePipeline(TITLE_WARP, SHADERS).isValid();
+    }
+
+    public static float panoramaOverlayAlpha() {
+        return title == null ? 1.0f : 1.0f - smooth(0.0f, 0.38f, title.mode().collapse());
     }
 
     public static void preload(RenderTarget target) {
@@ -203,7 +221,7 @@ public final class LoadingOverlayRenderer {
         float time = title.time() + titleTimeOffset;
         float mouseX = loading == null ? title.mouseX() : mix(loading.mouseX(), title.mouseX(), pan);
         float mouseY = loading == null ? title.mouseY() : mix(loading.mouseY(), title.mouseY(), pan);
-        Frame combined = new Frame(time, 1.0f, 1.0f, loading == null ? 0.0f : loading.burst(),
+        Frame combined = new Frame(time, 1.0f, 1.0f, loading == null ? title.mode().burst() : loading.burst(),
                 loading == null ? 0.0f : loading.charge(), mouseX, mouseY, 0.0f);
         drawScene(target, combined, title, pan);
         titleDrawn = true;
@@ -254,8 +272,10 @@ public final class LoadingOverlayRenderer {
         int stream = progress >= 0.79f ? STREAM_VOXELS : 0;
         int lines = progress >= 0.17f ? FRAME_EDGES + (building ? GRID_LINES : 0) : 0;
         int particles = bursting ? SHELL_VOXELS + CORE_FRAGMENTS : active + inflow + stream;
+        SwitchFrame mode = menu == null ? SwitchFrame.NONE : menu.mode();
         if (menu != null) {
-            particles = MENU_VOXELS + (bursting ? SHELL_VOXELS : 0);
+            particles = MENU_VOXELS + (bursting ? SHELL_VOXELS : 0)
+                    + (mode.gather() >= 0.0f && mode.gather() < 1.0f ? CORE_FRAGMENTS : 0);
         }
         int ringLines = menu != null && menu.settings() * pan > 0.004f ? RING_LINES : 0;
         BrowserFrame browser = menu == null ? BrowserFrame.NONE : menu.browser();
@@ -265,6 +285,8 @@ public final class LoadingOverlayRenderer {
         boolean drawProjection = browser.camera() > 0.0f && device.precompilePipeline(TITLE_PROJECTION, SHADERS).isValid();
         prepareBuffers(device, target.width, target.height);
         var encoder = device.createCommandEncoder();
+        boolean warp = mode.panoramaScale() > 0.0f;
+        if (warp) copyPanorama(device, encoder, target);
         GpuBuffer uniform = uniforms.currentBuffer();
 
         try (var mapped = encoder.mapBuffer(uniform, false, true)) {
@@ -278,7 +300,9 @@ public final class LoadingOverlayRenderer {
                     .putVec4(menu == null ? 0.0f : menu.solo() * pan, menu == null ? 0.0f : menu.network() * pan,
                             menu == null ? 0.0f : menu.settings() * pan, menu == null ? 0.0f : menu.quit() * pan)
                     .putVec4(browser.camera(), browser.network() ? 1.0f : 0.0f, browser.model(), browser.growth())
-                    .putVec4(browser.dive(), browser.selected(), browser.count(), boardLines);
+                    .putVec4(browser.dive(), browser.selected(), browser.count(), boardLines)
+                    .putVec4(mode.approach(), mode.gather(), mode.panoramaScale(), mode.collapse())
+                    .putVec4(mode.distortion(), mode.shake(), mode.lockTime(), 0.0f);
             int[] signals = browser.signals();
             if (browser.count() > 0) {
                 for (int i = 0; i < signals.length; i += 4) {
@@ -292,18 +316,25 @@ public final class LoadingOverlayRenderer {
         try (RenderPass pass = encoder.createRenderPass(() -> "KWRG loading overlay", target.getColorTextureView(),
                 OptionalInt.empty(), depthView, OptionalDouble.of(1.0))) {
             if (menu != null || current.burst() < 0.69f) {
-                usePipeline(pass, BACKGROUND, uniform);
+                usePipeline(pass, warp ? TITLE_WARP : BACKGROUND, uniform);
+                if (warp) {
+                    pass.bindTexture("PanoramaSampler", panoramaView, RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
+                }
                 pass.draw(0, 3);
             }
 
-            if (rows > 0 && (menu != null || !bursting)) {
+            boolean showScene = !warp || mode.gather() >= 0.0f || mode.burst() < 1.0f;
+            boolean switchBurst = mode.burst() > 0.0f;
+            if (showScene && rows > 0 && !switchBurst && (menu != null || !bursting)) {
                 usePipeline(pass, SHELL, uniform);
                 pass.draw(0, CUBE_INDICES);
             }
 
             pass.setIndexBuffer(cubeIndices, indices.type());
-            usePipeline(pass, VOXELS, uniform);
-            pass.drawIndexed(0, 0, CUBE_INDICES, particles);
+            if (showScene) {
+                usePipeline(pass, VOXELS, uniform);
+                pass.drawIndexed(0, 0, CUBE_INDICES, particles);
+            }
 
             if (drawProjection) {
                 int count = browser.network()
@@ -312,7 +343,7 @@ public final class LoadingOverlayRenderer {
                 usePipeline(pass, TITLE_PROJECTION, uniform);
                 pass.drawIndexed(0, 0, CUBE_INDICES, LAYER_VOXELS + count);
             }
-            if (menu != null || current.burst() < 0.46f) {
+            if (showScene && (menu != null || current.burst() < 0.46f)) {
                 usePipeline(pass, HOLOGRAM, uniform);
                 pass.drawIndexed(0, 0, 6, lines + ringLines + boardLines + ATMOSPHERE_VOXELS);
             }
@@ -339,6 +370,27 @@ public final class LoadingOverlayRenderer {
         }
     }
 
+    private static void copyPanorama(GpuDevice device, CommandEncoder encoder, RenderTarget target) {
+        GpuTexture source = target.getColorTexture();
+        if (panorama == null || panorama.getWidth(0) != target.width || panorama.getHeight(0) != target.height
+                || panorama.getFormat() != source.getFormat()) {
+            closePanorama();
+            panorama = device.createTexture("KWRG title panorama", GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING,
+                    source.getFormat(), target.width, target.height, 1, 1);
+            panoramaView = device.createTextureView(panorama);
+        }
+        encoder.copyTextureToTexture(source, panorama, 0, 0, 0, 0, 0, target.width, target.height);
+    }
+
+    private static void closePanorama() {
+        if (panorama != null) {
+            panoramaView.close();
+            panorama.close();
+            panoramaView = null;
+            panorama = null;
+        }
+    }
+
     private static void closeDepth() {
         if (depth != null) {
             depthView.close();
@@ -351,6 +403,7 @@ public final class LoadingOverlayRenderer {
     public static void close() {
         frame = null;
         closeDepth();
+        closePanorama();
 
         if (uniforms != null) {
             uniforms.close();
@@ -363,7 +416,12 @@ public final class LoadingOverlayRenderer {
     }
 
     public record TitleFrame(float time, float mouseX, float mouseY, float orbit, float compact,
-                             float solo, float network, float settings, float quit, BrowserFrame browser) {
+                             float solo, float network, float settings, float quit, BrowserFrame browser, SwitchFrame mode) {
+    }
+
+    public record SwitchFrame(float approach, float burst, float gather, float panoramaScale, float collapse,
+                              float distortion, float shake, float lockTime) {
+        public static final SwitchFrame NONE = new SwitchFrame(0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
     }
 
     public record BrowserFrame(float camera, boolean network, int model, float growth, float dive,

@@ -136,7 +136,7 @@ void main() {
     localPosition = facePoint(face, corner) * HALF_EDGE;
     localPosition.y = -HALF_EDGE + (localPosition.y + HALF_EDGE) * (float(Groups.x) / float(GRID_SIZE));
     vec3 position = localPosition * blockScale();
-    position.y += Menu.y * sin(Time * 0.94) * 0.065;
+    position.y += Menu.y * sin((Time - Warp.z) * 0.94) * 0.065;
     gl_Position = project(camera, position);
     toEye = camera.eye - position;
 #endif

@@ -1,6 +1,8 @@
 {
-  "kwrg.title.name": "CREATION CORE",
-  "kwrg.title.subtitle": "Kwrg Client",
+  "kwrg.title.name": "Kwrg Client",
+  "kwrg.title.subtitle": "Hello World",
+  "kwrg.title.open_classic": "Enter the main menu",
+  "kwrg.title.open_custom": "Return to the 3D menu",
   "kwrg.title.board": "KWRG / WORLD SANDBOX",
   "kwrg.title.matrix": "KWRG / SIGNAL MATRIX",
   "kwrg.title.empty": "No worlds yet"
