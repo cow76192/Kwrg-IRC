@@ -1,7 +1,6 @@
 package me.cookie.kwrg.mixin;
 
 import me.cookie.kwrg.irc.IrcClient;
-import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import me.cookie.kwrg.module.modules.functions.AutoPurchasePassModule;
 import me.cookie.kwrg.module.modules.functions.ChatSuffixModule;
@@ -55,12 +54,12 @@ public abstract class ClientPacketListenerMixin {
             String sub = lower.substring(5).trim();
             if (sub.equals("irc")) {
                 IrcClient.isIrcChatActive = true;
-                IrcMessageHandler.printMessage("§a[IRC] 已切换至 IRC 聊天频道!");
+                ChatNotifier.sendInChatScreen("§a[IRC] 已切换至 IRC 聊天频道!");
                 ci.cancel();
             } else {
                 if (IrcClient.isIrcChatActive) {
                     IrcClient.isIrcChatActive = false;
-                    IrcMessageHandler.printMessage("§e[IRC] 已退出 IRC 频道");
+                    ChatNotifier.sendInChatScreen("§e[IRC] 已退出 IRC 频道");
                 }
             }
         }

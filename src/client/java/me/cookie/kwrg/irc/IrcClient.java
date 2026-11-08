@@ -329,7 +329,7 @@ public class IrcClient {
         if (isRunning) {
             sendRaw(GSON.toJson(json));
         } else {
-            IrcMessageHandler.printMessage("§c[IRC] 发送失败：未连接至 IRC 服务器！正在尝试连接...");
+            ChatNotifier.sendInChatScreen("§c[IRC] 发送失败：未连接至 IRC 服务器！正在尝试连接...");
             connect();
         }
     }
@@ -348,7 +348,7 @@ public class IrcClient {
         if (isRunning) {
             sendRaw(GSON.toJson(json));
         } else {
-            IrcMessageHandler.printMessage("§c[IRC] 发送失败：未连接至 IRC 服务器，正在尝试连接...");
+            ChatNotifier.sendInChatScreen("§c[IRC] 发送失败：未连接至 IRC 服务器，正在尝试连接...");
             connect();
         }
     }
@@ -391,7 +391,7 @@ public class IrcClient {
         if (isRunning) {
             sendRaw(GSON.toJson(json));
         } else {
-            IrcMessageHandler.printMessage("§c[IRC] 发送失败：未连接至 IRC 服务器！正在尝试连接...");
+            ChatNotifier.sendInChatScreen("§c[IRC] 发送失败：未连接至 IRC 服务器！正在尝试连接...");
             connect();
         }
     }
@@ -509,7 +509,7 @@ public class IrcClient {
         if (isRunning) {
             sendRaw(GSON.toJson(json));
         } else {
-            IrcMessageHandler.printMessage("§c[IRC] 发送失败：未连接至 IRC 服务器，正在尝试连接...");
+            ChatNotifier.sendInChatScreen("§c[IRC] 发送失败：未连接至 IRC 服务器，正在尝试连接...");
             connect();
         }
     }
@@ -659,7 +659,7 @@ public class IrcClient {
             json.addProperty("type", "query_online");
             sendRaw(GSON.toJson(json));
         } else {
-            IrcMessageHandler.printMessage("§c[IRC] 未连接至 IRC 服务器，正在尝试连接...");
+            ChatNotifier.sendInChatScreen("§c[IRC] 未连接至 IRC 服务器，正在尝试连接...");
             connect();
         }
     }

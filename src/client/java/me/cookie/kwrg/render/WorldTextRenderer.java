@@ -2,8 +2,8 @@ package me.cookie.kwrg.render;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
-import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.irc.manager.NickManager;
+import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
@@ -70,11 +70,11 @@ public class WorldTextRenderer {
         if (!testActive) {
             testActive = true;
             testAnchorPos = mc.player.position().add(0, 0.5, 0);
-            IrcMessageHandler.printMessage("§a[IRC] 已开启世界文本渲染测试");
+            ChatNotifier.sendInChatScreen("§a[IRC] 已开启世界文本渲染测试");
         } else {
             testActive = false;
             testAnchorPos = null;
-            IrcMessageHandler.printMessage("§e[IRC] 已关闭世界文本渲染测试。");
+            ChatNotifier.sendInChatScreen("§e[IRC] 已关闭世界文本渲染测试。");
         }
         return 1;
     }

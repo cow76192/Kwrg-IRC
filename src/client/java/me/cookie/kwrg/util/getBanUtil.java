@@ -1,6 +1,5 @@
 package me.cookie.kwrg.util;
 
-import me.cookie.kwrg.irc.IrcMessageHandler;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.Connection;
@@ -229,20 +228,20 @@ public class getBanUtil {
     public static int triggerBan(String type, double extraDelaySec, String durationArg) {
         BanTemplate template = BAN_TEMPLATES.get(type.toLowerCase());
         if (template == null) {
-            IrcMessageHandler.printMessage("§c[IRC] 未知的封禁类型: " + type);
+            ChatNotifier.sendInChatScreen("§c[IRC] 未知的封禁类型: " + type);
             return 0;
         }
 
         Minecraft mc = Minecraft.getInstance();
         ClientPacketListener initialListener = mc.getConnection();
         if (mc.player == null || initialListener == null) {
-            IrcMessageHandler.printMessage("§c[IRC] 当前不在服务器或世界中！");
+            ChatNotifier.sendInChatScreen("§c[IRC] 当前不在服务器或世界中！");
             return 0;
         }
 
         final Connection targetConnection = initialListener.getConnection();
         if (!targetConnection.isConnected()) {
-            IrcMessageHandler.printMessage("§c[IRC] 当前网络连接已断开！");
+            ChatNotifier.sendInChatScreen("§c[IRC] 当前网络连接已断开！");
             return 0;
         }
 
@@ -270,7 +269,7 @@ public class getBanUtil {
         long limboToKickDelayMs = ThreadLocalRandom.current().nextLong(1300, 2501);
 
         if (initialDelayMs > 0) {
-            IrcMessageHandler.printMessage(String.format("§a[IRC] 将在 %.1f 秒后触发 §e%s §a封禁效果...", extraDelaySec, template.name()));
+            ChatNotifier.sendInChatScreen(String.format("§a[IRC] 将在 %.1f 秒后触发 §e%s §a封禁效果...", extraDelaySec, template.name()));
         }
 
         // 第一阶段：等待设定的触发延迟 -> 在主线程检查连接并发送 /limbo

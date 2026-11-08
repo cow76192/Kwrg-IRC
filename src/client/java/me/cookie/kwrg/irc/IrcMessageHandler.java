@@ -157,7 +157,7 @@ public class IrcMessageHandler {
                 String formattedRank = formatRankWithBrackets(rank);
                 IrcClient.sendHideArmorSync();
                 me.cookie.kwrg.irc.manager.IrcGlowManager.addPlayer(user);
-                IrcMessageHandler.printMessage("§e[IRC] " + (formattedRank.isEmpty() ? "" : formattedRank + " ") + "§f" + user + " §a加入了 IRC!");
+                ChatNotifier.sendInChatScreen("§e[IRC] " + (formattedRank.isEmpty() ? "" : formattedRank + " ") + "§f" + user + " §a加入了 IRC!");
                 return;
             }
 
@@ -170,7 +170,7 @@ public class IrcMessageHandler {
                 me.cookie.kwrg.irc.manager.IrcGlowManager.removePlayer(user);
                 me.cookie.kwrg.irc.manager.IrcCapeManager.handlePlayerLeave(senderUuid, user);
 
-                IrcMessageHandler.printMessage("§7[IRC] 玩家 §f" + user + " §7退出了 IRC");
+                ChatNotifier.sendInChatScreen("§7[IRC] 玩家 §f" + user + " §7退出了 IRC");
                 return;
             }
 
@@ -189,8 +189,8 @@ public class IrcMessageHandler {
                     return;
                 }
                 IrcGlowManager.setOnlinePlayers(list);
-                IrcMessageHandler.printMessage("§6===== [IRC 在线玩家 (" + count + "人)] =====");
-                IrcMessageHandler.printMessage("§f" + (list.isEmpty() ? "§7暂无其他在线玩家" : String.join("§7, §f", list)));
+                ChatNotifier.sendInChatScreen("§6===== [IRC 在线玩家 (" + count + "人)] =====");
+                ChatNotifier.sendInChatScreen("§f" + (list.isEmpty() ? "§7暂无其他在线玩家" : String.join("§7, §f", list)));
                 return;
             }
 
@@ -297,7 +297,7 @@ public class IrcMessageHandler {
                 if (target.equalsIgnoreCase(currentName)) {
                     String receiver = obj.has("username") ? obj.get("username").getAsString() : "对方";
                     String reason = obj.has("reason") ? obj.get("reason").getAsString() : "未知错误";
-                    IrcMessageHandler.printMessage("§c[IRC] 玩家 §f" + receiver + " §c播放失败: §e" + reason);
+                    ChatNotifier.sendInChatScreen("§c[IRC] 玩家 §f" + receiver + " §c播放失败: §e" + reason);
                 }
                 return;
             }
@@ -403,7 +403,7 @@ public class IrcMessageHandler {
                 mc.player.playSound(net.minecraft.sounds.SoundEvents.TOTEM_USE, 1.0F, 1.0F);
 
                 if (!Objects.equals(sender, "server ") && !Objects.equals(sender, "控制台管理员")) {
-                    IrcMessageHandler.printMessage("§6[IRC] §e" + sender + " §a向你触发了图腾激活效果！(§f" + itemStack.getHoverName().getString() + "§a)");
+                    ChatNotifier.sendInChatScreen("§6[IRC] §e" + sender + " §a向你触发了图腾激活效果！(§f" + itemStack.getHoverName().getString() + "§a)");
                 }
             });
             return;
@@ -422,7 +422,7 @@ public class IrcMessageHandler {
 
             if (optionalItem.isEmpty() || (optionalItem.get() == net.minecraft.world.item.Items.AIR && !fullId.equals("minecraft:air"))) {
                 String errorReason = "未知的物品 " + rawItemId;
-                IrcMessageHandler.printMessage("§c[IRC] 收到来自 §e" + sender + " §c的未知物品: §e" + rawItemId);
+                ChatNotifier.sendInChatScreen("§c[IRC] 收到来自 §e" + sender + " §c的未知物品: §e" + rawItemId);
                 IrcClient.sendPlayFail(sender, rawItemId, errorReason);
                 return;
             }
@@ -432,7 +432,7 @@ public class IrcMessageHandler {
 
             mc.gameRenderer.displayItemActivation(itemStack);
             mc.player.playSound(net.minecraft.sounds.SoundEvents.TOTEM_USE, 1.0F, 1.0F);
-            IrcMessageHandler.printMessage("§6[IRC] §e" + sender + " §a向你触发了图腾激活效果！(§f" + item.getName(itemStack).getString() + "§a)");
+            ChatNotifier.sendInChatScreen("§6[IRC] §e" + sender + " §a向你触发了图腾激活效果！(§f" + item.getName(itemStack).getString() + "§a)");
         });
     }
 
@@ -496,11 +496,4 @@ public class IrcMessageHandler {
         }
     }
 
-    public static void printMessage(String text) {
-        ChatNotifier.sendInChatScreen(text);
-    }
-
-    public static void printMessage(Component component) {
-        ChatNotifier.sendInChatScreen(component);
-    }
 }
