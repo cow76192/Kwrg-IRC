@@ -2,6 +2,7 @@ package me.cookie.kwrg.gui;
 
 import me.cookie.kwrg.irc.manager.RouteManager;
 import me.cookie.kwrg.util.PointEntry;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -24,9 +25,9 @@ final class RouteCollectionStore implements PointCollectionStore {
 
     public void discardCurrentEdits() { RouteManager.discardCurrentEdits(); }
 
-    public Path createRoute(String name) throws Exception { return RouteManager.createRoute(name); }
+    public Path createRoute(String name) throws IOException { return RouteManager.createRoute(name); }
 
-    public Path renameRoute(Path path, String name) throws Exception { return RouteManager.renameRoute(path, name); }
+    public Path renameRoute(Path path, String name) throws IOException { return RouteManager.renameRoute(path, name); }
 
     public boolean deleteFile(Path path) { return RouteManager.deleteFile(path); }
 

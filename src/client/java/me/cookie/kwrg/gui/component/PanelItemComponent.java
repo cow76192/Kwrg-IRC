@@ -8,7 +8,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.minecraft.util.ARGB;
 import net.minecraft.util.Mth;
 
 import java.util.function.BiConsumer;
@@ -144,6 +143,13 @@ public class PanelItemComponent extends BaseGuiComponent {
         return FULL_FOOTPRINT;
     }
 
+    private static int lerpRgb(int from, int to, float t) {
+        int r = (int) Mth.lerp(t, (from >> 16) & 0xFF, (to >> 16) & 0xFF);
+        int g = (int) Mth.lerp(t, (from >> 8) & 0xFF, (to >> 8) & 0xFF);
+        int b = (int) Mth.lerp(t, from & 0xFF, to & 0xFF);
+        return (r << 16) | (g << 8) | b;
+    }
+
     public boolean isToggled() {
         return this.isItemActive();
     }
@@ -205,12 +211,8 @@ public class PanelItemComponent extends BaseGuiComponent {
 
         Color itemBg = AnimationUtil.withAlpha(this.rowBg(), currentBgAlpha);
 
-        int borderFrom = this.rowBg();
-        int borderTo = this.rowBorder();
-        int borderR = (int) Mth.lerp(this.activeAnimation, (borderFrom >> 16) & 0xFF, (borderTo >> 16) & 0xFF);
-        int borderG = (int) Mth.lerp(this.activeAnimation, (borderFrom >> 8) & 0xFF, (borderTo >> 8) & 0xFF);
-        int borderB = (int) Mth.lerp(this.activeAnimation, borderFrom & 0xFF, borderTo & 0xFF);
-        Color itemBorder = Color.ofArgb(ARGB.color(currentBorderAlpha, borderR, borderG, borderB));
+        int borderRgb = lerpRgb(this.rowBg(), this.rowBorder(), this.activeAnimation);
+        Color itemBorder = Color.ofArgb(AnimationUtil.argb(borderRgb, currentBorderAlpha));
 
         float curScale = (0.80f + 0.20f * spawnEase) * (1.0f - dismissEase * 0.20f);
         float cx = x + width / 2.0f;
@@ -256,11 +258,9 @@ public class PanelItemComponent extends BaseGuiComponent {
         if (this.type == ItemType.TOGGLE) {
             int mutedRgb = this.toggleOff();
             int activeRgb = this.toggleOn();
-            int dotR = (int) Mth.lerp(this.activeAnimation, (mutedRgb >> 16) & 0xFF, (activeRgb >> 16) & 0xFF);
-            int dotG = (int) Mth.lerp(this.activeAnimation, (mutedRgb >> 8) & 0xFF, (activeRgb >> 8) & 0xFF);
-            int dotB = (int) Mth.lerp(this.activeAnimation, mutedRgb & 0xFF, activeRgb & 0xFF);
-            Color dotColor = Color.ofArgb(ARGB.color((int) (255 * totalAlpha), dotR, dotG, dotB));
-            Color dotFade = AnimationUtil.withAlpha(ARGB.color(255, dotR, dotG, dotB), 0);
+            int dotRgb = lerpRgb(mutedRgb, activeRgb, this.activeAnimation);
+            Color dotColor = Color.ofArgb(AnimationUtil.argb(dotRgb, (int) (255 * totalAlpha)));
+            Color dotFade = AnimationUtil.withAlpha(dotRgb, 0);
             RenderUtil.drawAACircle(graphics, dotX, dotY, 2.5, dotColor, dotFade);
         } else if (this.hoverAnimation > 0.05f) {
             Color dotColor = AnimationUtil.withAlpha(this.dotHover(), (int) (160 * this.hoverAnimation * totalAlpha));

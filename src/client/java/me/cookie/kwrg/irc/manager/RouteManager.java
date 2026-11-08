@@ -692,13 +692,17 @@ public final class RouteManager {
     }
 
     private static void addCoordinate(JsonObject object, String key, String value) {
+        if (value == null) {
+            object.addProperty(key, "");
+            return;
+        }
         try {
             double coordinate = Double.parseDouble(value.trim());
             if (Double.isFinite(coordinate)) {
                 object.addProperty(key, coordinate);
                 return;
             }
-        } catch (Exception ignored) {
+        } catch (NumberFormatException ignored) {
         }
         object.addProperty(key, value == null ? "" : value);
     }

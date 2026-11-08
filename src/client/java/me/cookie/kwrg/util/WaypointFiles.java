@@ -125,7 +125,7 @@ public final class WaypointFiles {
                         syncDefault();
                     }
                 }
-                catch (Exception e) {
+                catch (IOException | RuntimeException e) {
                     LoggerFactory.getLogger(WaypointFiles.class).warn("无法加载点位文件 {}", path, e);
                 }
             }
@@ -214,10 +214,27 @@ public final class WaypointFiles {
     public static boolean saveDefault(Map<String, WaypointManager.WaypointEntry> saved) {
         ensure();
         Collection defaults = FILES.get(defaultFile());
+        List<PointEntry> snapshot = new ArrayList<>(defaults.points);
         // Incomplete rows cannot be represented by the legacy numeric editor; preserve them.
         defaults.points.removeIf(PointEntry::valid);
         saved.forEach((id, entry) -> defaults.points.add(fromSaved(id, entry)));
-        return save(defaultFile());
+        boolean savedOk;
+        try {
+            savedOk = save(defaultFile());
+        } catch (RuntimeException e) {
+            restoreDefaultPoints(defaults, snapshot);
+            throw e;
+        }
+        if (!savedOk) {
+            restoreDefaultPoints(defaults, snapshot);
+        }
+        return savedOk;
+    }
+
+    private static void restoreDefaultPoints(Collection target, List<PointEntry> snapshot) {
+        target.points.clear();
+        target.points.addAll(snapshot);
+        syncDefault();
     }
 
     private static PointEntry fromSaved(String id, WaypointManager.WaypointEntry saved) {
@@ -242,8 +259,18 @@ public final class WaypointFiles {
         if (isDefault(current) && file.points.size() >= WaypointManager.MAX_WAYPOINTS) {
             return;
         }
+        int index = file.points.size();
         file.points.add(new PointEntry("", "", "", ""));
-        saveCurrent();
+        boolean saved;
+        try {
+            saved = saveCurrent();
+        } catch (RuntimeException e) {
+            file.points.remove(index);
+            throw e;
+        }
+        if (!saved) {
+            file.points.remove(index);
+        }
     }
 
     public static boolean deleteAt(int index) {
@@ -254,12 +281,17 @@ public final class WaypointFiles {
         List<PointEntry> points = collection(current).points;
         PointEntry entry = points.get(index);
         points.remove(index);
-        if (saveCurrent()) {
-            return true;
+        boolean saved;
+        try {
+            saved = saveCurrent();
+        } catch (RuntimeException e) {
+            points.add(index, entry);
+            throw e;
         }
-
-        points.add(index, entry);
-        return false;
+        if (!saved) {
+            points.add(index, entry);
+        }
+        return saved;
     }
 
     public static Path create(String name) throws IOException {

@@ -45,6 +45,7 @@ public class NotificationToast {
     private final NotificationType type;
     private final Component titleComp;
     private final Component subtitleComp;
+    private final Component iconComponent;
     private final Runnable onClickAction;
     private final long totalDurationMs;
 
@@ -71,6 +72,7 @@ public class NotificationToast {
         this.type = type;
         this.titleComp = title != null ? title : Component.empty();
         this.subtitleComp = subtitle != null ? subtitle : Component.empty();
+        this.iconComponent = Component.literal(type.getIcon());
         this.onClickAction = onClickAction;
         this.totalDurationMs = durationMs;
         this.createTime = System.currentTimeMillis();
@@ -221,7 +223,7 @@ public class NotificationToast {
 
         float iconW = font.width(this.type.getIcon());
         int iconColor = AnimationUtil.withAlpha(accentRgb, (int) (255 * alpha)).argb();
-        RenderUtil.drawSmoothText(graphics, Component.literal(this.type.getIcon()), iconBadgeCX - iconW / 2.0f, -4.5f, 1.0f, iconColor);
+        RenderUtil.drawSmoothText(graphics, this.iconComponent, iconBadgeCX - iconW / 2.0f, -4.5f, 1.0f, iconColor);
 
         int textColor = AnimationUtil.withAlpha(0xFFFFFF, (int) (255 * alpha)).argb();
         RenderUtil.drawSmoothText(graphics, styledTitle, -halfW + 28, -4.5f, 1.0f, textColor);

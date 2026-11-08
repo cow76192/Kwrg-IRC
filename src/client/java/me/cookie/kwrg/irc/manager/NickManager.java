@@ -53,7 +53,7 @@ public class NickManager {
     public static HypixelRank getRank() {
         try {
             return HypixelRank.valueOf(NickModule.CONFIG.get().nickRank);
-        } catch (Exception e) {
+        } catch (IllegalArgumentException e) {
             return HypixelRank.MVP_PLUS;
         }
     }
@@ -67,7 +67,7 @@ public class NickManager {
         try {
             if ("GRAY".equals(NickModule.CONFIG.get().nickPlusColor)) return HypixelRank.PlusColor.DARK_GRAY;
             return HypixelRank.PlusColor.valueOf(NickModule.CONFIG.get().nickPlusColor);
-        } catch (Exception e) {
+        } catch (IllegalArgumentException e) {
             return HypixelRank.PlusColor.RED;
         }
     }
@@ -80,7 +80,7 @@ public class NickManager {
     public static HypixelRank.TagColor getTagColor() {
         try {
             return HypixelRank.TagColor.valueOf(NickModule.CONFIG.get().nickTagColor);
-        } catch (Exception e) {
+        } catch (IllegalArgumentException e) {
             return HypixelRank.TagColor.GOLD;
         }
     }

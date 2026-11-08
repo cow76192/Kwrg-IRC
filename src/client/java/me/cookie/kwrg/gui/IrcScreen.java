@@ -106,14 +106,6 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
             public boolean isInBoundingBox(double x, double y) {
                 return true;
             }
-
-            @Override
-            public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
-                graphics.disableScissor();
-                super.draw(graphics, mouseX, mouseY, partialTicks, delta);
-                var window = Minecraft.getInstance().getWindow();
-                graphics.enableScissor(0, 0, window.getGuiScaledWidth(), window.getGuiScaledHeight());
-            }
         });
     }
 

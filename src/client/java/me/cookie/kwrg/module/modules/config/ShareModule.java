@@ -19,6 +19,7 @@ import me.cookie.kwrg.module.modules.style.MessageStyleModule;
 import me.cookie.kwrg.module.modules.style.NameStyleModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
+import me.cookie.kwrg.util.SafePaths;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
@@ -230,7 +231,11 @@ public class ShareModule extends Module {
                     return;
                 }
                 try {
-                    var path = IrcConfig.getKwrgDir().resolve(state.payload + ".json");
+                    var path = SafePaths.resolveUnder(IrcConfig.getKwrgDir(), state.payload + ".json");
+                    if (path == null) {
+                        ChatNotifier.send("§c[Share] 非法配置名: " + state.payload, NotificationType.WARN);
+                        return;
+                    }
                     if (Files.exists(path)) {
                         String jsonStr = Files.readString(path);
                         JsonObject obj = JsonParser.parseString(jsonStr).getAsJsonObject();
@@ -239,8 +244,8 @@ public class ShareModule extends Module {
                         if (obj.has("guiFont")) {
                             String fontFile = obj.get("guiFont").getAsString();
                             if (fontFile != null && !fontFile.isBlank() && !FontManagerHelper.DEFAULT_FONT.equalsIgnoreCase(fontFile)) {
-                                Path fontPath = IrcConfig.getFontDir().resolve(fontFile);
-                                String fontHash = FontManagerHelper.calculateFileHash(fontPath);
+                                Path fontPath = SafePaths.resolveUnder(IrcConfig.getFontDir(), fontFile);
+                                String fontHash = fontPath == null ? "" : FontManagerHelper.calculateFileHash(fontPath);
                                 if (!fontHash.isEmpty()) {
                                     obj.addProperty("__fontHash", fontHash);
                                 }
@@ -250,7 +255,7 @@ public class ShareModule extends Module {
                         IrcClient.sendShare(targetPlayer, "share", "config", obj);
                         ChatNotifier.send("§a[Share] 已向 §f" + targetPlayer + " §a发送配置: §e" + state.payload, NotificationType.SUCCESS);
                     }
-                } catch (Exception e) {
+                } catch (java.io.IOException | RuntimeException e) {
                     ChatNotifier.send("§c[Share] 读取配置文件失败: " + e.getMessage(), NotificationType.ERR);
                 }
             }
@@ -327,7 +332,7 @@ public class ShareModule extends Module {
                     String matched = FontManagerHelper.findFontByHash(hash);
                     fontStatus = (matched != null) ? "§a匹配成功 (" + matched + ")" : "§c本地缺失 (跳过)";
                 }
-            } catch (Exception ignored) {}
+            } catch (RuntimeException ignored) {}
 
             String finalProfileName = profileName;
             String finalFontStatus = fontStatus;
@@ -374,7 +379,7 @@ public class ShareModule extends Module {
                 if (obj.has("content")) {
                     return obj.get("content").getAsString();
                 }
-            } catch (Exception ignored) {}
+            } catch (RuntimeException ignored) {}
         }
         return clean;
     }
@@ -430,8 +435,8 @@ public class ShareModule extends Module {
                                 font.guiFont = FontModule.CONFIG.get().guiFont;
                             }
                         } else {
-                            Path localPath = IrcConfig.getFontDir().resolve(originalFont);
-                            if (!Files.exists(localPath)) {
+                            Path localPath = SafePaths.resolveUnder(IrcConfig.getFontDir(), originalFont);
+                            if (localPath == null || !Files.exists(localPath)) {
                                 fontMatched = false;
                                 font.guiFont = FontModule.CONFIG.get().guiFont;
                             }
@@ -448,7 +453,7 @@ public class ShareModule extends Module {
                     } else {
                         ChatNotifier.send("§e[Share] 配置已导入，但未在本地 font 文件夹找到匹配的字体文件 (哈希不匹配)，已跳过字体加载！", NotificationType.WARN);
                     }
-                } catch (Exception e) {
+                } catch (java.io.IOException | RuntimeException e) {
                     ChatNotifier.send("§c[Share] 导入配置文件失败: " + e.getMessage(), NotificationType.ERR);
                 }
             }
