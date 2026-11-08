@@ -188,7 +188,10 @@ public class LoadModule extends Module {
 
                             btn.dismiss(() -> {
                                 try {
-                                    IrcConfig.deleteProfile(profileName);
+                                    if (!IrcConfig.deleteProfile(profileName)) {
+                                        ChatNotifier.send("§c[IRC] 删除失败：非法配置文件名 §f" + profileName, NotificationType.ERR);
+                                        return;
+                                    }
                                     ChatNotifier.send("§e[IRC] 已删除配置文件: §f" + profileName + ".json", NotificationType.SUCCESS);
 
                                     if (profileName.equalsIgnoreCase(IrcConfig.getCurrentProfileName())) {

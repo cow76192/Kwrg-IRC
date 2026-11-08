@@ -29,7 +29,7 @@ import java.util.UUID;
 public final class ConfigMigrator {
 
     private static final Gson BACKUP_GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final int MAX_BACKUPS = 10;
+    private static final int MAX_BACKUPS = 6;
 
     private ConfigMigrator() {
     }

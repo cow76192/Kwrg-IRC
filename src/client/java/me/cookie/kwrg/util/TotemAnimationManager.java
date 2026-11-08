@@ -129,7 +129,13 @@ public class TotemAnimationManager {
                     ChatNotifier.sendInChatScreen("§c[IRC] " + error);
                     me.cookie.kwrg.irc.IrcClient.sendPlayFail(sender, url, error);
                 }
-            } catch (java.io.IOException | InterruptedException | RuntimeException e) {
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                LOGGER.error("下载图片被中断", e);
+                String error = "图片下载被中断";
+                ChatNotifier.sendInChatScreen("§c[IRC] " + error);
+                me.cookie.kwrg.irc.IrcClient.sendPlayFail(sender, url, error);
+            } catch (java.io.IOException | RuntimeException e) {
                 LOGGER.error("下载图片异常", e);
                 String error = "图片无法下载: " + e.getMessage();
                 ChatNotifier.sendInChatScreen("§c[IRC] " + error);

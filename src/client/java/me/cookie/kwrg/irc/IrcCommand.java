@@ -27,6 +27,8 @@ import me.cookie.kwrg.module.modules.style.NameStyleModule;
 import me.cookie.kwrg.module.modules.style.RankModule;
 import me.cookie.kwrg.render.WorldTextRenderer;
 import me.cookie.kwrg.util.*;
+import me.cookie.kwrg.util.skyblock.SkyblockItemHelper;
+import me.cookie.kwrg.util.skyblock.SkyblockLocation;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.Minecraft;
@@ -49,7 +51,7 @@ public class IrcCommand {
     private static final SuggestionProvider<FabricClientCommandSource> ITEM_SUGGESTIONS = (context, builder) -> {
         String remaining = builder.getRemaining().toLowerCase();
 
-        for (String sbItem : me.cookie.kwrg.util.SkyblockItemHelper.getSuggestedIds()) {
+        for (String sbItem : SkyblockItemHelper.getSuggestedIds()) {
             if (sbItem.toLowerCase().startsWith(remaining)) {
                 builder.suggest(sbItem);
             }

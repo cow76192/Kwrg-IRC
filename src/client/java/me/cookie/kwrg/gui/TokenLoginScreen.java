@@ -17,9 +17,6 @@ public class TokenLoginScreen extends Screen {
     private EditBox tokenField;
     private Button saveButton;
 
-    private static final Component CURRENT_ACCOUNT_LABEL = Component.literal("§7当前登录账户信息:");
-    private static final Component NEW_TOKEN_LABEL = Component.literal("§7输入新 Token 切换账户:");
-
     private Component statusMessage = Component.empty();
     private boolean isVerifying = false;
     private CompletableFuture<AccountUtil.LoginResult> activeLoginFuture = null;
@@ -155,8 +152,8 @@ public class TokenLoginScreen extends Screen {
         int centerY = this.height / 2;
 
         graphics.centeredText(this.font, this.title, centerX, centerY - 70, 0xFFFFFFFF);
-        graphics.text(this.font, CURRENT_ACCOUNT_LABEL, centerX - 150, centerY - 52, 0xFFAAAAAA);
-        graphics.text(this.font, NEW_TOKEN_LABEL, centerX - 150, centerY - 17, 0xFFAAAAAA);
+        graphics.text(this.font, Component.literal("§7当前登录账户信息:"), centerX - 150, centerY - 52, 0xFFAAAAAA);
+        graphics.text(this.font, Component.literal("§7输入新 Token 切换账户:"), centerX - 150, centerY - 17, 0xFFAAAAAA);
 
         if (!this.statusMessage.getString().isEmpty()) {
             graphics.centeredText(this.font, this.statusMessage, centerX, centerY + 55, 0xFFFFFFFF);

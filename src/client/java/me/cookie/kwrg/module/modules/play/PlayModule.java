@@ -11,7 +11,7 @@ import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.module.ModuleManager;
 import me.cookie.kwrg.util.ChatNotifier;
-import me.cookie.kwrg.util.SkyblockItemHelper;
+import me.cookie.kwrg.util.skyblock.SkyblockItemHelper;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 

@@ -38,6 +38,8 @@ public class IrcConfig {
             "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9"
     );
 
+    private static boolean suppressSelectorWrite;
+
     private static final ScheduledExecutorService SAVE_EXECUTOR = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "kwrg-config-saver");
         t.setDaemon(true);
@@ -155,6 +157,30 @@ public class IrcConfig {
         return clean;
     }
 
+    private static boolean isValidProfileName(String clean) {
+        if (clean == null || clean.isEmpty() || clean.length() > 64) {
+            return false;
+        }
+        if (clean.equals(".") || clean.equals("..") || clean.contains("..")) {
+            return false;
+        }
+        if (clean.endsWith(".")) {
+            return false;
+        }
+        if (RESERVED_PROFILE_NAMES.contains(clean.toUpperCase(Locale.ROOT))
+                || me.cookie.kwrg.util.SafePaths.isReservedDeviceName(clean)) {
+            return false;
+        }
+        for (int i = 0; i < clean.length(); i++) {
+            char c = clean.charAt(i);
+            if (c < 0x20 || c == '<' || c == '>' || c == ':' || c == '"'
+                    || c == '|' || c == '?' || c == '*' || c == '/' || c == '\\') {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private static class ProfileSelector {
         String selected = "default";
     }
@@ -167,23 +193,31 @@ public class IrcConfig {
             if (Files.exists(metaPath)) {
                 ProfileSelector selector = GSON.fromJson(Files.readString(metaPath), ProfileSelector.class);
                 if (selector != null && selector.selected != null && !selector.selected.isBlank()) {
-                    String normalized = sanitizeProfileName(selector.selected);
-                    if (normalized != null) {
-                        selected = normalized;
+                    String candidate = selector.selected.strip();
+                    if (isValidProfileName(candidate)) {
+                        selected = candidate;
+                    } else {
+                        suppressSelectorWrite = true;
+                        LOGGER.warn("[Kwrg] config.json 记录的配置文件名非法，已忽略且不覆盖原记录: {}", selector.selected);
                     }
                 }
             }
 
-            if (loadProfile(selected, true)) return;
+            if (loadProfile(selected, true)) {
+                suppressSelectorWrite = false;
+                return;
+            }
+            suppressSelectorWrite = false;
         } catch (IOException | RuntimeException e) {
+            suppressSelectorWrite = false;
             LOGGER.error("[Kwrg] 初始化读取配置文件失败，启用内存默认配置", e);
         }
         activate(new IrcConfig(null), "default");
     }
 
     public static synchronized boolean loadProfile(String profileName, boolean createIfMissing) {
-        String cleanName = sanitizeProfileName(profileName);
-        if (cleanName == null) {
+        String cleanName = profileName == null ? null : profileName.strip();
+        if (cleanName == null || !isValidProfileName(cleanName)) {
             LOGGER.warn("[Kwrg] 非法配置文件名，已拒绝加载: {}", profileName);
             return false;
         }
@@ -196,7 +230,7 @@ public class IrcConfig {
                 JsonObject rawConfig = GSON.fromJson(Files.readString(profilePath), JsonObject.class);
                 IrcConfig loaded = parse(rawConfig);
                 activate(loaded, cleanName);
-                saveSelectorMeta(cleanName);
+                if (!suppressSelectorWrite) saveSelectorMeta(cleanName);
                 if (rawConfig != null && !loaded.source.equals(rawConfig)) {
                     try {
                         writeProfile(cleanName, GSON.toJson(loaded.source));
@@ -211,7 +245,7 @@ public class IrcConfig {
                 IrcConfig profile = new IrcConfig(null);
                 writeProfile(cleanName, profile.toJson());
                 activate(profile, cleanName);
-                saveSelectorMeta(cleanName);
+                if (!suppressSelectorWrite) saveSelectorMeta(cleanName);
                 return true;
             }
         } catch (IOException | RuntimeException e) {
@@ -249,16 +283,18 @@ public class IrcConfig {
         saveSelectorMeta(cleanName);
     }
 
-    public static synchronized void deleteProfile(String profileName) throws IOException {
-        String cleanName = sanitizeProfileName(profileName);
-        if (cleanName == null) {
-            return;
+    public static synchronized boolean deleteProfile(String profileName) throws IOException {
+        String cleanName = profileName == null ? null : profileName.strip();
+        if (cleanName == null || !isValidProfileName(cleanName)) {
+            LOGGER.warn("[Kwrg] 非法配置文件名，已拒绝删除: {}", profileName);
+            return false;
         }
         Files.deleteIfExists(getProfilePath(cleanName));
         if (cleanName.equalsIgnoreCase(currentProfileName)) {
             cancelPendingSave();
             dirty = false;
         }
+        return true;
     }
 
     private static void activate(IrcConfig profile, String name) {
@@ -280,8 +316,8 @@ public class IrcConfig {
 
     public static synchronized boolean save() {
         cancelPendingSave();
-        String cleanName = sanitizeProfileName(currentProfileName);
-        if (cleanName == null) {
+        String cleanName = currentProfileName == null ? null : currentProfileName.strip();
+        if (cleanName == null || !isValidProfileName(cleanName)) {
             dirty = true;
             LOGGER.error("[Kwrg] 当前配置文件名非法，已拒绝保存: {}", currentProfileName);
             return false;

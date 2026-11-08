@@ -62,6 +62,11 @@ public class ServerPackManager {
         String expectedPackId = "file/" + newPackFileName;
 
         boolean fileExists = Files.exists(targetZip) && targetZip.toFile().length() > 0;
+        if (fileExists && supportedDigest(hash) && !matchesDigest(targetZip, hash)) {
+            LOGGER.warn("[Kwrg] 材质包缓存摘要不符，删除后重新下载: {}", newPackFileName);
+            deleteQuietly(targetZip);
+            fileExists = false;
+        }
         boolean isAlreadyActive = mc.options.resourcePacks.contains(expectedPackId);
 
         if (fileExists && isAlreadyActive) {
@@ -153,6 +158,22 @@ public class ServerPackManager {
             return "SHA-1";
         }
         return hash.length() == 64 ? "SHA-256" : null;
+    }
+
+    private static boolean matchesDigest(Path file, String expected) {
+        try {
+            MessageDigest digest = digestFor(expected);
+            try (InputStream in = Files.newInputStream(file);
+                 DigestInputStream stream = new DigestInputStream(in, digest)) {
+                byte[] buffer = new byte[8192];
+                while (stream.read(buffer) != -1) {
+                }
+            }
+            return HexFormat.of().formatHex(digest.digest()).equalsIgnoreCase(expected);
+        } catch (IOException e) {
+            LOGGER.warn("[Kwrg] 材质包缓存摘要计算失败: {}", file, e);
+            return false;
+        }
     }
 
     private static boolean copyChunked(InputStream in, Path target, String expected) throws IOException {

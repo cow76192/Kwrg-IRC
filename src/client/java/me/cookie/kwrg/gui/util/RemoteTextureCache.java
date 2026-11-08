@@ -124,7 +124,11 @@ public final class RemoteTextureCache {
                 }
             });
             handedOver = true;
-        } catch (java.io.IOException | InterruptedException | RuntimeException e) {
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.err.println("[KWRG Remote] load failed: " + url + " (" + e + ")");
+            FAILED_AT.put(url, System.currentTimeMillis());
+        } catch (java.io.IOException | RuntimeException e) {
             System.err.println("[KWRG Remote] load failed: " + url + " (" + e + ")");
             FAILED_AT.put(url, System.currentTimeMillis());
         } finally {

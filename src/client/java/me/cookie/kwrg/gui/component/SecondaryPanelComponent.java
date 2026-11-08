@@ -25,7 +25,6 @@ public class SecondaryPanelComponent extends FlowLayout {
     private final String categoryTitle;
     private final Identifier iconTexture;
     private final Component titleComponent;
-    private final boolean hasIcon;
     private final StackLayout rootContainer;
     private final SmoothScrollbar scrollbar = new SmoothScrollbar();
 
@@ -50,7 +49,6 @@ public class SecondaryPanelComponent extends FlowLayout {
         this.rootContainer = rootContainer;
         this.iconTexture = Identifier.fromNamespaceAndPath("kwrg", "textures/gui/buttons/" + categoryTitle.toLowerCase(Locale.ROOT) + ".png");
         this.titleComponent = Component.literal(Character.toUpperCase(this.categoryTitle.charAt(0)) + this.categoryTitle.substring(1));
-        this.hasIcon = Minecraft.getInstance().getResourceManager().getResource(this.iconTexture).isPresent();
 
         this.positioning(Positioning.relative(50, 50));
         this.padding(Insets.of(52, 10, 10, 10));
@@ -229,7 +227,8 @@ public class SecondaryPanelComponent extends FlowLayout {
         graphics.drawCircle(iconBadgeX, iconBadgeY, 32, iconBadgeRadius, badgeBg);
         graphics.drawRing(iconBadgeX, iconBadgeY, 32, iconBadgeRadius - 0.8, iconBadgeRadius, badgeOutline, badgeOutline);
 
-        if (this.hasIcon) {
+        boolean hasIcon = Minecraft.getInstance().getResourceManager().getResource(this.iconTexture).isPresent();
+        if (hasIcon) {
             int iconSize = 16;
             graphics.blit(RenderPipelines.GUI_TEXTURED, this.iconTexture, iconBadgeX - iconSize / 2, iconBadgeY - iconSize / 2, 0, 0, iconSize, iconSize, 512, 512);
         }

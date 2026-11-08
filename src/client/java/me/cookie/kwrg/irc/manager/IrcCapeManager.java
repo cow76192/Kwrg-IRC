@@ -242,6 +242,10 @@ public class IrcCapeManager {
     }
 
     private static String resolveCacheFileName(String hash, String originalName) {
+        if (hash == null || !SafePaths.isHexId(hash) || (hash.length() != 40 && hash.length() != 64)) {
+            LOGGER.warn("[Kwrg] 披风哈希非法（需 40/64 位十六进制），已丢弃: {}", hash);
+            return null;
+        }
         StringBuilder suffix = new StringBuilder();
 
         int frames = PlayerCustomizationManager.getCapeFrameCount(originalName);
