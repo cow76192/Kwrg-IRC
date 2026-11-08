@@ -40,6 +40,9 @@ public abstract class LoadingOverlayMixin {
         }
         kwrg$frameTime = now;
         kwrg$useShaders = LoadingOverlayRenderer.prepare();
+        if (kwrg$useShaders) {
+            LoadingOverlayRenderer.setLoadingFade(kwrg$fadeOut());
+        }
         return now;
     }
 
@@ -72,8 +75,7 @@ public abstract class LoadingOverlayMixin {
             return;
         }
 
-        float fadeOut = fadeOutStart < 0L ? -1.0f
-                : (kwrg$frameTime - fadeOutStart) / (float) LoadingOverlay.FADE_OUT_TIME;
+        float fadeOut = kwrg$fadeOut();
         if (fadeOut >= 2.0f) {
             return;
         }
@@ -88,6 +90,11 @@ public abstract class LoadingOverlayMixin {
         LoadingOverlayRenderer.submit(kwrg$animationNanos / 1_000_000_000.0f,
                 progress, fadeIn, Math.max(0.0f, fadeOut - 1.0f), charge,
                 kwrg$mouseX, kwrg$mouseY, kwrg$mouseMotion);
+    }
+
+    @Unique
+    private float kwrg$fadeOut() {
+        return fadeOutStart < 0L ? -1.0f : (kwrg$frameTime - fadeOutStart) / (float) LoadingOverlay.FADE_OUT_TIME;
     }
 
     @Unique

@@ -15,6 +15,15 @@
 		"MouseHandlerMixin",
 		"GameRendererMixin",
 		"LoadingOverlayMixin",
+		"TitleScreenMixin",
+		"TitleButtonMixin",
+		"TitleBrowserScreenMixin",
+		"TitleBrowserNavigationMixin",
+		"TitleBrowserListMixin",
+		"TitleBrowserRowWidthMixin",
+		"TitleBrowserWorldListMixin",
+		"TitleBrowserWorldEntryMixin",
+		"TitleBrowserServerEntryMixin",
 		"AtlasManagerMixin",
 		"TextureAtlasMixin",
 		"HudNotificationMixin",
@@ -44,7 +53,8 @@
 		"accessor.FontPreparationAccessor",
 		"accessor.FontSetAccessor",
 		"accessor.MinecraftAccessor",
-		"accessor.NativeImageAccessor"
+		"accessor.NativeImageAccessor",
+		"accessor.TitleBrowserServerPoolAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1

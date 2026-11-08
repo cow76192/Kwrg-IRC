@@ -23,15 +23,19 @@ vec3 facePoint(int faceIndex, vec2 corner) {
 const int EDGE_COUNT = 12;
 const int LINES_PER_AXIS = GRID_SIZE - 1;
 
-vec4 linePosition(Camera camera, vec3 start, vec3 end) {
-    float scale = HALF_EDGE * 1.075 * blockScale();
-    vec4 a = project(camera, start * scale);
-    vec4 b = project(camera, end * scale);
+vec4 projectLine(Camera camera, vec3 start, vec3 end, float width) {
+    vec4 a = project(camera, start);
+    vec4 b = project(camera, end);
     vec2 pixels = (b.xy / b.w - a.xy / a.w) * Viewport.xy;
     vec2 perpendicular = vec2(-pixels.y, pixels.x) / max(length(pixels), 0.001);
     vec4 clip = mix(a, b, faceUv.x);
-    clip.xy += perpendicular / Viewport.xy * (faceUv.y * 2.0 - 1.0) * (1.75 * clip.w);
+    clip.xy += perpendicular / Viewport.xy * (faceUv.y * 2.0 - 1.0) * (width * clip.w);
     return clip;
+}
+
+vec4 linePosition(Camera camera, vec3 start, vec3 end) {
+    float scale = HALF_EDGE * 1.075 * blockScale();
+    return projectLine(camera, start * scale, end * scale, 1.75);
 }
 
 vec4 gridLine(Camera camera, int index) {
@@ -84,6 +88,34 @@ void main() {
         depth = gl_Position.w;
         return;
     }
+    if (index < int(RingLines)) {
+        kind = 0;
+        const float SEGMENTS = 64.0;
+        bool tick = index >= int(SEGMENTS);
+        float slot = tick ? float(index - int(SEGMENTS)) * 2.0 : float(index);
+        float a = slot * TAU / SEGMENTS + Time * 0.23;
+        float b = a + (tick ? 0.0 : TAU / SEGMENTS);
+        vec3 start = vec3(cos(a), cos(a) * 0.24, sin(a)) * (tick ? 1.48 : 1.53);
+        vec3 end = vec3(cos(b), cos(b) * 0.24, sin(b)) * (tick ? 1.67 : 1.53);
+        tint = vec4(1.0, 0.52, 0.20, Theme.z * (tick ? 0.66 : 0.37));
+        gl_Position = linePosition(camera, start, end);
+        depth = gl_Position.w;
+        return;
+    }
+    index -= int(RingLines);
+    if (index < int(Flight.w)) {
+        kind = 0;
+        float height = boardDeck() + 0.34 * Browser.x;
+        float extent = 0.64 * blockScale();
+        float slot = (float(index % 9) / 4.0 - 1.0) * extent;
+        vec3 start = index < 9 ? vec3(slot, height, -extent) : vec3(-extent, height, slot);
+        vec3 end = index < 9 ? vec3(slot, height, extent) : vec3(extent, height, slot);
+        tint = vec4(0.18, 0.84, 1.0, Browser.x * 0.33);
+        gl_Position = projectLine(camera, start, end, 1.15);
+        depth = gl_Position.w;
+        return;
+    }
+    index -= int(Flight.w);
     kind = 1;
     vec3 seed = randomSeed(float(index) + 7231.0);
     bool nearEye = index % 3 == 0;
@@ -93,7 +125,7 @@ void main() {
     vec2 offset = (base * vec2(1.25, 1.09) + drift - Viewport.zw * (nearEye ? 0.15 : 0.035))
             * layer / camera.focal;
     float size = (nearEye ? 0.05 : 0.13) * (0.62 + seed.y);
-    vec3 position = camera.back * (EYE_DISTANCE - layer) + camera.right * (offset.x + corner.x * size)
+    vec3 position = camera.eye - camera.back * layer + camera.right * (offset.x + corner.x * size)
             + camera.up * (offset.y + corner.y * size);
     vec3 color = mix(vec3(0.24, 0.40, 0.74), vec3(0.76, 0.58, 0.37), seed.x);
     tint = vec4(color, (nearEye ? 0.20 : 0.28) * (0.56 + 0.44 * seed.z));
@@ -104,7 +136,8 @@ void main() {
     localPosition = facePoint(face, corner) * HALF_EDGE;
     localPosition.y = -HALF_EDGE + (localPosition.y + HALF_EDGE) * (float(Groups.x) / float(GRID_SIZE));
     vec3 position = localPosition * blockScale();
+    position.y += Menu.y * sin(Time * 0.94) * 0.065;
     gl_Position = project(camera, position);
-    toEye = camera.back * EYE_DISTANCE - position;
+    toEye = camera.eye - position;
 #endif
 }

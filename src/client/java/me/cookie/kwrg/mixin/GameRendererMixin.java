@@ -27,6 +27,12 @@ public abstract class GameRendererMixin {
         LoadingOverlayRenderer.beginFrame();
     }
 
+    @Inject(method = "render", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/render/GuiRenderer;render(Lcom/mojang/blaze3d/buffers/GpuBufferSlice;)V"))
+    private void kwrg$drawTitleScene(CallbackInfo ci) {
+        LoadingOverlayRenderer.renderTitle(getMinecraft().getMainRenderTarget());
+    }
+
     @Inject(method = "render", at = @At(value = "INVOKE", shift = At.Shift.AFTER,
             target = "Lnet/minecraft/client/gui/render/GuiRenderer;render(Lcom/mojang/blaze3d/buffers/GpuBufferSlice;)V"))
     private void kwrg$drawLoadingOverlay(CallbackInfo ci) {

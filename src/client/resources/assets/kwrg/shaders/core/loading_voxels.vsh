@@ -35,7 +35,7 @@ vec3 repel(vec3 position, Camera camera) {
     }
     vec2 pointer = (Viewport.zw - camera.shift) / camera.focal;
     vec3 ray = normalize(camera.right * pointer.x + camera.up * pointer.y - camera.back);
-    vec3 offset = position - camera.back * EYE_DISTANCE;
+    vec3 offset = position - camera.eye;
     vec3 away = offset - ray * max(0.0, dot(ray, offset));
     float distance = length(away);
     return position + away / max(distance, 0.07) * (1.0 - smoothstep(0.06, 0.56, distance))
@@ -86,7 +86,22 @@ void main() {
     float opacity;
     float size;
 
-    if (Burst > 0.0) {
+    if (Menu.x > 0.5 && (Burst <= 0.0 || id >= SHELL_CELLS)) {
+        int mote = Burst > 0.0 ? id - SHELL_CELLS : id;
+        seed = randomSeed(float(mote) + 9211.0);
+        float phase = fract(seed.z + Time * (0.07 + seed.y * 0.10));
+        float angle = seed.x * TAU + Time * (0.18 + seed.z * 0.15) + phase * Theme.x;
+        float radius = 0.95 + seed.y * seed.y * 2.9 + Theme.w * (0.55 + phase * 1.85);
+        center = vec3(cos(angle) * radius, (seed.z * 2.0 - 1.0) * 2.5, sin(angle) * radius);
+        center.y = mix(center.y, -1.5 + phase * 3.8, Theme.x);
+        center += curlField(center * 0.67 + vec3(Time * 0.28)) * 0.20;
+        color = menuPalette(seed.z);
+        opacity = Menu.y * (0.24 + 0.58 * seed.x) * (1.0 - 0.57 * Theme.w)
+                * smoothstep(0.0, 0.12, phase) * (1.0 - smoothstep(0.85, 1.0, phase));
+        size = 0.011 + 0.023 * seed.y * seed.y;
+        emission = 0.28 + 0.42 * seed.z;
+        spin = 0.44;
+    } else if (Burst > 0.0) {
         bool shell = id < SHELL_CELLS;
         if (shell) {
             ivec3 cell = shellCell(id);
@@ -106,6 +121,11 @@ void main() {
         size = mix(shell ? GRID_STEP * 0.484 * blockScale() : 0.042,
                 0.018 + seed.z * 0.048, smoothstep(0.0, 0.31, Burst));
         opacity = (1.0 - smoothstep(0.45, 0.98, Burst)) * (shell ? 1.0 : smoothstep(0.01, 0.10, Burst));
+        if (Menu.x > 0.5) {
+            center += scatter * 0.13;
+            color = mix(vec3(0.16, 0.61, 0.87), burstColor, 0.70);
+            opacity *= smoothstep(0.0, 0.035, Burst);
+        }
         spin = smoothstep(0.0, 0.20, Burst);
         emission = 0.18 + heat * 0.45 + releasePulse() * 0.72 + chargeStrength() * 0.52;
     } else if (id < Groups.y) {
@@ -162,7 +182,7 @@ void main() {
         spin = 0.38;
     }
 
-    float depth = EYE_DISTANCE - dot(center, camera.back);
+    float depth = dot(camera.eye - center, camera.back);
     opacity *= smoothstep(0.27, 0.77, depth) * Opacity;
     if (opacity < 0.004) {
         gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
@@ -180,7 +200,7 @@ void main() {
     }
     vec3 position = center + vertex * size;
     gl_Position = project(camera, position);
-    toEye = camera.back * EYE_DISTANCE - position;
+    toEye = camera.eye - position;
     faceNormal = normal;
     voxelColor = vec4(color, opacity);
 }

@@ -42,12 +42,18 @@ public final class LoadingOverlayRenderer {
     private static final int ASSEMBLY_INFLOW = 640;
     private static final int STREAM_VOXELS = 112;
     private static final int ATMOSPHERE_VOXELS = 64;
+    private static final int MENU_VOXELS = 224;
+    private static final int MODEL_VOXELS = 9 * 9 * 11 + 96;
+    private static final int BEACON_VOXELS = 13;
+    private static final int PORTAL_VOXELS = 96;
+    private static final int BOARD_LINES = 18;
+    private static final int RING_LINES = 96;
     private static final int FRAME_EDGES = 12;
     private static final int GRID_LINES = 10 * (GRID_SIZE - 1);
     private static final float BUILD_START = 0.30f;
     private static final float BUILD_END = 0.80f;
     private static final int CUBE_INDICES = 36;
-    private static final int FRAME_UNIFORM_BYTES = 64;
+    private static final int FRAME_UNIFORM_BYTES = 256;
     private static final String FRAME_UNIFORM = "LoadingFrame";
     private static final ColorTargetState BLEND = new ColorTargetState(
             Optional.of(BlendFunction.TRANSLUCENT), ColorTargetState.WRITE_COLOR);
@@ -67,6 +73,9 @@ public final class LoadingOverlayRenderer {
             .withShaderDefine("HOLOGRAM")
             .withCull(false)
             .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+            .build();
+    private static final RenderPipeline TITLE_PROJECTION = pipeline("title_projection", "title_projection")
+            .withDepthStencilState(SOLID_DEPTH)
             .build();
     private static final List<RenderPipeline> PIPELINES = List.of(BACKGROUND, VOXELS, SHELL, HOLOGRAM);
 
@@ -97,6 +106,10 @@ public final class LoadingOverlayRenderer {
     }
 
     private static Frame frame;
+    private static TitleFrame title;
+    private static float loadingFade;
+    private static float titleTimeOffset;
+    private static boolean titleDrawn;
     private static MappableRingBuffer uniforms;
     private static GpuTexture depth;
     private static GpuTextureView depthView;
@@ -139,11 +152,17 @@ public final class LoadingOverlayRenderer {
         return ready;
     }
 
+    public static boolean prepareBrowser() {
+        return prepare() && RenderSystem.getDevice().precompilePipeline(TITLE_PROJECTION, SHADERS).isValid();
+    }
+
     public static void preload(RenderTarget target) {
         for (RenderPipeline pipeline : PIPELINES) {
             SHADERS.get(pipeline.getVertexShader(), ShaderType.VERTEX);
             SHADERS.get(pipeline.getFragmentShader(), ShaderType.FRAGMENT);
         }
+        SHADERS.get(TITLE_PROJECTION.getVertexShader(), ShaderType.VERTEX);
+        SHADERS.get(TITLE_PROJECTION.getFragmentShader(), ShaderType.FRAGMENT);
 
         GpuDevice device = RenderSystem.tryGetDevice();
         if (device != null && target != null && target.width > 0 && target.height > 0) {
@@ -154,6 +173,49 @@ public final class LoadingOverlayRenderer {
 
     public static void beginFrame() {
         frame = null;
+        title = null;
+        loadingFade = Float.NaN;
+        titleDrawn = false;
+    }
+
+    public static void setLoadingFade(float fade) {
+        loadingFade = fade;
+    }
+
+    public static float titleReveal() {
+        return Float.isNaN(loadingFade) ? 1.0f : smooth(0.14f, 0.82f, loadingFade - 1.0f);
+    }
+
+    public static void submitTitle(TitleFrame scene) {
+        title = scene;
+    }
+
+    public static void renderTitle(RenderTarget target) {
+        if (title == null || (!Float.isNaN(loadingFade) && loadingFade < 1.0f)) {
+            return;
+        }
+        Frame loading = frame;
+        frame = null;
+        float pan = loading == null ? 1.0f : smooth(0.02f, 0.90f, loading.burst());
+        if (loading != null) {
+            titleTimeOffset = loading.time() - title.time();
+        }
+        float time = title.time() + titleTimeOffset;
+        float mouseX = loading == null ? title.mouseX() : mix(loading.mouseX(), title.mouseX(), pan);
+        float mouseY = loading == null ? title.mouseY() : mix(loading.mouseY(), title.mouseY(), pan);
+        Frame combined = new Frame(time, 1.0f, 1.0f, loading == null ? 0.0f : loading.burst(),
+                loading == null ? 0.0f : loading.charge(), mouseX, mouseY, 0.0f);
+        drawScene(target, combined, title, pan);
+        titleDrawn = true;
+    }
+
+    private static float smooth(float from, float to, float value) {
+        float t = Math.clamp((value - from) / (to - from), 0.0f, 1.0f);
+        return t * t * (3.0f - 2.0f * t);
+    }
+
+    private static float mix(float from, float to, float t) {
+        return from + (to - from) * t;
     }
 
     public static void submit(float time, float progress, float opacity, float burst, float charge,
@@ -165,7 +227,11 @@ public final class LoadingOverlayRenderer {
         Frame current = frame;
         frame = null;
 
+        if (titleDrawn) {
+            return;
+        }
         if (current == null) {
+            titleTimeOffset = 0.0f;
             close();
             return;
         }
@@ -174,6 +240,10 @@ public final class LoadingOverlayRenderer {
             return;
         }
 
+        drawScene(target, current, null, 0.0f);
+    }
+
+    private static void drawScene(RenderTarget target, Frame current, TitleFrame menu, float pan) {
         float progress = current.progress();
         float layer = (progress - BUILD_START) * GRID_SIZE / (BUILD_END - BUILD_START);
         int rows = Math.clamp((int) layer, 0, GRID_SIZE);
@@ -184,30 +254,49 @@ public final class LoadingOverlayRenderer {
         int stream = progress >= 0.79f ? STREAM_VOXELS : 0;
         int lines = progress >= 0.17f ? FRAME_EDGES + (building ? GRID_LINES : 0) : 0;
         int particles = bursting ? SHELL_VOXELS + CORE_FRAGMENTS : active + inflow + stream;
+        if (menu != null) {
+            particles = MENU_VOXELS + (bursting ? SHELL_VOXELS : 0);
+        }
+        int ringLines = menu != null && menu.settings() * pan > 0.004f ? RING_LINES : 0;
+        BrowserFrame browser = menu == null ? BrowserFrame.NONE : menu.browser();
+        int boardLines = browser.camera() > 0.0f && !browser.network() && browser.model() == 0 ? BOARD_LINES : 0;
 
         GpuDevice device = RenderSystem.getDevice();
+        boolean drawProjection = browser.camera() > 0.0f && device.precompilePipeline(TITLE_PROJECTION, SHADERS).isValid();
         prepareBuffers(device, target.width, target.height);
         var encoder = device.createCommandEncoder();
         GpuBuffer uniform = uniforms.currentBuffer();
 
         try (var mapped = encoder.mapBuffer(uniform, false, true)) {
-            Std140Builder.intoBuffer(mapped.data())
+            Std140Builder data = Std140Builder.intoBuffer(mapped.data())
                     .putVec4(current.time(), current.progress(), current.opacity(), current.burst())
                     .putVec4(target.width, target.height, current.mouseX(), current.mouseY())
-                    .putVec4(current.charge(), current.mouseMotion(), layer - rows, 0.0f)
-                    .putIVec4(rows, active, inflow, lines);
+                    .putVec4(current.charge(), current.mouseMotion(), layer - rows, ringLines)
+                    .putIVec4(rows, active, inflow, lines)
+                    .putVec4(menu == null ? 0.0f : 1.0f, pan,
+                            menu == null ? 0.0f : menu.orbit() * pan, menu == null ? 0.0f : menu.compact())
+                    .putVec4(menu == null ? 0.0f : menu.solo() * pan, menu == null ? 0.0f : menu.network() * pan,
+                            menu == null ? 0.0f : menu.settings() * pan, menu == null ? 0.0f : menu.quit() * pan)
+                    .putVec4(browser.camera(), browser.network() ? 1.0f : 0.0f, browser.model(), browser.growth())
+                    .putVec4(browser.dive(), browser.selected(), browser.count(), boardLines);
+            int[] signals = browser.signals();
+            if (browser.count() > 0) {
+                for (int i = 0; i < signals.length; i += 4) {
+                    data.putIVec4(signals[i], signals[i + 1], signals[i + 2], signals[i + 3]);
+                }
+            }
         }
 
         var indices = RenderSystem.getSequentialBuffer(VertexFormat.Mode.TRIANGLES);
         GpuBuffer cubeIndices = indices.getBuffer(CUBE_INDICES);
         try (RenderPass pass = encoder.createRenderPass(() -> "KWRG loading overlay", target.getColorTextureView(),
                 OptionalInt.empty(), depthView, OptionalDouble.of(1.0))) {
-            if (current.burst() < 0.69f) {
+            if (menu != null || current.burst() < 0.69f) {
                 usePipeline(pass, BACKGROUND, uniform);
                 pass.draw(0, 3);
             }
 
-            if (rows > 0 && !bursting) {
+            if (rows > 0 && (menu != null || !bursting)) {
                 usePipeline(pass, SHELL, uniform);
                 pass.draw(0, CUBE_INDICES);
             }
@@ -216,9 +305,16 @@ public final class LoadingOverlayRenderer {
             usePipeline(pass, VOXELS, uniform);
             pass.drawIndexed(0, 0, CUBE_INDICES, particles);
 
-            if (current.burst() < 0.46f) {
+            if (drawProjection) {
+                int count = browser.network()
+                        ? browser.count() * BEACON_VOXELS + (browser.selected() >= 0 ? PORTAL_VOXELS : 0)
+                        : MODEL_VOXELS;
+                usePipeline(pass, TITLE_PROJECTION, uniform);
+                pass.drawIndexed(0, 0, CUBE_INDICES, LAYER_VOXELS + count);
+            }
+            if (menu != null || current.burst() < 0.46f) {
                 usePipeline(pass, HOLOGRAM, uniform);
-                pass.drawIndexed(0, 0, 6, lines + ATMOSPHERE_VOXELS);
+                pass.drawIndexed(0, 0, 6, lines + ringLines + boardLines + ATMOSPHERE_VOXELS);
             }
         }
         uniforms.rotate();
@@ -264,5 +360,14 @@ public final class LoadingOverlayRenderer {
 
     private record Frame(float time, float progress, float opacity, float burst, float charge,
                          float mouseX, float mouseY, float mouseMotion) {
+    }
+
+    public record TitleFrame(float time, float mouseX, float mouseY, float orbit, float compact,
+                             float solo, float network, float settings, float quit, BrowserFrame browser) {
+    }
+
+    public record BrowserFrame(float camera, boolean network, int model, float growth, float dive,
+                               int count, int selected, int[] signals) {
+        public static final BrowserFrame NONE = new BrowserFrame(0.0f, false, 0, 0.0f, 0.0f, 0, -1, new int[0]);
     }
 }
