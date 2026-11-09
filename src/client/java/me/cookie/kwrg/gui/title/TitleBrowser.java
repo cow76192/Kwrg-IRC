@@ -170,12 +170,15 @@ public final class TitleBrowser {
 
     private void resume(Minecraft game) {
         if (game.screen == title && !suspended) return;
+
         String selectedWorld = list instanceof WorldSelectionList worlds
                 && worlds.getSelected() instanceof WorldSelectionList.WorldListEntry row ? row.getLevelSummary().getLevelId() : null;
-        String selectedServer = list instanceof ServerSelectionList servers
-                && servers.getSelected() instanceof ServerSelectionList.OnlineServerEntry row ? row.getServerData().ip : null;
+        var selectedServer = list instanceof ServerSelectionList servers
+                && servers.getSelected() instanceof ServerSelectionList.OnlineServerEntry row ? row : null;
+        int selectedServerIndex = selectedServer == null ? -1 : list.children().indexOf(selectedServer);
         String search = panel.children().stream().filter(EditBox.class::isInstance)
                 .map(widget -> ((EditBox) widget).getValue()).findFirst().orElse("");
+
         Screen next = network ? new JoinMultiplayerScreen(title) : new SelectWorldScreen(title);
 
         game.setScreen(title);
@@ -184,13 +187,17 @@ public final class TitleBrowser {
         travelStart = Util.getMillis();
         install(next);
 
-        if (list instanceof ServerSelectionList servers && selectedServer != null) {
-            for (var row : servers.children()) {
-                if (row instanceof ServerSelectionList.OnlineServerEntry entry && selectedServer.equals(entry.getServerData().ip)) {
-                    servers.setSelected(row);
-                    resize(title.width, title.height);
-                    break;
-                }
+        if (list instanceof ServerSelectionList servers && selectedServerIndex >= 0
+                && selectedServerIndex < servers.children().size()
+                && servers.children().get(selectedServerIndex) instanceof ServerSelectionList.OnlineServerEntry entry) {
+            ServerData previous = selectedServer.getServerData();
+            ServerData restored = entry.getServerData();
+
+            // The saved order distinguishes duplicate addresses. The slot may have changed on disk.
+            if (previous.ip.equals(restored.ip) && previous.name.equals(restored.name)
+                    && previous.getResourcePackStatus() == restored.getResourcePackStatus()) {
+                servers.setSelected(entry);
+                resize(title.width, title.height);
             }
         } else if (list instanceof WorldSelectionList) {
             restoreWorld = selectedWorld;
@@ -293,10 +300,12 @@ public final class TitleBrowser {
     }
 
     public boolean dive(WorldSelectionList.WorldListEntry entry, Runnable action) {
-        if (!isActive(panel) || !(panel instanceof SelectWorldScreen) || !entry.getLevelSummary().primaryActionActive()) return false;
+        LevelSummary summary = entry.getLevelSummary();
+        if (!isActive(panel) || !(panel instanceof SelectWorldScreen) || summary.getSettings() == null
+                || !summary.primaryActionActive()) return false;
 
         if (enterWorld == null) {
-            selectWorld(entry.getLevelSummary(), Util.getMillis());
+            selectWorld(summary, Util.getMillis());
             diveStart = Util.getMillis();
             diveShown = false;
             enterWorld = action;
@@ -410,8 +419,14 @@ public final class TitleBrowser {
         String id = summary == null ? null : summary.getLevelId();
         if (Objects.equals(id, worldId)) return;
         worldId = id;
-        worldModel = summary == null ? 0 : summary.isHardcore() ? 3 : summary.getGameMode() == GameType.CREATIVE ? 2 : 1;
+        worldModel = worldModel(summary);
         selectionStart = now;
+    }
+
+    private static int worldModel(LevelSummary summary) {
+        if (summary == null || summary.getSettings() == null) return 0;
+        if (summary.isHardcore()) return 3;
+        return summary.getGameMode() == GameType.CREATIVE ? 2 : 1;
     }
 
     public void resize(int width, int height) {
@@ -538,8 +553,11 @@ public final class TitleBrowser {
         int accent = drawing.network ? NETWORK : SOLO;
 
         if (row instanceof WorldSelectionList.WorldListEntry world) {
-            var summary = world.getLevelSummary();
-            accent = summary.isHardcore() ? 0xF96A7C : summary.getGameMode() == GameType.CREATIVE ? 0xBD93FF : SOLO;
+            accent = switch (worldModel(world.getLevelSummary())) {
+                case 3 -> 0xF96A7C;
+                case 2 -> 0xBD93FF;
+                default -> SOLO;
+            };
         } else if (row instanceof ServerSelectionList.OnlineServerEntry server) {
             accent = switch (signal(server.getServerData())) {
                 case 1 -> SOLO;
