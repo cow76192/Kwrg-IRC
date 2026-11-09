@@ -4,6 +4,8 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.TracyFrameCapture;
+import com.mojang.blaze3d.textures.GpuTexture;
+import me.cookie.kwrg.CookieMain;
 import me.cookie.kwrg.irc.manager.DanceRoomManager;
 import me.cookie.kwrg.render.utils.LoadingAtlasUpload;
 import me.cookie.kwrg.render.utils.LoadingAudio;
@@ -12,6 +14,8 @@ import me.cookie.kwrg.render.utils.LoadingFramePacer;
 import me.cookie.kwrg.render.utils.LoadingShaderPipelines;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
+import net.minecraft.client.renderer.texture.TextureAtlas;
+import net.minecraft.data.AtlasIds;
 import net.minecraft.util.profiling.Profiler;
 import net.minecraft.util.thread.ReentrantBlockableEventLoop;
 import org.objectweb.asm.Opcodes;
@@ -31,6 +35,24 @@ public abstract class MinecraftTickMixin extends ReentrantBlockableEventLoop<Run
 
     protected MinecraftTickMixin(String name, boolean propagatesCrashes) {
         super(name, propagatesCrashes);
+    }
+
+    @Inject(method = "onGameLoadFinished", at = @At("TAIL"))
+    private void kwrg$reportStartupAtlas(CallbackInfo ci) {
+        Minecraft client = (Minecraft) (Object) this;
+        TextureAtlas atlas;
+        GpuTexture texture;
+        try {
+            atlas = client.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS);
+            texture = atlas.getTexture();
+        } catch (IllegalArgumentException | IllegalStateException ignored) {
+            return;
+        }
+        if (!texture.isClosed()) {
+            // PCL recognizes the atlas marker even when a console filter hides vanilla's allocation logs.
+            CookieMain.LOGGER.info("Startup resources ready. Created: {}x{}x{} {}-atlas",
+                    texture.getWidth(0), texture.getHeight(0), texture.getMipLevels() - 1, atlas.location());
+        }
     }
 
     @Inject(method = "runTick", at = @At("HEAD"))
