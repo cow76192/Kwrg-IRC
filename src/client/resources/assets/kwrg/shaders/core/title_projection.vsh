@@ -167,14 +167,18 @@ float selectedHeight(Camera camera, vec2 xz, float lift) {
 void beacon(Camera camera, int slot, int section, float lift) {
     int signal = beaconSignal(slot);
     bool selected = slot == int(Flight.y);
+    bool launching = slot == int(ServerFlight.y);
     vec2 xz = cellCenter(beaconCell(slot));
     vec3 color = signalTint(signal);
     float scale = selected ? 1.8 : 1.0;
     float jitter = signalJitter(slot, signal);
     float height = (selected ? selectedHeight(camera, xz, lift) : mix(0.63, 0.91, randomSeed(float(slot + 62)).x) * lift) * jitter;
+    if (launching) {
+        color = mix(color, vec3(0.41, 0.97, 1.7), 0.65);
+    }
     if (section == 0) {
         cube(camera, vec3(xz.x, boardDeck() + 0.075, xz.y), vec3(0.054, 0.024, 0.054), color, signal == 4 ? 0.0 : 0.52, 0.0);
-    } else if (signal == 4) {
+    } else if (signal == 4 && !launching) {
         skipVoxel();
     } else if (section == 1) {
         cube(camera, vec3(xz.x, boardDeck() + 0.10 + height * 0.5, xz.y),

@@ -18,5 +18,5 @@ void main() {
         color += vec3(0.03, 0.55, 0.78) * Browser.y * Browser.x * rim;
         color *= 1.0 - 0.18 * rim * (1.0 - Browser.y);
     }
-    fragColor = vec4(expose(color), 1.0);
+    fragColor = vec4(expose(color), 1.0 - smoothstep(0.02, 0.58, ServerFlight.x));
 }

@@ -9,7 +9,9 @@ public final class TitleModeTransition {
     private static final float ENTER_END = 0.74f;
     private static final float EXIT_END = 0.94f;
 
-    private boolean classic;
+    private static boolean preferredClassic;
+
+    private boolean classic = preferredClassic;
     private boolean switching;
     private long start;
     private float elapsed;
@@ -25,6 +27,7 @@ public final class TitleModeTransition {
         elapsed = (Util.getMillis() - start) * 0.001f;
         if (elapsed >= (classic ? EXIT_END : ENTER_END)) {
             classic = !classic;
+            preferredClassic = classic;
             switching = false;
         }
     }

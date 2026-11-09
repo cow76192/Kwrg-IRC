@@ -10,6 +10,7 @@ import me.cookie.kwrg.gui.title.TitleMenuUi;
 import me.cookie.kwrg.gui.title.TitleModeButton;
 import me.cookie.kwrg.gui.title.TitleModeTransition;
 import me.cookie.kwrg.render.LoadingOverlayRenderer;
+import me.cookie.kwrg.render.ServerPortalRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -225,7 +226,7 @@ public abstract class TitleScreenMixin extends Screen implements TitleBrowser.Ho
 
     @Override
     public boolean keyPressed(KeyEvent event) {
-        if (kwrg$mode.switching()) return true;
+        if (kwrg$mode.switching() || ServerPortalRenderer.returning((TitleScreen) (Object) this)) return true;
         Screen panel = kwrg$browser.inputPanel();
         if (panel != null) return panel.keyPressed(event);
 

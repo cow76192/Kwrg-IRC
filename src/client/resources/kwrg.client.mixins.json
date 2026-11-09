@@ -15,6 +15,10 @@
 		"MouseHandlerMixin",
 		"GameRendererMixin",
 		"LoadingOverlayMixin",
+		"warp.ConnectScreenMixin",
+		"warp.LevelLoadingScreenMixin",
+		"warp.DisconnectedScreenMixin",
+		"warp.WarpCameraMixin",
 		"title.TitleScreenMixin",
 		"title.TitleButtonMixin",
 		"title.TitleGuiRendererMixin",
@@ -56,7 +60,8 @@
 		"accessor.FontSetAccessor",
 		"accessor.MinecraftAccessor",
 		"accessor.NativeImageAccessor",
-		"accessor.TitleBrowserServerPoolAccessor"
+		"accessor.TitleBrowserServerPoolAccessor",
+		"accessor.TitleBrowserLanServerAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1

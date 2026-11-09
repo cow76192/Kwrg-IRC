@@ -43,7 +43,8 @@ void main() {
     float seam = 1.0 - smoothstep(0.014, 0.014 + aa * 0.68, edge);
     float bevel = clamp((1.0 - smoothstep(0.024, 0.13, edge)) * (1.0 - seam), 0.0, 1.0);
     float rim = fresnel(normal, toEye);
-    vec3 terrain = terrainColor(cell, normal, seed) * terrainLight(normal);
+    vec3 terrain = terrainColor(cell, normal, seed) * terrainLight(normal) * grassSurfaceShade(cell, normal);
+    terrain = portalGrass(terrain, localPosition, normal, seed, smoothstep(0.16, 0.75, ServerFlight.x));
     vec3 color = terrain * (1.0 - 0.56 * seam) + vec3(0.10, 0.21, 0.26) * (0.22 * bevel + 0.28 * rim);
 
     float distanceToCore = dot(localPosition, localPosition);
@@ -62,7 +63,7 @@ void main() {
         color *= 1.0 - 0.60 * Theme.w;
     }
     if (face == 2 && Browser.x > 0.0) {
-        float circuit = smoothstep(0.0, 0.60, Browser.x) * Browser.y;
+        float circuit = smoothstep(0.0, 0.60, Browser.x) * Browser.y * (1.0 - smoothstep(0.04, 0.76, ServerFlight.x));
         color = mix(color, vec3(0.044, 0.035, 0.11) + seam * vec3(0.07, 0.55, 0.80), circuit);
         float hardcore = step(2.5, Browser.z) * Browser.w * Browser.x;
         color = mix(color, vec3(0.14, 0.035, 0.06) + seam * vec3(0.48, 0.04, 0.08), hardcore);

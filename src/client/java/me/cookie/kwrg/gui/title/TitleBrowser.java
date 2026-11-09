@@ -1,7 +1,9 @@
 package me.cookie.kwrg.gui.title;
 
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
+import me.cookie.kwrg.mixin.accessor.TitleBrowserLanServerAccessor;
 import me.cookie.kwrg.render.LoadingOverlayRenderer;
+import me.cookie.kwrg.render.ServerPortalRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -50,6 +52,7 @@ public final class TitleBrowser {
 
     private static final long TRAVEL_MS = 600L;
     private static final long DIVE_MS = 500L;
+    private static final long LAUNCH_MS = 400L;
     private static final int SIGNAL_SLOTS = 256;
     private static final int SOLO = 0x79EDAB;
     private static final int NETWORK = 0xA48FFF;
@@ -80,6 +83,8 @@ public final class TitleBrowser {
     private Runnable enterWorld;
     private long diveStart;
     private boolean diveShown;
+    private ServerLaunch launch;
+    private float panelAlpha = 1.0f;
 
     public TitleBrowser(TitleScreen title) {
         this.title = title;
@@ -87,6 +92,28 @@ public final class TitleBrowser {
 
     public static TitleBrowser owner(Screen panel) {
         return ((Embedded) panel).kwrg$owner();
+    }
+
+    public static boolean ownsServerList(Screen screen) {
+        return screen instanceof JoinMultiplayerScreen && owner(screen) instanceof TitleBrowser browser
+                && browser.network && browser.panel == screen;
+    }
+
+    public static void returnFromPortal(Minecraft game, Screen previousList) {
+        TitleBrowser previous = previousList == null ? null : owner(previousList);
+        if (previous != null && previous.panel == previousList) {
+            ServerPortalRenderer.returnTo(previous.title);
+            previous.resume(game);
+            return;
+        }
+
+        TitleScreen title = new TitleScreen();
+        ServerPortalRenderer.returnTo(title);
+        game.setScreen(title);
+
+        TitleBrowser browser = ((Host) title).kwrg$browser();
+        browser.open(new JoinMultiplayerScreen(title), true);
+        browser.travelFrom = 1.0f;
     }
 
     // A vanilla dialog or a failed connection can return to its original list.
@@ -117,6 +144,7 @@ public final class TitleBrowser {
         travelStart = now;
         open = true;
         network = multiplayer;
+        if (multiplayer) ServerPortalRenderer.prepare();
         install(next);
     }
 
@@ -178,6 +206,7 @@ public final class TitleBrowser {
         travelStart = now;
         open = false;
         enterWorld = null;
+        cancelLaunch();
         release();
         panel = null;
         list = null;
@@ -186,7 +215,14 @@ public final class TitleBrowser {
     public void suspend() {
         release();
         enterWorld = null;
+        cancelLaunch();
         suspended = true;
+    }
+
+    private void cancelLaunch() {
+        if (launch == null) return;
+        launch = null;
+        ServerPortalRenderer.cancelLaunch(title);
     }
 
     public void returnedToTitle() {
@@ -213,7 +249,8 @@ public final class TitleBrowser {
     }
 
     public Screen inputPanel() {
-        return open && !suspended && enterWorld == null && travel(Util.getMillis()) > 0.53f ? panel : null;
+        return open && !suspended && enterWorld == null && launch == null && !ServerPortalRenderer.returning(title)
+                && travel(Util.getMillis()) > 0.53f ? panel : null;
     }
 
     public boolean isActive(Screen screen) {
@@ -224,7 +261,14 @@ public final class TitleBrowser {
         if (open && !suspended) {
             panel.tick();
             panel.handleDelayedNarration();
-            if (list instanceof ServerSelectionList servers) queuePings(servers);
+            if (launch == null && list instanceof ServerSelectionList servers) queuePings(servers);
+        }
+
+        if (launch != null && Util.getMillis() - launch.start() >= LAUNCH_MS) {
+            Runnable connect = launch.connect();
+            launch = null;
+            ServerPortalRenderer.handoff(panel);
+            connect.run();
         }
 
         if (enterWorld != null && diveShown) {
@@ -258,6 +302,31 @@ public final class TitleBrowser {
             enterWorld = action;
         }
         return true;
+    }
+
+    public boolean launch(Screen source, ServerData server, Runnable connect) {
+        if (!isActive(source) || !(list instanceof ServerSelectionList servers)) return false;
+
+        if (launch != null) return true;
+
+        var rows = servers.children();
+        for (int i = 0; i < rows.size(); i++) {
+            var row = rows.get(i);
+
+            boolean target = row instanceof ServerSelectionList.OnlineServerEntry online && online.getServerData() == server
+                    || row instanceof ServerSelectionList.NetworkServerEntry lan && server.type() == ServerData.Type.LAN
+                    && ((TitleBrowserLanServerAccessor) lan).kwrg$lanServer().getAddress().equals(server.ip);
+
+            if (!target) continue;
+            if (!ServerPortalRenderer.prepare()) return false;
+            servers.setSelected(row);
+            updateSignals(servers, i);
+
+            launch = new ServerLaunch(Util.getMillis(), selectedBeacon, connect);
+            ServerPortalRenderer.launch(title, source);
+            return true;
+        }
+        return false;
     }
 
     public float menuVisibility() {
@@ -299,32 +368,42 @@ public final class TitleBrowser {
             selectWorld(row instanceof WorldSelectionList.WorldListEntry entry ? entry.getLevelSummary() : null, now);
         }
 
-        if (open && list instanceof ServerSelectionList servers) {
-            Arrays.fill(signals, 0);
-            var rows = servers.children();
-            int selectedIndex = rows.indexOf(servers.getSelected());
-
-            int pageStart = Math.max(0, selectedIndex / SIGNAL_SLOTS * SIGNAL_SLOTS);
-            if (pageStart != beaconPage) {
-                beaconPage = pageStart;
-                pingCursor = pageStart;
-            }
-
-            beaconCount = 0;
-            selectedBeacon = -1;
-            for (int i = pageStart; i < rows.size() && beaconCount < SIGNAL_SLOTS; i++) {
-                var row = rows.get(i);
-                int signal = row instanceof ServerSelectionList.OnlineServerEntry server ? signal(server.getServerData())
-                        : row instanceof ServerSelectionList.NetworkServerEntry ? 5 : 0;
-                if (signal == 0) continue;
-                signals[beaconCount / 8] |= signal << (beaconCount % 8 * 4);
-                if (i == selectedIndex) selectedBeacon = beaconCount;
-                beaconCount++;
-            }
+        if (open && launch == null && list instanceof ServerSelectionList servers) {
+            updateSignals(servers, servers.children().indexOf(servers.getSelected()));
         }
 
+        float launchProgress = launch == null ? 0.0f : launchProgress(now);
+        if (launch != null) ServerPortalRenderer.launchFrame(title, launchProgress);
+        float stage = Math.max(launchProgress, 1.0f - ServerPortalRenderer.returnReveal(title));
         float growth = Math.clamp((now - selectionStart) / 480.0f, 0.0f, 1.0f);
-        return new LoadingOverlayRenderer.BrowserFrame(camera, network, worldModel, ease(growth), dive, beaconCount, selectedBeacon, signals);
+        return new LoadingOverlayRenderer.BrowserFrame(camera, network, worldModel, ease(growth), dive, beaconCount,
+                selectedBeacon, signals, stage, launch == null ? -1 : launch.slot());
+    }
+
+    private void updateSignals(ServerSelectionList servers, int selectedIndex) {
+        Arrays.fill(signals, 0);
+        var rows = servers.children();
+        int pageStart = Math.max(0, selectedIndex / SIGNAL_SLOTS * SIGNAL_SLOTS);
+        if (pageStart != beaconPage) {
+            beaconPage = pageStart;
+            pingCursor = pageStart;
+        }
+
+        beaconCount = 0;
+        selectedBeacon = -1;
+        for (int i = pageStart; i < rows.size() && beaconCount < SIGNAL_SLOTS; i++) {
+            var row = rows.get(i);
+            int signal = row instanceof ServerSelectionList.OnlineServerEntry server ? signal(server.getServerData())
+                    : row instanceof ServerSelectionList.NetworkServerEntry ? 5 : 0;
+            if (signal == 0) continue;
+            signals[beaconCount / 8] |= signal << (beaconCount % 8 * 4);
+            if (i == selectedIndex) selectedBeacon = beaconCount;
+            beaconCount++;
+        }
+    }
+
+    private float launchProgress(long now) {
+        return Math.clamp((now - launch.start()) / (float) LAUNCH_MS, 0.0f, 1.0f);
     }
 
     private void selectWorld(LevelSummary summary, long now) {
@@ -386,6 +465,10 @@ public final class TitleBrowser {
         }
 
         if (!open || suspended || camera < 0.20f) return;
+        float slide = launch == null ? 1.0f - ServerPortalRenderer.returnReveal(title)
+                : ease(Math.min(1.0f, launchProgress(now) / 0.61f));
+        if (slide >= 1.0f) return;
+        panelAlpha = 1.0f - slide;
 
         int left = left(title.width);
         int top = header(title.height);
@@ -393,14 +476,16 @@ public final class TitleBrowser {
         int accent = network ? NETWORK : SOLO;
 
         Font font = title.getFont();
+        var pose = graphics.pose();
+        pose.pushMatrix().translate(-(left + size + 6) * slide, 0.0f);
 
         if (list != null) {
             float reveal = Math.clamp((camera - 0.20f) / 0.40f, 0.0f, 1.0f);
             graphics.enableScissor(left - 1, top - 1, left + Math.round((size + 2) * reveal), title.height);
-            graphics.fill(left, top, left + 24, top + 1, color(accent, 210));
-            graphics.text(font, network ? MATRIX : BOARD, left, top + 5, color(accent, 190), false);
+            graphics.fill(left, top, left + 24, top + 1, panelColor(color(accent, 210)));
+            graphics.text(font, network ? MATRIX : BOARD, left, top + 5, panelColor(color(accent, 190)), false);
 
-            label(graphics, font, panel.getTitle(), left, top + 16, size - 6, 1.55f, 0xFFEBF9FF);
+            label(graphics, font, panel.getTitle(), left, top + 16, size - 6, 1.55f, panelColor(0xFFEBF9FF));
 
             if (list instanceof WorldSelectionList && list.children().isEmpty()) {
                 label(graphics, font, EMPTY, left + 5, list.getY() + 7, size - 16, 1.0f, 0xFF8DB4C8);
@@ -415,6 +500,8 @@ public final class TitleBrowser {
         } finally {
             drawing = previous;
             if (list != null) graphics.disableScissor();
+            pose.popMatrix();
+            panelAlpha = 1.0f;
         }
     }
 
@@ -429,11 +516,12 @@ public final class TitleBrowser {
         int w = button.getWidth();
         int h = button.getHeight();
 
-        graphics.fillGradient(x, y, x + w, y + h, hot ? color(accent, 86) : 0x59192B40, 0x49101B2D);
-        graphics.fill(x, y + 3, x + 2, y + h - 3, color(accent, hot ? 255 : button.isActive() ? 140 : 65));
+        graphics.fillGradient(x, y, x + w, y + h, drawing.panelColor(hot ? color(accent, 86) : 0x59192B40),
+                drawing.panelColor(0x49101B2D));
+        graphics.fill(x, y + 3, x + 2, y + h - 3, drawing.panelColor(color(accent, hot ? 255 : button.isActive() ? 140 : 65)));
 
         label(graphics, drawing.title.getFont(), button.getMessage(), x + 5, y + (h - 8) / 2, w - 8, 1.0f,
-                button.isActive() ? 0xFFE3F6FF : 0xFF8392A6);
+                drawing.panelColor(button.isActive() ? 0xFFE3F6FF : 0xFF8392A6));
 
         if (hot && button.isHovered()) graphics.requestCursor(CursorTypes.POINTING_HAND);
         return true;
@@ -468,8 +556,13 @@ public final class TitleBrowser {
         int h = row.getHeight();
 
         graphics.fillGradient(x - 4, y, x + w + 3, y + h - 2,
-                selected ? color(accent, 98) : hovered ? color(accent, 60) : 0x7120394C, 0x6610192A);
-        graphics.fill(x - 4, y + 3, x - 2, y + h - 5, color(accent, selected ? 255 : 170));
+                drawing.panelColor(selected ? color(accent, 98) : hovered ? color(accent, 60) : 0x7120394C),
+                drawing.panelColor(0x6610192A));
+        graphics.fill(x - 4, y + 3, x - 2, y + h - 5, drawing.panelColor(color(accent, selected ? 255 : 170)));
+    }
+
+    private int panelColor(int argb) {
+        return color(argb & 0xFFFFFF, Math.round((argb >>> 24) * panelAlpha));
     }
 
     private static int signal(ServerData server) {
@@ -507,5 +600,8 @@ public final class TitleBrowser {
 
     private static float ease(float t) {
         return t * t * (3.0f - 2.0f * t);
+    }
+
+    private record ServerLaunch(long start, int slot, Runnable connect) {
     }
 }

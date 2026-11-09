@@ -55,7 +55,7 @@ public final class LoadingOverlayRenderer {
     private static final float BUILD_START = 0.30f;
     private static final float BUILD_END = 0.80f;
     private static final int CUBE_INDICES = 36;
-    private static final int FRAME_UNIFORM_BYTES = 288;
+    private static final int FRAME_UNIFORM_BYTES = 304;
     private static final String FRAME_UNIFORM = "LoadingFrame";
     private static final ColorTargetState BLEND = new ColorTargetState(
             Optional.of(BlendFunction.TRANSLUCENT), ColorTargetState.WRITE_COLOR);
@@ -100,7 +100,7 @@ public final class LoadingOverlayRenderer {
 
     private static final Map<Identifier, Optional<String>> SOURCES = new HashMap<>();
     // The bundled sources are immutable, including across Blaze3D's resource-reload pipeline cache clear.
-    private static final ShaderSource SHADERS = (id, type) -> SOURCES.computeIfAbsent(type.idConverter().idToFile(id), file ->
+    static final ShaderSource SHADERS = (id, type) -> SOURCES.computeIfAbsent(type.idConverter().idToFile(id), file ->
             Optional.ofNullable(readShader(file)).map(source -> String.join("", PREPROCESSOR.process(source)))).orElse(null);
 
     private static String readShader(Identifier file) {
@@ -265,18 +265,23 @@ public final class LoadingOverlayRenderer {
         float progress = current.progress();
         float layer = (progress - BUILD_START) * GRID_SIZE / (BUILD_END - BUILD_START);
         int rows = Math.clamp((int) layer, 0, GRID_SIZE);
+
         boolean bursting = current.burst() > 0.0f;
+
         boolean building = progress >= BUILD_START && progress < BUILD_END;
         int active = building ? LAYER_VOXELS : 0;
+
         int inflow = progress < BUILD_START ? EARLY_INFLOW : building ? ASSEMBLY_INFLOW : 0;
         int stream = progress >= 0.79f ? STREAM_VOXELS : 0;
         int lines = progress >= 0.17f ? FRAME_EDGES + (building ? GRID_LINES : 0) : 0;
+
         int particles = bursting ? SHELL_VOXELS + CORE_FRAGMENTS : active + inflow + stream;
         SwitchFrame mode = menu == null ? SwitchFrame.NONE : menu.mode();
         if (menu != null) {
             particles = MENU_VOXELS + (bursting ? SHELL_VOXELS : 0)
                     + (mode.gather() >= 0.0f && mode.gather() < 1.0f ? CORE_FRAGMENTS : 0);
         }
+
         int ringLines = menu != null && menu.settings() * pan > 0.004f ? RING_LINES : 0;
         BrowserFrame browser = menu == null ? BrowserFrame.NONE : menu.browser();
         int boardLines = browser.camera() > 0.0f && !browser.network() && browser.model() == 0 ? BOARD_LINES : 0;
@@ -284,9 +289,11 @@ public final class LoadingOverlayRenderer {
         GpuDevice device = RenderSystem.getDevice();
         boolean drawProjection = browser.camera() > 0.0f && device.precompilePipeline(TITLE_PROJECTION, SHADERS).isValid();
         prepareBuffers(device, target.width, target.height);
+
         var encoder = device.createCommandEncoder();
         boolean warp = mode.panoramaScale() > 0.0f;
         if (warp) copyPanorama(device, encoder, target);
+
         GpuBuffer uniform = uniforms.currentBuffer();
 
         try (var mapped = encoder.mapBuffer(uniform, false, true)) {
@@ -302,7 +309,8 @@ public final class LoadingOverlayRenderer {
                     .putVec4(browser.camera(), browser.network() ? 1.0f : 0.0f, browser.model(), browser.growth())
                     .putVec4(browser.dive(), browser.selected(), browser.count(), boardLines)
                     .putVec4(mode.approach(), mode.gather(), mode.panoramaScale(), mode.collapse())
-                    .putVec4(mode.distortion(), mode.shake(), mode.lockTime(), 0.0f);
+                    .putVec4(mode.distortion(), mode.shake(), mode.lockTime(), 0.0f)
+                    .putVec4(browser.launch(), browser.launchSlot(), 0.0f, 0.0f);
             int[] signals = browser.signals();
             if (browser.count() > 0) {
                 for (int i = 0; i < signals.length; i += 4) {
@@ -425,7 +433,7 @@ public final class LoadingOverlayRenderer {
     }
 
     public record BrowserFrame(float camera, boolean network, int model, float growth, float dive,
-                               int count, int selected, int[] signals) {
-        public static final BrowserFrame NONE = new BrowserFrame(0.0f, false, 0, 0.0f, 0.0f, 0, -1, new int[0]);
+                               int count, int selected, int[] signals, float launch, int launchSlot) {
+        public static final BrowserFrame NONE = new BrowserFrame(0.0f, false, 0, 0.0f, 0.0f, 0, -1, new int[0], 0.0f, -1);
     }
 }
