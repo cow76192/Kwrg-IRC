@@ -19,6 +19,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import me.cookie.kwrg.CookieMain;
 import me.cookie.kwrg.gui.title.TitleBrowser;
 import me.cookie.kwrg.gui.title.ServerRetry;
+import me.cookie.kwrg.render.utils.LoadingOverlayRenderer;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ConnectScreen;

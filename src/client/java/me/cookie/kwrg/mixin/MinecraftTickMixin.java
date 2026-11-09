@@ -5,9 +5,11 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.TracyFrameCapture;
 import me.cookie.kwrg.irc.manager.DanceRoomManager;
-import me.cookie.kwrg.render.LoadingAtlasUpload;
-import me.cookie.kwrg.render.LoadingFontSets;
-import me.cookie.kwrg.render.LoadingFramePacer;
+import me.cookie.kwrg.render.utils.LoadingAtlasUpload;
+import me.cookie.kwrg.render.utils.LoadingAudio;
+import me.cookie.kwrg.render.utils.LoadingFontSets;
+import me.cookie.kwrg.render.utils.LoadingFramePacer;
+import me.cookie.kwrg.render.utils.LoadingShaderPipelines;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.util.profiling.Profiler;
@@ -47,6 +49,7 @@ public abstract class MinecraftTickMixin extends ReentrantBlockableEventLoop<Run
         kwrg$loadingPacer.reset();
         LoadingAtlasUpload.step(client);
         LoadingFontSets.step(client);
+        LoadingShaderPipelines.step(client);
         original.call(client);
     }
 
@@ -88,14 +91,15 @@ public abstract class MinecraftTickMixin extends ReentrantBlockableEventLoop<Run
         if (LoadingAtlasUpload.isLoadingWithoutWorld(client)) {
             kwrg$loadingPacer.presented(System.nanoTime(), vanillaLimit);
             try (var ignored = Profiler.get().zone("kwrgLoadingWork")) {
-                kwrg$loadingPacer.runWork(this::pollTask, () -> LoadingAtlasUpload.step(client),
-                        () -> LoadingFontSets.step(client));
+                kwrg$loadingPacer.runWork(() -> LoadingAtlasUpload.step(client),
+                        () -> LoadingFontSets.step(client), () -> LoadingShaderPipelines.step(client), this::pollTask);
             }
             kwrg$usedLoadingLimiter = paced;
         } else {
             kwrg$loadingPacer.reset();
             LoadingAtlasUpload.step(client);
             LoadingFontSets.step(client);
+            LoadingShaderPipelines.step(client);
             runAllTasks();
         }
     }
@@ -107,9 +111,11 @@ public abstract class MinecraftTickMixin extends ReentrantBlockableEventLoop<Run
     }
 
     @Inject(method = "close", at = @At("HEAD"))
-    private void kwrg$closeStagedAtlas(CallbackInfo ci) {
+    private void kwrg$closeStagedReload(CallbackInfo ci) {
         kwrg$loadingPacer.reset();
         LoadingAtlasUpload.close();
+        LoadingAudio.close();
+        LoadingShaderPipelines.close();
     }
 
     @Inject(method = "tick", at = @At("HEAD"))

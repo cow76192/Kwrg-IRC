@@ -1,6 +1,6 @@
 package me.cookie.kwrg.mixin;
 
-import me.cookie.kwrg.render.LoadingOverlayRenderer;
+import me.cookie.kwrg.render.utils.LoadingOverlayRenderer;
 import me.cookie.kwrg.render.ServerPortalRenderer;
 import me.cookie.kwrg.render.WaypointRenderer;
 import net.minecraft.client.DeltaTracker;

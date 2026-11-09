@@ -9,7 +9,7 @@ import me.cookie.kwrg.gui.title.TitleBrowser;
 import me.cookie.kwrg.gui.title.TitleMenuUi;
 import me.cookie.kwrg.gui.title.TitleModeButton;
 import me.cookie.kwrg.gui.title.TitleModeTransition;
-import me.cookie.kwrg.render.LoadingOverlayRenderer;
+import me.cookie.kwrg.render.utils.LoadingOverlayRenderer;
 import me.cookie.kwrg.render.ServerPortalRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;

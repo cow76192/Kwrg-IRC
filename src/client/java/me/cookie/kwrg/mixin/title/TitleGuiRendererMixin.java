@@ -1,6 +1,6 @@
 package me.cookie.kwrg.mixin.title;
 
-import me.cookie.kwrg.render.LoadingOverlayRenderer;
+import me.cookie.kwrg.render.utils.LoadingOverlayRenderer;
 import me.cookie.kwrg.render.ServerPortalRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.GuiRenderer;

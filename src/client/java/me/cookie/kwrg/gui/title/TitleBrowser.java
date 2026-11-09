@@ -2,7 +2,7 @@ package me.cookie.kwrg.gui.title;
 
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import me.cookie.kwrg.mixin.accessor.TitleBrowserLanServerAccessor;
-import me.cookie.kwrg.render.LoadingOverlayRenderer;
+import me.cookie.kwrg.render.utils.LoadingOverlayRenderer;
 import me.cookie.kwrg.render.ServerPortalRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;

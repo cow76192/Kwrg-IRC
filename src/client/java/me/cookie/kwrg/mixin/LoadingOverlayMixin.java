@@ -3,12 +3,14 @@ package me.cookie.kwrg.mixin;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import me.cookie.kwrg.render.LoadingFramePacer;
-import me.cookie.kwrg.render.LoadingOverlayRenderer;
+import me.cookie.kwrg.render.utils.LoadingFramePacer;
+import me.cookie.kwrg.render.utils.LoadingOverlayRenderer;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.LoadingOverlay;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -18,6 +20,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(LoadingOverlay.class)
 public abstract class LoadingOverlayMixin {
+    @Shadow @Final private Minecraft minecraft;
     @Shadow private float currentProgress;
     @Shadow private long fadeOutStart;
     @Shadow private long fadeInStart;
@@ -31,6 +34,13 @@ public abstract class LoadingOverlayMixin {
     @Unique private float kwrg$lastMouseY;
     @Unique private float kwrg$mouseMotion;
     @Unique private boolean kwrg$useShaders;
+
+    @ModifyExpressionValue(method = "tick", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/util/Util;getMillis()J"))
+    private long kwrg$shortenCompletedHold(long now) {
+        // Skip most of the opaque hold after reload completion, leaving the 300 ms charge intact.
+        return kwrg$useShaders && minecraft.level == null ? now - 650L : now;
+    }
 
     @ModifyExpressionValue(method = "extractRenderState", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/util/Util;getMillis()J"))

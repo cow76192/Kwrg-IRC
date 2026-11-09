@@ -1,6 +1,6 @@
 package me.cookie.kwrg.gui.title;
 
-import me.cookie.kwrg.render.LoadingOverlayRenderer.SwitchFrame;
+import me.cookie.kwrg.render.utils.LoadingOverlayRenderer.SwitchFrame;
 import net.minecraft.util.Util;
 
 public final class TitleModeTransition {

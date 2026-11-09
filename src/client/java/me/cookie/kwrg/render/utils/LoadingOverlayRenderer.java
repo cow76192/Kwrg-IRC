@@ -1,4 +1,4 @@
-package me.cookie.kwrg.render;
+package me.cookie.kwrg.render.utils;
 
 import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.Std140Builder;
@@ -100,7 +100,7 @@ public final class LoadingOverlayRenderer {
 
     private static final Map<Identifier, Optional<String>> SOURCES = new HashMap<>();
     // The bundled sources are immutable, including across Blaze3D's resource-reload pipeline cache clear.
-    static final ShaderSource SHADERS = (id, type) -> SOURCES.computeIfAbsent(type.idConverter().idToFile(id), file ->
+    public static final ShaderSource SHADERS = (id, type) -> SOURCES.computeIfAbsent(type.idConverter().idToFile(id), file ->
             Optional.ofNullable(readShader(file)).map(source -> String.join("", PREPROCESSOR.process(source)))).orElse(null);
 
     private static String readShader(Identifier file) {
@@ -162,6 +162,10 @@ public final class LoadingOverlayRenderer {
         return ready;
     }
 
+    static boolean isLoadingPipeline(RenderPipeline pipeline) {
+        return PIPELINES.contains(pipeline);
+    }
+
     public static boolean prepareBrowser() {
         return prepare() && RenderSystem.getDevice().precompilePipeline(TITLE_PROJECTION, SHADERS).isValid();
     }
@@ -183,7 +187,12 @@ public final class LoadingOverlayRenderer {
         SHADERS.get(TITLE_PROJECTION.getFragmentShader(), ShaderType.FRAGMENT);
 
         GpuDevice device = RenderSystem.tryGetDevice();
-        if (device != null && target != null && target.width > 0 && target.height > 0) {
+        if (device == null) {
+            return;
+        }
+
+        prepare();
+        if (target != null && target.width > 0 && target.height > 0) {
             prepareBuffers(device, target.width, target.height);
             RenderSystem.getSequentialBuffer(VertexFormat.Mode.TRIANGLES).getBuffer(CUBE_INDICES);
         }
