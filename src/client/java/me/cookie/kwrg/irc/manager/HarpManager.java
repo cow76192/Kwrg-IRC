@@ -11,9 +11,9 @@ import net.minecraft.tags.ItemTags;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 
-import java.util.ArrayDeque;
 import java.util.Arrays;
-import java.util.Deque;
+import java.util.Comparator;
+import java.util.PriorityQueue;
 
 public class HarpManager {
 
@@ -33,7 +33,8 @@ public class HarpManager {
     private static int activeContainerId = -1;
     private static final int[] lastWoolChain = new int[9];
     private static final long[] lastTriggerTimeMs = new long[9];
-    private static final Deque<ScheduledClick> pendingClicks = new ArrayDeque<>();
+    private static final PriorityQueue<ScheduledClick> pendingClicks =
+            new PriorityQueue<>(Comparator.comparingLong(ScheduledClick::executeTimeMs));
     private static long lastGlobalClickTimeMs = 0L;
 
     public static boolean isEnabled() {
@@ -131,7 +132,7 @@ public class HarpManager {
             if (shouldTrigger) {
                 int terracottaSlot = TERRACOTTA_ROW * 9 + col;
                 long clickTime = ClickUtil.scheduleJitteredClickTimeMs(getBaseDelay(), getJitterDelay());
-                pendingClicks.addLast(new ScheduledClick(menu.containerId, terracottaSlot, clickTime));
+                pendingClicks.offer(new ScheduledClick(menu.containerId, terracottaSlot, clickTime));
                 lastTriggerTimeMs[col] = now;
             }
 
@@ -154,26 +155,24 @@ public class HarpManager {
     }
 
     /**
-     * 每次调用最多执行 1 次点击，并强制保证两次点击间隔 >= MIN_GLOBAL_CLICK_INTERVAL_MS，
-     * 杜绝同一 Tick 内并发多个容器点击包。
+     * 每次调用最多执行 1 次点击，并强制保证两次点击间隔 >= MIN_GLOBAL_CLICK_INTERVAL_MS。
      */
     private static void processPendingClicks(Minecraft mc, AbstractContainerMenu menu, long now) {
         if (pendingClicks.isEmpty()) return;
         if (now - lastGlobalClickTimeMs < MIN_GLOBAL_CLICK_INTERVAL_MS) return;
 
-        ScheduledClick head = pendingClicks.peekFirst();
-        if (head == null) return;
-
-        // 丢弃已过期的旧窗口点击任务
-        if (head.containerId() != menu.containerId) {
-            pendingClicks.pollFirst();
-            return;
+        // 移除所有不属于当前窗口的过期任务
+        while (!pendingClicks.isEmpty() && pendingClicks.peek().containerId() != menu.containerId) {
+            pendingClicks.poll();
         }
 
+        ScheduledClick earliest = pendingClicks.peek();
+        if (earliest == null) return;
+
         // 预留 25ms (半个 Tick) 的提前量补偿，防止正抖动 (+2ms~+10ms) 因为跨 Tick 被强行推迟 50ms
-        if (now + 25L >= head.executeTimeMs()) {
-            pendingClicks.pollFirst();
-            ClickUtil.clickSlotPickblock(mc, menu.containerId, head.slotIndex());
+        if (now + 25L >= earliest.executeTimeMs()) {
+            pendingClicks.poll();
+            ClickUtil.clickSlotPickblock(mc, menu.containerId, earliest.slotIndex());
             lastGlobalClickTimeMs = now;
         }
     }
