@@ -6,7 +6,7 @@
 ![Fabric](https://img.shields.io/badge/Loader-Fabric-DBB98F?style=flat-square)
 ![Java](https://img.shields.io/badge/Java-25-EA923E?style=flat-square)
 [![License: MIT](https://img.shields.io/badge/License-MIT-4C9BD6?style=flat-square)](./LICENSE)
-[![Java source lines: 40,496](https://img.shields.io/badge/Code%20lines-40%2C496-8B7EC8?style=flat-square)](./src "Total lines in src/**/*.java, including comments and blank lines")
+[![Java source lines: 41,140](https://img.shields.io/badge/Code%20lines-41%2C140-8B7EC8?style=flat-square)](./src "Total lines in src/**/*.java, including comments and blank lines")
 
 【[devlog] Skyblock QOL IRC Mod - KwrgIRC 26.1.2】 
 
