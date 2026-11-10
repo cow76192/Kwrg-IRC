@@ -1,10 +1,11 @@
-package me.cookie.kwrg.mixin;
+package me.cookie.kwrg.mixin.resource;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.blaze3d.font.GlyphProvider;
 import me.cookie.kwrg.gui.util.FontManagerHelper;
-import me.cookie.kwrg.render.LoadingFontSets;
+import me.cookie.kwrg.render.utils.LoadingFontSets;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.font.FontManager;
 import net.minecraft.client.gui.font.FontOption;
@@ -26,10 +27,11 @@ public class FontManagerMixin {
     @WrapOperation(method = "reload", at = @At(value = "INVOKE",
             target = "Ljava/util/concurrent/CompletableFuture;thenAcceptAsync(Ljava/util/function/Consumer;Ljava/util/concurrent/Executor;)Ljava/util/concurrent/CompletableFuture;"))
     private CompletableFuture<Void> kwrg$stageFontSets(CompletableFuture<?> ready, Consumer<Object> apply,
-                                                       Executor executor, Operation<CompletableFuture<Void>> original) {
+                                                       Executor executor, Operation<CompletableFuture<Void>> original,
+                                                       @Local(argsOnly = true, ordinal = 0) Executor preparationExecutor) {
         FontManager manager = (FontManager) (Object) this;
         CompletableFuture<?> prepared = ready.thenComposeAsync(
-                preparation -> LoadingFontSets.stage(Minecraft.getInstance(), manager, preparation), executor);
+                preparation -> LoadingFontSets.stage(Minecraft.getInstance(), manager, preparation, preparationExecutor), executor);
         Consumer<Object> publish = preparation -> LoadingFontSets.publish(manager, preparation, apply);
         return original.call(prepared, publish, executor);
     }
@@ -44,7 +46,7 @@ public class FontManagerMixin {
 
     @Inject(method = "apply", at = @At("TAIL"))
     private void kwrg$onFontManagerReload(CallbackInfo ci) {
-        FontManagerHelper.onResourceReload();
+        FontManagerHelper.onResourceReload((FontManager) (Object) this);
     }
 
     @Inject(method = "close", at = @At("HEAD"))

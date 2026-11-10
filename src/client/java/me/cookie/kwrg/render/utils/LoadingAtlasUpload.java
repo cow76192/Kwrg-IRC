@@ -1,4 +1,4 @@
-package me.cookie.kwrg.render;
+package me.cookie.kwrg.render.utils;
 
 import com.mojang.blaze3d.textures.GpuTexture;
 import me.cookie.kwrg.CookieMain;
@@ -18,9 +18,9 @@ import java.util.concurrent.Executor;
 
 public final class LoadingAtlasUpload {
     private static final int SPRITES_PER_BATCH = 32;
-    private static final int MIN_STATIC_SPRITES = 32;
     // The sum of all staged base levels is capped. Their mip levels add at most one third to this footprint.
     private static final long MAX_STAGED_PIXELS = 4096L * 4096L;
+    private static final long MAX_STAGED_ANIMATION_PIXELS = 8L * 1024 * 1024;
 
     // All access happens on the render thread, including the vanilla apply continuation.
     private static Upload active;
@@ -81,7 +81,7 @@ public final class LoadingAtlasUpload {
             List<TextureAtlasSprite> sprites = preparations.regions().values().stream()
                     .filter(sprite -> !sprite.contents().isAnimated())
                     .toList();
-            if (sprites.size() >= MIN_STATIC_SPRITES) {
+            if (!sprites.isEmpty()) {
                 candidates.add(new StagedAtlas(atlas, preparations, sprites));
             }
         });
@@ -89,11 +89,18 @@ public final class LoadingAtlasUpload {
         candidates.sort(Comparator.comparingInt(StagedAtlas::uploadCount).reversed());
         List<StagedAtlas> selected = new ArrayList<>();
         long remainingPixels = MAX_STAGED_PIXELS;
+        long remainingAnimationPixels = MAX_STAGED_ANIMATION_PIXELS;
         for (StagedAtlas atlas : candidates) {
             long pixels = (long) atlas.preparations.width() * atlas.preparations.height();
             if (pixels <= remainingPixels) {
                 selected.add(atlas);
                 remainingPixels -= pixels;
+                StagedAtlasAnimations animations = new StagedAtlasAnimations(atlas.preparations);
+                long animationPixels = animations.pixels();
+                if (animationPixels > 0 && animationPixels <= remainingAnimationPixels) {
+                    atlas.animations = animations;
+                    remainingAnimationPixels -= animationPixels;
+                }
             }
         }
         return selected;
@@ -123,13 +130,23 @@ public final class LoadingAtlasUpload {
     }
 
     public static GpuTexture takeTexture(TextureAtlas target, SpriteLoader.Preparations preparations) {
+        StagedAtlas atlas = findPublishingAtlas(target, preparations);
+        return atlas == null ? null : ((KwrgAtlasStaging) atlas.staging).kwrg$detachTexture();
+    }
+
+    public static StagedAtlasAnimations preparedAnimations(TextureAtlas target, SpriteLoader.Preparations preparations) {
+        StagedAtlas atlas = findPublishingAtlas(target, preparations);
+        return atlas == null || atlas.animations == null || atlas.animations.uniforms() == null ? null : atlas.animations;
+    }
+
+    private static StagedAtlas findPublishingAtlas(TextureAtlas target, SpriteLoader.Preparations preparations) {
         Upload upload = active;
         if (upload == null || !upload.publishing) {
             return null;
         }
         for (StagedAtlas atlas : upload.atlases) {
             if (atlas.target == target && atlas.preparations == preparations && atlas.staging != null) {
-                return ((KwrgAtlasStaging) atlas.staging).kwrg$detachTexture();
+                return atlas;
             }
         }
         return null;
@@ -175,6 +192,7 @@ public final class LoadingAtlasUpload {
         private final SpriteLoader.Preparations preparations;
         private final List<TextureAtlasSprite> sprites;
         private TextureAtlas staging;
+        private StagedAtlasAnimations animations;
         private int nextSprite;
 
         private StagedAtlas(TextureAtlas target, SpriteLoader.Preparations preparations, List<TextureAtlasSprite> sprites) {
@@ -194,14 +212,21 @@ public final class LoadingAtlasUpload {
                 return false;
             }
 
+            if (nextSprite == sprites.size()) {
+                return animations.advance();
+            }
             int end = Math.min(nextSprite + SPRITES_PER_BATCH, sprites.size());
             ((KwrgAtlasStaging) staging).kwrg$uploadStaticBatch(sprites.subList(nextSprite, end));
             nextSprite = end;
-            return nextSprite == sprites.size();
+            return nextSprite == sprites.size() && animations == null;
         }
 
         @Override
         public void close() {
+            if (animations != null) {
+                animations.close();
+                animations = null;
+            }
             if (staging != null) {
                 staging.close();
                 staging = null;

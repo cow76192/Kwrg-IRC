@@ -1,0 +1,16 @@
+{
+  "kwrg.title.name": "Kwrg Client",
+  "kwrg.title.subtitle": "Hello World",
+  "kwrg.title.open_classic": "Enter the main menu",
+  "kwrg.title.open_custom": "Return to the 3D menu",
+  "kwrg.title.board": "KWRG / WORLD SANDBOX",
+  "kwrg.title.matrix": "KWRG / SIGNAL MATRIX",
+  "kwrg.title.empty": "No worlds yet",
+  "kwrg.warp.abort": "[ ABORT CONNECTION ]",
+  "kwrg.warp.return": "Return to Server List",
+  "kwrg.warp.retry": "Reconnect",
+  "kwrg.portal.build": "Building the portal…",
+  "kwrg.portal.ignite": "Lighting the portal…",
+  "kwrg.portal.open": "Opening the gateway…",
+  "kwrg.portal.cross": "Crossing dimensions…"
+}

@@ -4,12 +4,18 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.TracyFrameCapture;
+import com.mojang.blaze3d.textures.GpuTexture;
+import me.cookie.kwrg.CookieMain;
 import me.cookie.kwrg.irc.manager.DanceRoomManager;
-import me.cookie.kwrg.render.LoadingAtlasUpload;
-import me.cookie.kwrg.render.LoadingFontSets;
-import me.cookie.kwrg.render.LoadingFramePacer;
+import me.cookie.kwrg.render.utils.LoadingAtlasUpload;
+import me.cookie.kwrg.render.utils.LoadingAudio;
+import me.cookie.kwrg.render.utils.LoadingFontSets;
+import me.cookie.kwrg.render.utils.LoadingFramePacer;
+import me.cookie.kwrg.render.utils.LoadingShaderPipelines;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
+import net.minecraft.client.renderer.texture.TextureAtlas;
+import net.minecraft.data.AtlasIds;
 import net.minecraft.util.profiling.Profiler;
 import net.minecraft.util.thread.ReentrantBlockableEventLoop;
 import org.objectweb.asm.Opcodes;
@@ -31,6 +37,24 @@ public abstract class MinecraftTickMixin extends ReentrantBlockableEventLoop<Run
         super(name, propagatesCrashes);
     }
 
+    @Inject(method = "onGameLoadFinished", at = @At("TAIL"))
+    private void kwrg$reportStartupAtlas(CallbackInfo ci) {
+        Minecraft client = (Minecraft) (Object) this;
+        TextureAtlas atlas;
+        GpuTexture texture;
+        try {
+            atlas = client.getAtlasManager().getAtlasOrThrow(AtlasIds.BLOCKS);
+            texture = atlas.getTexture();
+        } catch (IllegalArgumentException | IllegalStateException ignored) {
+            return;
+        }
+        if (!texture.isClosed()) {
+            // PCL recognizes the atlas marker even when a console filter hides vanilla's allocation logs.
+            CookieMain.LOGGER.info("Startup resources ready. Created: {}x{}x{} {}-atlas",
+                    texture.getWidth(0), texture.getHeight(0), texture.getMipLevels() - 1, atlas.location());
+        }
+    }
+
     @Inject(method = "runTick", at = @At("HEAD"))
     private void kwrg$startClientFrame(CallbackInfo ci) {
         kwrg$tickStarted = System.nanoTime();
@@ -47,6 +71,7 @@ public abstract class MinecraftTickMixin extends ReentrantBlockableEventLoop<Run
         kwrg$loadingPacer.reset();
         LoadingAtlasUpload.step(client);
         LoadingFontSets.step(client);
+        LoadingShaderPipelines.step(client);
         original.call(client);
     }
 
@@ -88,14 +113,15 @@ public abstract class MinecraftTickMixin extends ReentrantBlockableEventLoop<Run
         if (LoadingAtlasUpload.isLoadingWithoutWorld(client)) {
             kwrg$loadingPacer.presented(System.nanoTime(), vanillaLimit);
             try (var ignored = Profiler.get().zone("kwrgLoadingWork")) {
-                kwrg$loadingPacer.runWork(this::pollTask, () -> LoadingAtlasUpload.step(client),
-                        () -> LoadingFontSets.step(client));
+                kwrg$loadingPacer.runWork(() -> LoadingAtlasUpload.step(client),
+                        () -> LoadingFontSets.step(client), () -> LoadingShaderPipelines.step(client), this::pollTask);
             }
             kwrg$usedLoadingLimiter = paced;
         } else {
             kwrg$loadingPacer.reset();
             LoadingAtlasUpload.step(client);
             LoadingFontSets.step(client);
+            LoadingShaderPipelines.step(client);
             runAllTasks();
         }
     }
@@ -107,9 +133,11 @@ public abstract class MinecraftTickMixin extends ReentrantBlockableEventLoop<Run
     }
 
     @Inject(method = "close", at = @At("HEAD"))
-    private void kwrg$closeStagedAtlas(CallbackInfo ci) {
+    private void kwrg$closeStagedReload(CallbackInfo ci) {
         kwrg$loadingPacer.reset();
         LoadingAtlasUpload.close();
+        LoadingAudio.close();
+        LoadingShaderPipelines.close();
     }
 
     @Inject(method = "tick", at = @At("HEAD"))

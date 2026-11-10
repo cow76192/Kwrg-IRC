@@ -1,0 +1,16 @@
+{
+  "kwrg.title.name": "Kwrg Client",
+  "kwrg.title.subtitle": "Hello World",
+  "kwrg.title.open_classic": "进入主菜单",
+  "kwrg.title.open_custom": "返回 3D 主菜单",
+  "kwrg.title.board": "KWRG / 生态沙盘",
+  "kwrg.title.matrix": "KWRG / 通讯矩阵",
+  "kwrg.title.empty": "暂无存档",
+  "kwrg.warp.abort": "[ 取消连接 ]",
+  "kwrg.warp.return": "返回服务器列表",
+  "kwrg.warp.retry": "重新连接",
+  "kwrg.portal.build": "正在搭建传送门…",
+  "kwrg.portal.ignite": "正在点燃传送门…",
+  "kwrg.portal.open": "正在开启传送门…",
+  "kwrg.portal.cross": "正在穿越维度…"
+}

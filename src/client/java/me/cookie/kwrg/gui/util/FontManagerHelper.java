@@ -6,6 +6,7 @@ import me.cookie.kwrg.mixin.accessor.FontManagerAccessor;
 import me.cookie.kwrg.mixin.accessor.FontSetAccessor;
 import me.cookie.kwrg.mixin.accessor.MinecraftAccessor;
 import me.cookie.kwrg.module.modules.style.FontModule;
+import me.cookie.kwrg.render.utils.LoadingFontSets;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GlyphSource;
@@ -111,15 +112,33 @@ public class FontManagerHelper {
         return currentLoadedFontName != null ? currentLoadedFontName : DEFAULT_FONT;
     }
 
-    public static void onResourceReload() {
+    public static void onResourceReload(FontManager manager) {
         LOGGER.info("[Kwrg] 检测到客户端资源重载，正在恢复自定义 GUI 字体...");
-        currentActiveProvider = null;
+        closeCurrentProvider();
         currentLoadedFontName = null;
 
-        String configuredFont = FontModule.CONFIG.get().guiFont;
-        if (configuredFont != null && !configuredFont.isBlank() && !DEFAULT_FONT.equalsIgnoreCase(configuredFont)) {
+        String configuredFont = configuredExternalFont();
+        if (configuredFont != null) {
+            var staged = LoadingFontSets.takeGuiFont(manager, configuredFont);
+            if (staged != null) {
+                var fontSets = ((FontManagerAccessor) manager).kwrg$getFontSets();
+                FontSet previous = fontSets.put(GUI_FONT_ID, staged.font());
+                if (previous != null) {
+                    previous.close();
+                }
+                currentActiveProvider = staged.provider();
+                currentLoadedFontName = configuredFont;
+                LOGGER.info("[Kwrg] 已应用预加载的外部字体: {}", configuredFont);
+                return;
+            }
             applyFontInternal(configuredFont, true);
         }
+    }
+
+    public static String configuredExternalFont() {
+        String configuredFont = FontModule.CONFIG.get().guiFont;
+        return configuredFont == null || configuredFont.isBlank() || DEFAULT_FONT.equalsIgnoreCase(configuredFont)
+                ? null : configuredFont;
     }
 
     public static boolean applyFont(String fontFileName) {
@@ -172,30 +191,7 @@ public class FontManagerHelper {
         }
 
         try {
-            TrueTypeGlyphProviderDefinition def = new TrueTypeGlyphProviderDefinition(
-                    Identifier.fromNamespaceAndPath("kwrg", "dynamic"),
-                    10.5f,
-                    4.0f,
-                    TrueTypeGlyphProviderDefinition.Shift.NONE,
-                    ""
-            );
-
-            ResourceManager singleFileManager = new ResourceManager() {
-                @Override
-                public InputStream open(Identifier location) throws IOException {
-                    return Files.newInputStream(fontFile);
-                }
-
-                @Override public Set<String> getNamespaces() { return Set.of(); }
-                @Override public List<Resource> getResourceStack(Identifier location) { return List.of(); }
-                @Override public Map<Identifier, Resource> listResources(String path, Predicate<Identifier> filter) { return Map.of(); }
-                @Override public Map<Identifier, List<Resource>> listResourceStacks(String path, Predicate<Identifier> filter) { return Map.of(); }
-                @Override public Stream<net.minecraft.server.packs.PackResources> listPacks() { return Stream.empty(); }
-                @Override public Optional<Resource> getResource(Identifier location) { return Optional.empty(); }
-            };
-
-            GlyphProviderDefinition.Loader loader = def.unpack().left().orElseThrow();
-            GlyphProvider newProvider = loader.load(singleFileManager);
+            GlyphProvider newProvider = loadExternalProvider(fontFile);
 
             // 成功解析出新 provider 后再关闭旧 provider，保证平滑过渡
             closeCurrentProvider();
@@ -220,6 +216,33 @@ public class FontManagerHelper {
             LOGGER.error("[Kwrg] 加载外部字体失败: " + fontFileName, e);
             return false;
         }
+    }
+
+    public static GlyphProvider loadExternalProvider(Path fontFile) throws IOException {
+        TrueTypeGlyphProviderDefinition def = new TrueTypeGlyphProviderDefinition(
+                Identifier.fromNamespaceAndPath("kwrg", "dynamic"),
+                10.5f,
+                4.0f,
+                TrueTypeGlyphProviderDefinition.Shift.NONE,
+                ""
+        );
+
+        ResourceManager singleFileManager = new ResourceManager() {
+            @Override
+            public InputStream open(Identifier location) throws IOException {
+                return Files.newInputStream(fontFile);
+            }
+
+            @Override public Set<String> getNamespaces() { return Set.of(); }
+            @Override public List<Resource> getResourceStack(Identifier location) { return List.of(); }
+            @Override public Map<Identifier, Resource> listResources(String path, Predicate<Identifier> filter) { return Map.of(); }
+            @Override public Map<Identifier, List<Resource>> listResourceStacks(String path, Predicate<Identifier> filter) { return Map.of(); }
+            @Override public Stream<net.minecraft.server.packs.PackResources> listPacks() { return Stream.empty(); }
+            @Override public Optional<Resource> getResource(Identifier location) { return Optional.empty(); }
+        };
+
+        GlyphProviderDefinition.Loader loader = def.unpack().left().orElseThrow();
+        return loader.load(singleFileManager);
     }
 
     private static void closeCurrentProvider() {
