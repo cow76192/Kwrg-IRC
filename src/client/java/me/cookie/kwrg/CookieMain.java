@@ -62,6 +62,7 @@ public class CookieMain implements ClientModInitializer {
             TpsTracker.tick();
             ExperimentsManager.onTick(client);
             GemstoneESPManager.onTick(client);
+            HarpManager.onTick(client);
         });
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
