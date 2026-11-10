@@ -107,4 +107,19 @@ public final class ClickUtil {
 
         return Math.max(MIN_SAFE_CLICK_DELAY_MS, Math.round(dynamicBase) + jitter + reactionBonus);
     }
+
+    public static long computeJitteredDelayMs(int baseDelayMs, int jitterDelayMs) {
+        long jitter = 0L;
+        if (jitterDelayMs > 0) {
+            jitter = ThreadLocalRandom.current().nextInt(-jitterDelayMs, jitterDelayMs + 1);
+        }
+        return Math.max(0L, baseDelayMs + jitter);
+    }
+
+    /**
+     * 计算带双向随机抖动的下一次点击时间戳 (毫秒)
+     */
+    public static long scheduleJitteredClickTimeMs(int baseDelayMs, int jitterDelayMs) {
+        return System.currentTimeMillis() + computeJitteredDelayMs(baseDelayMs, jitterDelayMs);
+    }
 }
