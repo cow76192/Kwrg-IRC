@@ -3,6 +3,7 @@ package me.cookie.kwrg.module;
 import me.cookie.kwrg.module.modules.cheat.DanceRoomModule;
 import me.cookie.kwrg.module.modules.cheat.ExperimentsModule;
 import me.cookie.kwrg.module.modules.cheat.GemstoneESPModule;
+import me.cookie.kwrg.module.modules.cheat.GlaciteAdventurerModule;
 import me.cookie.kwrg.module.modules.cheat.HarpModule;
 import me.cookie.kwrg.module.modules.config.LoadModule;
 import me.cookie.kwrg.module.modules.config.ShareModule;
@@ -73,6 +74,7 @@ public class ModuleManager {
 //        register(new test());
         register(new DanceRoomModule());
         register(new ExperimentsModule());
+        register(new GlaciteAdventurerModule());
     }
 
     public static void init() {

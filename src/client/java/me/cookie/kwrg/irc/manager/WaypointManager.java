@@ -167,6 +167,7 @@ public final class WaypointManager {
             }
         }
 
+        GlaciteAdventurerManager.render(mc.level, renderer);
         renderer.draw();
     }
 
