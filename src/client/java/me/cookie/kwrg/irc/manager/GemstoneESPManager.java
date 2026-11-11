@@ -7,8 +7,8 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.module.modules.cheat.GemstoneESPModule;
-import me.cookie.kwrg.render.GemstoneESPRenderer;
-import me.cookie.kwrg.render.GemstoneESPRenderer.CompiledMesh;
+import me.cookie.kwrg.render.BlockESPRender;
+import me.cookie.kwrg.render.BlockESPRender.CompiledMesh;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ChunkyUtil;
 import me.cookie.kwrg.util.ChunkyUtil.ChunkSnapshot;
@@ -157,7 +157,7 @@ public final class GemstoneESPManager {
                 pendingUnloadedChunks.add(ChunkyUtil.packChunkPos(pos.x(), pos.z()));
             }
         });
-        GemstoneESPRenderer.init();
+        BlockESPRender.register(GemstoneESPManager::shouldRender, GemstoneESPManager::getActiveMesh, GemstoneESPManager::getOpacity);
     }
 
     private static void registerHypixelLocationListener() {
@@ -502,7 +502,7 @@ public final class GemstoneESPManager {
 
             // 1. DOWN (-Y)
             if (neighborhood.isFaceExposed(x, y - 1, z, typeId)) {
-                GemstoneESPRenderer.addQuadFace(
+                BlockESPRender.addQuadFace(
                         quadPrimitives,
                         x, y, z,
                         x + 1, y, z,
@@ -526,7 +526,7 @@ public final class GemstoneESPManager {
 
             // 2. UP (+Y)
             if (neighborhood.isFaceExposed(x, y + 1, z, typeId)) {
-                GemstoneESPRenderer.addQuadFace(
+                BlockESPRender.addQuadFace(
                         quadPrimitives,
                         x, y + 1, z,
                         x, y + 1, z + 1,
@@ -550,7 +550,7 @@ public final class GemstoneESPManager {
 
             // 3. NORTH (-Z)
             if (neighborhood.isFaceExposed(x, y, z - 1, typeId)) {
-                GemstoneESPRenderer.addQuadFace(
+                BlockESPRender.addQuadFace(
                         quadPrimitives,
                         x, y, z,
                         x, y + 1, z,
@@ -574,7 +574,7 @@ public final class GemstoneESPManager {
 
             // 4. SOUTH (+Z)
             if (neighborhood.isFaceExposed(x, y, z + 1, typeId)) {
-                GemstoneESPRenderer.addQuadFace(
+                BlockESPRender.addQuadFace(
                         quadPrimitives,
                         x, y, z + 1,
                         x + 1, y, z + 1,
@@ -598,7 +598,7 @@ public final class GemstoneESPManager {
 
             // 5. WEST (-X)
             if (neighborhood.isFaceExposed(x - 1, y, z, typeId)) {
-                GemstoneESPRenderer.addQuadFace(
+                BlockESPRender.addQuadFace(
                         quadPrimitives,
                         x, y, z,
                         x, y, z + 1,
@@ -622,7 +622,7 @@ public final class GemstoneESPManager {
 
             // 6. EAST (+X)
             if (neighborhood.isFaceExposed(x + 1, y, z, typeId)) {
-                GemstoneESPRenderer.addQuadFace(
+                BlockESPRender.addQuadFace(
                         quadPrimitives,
                         x + 1, y, z,
                         x + 1, y + 1, z,
@@ -679,7 +679,7 @@ public final class GemstoneESPManager {
             int x2 = vx + (axis == 0 ? 1 : 0);
             int y2 = vy + (axis == 1 ? 1 : 0);
             int z2 = vz + (axis == 2 ? 1 : 0);
-            GemstoneESPRenderer.addLineEdge(linePrimitives, vx, vy, vz, x2, y2, z2, colorArgb);
+            BlockESPRender.addLineEdge(linePrimitives, vx, vy, vz, x2, y2, z2, colorArgb);
         }
     }
 }

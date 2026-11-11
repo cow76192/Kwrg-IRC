@@ -46,6 +46,7 @@ public class CookieMain implements ClientModInitializer {
         ChatWaypointManager.init();
         RouteManager.init();
         GemstoneESPManager.init();
+        WormLavaESPManager.init();
 
         CompletableFuture.runAsync(() -> {
             try {
@@ -62,6 +63,7 @@ public class CookieMain implements ClientModInitializer {
             TpsTracker.tick();
             ExperimentsManager.onTick(client);
             GemstoneESPManager.onTick(client);
+            WormLavaESPManager.onTick(client);
             GlaciteAdventurerManager.onTick(client);
             HarpManager.onTick(client);
         });
@@ -81,6 +83,7 @@ public class CookieMain implements ClientModInitializer {
             DanceRoomManager.resetStateAndRelease();
             IrcClient.disconnect();
             GemstoneESPManager.onDisconnect();
+            WormLavaESPManager.onDisconnect();
             me.cookie.kwrg.irc.manager.IrcCapeManager.clearAll();
         });
 

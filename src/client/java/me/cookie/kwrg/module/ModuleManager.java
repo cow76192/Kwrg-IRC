@@ -3,6 +3,7 @@ package me.cookie.kwrg.module;
 import me.cookie.kwrg.module.modules.cheat.DanceRoomModule;
 import me.cookie.kwrg.module.modules.cheat.ExperimentsModule;
 import me.cookie.kwrg.module.modules.cheat.GemstoneESPModule;
+import me.cookie.kwrg.module.modules.cheat.WormLavaESPModule;
 import me.cookie.kwrg.module.modules.cheat.GlaciteAdventurerModule;
 import me.cookie.kwrg.module.modules.cheat.HarpModule;
 import me.cookie.kwrg.module.modules.config.LoadModule;
@@ -35,6 +36,7 @@ public class ModuleManager {
         register(new LoadModule());
         register(new ShareModule());
         register(new GemstoneESPModule());
+        register(new WormLavaESPModule());
         register(new HarpModule());
 
         // --- FUNCTIONS 模块 ---
