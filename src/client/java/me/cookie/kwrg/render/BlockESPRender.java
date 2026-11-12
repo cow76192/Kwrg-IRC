@@ -9,7 +9,6 @@ import com.mojang.blaze3d.shaders.UniformType;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import me.cookie.kwrg.irc.manager.GemstoneESPManager;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.renderer.gizmos.DrawableGizmoPrimitives;
@@ -22,18 +21,33 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
+import java.util.function.IntSupplier;
+import it.unimi.dsi.fastutil.longs.LongSet;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 
-public final class GemstoneESPRenderer {
+public final class BlockESPRender {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger("kwrg-gemstone-esp-renderer");
+    private static final Logger LOGGER = LoggerFactory.getLogger("kwrg-block-esp-renderer");
     private static final AtomicBoolean INITIALIZED = new AtomicBoolean(false);
-    private static boolean loggedFirstFrame = false;
+    private record MeshSource(BooleanSupplier enabled, Supplier<CompiledMesh> mesh, IntSupplier opacity) {}
+    private static final List<MeshSource> SOURCES = new ArrayList<>();
+
+    /** Register once during client initialization. Meshes must be immutable after publication. */
+    public static void register(BooleanSupplier enabled, Supplier<CompiledMesh> mesh, IntSupplier opacity) {
+        SOURCES.add(new MeshSource(enabled, mesh, opacity));
+        init();
+    }
 
     public static final float LINE_WIDTH = 2.5f;
 
     // 外轮廓线管线
     private static final RenderPipeline ESP_LINES_PIPELINE = RenderPipeline.builder()
-            .withLocation(Identifier.fromNamespaceAndPath("kwrg", "pipeline/gemstone_esp_lines"))
+            .withLocation(Identifier.fromNamespaceAndPath("kwrg", "pipeline/block_esp_lines"))
             .withVertexShader("core/rendertype_lines")
             .withFragmentShader("core/position_color")
             .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
@@ -47,7 +61,7 @@ public final class GemstoneESPRenderer {
 
     // 边缘面填充管线
     private static final RenderPipeline ESP_QUADS_PIPELINE = RenderPipeline.builder()
-            .withLocation(Identifier.fromNamespaceAndPath("kwrg", "pipeline/gemstone_esp_quads"))
+            .withLocation(Identifier.fromNamespaceAndPath("kwrg", "pipeline/block_esp_quads"))
             .withVertexShader("core/position_color")
             .withFragmentShader("core/position_color")
             .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
@@ -60,60 +74,85 @@ public final class GemstoneESPRenderer {
 
     private static final class RenderTypeHolder {
         private static final RenderType LINES = RenderType.create(
-                "kwrg_gemstone_esp_lines",
+                "kwrg_block_esp_lines",
                 RenderSetup.builder(ESP_LINES_PIPELINE)
                         .bufferSize(RenderType.BIG_BUFFER_SIZE)
                         .createRenderSetup()
         );
         private static final RenderType QUADS = RenderType.create(
-                "kwrg_gemstone_esp_quads",
+                "kwrg_block_esp_quads",
                 RenderSetup.builder(ESP_QUADS_PIPELINE)
                         .bufferSize(RenderType.BIG_BUFFER_SIZE)
                         .createRenderSetup()
         );
     }
 
-    private GemstoneESPRenderer() {
+    private BlockESPRender() {
     }
 
     public static void init() {
         if (!INITIALIZED.compareAndSet(false, true)) return;
-        LevelRenderEvents.BEFORE_GIZMOS.register(GemstoneESPRenderer::onWorldRender);
-//        LOGGER.info("[GemstoneESP] BEFORE_GIZMOS 渲染监听已注册");
+        LevelRenderEvents.BEFORE_GIZMOS.register(BlockESPRender::onWorldRender);
     }
 
     private static void onWorldRender(LevelRenderContext context) {
-        if (!GemstoneESPManager.shouldRender()) return;
-        float opacity = GemstoneESPManager.getOpacity() / 100.0f;
-        if (opacity == 0.0f) return;
+        if (!context.levelState().cameraRenderState.initialized) return;
+        for (MeshSource source : SOURCES) {
+            if (source.enabled().getAsBoolean()) {
+                renderMesh(context, source.mesh().get(), source.opacity().getAsInt() / 100.0f);
+            }
+        }
+    }
 
-        CompiledMesh mesh = GemstoneESPManager.getActiveMesh();
-        if (mesh == null || mesh.isEmpty()) return;
-
+    public static void renderMesh(LevelRenderContext context, CompiledMesh mesh, float opacity) {
+        if (mesh == null || mesh.isEmpty() || opacity <= 0.0f) return;
         var camera = context.levelState().cameraRenderState;
         if (!camera.initialized) return;
-
         var buffers = context.bufferSource();
         var poseStack = context.poseStack();
-
-        if (!loggedFirstFrame) {
-            loggedFirstFrame = true;
-//            LOGGER.info("[GemstoneESP] 渲染器已激活");
-        }
-
-        // 边缘面半透明淡化填充
         if (!mesh.quadPrimitives().isEmpty()) {
-            VertexConsumer quadVertices = new OpacityVertexConsumer(buffers.getBuffer(RenderTypeHolder.QUADS), opacity);
-            mesh.quadPrimitives().render(poseStack, ignored -> quadVertices, camera, camera.viewRotationMatrix);
+            VertexConsumer vertices = new OpacityVertexConsumer(buffers.getBuffer(RenderTypeHolder.QUADS), opacity);
+            mesh.quadPrimitives().render(poseStack, ignored -> vertices, camera, camera.viewRotationMatrix);
             buffers.endBatch(RenderTypeHolder.QUADS);
         }
-
-        // 外轮廓线条
         if (!mesh.linePrimitives().isEmpty()) {
-            VertexConsumer lineVertices = new OpacityVertexConsumer(buffers.getBuffer(RenderTypeHolder.LINES), opacity);
-            mesh.linePrimitives().render(poseStack, ignored -> lineVertices, camera, camera.viewRotationMatrix);
+            VertexConsumer vertices = new OpacityVertexConsumer(buffers.getBuffer(RenderTypeHolder.LINES), opacity);
+            mesh.linePrimitives().render(poseStack, ignored -> vertices, camera, camera.viewRotationMatrix);
             buffers.endBatch(RenderTypeHolder.LINES);
         }
+    }
+
+    /** Build a block overlay using caller-supplied ARGB outline and fill colors. */
+    public static CompiledMesh compileBlocks(LongSet blocks, int lineArgb, int fillArgb) {
+        if (blocks.isEmpty()) return CompiledMesh.EMPTY;
+        var quads = new DrawableGizmoPrimitives();
+        var lines = new DrawableGizmoPrimitives();
+        for (long packed : blocks) {
+            int x = BlockPos.getX(packed), y = BlockPos.getY(packed), z = BlockPos.getZ(packed);
+            for (Direction face : Direction.values()) {
+                if (blocks.contains(BlockPos.asLong(x + face.getStepX(), y + face.getStepY(), z + face.getStepZ()))) continue;
+                // The four vertices of each outward face, in consistent winding order.
+                int[][] corners = switch (face) {
+                    case DOWN -> new int[][]{{0,0,0},{1,0,0},{1,0,1},{0,0,1}};
+                    case UP -> new int[][]{{0,1,0},{0,1,1},{1,1,1},{1,1,0}};
+                    case NORTH -> new int[][]{{0,0,0},{0,1,0},{1,1,0},{1,0,0}};
+                    case SOUTH -> new int[][]{{0,0,1},{1,0,1},{1,1,1},{0,1,1}};
+                    case WEST -> new int[][]{{0,0,0},{0,0,1},{0,1,1},{0,1,0}};
+                    case EAST -> new int[][]{{1,0,0},{1,1,0},{1,1,1},{1,0,1}};
+                };
+                addQuadFace(quads,
+                        x+corners[0][0], y+corners[0][1], z+corners[0][2],
+                        x+corners[1][0], y+corners[1][1], z+corners[1][2],
+                        x+corners[2][0], y+corners[2][1], z+corners[2][2],
+                        x+corners[3][0], y+corners[3][1], z+corners[3][2], fillArgb);
+                for (int i = 0; i < 4; i++) {
+                    int[] start = corners[i], end = corners[(i + 1) % 4];
+                    addLineEdge(lines, x+start[0], y+start[1], z+start[2],
+                            x+end[0], y+end[1], z+end[2], lineArgb);
+                }
+            }
+        }
+        return new CompiledMesh(quads, lines);
     }
 
     private record OpacityVertexConsumer(VertexConsumer delegate, float opacity) implements VertexConsumer {
