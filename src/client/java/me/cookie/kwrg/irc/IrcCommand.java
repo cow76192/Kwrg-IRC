@@ -18,6 +18,7 @@ import me.cookie.kwrg.irc.manager.RouteManager;
 import me.cookie.kwrg.irc.manager.WaypointManager;
 import me.cookie.kwrg.module.modules.debug.ClearIndexCacheModule;
 import me.cookie.kwrg.module.modules.functions.ChannelModule;
+import me.cookie.kwrg.module.modules.cheat.FreecamModule;
 import me.cookie.kwrg.module.modules.functions.GlowColorModule;
 import me.cookie.kwrg.module.modules.functions.HideArmorModule;
 import me.cookie.kwrg.module.modules.functions.ImportantPlayerModule;
@@ -170,6 +171,10 @@ public class IrcCommand {
 
     private static LiteralArgumentBuilder<FabricClientCommandSource> functionsAlias(String alias) {
         return literal(alias)
+                .then(literal("freecam")
+                        .executes(context -> FreecamModule.setEnabled(!me.cookie.kwrg.irc.manager.FreecamManager.isActive()))
+                        .then(argument("enabled", BoolArgumentType.bool())
+                                .executes(context -> FreecamModule.setEnabled(BoolArgumentType.getBool(context, "enabled")))))
                 .then(hideArmorNode())
                 .then(literal("glowColor")
                         .then(argument("color", StringArgumentType.greedyString())
