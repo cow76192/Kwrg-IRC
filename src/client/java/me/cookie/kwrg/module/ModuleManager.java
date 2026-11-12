@@ -47,6 +47,7 @@ public class ModuleManager {
         register(new ModelScaleModule());
         register(new CustomCapeModule());
         register(new NickModule());
+        register(new AntiNickModule());
         register(new ChatSuffixModule());
         register(new NavigatorModule());
         register(new AutoPurchasePassModule());

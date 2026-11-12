@@ -67,6 +67,7 @@ public class CookieMain implements ClientModInitializer {
             WormLavaESPManager.onTick(client);
             GlaciteAdventurerManager.onTick(client);
             HarpManager.onTick(client);
+            AntiNickManager.onTick(client);
         });
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
@@ -81,6 +82,7 @@ public class CookieMain implements ClientModInitializer {
 
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             FreecamManager.disable();
+            AntiNickManager.reset();
             GreetingManager.onSessionDisconnect();
             DanceRoomManager.resetStateAndRelease();
             IrcClient.disconnect();
