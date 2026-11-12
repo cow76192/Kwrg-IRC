@@ -1,11 +1,7 @@
 package me.cookie.kwrg.module;
 
-import me.cookie.kwrg.module.modules.cheat.DanceRoomModule;
-import me.cookie.kwrg.module.modules.cheat.ExperimentsModule;
-import me.cookie.kwrg.module.modules.cheat.GemstoneESPModule;
-import me.cookie.kwrg.module.modules.cheat.WormLavaESPModule;
-import me.cookie.kwrg.module.modules.cheat.GlaciteAdventurerModule;
-import me.cookie.kwrg.module.modules.cheat.HarpModule;
+import me.cookie.kwrg.module.modules.cheat.*;
+import me.cookie.kwrg.module.modules.cheat.*;
 import me.cookie.kwrg.module.modules.config.LoadModule;
 import me.cookie.kwrg.module.modules.config.ShareModule;
 import me.cookie.kwrg.module.modules.debug.*;
@@ -77,6 +73,7 @@ public class ModuleManager {
         register(new DanceRoomModule());
         register(new ExperimentsModule());
         register(new GlaciteAdventurerModule());
+        register(new FreecamModule());
     }
 
     public static void init() {

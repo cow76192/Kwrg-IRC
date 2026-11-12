@@ -46,6 +46,7 @@ public class CookieMain implements ClientModInitializer {
         ChatWaypointManager.init();
         RouteManager.init();
         GemstoneESPManager.init();
+        ClientTickEvents.START_CLIENT_TICK.register(FreecamManager::validateSession);
         WormLavaESPManager.init();
 
         CompletableFuture.runAsync(() -> {
@@ -79,6 +80,7 @@ public class CookieMain implements ClientModInitializer {
         });
 
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            FreecamManager.disable();
             GreetingManager.onSessionDisconnect();
             DanceRoomManager.resetStateAndRelease();
             IrcClient.disconnect();

@@ -1,6 +1,7 @@
 package me.cookie.kwrg.mixin;
 
 import me.cookie.kwrg.render.utils.LoadingOverlayRenderer;
+import me.cookie.kwrg.irc.manager.FreecamManager;
 import me.cookie.kwrg.render.ServerPortalRenderer;
 import me.cookie.kwrg.render.WaypointRenderer;
 import net.minecraft.client.DeltaTracker;
@@ -16,6 +17,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(GameRenderer.class)
 public abstract class GameRendererMixin {
+    @Inject(method = {"renderItemInHand", "bobView", "bobHurt"}, at = @At("HEAD"), cancellable = true)
+    private void kwrg$keepFreeCameraIndependent(CallbackInfo ci) {
+        if (FreecamManager.isActive()) ci.cancel();
+    }
+
     @Shadow
     public abstract Minecraft getMinecraft();
 
