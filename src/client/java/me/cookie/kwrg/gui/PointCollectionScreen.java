@@ -39,18 +39,10 @@ import java.util.List;
 import java.util.Map;
 
 /** A modal owned by IrcScreen; its existing menu stays mounted during both transitions. */
-public abstract class PointCollectionScreen {
-    private static final long ANIMATION_MS = 250;
+public abstract class PointCollectionScreen extends OverlayScreen {
     private static final int FILE_HEIGHT = 44;
 
     private final PointCollectionStore store;
-    private final float originX, originY;
-    private final IrcScreen host;
-    private final PanelItemComponent originComponent;
-    private final long openedAt = System.currentTimeMillis();
-
-    private long closingAt = -1;
-    private float closingFrom;
     private float pageFrom, pageTarget;
     private long pageStartedAt, refreshedAt, editedAt;
     private boolean dirty;
@@ -62,7 +54,6 @@ public abstract class PointCollectionScreen {
     private final RouteButtonComponent discardSaveButton = new RouteButtonComponent();
     private final RouteButtonComponent continueEditingButton = new RouteButtonComponent();
 
-    private int panelX, panelY, panelW, panelH;
     private int contentX, contentY, contentW, contentH;
     private int fileScroll, pointScroll;
     private final ScrollbarDrag scrollbarDrag = new ScrollbarDrag();
@@ -124,28 +115,17 @@ public abstract class PointCollectionScreen {
     private float deleteClosingFrom;
 
     protected PointCollectionScreen(IrcScreen host, PanelItemComponent originComponent, float originX, float originY, PointCollectionStore store) {
+        super(host, originComponent, originX, originY);
         this.store = store;
-        this.host = host;
-        this.originComponent = originComponent;
-        this.originX = originX;
-        this.originY = originY;
         refreshFiles();
     }
-
-    public float progress() {
-        long now = System.currentTimeMillis();
-        return closingAt < 0 ? AnimationUtil.easeOutCubic((now - openedAt) / (float) ANIMATION_MS)
-                : closingFrom * (1 - AnimationUtil.easeOutCubic((now - closingAt) / (float) ANIMATION_MS));
-    }
-
-    public boolean isFinished() { return closingAt >= 0 && System.currentTimeMillis() - closingAt >= ANIMATION_MS; }
 
     private float pageProgress() {
         return AnimationUtil.lerp(AnimationUtil.easeOutCubic((System.currentTimeMillis() - pageStartedAt) / (float) ANIMATION_MS), pageFrom, pageTarget);
     }
 
     private boolean interactive() {
-        return deletingPoint == null && deletingFile == null && closingAt < 0 && System.currentTimeMillis() - openedAt >= ANIMATION_MS
+        return deletingPoint == null && deletingFile == null && revealed()
                 && System.currentTimeMillis() - pageStartedAt >= ANIMATION_MS;
     }
 
@@ -168,16 +148,17 @@ public abstract class PointCollectionScreen {
             pageTarget = 0;
             pageStartedAt = System.currentTimeMillis();
             refreshFiles();
-        } else close();
+        } else closeOverlay();
     }
 
-    private void close() {
+    @Override
+    protected boolean beforeClose() {
         cancelPointDrag();
 
         scrollbarDrag.cancel();
         if (!flush()) {
-            offerSaveRecovery(this::close);
-            return;
+            offerSaveRecovery(this::closeOverlay);
+            return false;
         }
 
         regionPane = null;
@@ -185,8 +166,7 @@ public abstract class PointCollectionScreen {
         pendingDelete = null;
         routeNameInput = null;
         blurPoints();
-        closingFrom = progress();
-        closingAt = System.currentTimeMillis();
+        return true;
     }
 
     public boolean flush() {
@@ -330,7 +310,8 @@ public abstract class PointCollectionScreen {
         for (var point : points) point.blur();
     }
 
-    private void layout(int width, int height) {
+    @Override
+    protected void layout(int width, int height) {
         panelW = Math.min(560, width - 40);
         panelH = Math.min(440, height - 40);
         panelX = (width - panelW) / 2;
@@ -491,7 +472,8 @@ public abstract class PointCollectionScreen {
         }
     }
 
-    public void render(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick, int width, int height) {
+    @Override
+    protected void beforeLayout(int width, int height, int mouseX, int mouseY) {
         long now = System.currentTimeMillis();
         finishRouteNaming(now);
         finishDeletion(now);
@@ -519,32 +501,12 @@ public abstract class PointCollectionScreen {
         layout(width, height);
         updatePointDrag(mouseX, mouseY, now);
         if (pointDrag.holding()) layout(width, height);
+    }
 
-        float alpha = progress();
-        float sourceX = originX, sourceY = originY, sourceW = 52, sourceH = 28;
-
-        if (originComponent != null && originComponent.parent() != null) {
-            float scale = host.getAnimatedScale();
-            sourceX = width / 2.0f + (originComponent.x() + originComponent.width() / 2.0f - width / 2.0f) * scale;
-            sourceY = height / 2.0f + (originComponent.y() + originComponent.height() / 2.0f - height / 2.0f) * scale;
-            sourceW = originComponent.width() * scale;
-            sourceH = originComponent.height() * scale;
-        }
-
-        float w = AnimationUtil.lerp(alpha, sourceW, panelW), h = AnimationUtil.lerp(alpha, sourceH, panelH);
-        float cx = AnimationUtil.lerp(alpha, sourceX, width / 2.0f), cy = AnimationUtil.lerp(alpha, sourceY, height / 2.0f);
-
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(cx - w / 2, cy - h / 2);
-        graphics.pose().scale(w / panelW, h / panelH);
-        graphics.pose().translate(-panelX, -panelY);
-
-        OwoUIGraphics owo = RenderUtil.withOpacity(OwoUIGraphics.of(graphics), alpha * GuiThemeService.opacity());
-        RenderUtil.drawSubpixelRoundedPanel(owo, panelX, panelY, panelW, panelH, 14,
-                AnimationUtil.withAlpha(GuiThemeService.panelBg(), 0xF5), AnimationUtil.withAlpha(GuiThemeService.accent(), 0x80));
-
-        if (alpha > 0.03f) {
-            boolean editor = pageTarget > 0;
+    @Override
+    protected void renderContent(OwoUIGraphics owo, GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick, float alpha) {
+        long now = System.currentTimeMillis();
+        boolean editor = pageTarget > 0;
             closeButton.draw(owo, "×", false, mouseX, mouseY);
             if (editor) {
                 backButton.draw(owo, "‹ 返回", false, mouseX, mouseY);
@@ -561,7 +523,8 @@ public abstract class PointCollectionScreen {
             RenderUtil.drawSmoothText(owo, editor ? "直接编辑名称 / X / Y / Z · 修改自动保存" : store.supportsLines() ? label("选择路线文件 · 独立设置显示与连线") : "多点位集同时启用 · 独立设置显示 / 准星连线 / 区域", panelX + 16, panelY + 45, AnimationUtil.opaqueArgb(GuiThemeService.routeMuted()));
             RenderUtil.fillSubpixel(owo, panelX + 12, panelY + 61, panelX + panelW - 12, panelY + 62, AnimationUtil.argb(GuiThemeService.accent(), 0x30));
 
-            graphics.enableScissor(contentX, contentY, contentX + contentW, contentY + contentH);
+            graphics.enableScissor(scissorX(contentX), scissorY(contentY),
+                    scissorX(contentX + contentW), scissorY(contentY + contentH));
             float page = pageProgress();
             graphics.pose().pushMatrix();
             graphics.pose().translate(-page * (contentW + 16), 0);
@@ -607,9 +570,6 @@ public abstract class PointCollectionScreen {
             if (pendingNavigation != null) {
                 renderSaveRecovery(owo, mouseX, mouseY);
             }
-        }
-
-        graphics.pose().popMatrix();
     }
 
     private void renderSaveRecovery(OwoUIGraphics graphics, int mouseX, int mouseY) {
@@ -806,14 +766,14 @@ public abstract class PointCollectionScreen {
 
         if (!insidePanel(click.x(), click.y())) {
             if (click.button() == 1 || (pageTarget > 0 && click.button() == 0)) {
-                close();
+                closeOverlay();
             }
             return;
         }
 
         if (click.button() == 0 && closeButton.contains(click.x(), click.y())) {
             closeButton.press();
-            close();
+            closeOverlay();
             return;
         }
 
@@ -1452,6 +1412,14 @@ public abstract class PointCollectionScreen {
         deleteAnimStarted = System.currentTimeMillis();
 
         (confirmed ? confirmDeleteButton : cancelDeleteButton).press();
+    }
+
+    private int scissorX(float panelCoordinate) {
+        return (int) (morphOriginX + (panelCoordinate - panelX) * morphScaleX);
+    }
+
+    private int scissorY(float panelCoordinate) {
+        return (int) (morphOriginY + (panelCoordinate - panelY) * morphScaleY);
     }
 
     private void finishDeletion(long now) {

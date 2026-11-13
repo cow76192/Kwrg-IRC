@@ -68,12 +68,14 @@ public class CookieMain implements ClientModInitializer {
             GlaciteAdventurerManager.onTick(client);
             HarpManager.onTick(client);
             AntiNickManager.onTick(client);
+            RefillManager.onTick(client);
         });
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             GreetingManager.onSessionJoin();
             IrcClient.connect();
             DanceRoomManager.resetStateAndRelease();
+            RefillManager.reset();
             String configuredFont = FontModule.CONFIG.get().guiFont;
             if (configuredFont != null && !configuredFont.isBlank() && !me.cookie.kwrg.gui.util.FontManagerHelper.DEFAULT_FONT.equalsIgnoreCase(configuredFont)) {
                 me.cookie.kwrg.gui.util.FontManagerHelper.applyFont(configuredFont);
@@ -85,6 +87,7 @@ public class CookieMain implements ClientModInitializer {
             AntiNickManager.reset();
             GreetingManager.onSessionDisconnect();
             DanceRoomManager.resetStateAndRelease();
+            RefillManager.reset();
             IrcClient.disconnect();
             GemstoneESPManager.onDisconnect();
             WormLavaESPManager.onDisconnect();

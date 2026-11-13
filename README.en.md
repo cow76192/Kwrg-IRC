@@ -74,6 +74,7 @@ IRC uses the project's own service and a JSON protocol over TCP. Chat and player
 - Glow effects and colors for IRC players.
 - Local nickname and Hypixel rank display overrides.
 - `antiNick`: automatically scan the current Hypixel lobby, server changes, and joining players for UUID/skin mismatches. Hover over alerts for evidence. Account guesses are unverified skin sources; preset skins cannot identify the player. Toggle or rescan with `/irc functions antiNick [true|false|scan]`.
+- `refill`: keep a target count of an item in your inventory, with per-item target, auto interval, hotkey, and island filters. Open with `/irc functions refill`; auto mode requires the skyblock-repo-cache folder.
 - Player tracking, automatic party tracking, and on-screen radar.
 
 Appearance settings such as capes and model scaling can be synchronized over IRC with other players using the mod. Nickname and rank overrides affect only your local display.
