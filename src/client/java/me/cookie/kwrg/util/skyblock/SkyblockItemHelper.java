@@ -471,4 +471,22 @@ public class SkyblockItemHelper {
         }
         return new ArrayList<>(KNOWN_IDS);
     }
+
+    public static String skyblockId(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return "";
+
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        if (data == null) return "";
+
+        CompoundTag tag = data.copyTag();
+        String id = tag.getCompoundOrEmpty("ExtraAttributes").getStringOr("id", "");
+        if (id.isBlank()) {
+            id = tag.getStringOr("id", "");
+        }
+        return id.toUpperCase(Locale.ROOT);
+    }
+
+    public static boolean isIndexed() {
+        return isIndexed;
+    }
 }

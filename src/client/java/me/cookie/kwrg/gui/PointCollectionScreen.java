@@ -39,7 +39,7 @@ import java.util.List;
 import java.util.Map;
 
 /** A modal owned by IrcScreen; its existing menu stays mounted during both transitions. */
-public abstract class PointCollectionScreen {
+public abstract class PointCollectionScreen implements ModalOverlay {
     private static final long ANIMATION_MS = 250;
     private static final int FILE_HEIGHT = 44;
 
