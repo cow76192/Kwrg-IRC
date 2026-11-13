@@ -59,6 +59,6 @@ public final class FreecamModule extends Module {
                     } catch (NumberFormatException e) {
                         ChatNotifier.send("§c[Freecam] 请输入有效的速度", NotificationType.ERR);
                     }
-                }, null).bounds(new int[][]{{1, 100}}).dragStep(1).precision(1).dragSensitivity(8.0));
+                }, null).bounds(new int[][]{{1, 100}}).dragStep(1).precision(1).dragSensitivity(14.0));
     }
 }
