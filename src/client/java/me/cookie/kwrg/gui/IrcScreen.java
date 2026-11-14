@@ -34,7 +34,7 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
     private StackLayout rootLayout = null;
     private String directCategory = null;
     private String directModule = null;
-    private PointCollectionScreen pointOverlay = null;
+    private ModalOverlay pointOverlay = null;
     private SmoothScrollbar draggedScrollbar;
 
     public void openRouteOverlay(float originX, float originY, me.cookie.kwrg.gui.component.PanelItemComponent source) {
@@ -48,6 +48,13 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
         cancelScrollbarDrag();
         if (this.pointOverlay == null) {
             this.pointOverlay = new WaypointScreen(this, source, originX, originY);
+        }
+    }
+
+    public void openRefillOverlay(float originX, float originY, me.cookie.kwrg.gui.component.PanelItemComponent source) {
+        cancelScrollbarDrag();
+        if (this.pointOverlay == null) {
+            this.pointOverlay = new RefillScreen(this, source, originX, originY);
         }
     }
 

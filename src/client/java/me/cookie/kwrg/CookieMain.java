@@ -68,6 +68,7 @@ public class CookieMain implements ClientModInitializer {
             GlaciteAdventurerManager.onTick(client);
             HarpManager.onTick(client);
             AntiNickManager.onTick(client);
+            RefillManager.onTick(client);
         });
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
