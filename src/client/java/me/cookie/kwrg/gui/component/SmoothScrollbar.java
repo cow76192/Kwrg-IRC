@@ -31,6 +31,7 @@ public class SmoothScrollbar {
 
         this.maxScroll = Math.max(0.0f, totalContentHeight - viewportHeight + 10);
         this.targetScrollOffset = Mth.clamp(this.targetScrollOffset, 0.0f, this.maxScroll);
+        this.scrollOffset = Mth.clamp(this.scrollOffset, 0.0f, this.maxScroll);
 
         if (this.maxScroll <= 0) drag.cancel();
         if (!drag.dragging()) {

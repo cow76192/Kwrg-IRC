@@ -185,7 +185,7 @@ public class PanelItemComponent extends BaseGuiComponent {
         float targetHover = this.hovered ? 1.0f : 0.0f;
         this.hoverAnimation = Mth.clamp(this.hoverAnimation + (targetHover - this.hoverAnimation) * delta * 0.35f, 0.0f, 1.0f);
 
-        float targetActive = (this.type == ItemType.TOGGLE && this.isItemActive()) ? 1.0f : 0.0f;
+        float targetActive = this.isItemActive() ? 1.0f : 0.0f;
         this.activeAnimation = Mth.clamp(this.activeAnimation + (targetActive - this.activeAnimation) * delta * 0.30f, 0.0f, 1.0f);
 
         if (this.clickFeedback > 0.01f) {

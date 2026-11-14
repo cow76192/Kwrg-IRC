@@ -102,3 +102,7 @@ __pycache__/
 
 # 宣发素材与调研文档（本地工作目录，不入库）
 .promo/
+
+# 本地窗口回归测试与任务入口
+/src/windowTest/
+/gradle/window-checks.gradle

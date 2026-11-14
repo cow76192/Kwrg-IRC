@@ -9,11 +9,6 @@ repositories {
 	maven { url 'https://maven.wispforest.io' }
 	maven { url 'https://jitpack.io' }
 	mavenCentral()
-	// Add repositories to retrieve artifacts from in here.
-	// You should only use this when depending on other mods because
-	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
-	// for more information about repositories.
 }
 
 loom {
@@ -33,7 +28,7 @@ dependencies {
 	// To change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-// 将原本的 modImplementation 改为 implementation
+    // 将原本的 modImplementation 改为 implementation
 	implementation "io.wispforest:owo-lib:${project.owo_version}"
 	annotationProcessor "io.wispforest:owo-lib:${project.owo_version}"
 
@@ -64,6 +59,36 @@ java {
 
 	sourceCompatibility = JavaVersion.VERSION_25
 	targetCompatibility = JavaVersion.VERSION_25
+}
+
+def windowHelper = file('src/client/resources/assets/kwrg/window/window-capture.exe')
+
+tasks.register('buildWindowHelper', Exec) {
+	inputs.files(fileTree('src/windowNative') { include '**/*.cs', '**/*.ps1' })
+	outputs.file(windowHelper)
+	// Linux CI packages the checked-in helper; its compiler requires Windows WinMetadata.
+	onlyIf { System.getProperty('os.name').startsWith('Windows') }
+	commandLine 'powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+			'-File', file('src/windowNative/build.ps1').absolutePath, '-CompileOnly'
+}
+
+tasks.named('processClientResources') {
+	dependsOn tasks.named('buildWindowHelper')
+	doFirst {
+		if (!windowHelper.isFile() || windowHelper.length() == 0) {
+			throw new GradleException('Missing window-capture.exe: build once on Windows and include the helper in the repository.')
+		}
+	}
+}
+
+// Local regression checks are optional and are not distributed with the project.
+if (file('gradle/window-checks.gradle').isFile()) {
+	apply from: 'gradle/window-checks.gradle'
+}
+
+tasks.named('sourcesJar') {
+	dependsOn tasks.named('buildWindowHelper')
+	from('src/windowNative') { into 'native/window' }
 }
 
 jar {
