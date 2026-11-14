@@ -66,7 +66,7 @@ def windowHelper = file('src/client/resources/assets/kwrg/window/window-capture.
 tasks.register('buildWindowHelper', Exec) {
 	inputs.files(fileTree('src/windowNative') { include '**/*.cs', '**/*.ps1' })
 	outputs.file(windowHelper)
-	// Linux CI packages the checked-in helper; its compiler requires Windows WinMetadata.
+	// Non-Windows builds reuse a bundled helper; compilation requires Windows WinMetadata.
 	onlyIf { System.getProperty('os.name').startsWith('Windows') }
 	commandLine 'powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
 			'-File', file('src/windowNative/build.ps1').absolutePath, '-CompileOnly'

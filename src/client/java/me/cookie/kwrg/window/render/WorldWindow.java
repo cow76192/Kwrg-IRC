@@ -3,12 +3,15 @@ package me.cookie.kwrg.window.render;
 import com.mojang.blaze3d.platform.NativeImage;
 import me.cookie.kwrg.CookieMain;
 import me.cookie.kwrg.module.modules.functions.WindowModule;
+import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.render.WaypointRenderer;
 import me.cookie.kwrg.render.WorldTextureRenderer;
 import me.cookie.kwrg.window.capture.WindowCapture;
 import me.cookie.kwrg.window.capture.WindowCompatibility;
 import me.cookie.kwrg.window.input.WindowIme;
 import me.cookie.kwrg.window.input.WindowInputFocus;
+import me.cookie.kwrg.window.input.WindowControlInput;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -41,6 +44,9 @@ public final class WorldWindow {
     private static Vec3 anchor;
     private static Quaternionf orientation;
     private static boolean controlling, pointerCreated, initialized, entryRelease;
+    private static boolean projectionReady, shortcutConsumed;
+    private static int entryAltKeys;
+    private static final WindowControlInput CONTROL_INPUT = new WindowControlInput();
     private static double u = 0.5, v = 0.5, lastX, lastY;
     private static long lastHoverRefresh;
     private static double imeAnchorU, imeAnchorV, imeLineHeight = 20;
@@ -82,6 +88,7 @@ public final class WorldWindow {
 
             if (controlling && (!mc.isWindowActive() || mc.screen != null || mc.getOverlay() != null || capture.ended()))
                 leave();
+            pollControls(mc);
         });
 
         ClientPlayConnectionEvents.DISCONNECT.register((handler, mc) -> destroy());
@@ -101,7 +108,8 @@ public final class WorldWindow {
         level = mc.level;
         Camera camera = mc.gameRenderer.getMainCamera();
         orientation = new Quaternionf(camera.rotation());
-        anchor = camera.position().add(new Vec3(camera.forwardVector()).scale(4));
+        anchor = camera.position();
+        pollControls(mc);
     }
 
     public static boolean exists() {
@@ -125,8 +133,8 @@ public final class WorldWindow {
         var settings = WindowModule.CONFIG.get().window;
 
         Quaternionf rotation = settings.followCamera ? new Quaternionf(camera.rotation()) : orientation;
-        Vec3 center = settings.followCamera ? camera.position().add(new Vec3(camera.forwardVector()).scale(4)) : anchor;
-        Vector3f offset = rotation.transform(new Vector3f(settings.offsetX, settings.offsetY, 0));
+        Vec3 center = settings.followCamera ? camera.position() : anchor;
+        Vector3f offset = rotation.transform(new Vector3f(settings.offsetX, settings.offsetY, -settings.distance));
 
         return new WindowSurface(center.add(offset.x, offset.y, offset.z), rotation, settings.width, settings.width * capture.height() / capture.width(), settings.curved);
     }
@@ -143,9 +151,11 @@ public final class WorldWindow {
             leave();
 
         WindowSurface surface = surface();
+        screenCamera = Minecraft.getInstance().gameRenderer.getMainCamera().position();
+        screenProjection.set(WaypointRenderer.worldProjection()).mul(context.levelState().cameraRenderState.viewRotationMatrix).mul(context.poseStack().last().pose());
+        projectionReady = true;
+        pollControls(Minecraft.getInstance());
         if (controlling) {
-            screenCamera = Minecraft.getInstance().gameRenderer.getMainCamera().position();
-            screenProjection.set(WaypointRenderer.worldProjection()).mul(context.levelState().cameraRenderState.viewRotationMatrix).mul(context.poseStack().last().pose());
 
             var insertion = capture.caret();
             if (insertion != null) {
@@ -241,14 +251,34 @@ public final class WorldWindow {
      * Called before vanilla dispatch so Esc, F3 and gameplay bindings cannot leak.
      */
     public static boolean key(int key, int action, int modifiers) {
+        if (key == GLFW.GLFW_KEY_G) {
+            boolean alt = (modifiers & GLFW.GLFW_MOD_ALT) != 0;
+            if (action == GLFW.GLFW_PRESS && !alt) shortcutConsumed = false;
+
+            if (shortcutConsumed && action != GLFW.GLFW_RELEASE) return true;
+
+            boolean pressed = CONTROL_INPUT.shortcut(action != GLFW.GLFW_RELEASE, alt);
+            if (pressed && capture != null && gameInputAllowed(Minecraft.getInstance())) toggleControl();
+
+            if (shortcutConsumed) {
+                if (action == GLFW.GLFW_RELEASE) shortcutConsumed = false;
+                return true;
+            }
+        }
         if (!controlling) return false;
-        if (key == GLFW.GLFW_KEY_G && action == GLFW.GLFW_PRESS && (modifiers & GLFW.GLFW_MOD_ALT) != 0) leave();
-        else if (!WindowIme.consumes(key, action, modifiers)) capture.key(key, action);
+        int altBit = key == GLFW.GLFW_KEY_LEFT_ALT ? 1 : key == GLFW.GLFW_KEY_RIGHT_ALT ? 2 : 0;
+        if ((entryAltKeys & altBit) != 0) {
+            entryAltKeys &= ~altBit;
+            if (action == GLFW.GLFW_RELEASE) return true;
+        }
+
+        if (!WindowIme.consumes(key, action, modifiers)) capture.key(key, action);
         return true;
     }
 
     public static boolean character(int codepoint) {
         if (!controlling) return false;
+        if (shortcutConsumed && WindowInputFocus.keyDown(0x47)) return true;
         if (WindowIme.textInput()) capture.text(codepoint);
         else capture.character(codepoint);
         return true;
@@ -262,6 +292,7 @@ public final class WorldWindow {
     }
 
     public static boolean button(int button, int action) {
+        if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) CONTROL_INPUT.rightButton(action != GLFW.GLFW_RELEASE);
         if (controlling) {
             if (entryRelease && button == GLFW.GLFW_MOUSE_BUTTON_RIGHT && action == GLFW.GLFW_RELEASE) {
                 entryRelease = false;
@@ -275,13 +306,47 @@ public final class WorldWindow {
             return true;
         }
 
+        if (button != GLFW.GLFW_MOUSE_BUTTON_RIGHT || action != GLFW.GLFW_PRESS) return false;
+        return enterAtPointer();
+    }
+
+    private static boolean gameInputAllowed(Minecraft mc) {
+        return mc.player != null && mc.level == level && mc.screen == null && mc.getOverlay() == null && mc.isWindowActive();
+    }
+
+    private static void pollControls(Minecraft mc) {
+        boolean g = WindowInputFocus.keyDown(0x47), alt = WindowInputFocus.keyDown(0x12);
+        boolean right = WindowInputFocus.keyDown(2);
+        boolean shortcutPress = CONTROL_INPUT.shortcut(g, alt);
+        boolean rightPress = CONTROL_INPUT.rightButton(right);
+        if (controlling && entryRelease && !right) {
+            entryRelease = false;
+            WindowInputFocus.entryReleased();
+        }
+
+        if (!gameInputAllowed(mc)) return;
+        // Physical state still reaches us when another mod cancels vanilla callbacks.
+        if (shortcutPress) toggleControl();
+        else if (rightPress && !controlling) enterAtPointer();
+    }
+
+    private static void toggleControl() {
+        shortcutConsumed = true;
+        if (controlling) leave();
+        else if (enter(u, v)) entryAltKeys = 3;
+        else ChatNotifier.send("§e[Window] 暂时无法进入窗口控制：" + capture.status(), NotificationType.WARN);
+    }
+
+    private static boolean enterAtPointer() {
         Minecraft mc = Minecraft.getInstance();
-        if (capture == null || !capture.ready() || button != GLFW.GLFW_MOUSE_BUTTON_RIGHT || action != GLFW.GLFW_PRESS
-                || mc.screen != null || mc.getOverlay() != null || !mc.isWindowActive() || !mc.mouseHandler.isMouseGrabbed())
+        if (capture == null || !capture.ready() || !gameInputAllowed(mc) || !projectionReady)
             return false;
 
-        Camera camera = mc.gameRenderer.getMainCamera();
-        Vec3 start = camera.position(), direction = new Vec3(camera.forwardVector());
+        double x = mc.mouseHandler.isMouseGrabbed() ? .5 : mc.mouseHandler.xpos() / mc.getWindow().getScreenWidth();
+        double y = mc.mouseHandler.isMouseGrabbed() ? .5 : mc.mouseHandler.ypos() / mc.getWindow().getScreenHeight();
+        WindowSurface.Ray ray = WindowSurface.screenRay(screenCamera, screenProjection, x, y);
+        if (ray == null) return false;
+        Vec3 start = ray.origin(), direction = ray.direction();
         WindowSurface.Hit hit = surface().hit(start, direction, 64);
         if (hit == null) return false;
 
@@ -292,6 +357,12 @@ public final class WorldWindow {
                 return false;
         }
 
+        return enter(hit.u(), hit.v());
+    }
+
+    private static boolean enter(double pointerU, double pointerV) {
+        Minecraft mc = Minecraft.getInstance();
+        if (capture == null || !capture.ready() || !gameInputAllowed(mc)) return false;
         if (!WindowInputFocus.keepGameForeground(mc.getWindow().handle(), INPUT)) return false;
 
         try {
@@ -310,10 +381,11 @@ public final class WorldWindow {
             return false;
         }
 
-        u = hit.u();
-        v = hit.v();
+        u = pointerU;
+        v = pointerV;
 
         controlling = true;
+        entryAltKeys = 0;
         entryRelease = WindowInputFocus.entryPending();
         imeAnchorU = u;
         imeAnchorV = v;
@@ -323,6 +395,7 @@ public final class WorldWindow {
         lastY = WindowInputFocus.mouseY();
         capture.releaseInput();
         capture.move(u, v);
+        ChatNotifier.send("§a[Window] 已进入窗口控制 · Alt+G 退出", NotificationType.SUCCESS);
         return true;
     }
 
@@ -397,6 +470,7 @@ public final class WorldWindow {
     public static void leave() {
         if (!controlling) return;
         controlling = false;
+        entryAltKeys = 0;
         imeButtons = sourceButtons = 0;
         if (capture != null) capture.releaseInput();
         WindowInputFocus.release();
@@ -410,6 +484,7 @@ public final class WorldWindow {
         Minecraft.getInstance().textInputManager().stopTextInput();
         KeyMapping.releaseAll();
         Minecraft.getInstance().mouseHandler.setIgnoreFirstMove();
+        ChatNotifier.send("§b[Window] 已退出窗口控制 · Alt+G 再次进入", NotificationType.INFO);
     }
 
     public static void destroy() {
@@ -427,6 +502,7 @@ public final class WorldWindow {
         if (capture != null) capture.close();
 
         capture = null;
+        projectionReady = shortcutConsumed = false;
         level = null;
         anchor = null;
         orientation = null;

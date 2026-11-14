@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(KeyboardHandler.class)
+@Mixin(value = KeyboardHandler.class, priority = 2000)
 public abstract class WindowKeyboardMixin {
     @Inject(method = "keyPress", at = @At("HEAD"), cancellable = true)
     private void kwrg$windowKey(long window, int action, KeyEvent event, CallbackInfo ci) {

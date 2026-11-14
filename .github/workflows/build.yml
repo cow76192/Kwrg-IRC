@@ -8,7 +8,7 @@ on: [pull_request, push]
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: windows-2025
     steps:
       - name: checkout repository
         uses: actions/checkout@v6
@@ -19,10 +19,8 @@ jobs:
         with:
           java-version: '25'
           distribution: 'microsoft'
-      - name: make gradle wrapper executable
-        run: chmod +x ./gradlew
       - name: build
-        run: ./gradlew build
+        run: .\gradlew.bat build
       - name: capture build artifacts
         uses: actions/upload-artifact@v7
         with:

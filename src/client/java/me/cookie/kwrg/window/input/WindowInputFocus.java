@@ -17,6 +17,10 @@ import org.lwjgl.glfw.GLFWWindowFocusCallback;
  * Owns pointer routing only during explicit control; never brings the game back after Alt+Tab.
  */
 public final class WindowInputFocus {
+    public static boolean keyDown(int virtualKey) {
+        return Platform.isWindows() && (Windows.API.GetAsyncKeyState(virtualKey) & 0x8000) != 0;
+    }
+
     public interface Listener {
         void move(double x, double y);
 

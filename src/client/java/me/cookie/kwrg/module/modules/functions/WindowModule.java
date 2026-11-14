@@ -31,12 +31,13 @@ public final class WindowModule extends Module {
     public static final class Options {
         public String process = "", title = "";
         public boolean followCamera, throughWalls, curved;
-        public float width = 4, offsetX, offsetY;
+        public float width = 4, distance = 4, offsetX, offsetY;
 
         public void sanitize() {
             if (process == null) process = "";
             if (title == null) title = "";
             width = Float.isFinite(width) ? Math.clamp(width, 0.5f, 16f) : 4;
+            distance = Float.isFinite(distance) ? Math.clamp(distance, 0.5f, 32f) : 4;
             offsetX = Float.isFinite(offsetX) ? Math.clamp(offsetX, -10f, 10f) : 0;
             offsetY = Float.isFinite(offsetY) ? Math.clamp(offsetY, -10f, 10f) : 0;
         }
@@ -148,6 +149,9 @@ public final class WindowModule extends Module {
         panel.child(SliderPaneComponent.ofFloat("大小（宽度/方块）", 0.5f, 16, 4, 0.1f,
                 () -> CONFIG.get().window.width, v -> CONFIG.get().window.width = v, v -> String.format("%.1f", v)));
 
+        panel.child(SliderPaneComponent.ofFloat("距离（方块）", 0.5f, 32, 4, 0.1f,
+                () -> CONFIG.get().window.distance, v -> CONFIG.get().window.distance = v, v -> String.format("%.1f", v)));
+
         panel.child(SliderPaneComponent.ofFloat("左右偏移（右为正）", -10, 10, 0, 0.1f,
                 () -> CONFIG.get().window.offsetX, v -> CONFIG.get().window.offsetX = v, v -> String.format("%.1f", v)));
 
@@ -162,7 +166,7 @@ public final class WindowModule extends Module {
                 () -> CONFIG.update(s -> s.window.curved = !s.window.curved),
                 null, () -> CONFIG.get().window.curved));
 
-        panel.child(TextInfoPaneComponent.header("右键屏幕控制 · Alt+G 退出"));
+        panel.child(TextInfoPaneComponent.header("右键屏幕控制 · Alt+G 进入/退出"));
 
         panel.child(new TextInfoPaneComponent("投影状态", WorldWindow::status, false, false));
 
@@ -178,7 +182,7 @@ public final class WindowModule extends Module {
                 });
                 WorldWindow.create(selected);
                 Minecraft.getInstance().setScreen(null);
-                ChatNotifier.send("§a[Window] 已创建投影，右键控制，Alt+G 退出", NotificationType.SUCCESS);
+                ChatNotifier.send("§a[Window] 已创建投影，右键或 Alt+G 控制，再按 Alt+G 退出", NotificationType.SUCCESS);
             } catch (Exception e) {
                 ChatNotifier.send("§c[Window] " + e.getMessage(), NotificationType.ERR);
             }
