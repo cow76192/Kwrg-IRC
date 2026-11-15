@@ -187,7 +187,7 @@ public static partial class CheatProgramWindowCapture {
  static void RestorePlacement(){lock(InputLock){foreach(ViewState state in Views.Values){if(!state.PlacementChanged||!ValidView(state.Identity))continue;state.PlacementChanged=false;SetWindowPos(state.Identity.Window,new IntPtr(state.OriginalTopmost?-1:-2),0,0,0,0,0x213);}}}
  static long NextActivity;
  const uint PointerMarker=0x4B575247;
- static IntPtr NoActivateWindow;static bool NativePointerSource;static volatile bool NativePointerReady;static int DirectButtons;
+ static IntPtr NoActivateWindow;static bool NativePointerSource;static volatile bool NativePointerReady,NativeGameInput;static int DirectButtons;
  sealed class PointerArea {public IntPtr Window;public RECT Bounds;public bool Contains(POINT point){return point.X>=Bounds.L&&point.X<Bounds.R&&point.Y>=Bounds.T&&point.Y<Bounds.B;}}
  static volatile PointerArea NativeArea,ImeArea;
  static void PreventSourceActivation(){
@@ -223,7 +223,7 @@ public static partial class CheatProgramWindowCapture {
   mouse_event(0xE001,x,y,0,new UIntPtr(PointerMarker));return true;
  }
  static void KeepSourceActive(){
-  if(SelectedMonitor)return;long now=Stopwatch.GetTimestamp();if(now<NextActivity)return;NextActivity=now+Stopwatch.Frequency/4;
+  if(SelectedMonitor||NativeGameInput)return;long now=Stopwatch.GetTimestamp();if(now<NextActivity)return;NextActivity=now+Stopwatch.Frequency/4;
   lock(InputLock){
    if(ImeCapture)return;
    if(Quitting||!GameForeground()||!ValidView(ActiveView)||ActiveView.Window!=Selected){RestoreSourceActivation();RestorePlacement();return;}
@@ -375,6 +375,7 @@ public static partial class CheatProgramWindowCapture {
   finally{if(previous!=IntPtr.Zero)SetThreadDpiAwarenessContext(previous);}
  }
  static void Release(){
+  NativeGameInput=false;
   ImeArea=null;
   CaretClickKnown=false;
   CaretClickWindow=IntPtr.Zero;
@@ -404,6 +405,13 @@ public static partial class CheatProgramWindowCapture {
      // Release queued gestures and held input before accepting another control session.
      Release();Packet(103,0,0,0,0,null);continue;}if(!AllowInput||State()!=0){Release();Packet(102,0,0,0,0,null);continue;}if(!GameForeground()){Release();Packet(106,0,0,0,0,null);continue;}
    try{string[] p=line.Split('\t');bool sent=false;
+    if(p[0]=="P"&&p.Length==1){
+     Release();NativeGameInput=true;
+     if(!MagInitialize())throw new ArgumentException("Cursor hiding unavailable");
+     if(!MagShowSystemCursor(false)){MagUninitialize();throw new ArgumentException("Cursor hiding failed");}
+     CursorHidden=true;Packet(108,0,0,0,0,null);continue;
+    }
+    if(NativeGameInput){Packet(102,0,0,0,0,null);continue;}
     if(p[0]=="F"&&p.Length==1){PublishCaret();continue;}
     if(p[0]=="I"&&p.Length==3){IntPtr ime=GetPropW(GetForegroundWindow(),"kwrg_projection_ime");RECT bounds;
      if(ime==IntPtr.Zero||!ImeWindow(ime)||!IsWindowVisible(ime)||!GetClientRect(ime,out bounds))throw new ArgumentException("IME closed");
@@ -644,7 +652,7 @@ public static partial class CheatProgramWindowCapture {
   Selected=new IntPtr(Int64.Parse(args[1]));SelectedPid=Int32.Parse(args[2]);int edge=Math.Max(320,Math.Min(MaxEdge,Int32.Parse(args[3]))),fps=Math.Max(0,Math.Min(120,Int32.Parse(args[4])));long owner=Int64.Parse(args[5]);OwnerPid=checked((int)owner);bool native=args[6]=="1";int pixels=Math.Max(1048576,Math.Min(MaxPixels,Int32.Parse(args[7])));SelectedMonitor=args.Length>=12&&args[10]=="monitor";ImeCapture=args.Length>=12&&args[10]=="ime";if(args.Length>=12){if(args[10]!="monitor"&&args[10]!="window"&&args[10]!="ime")return 3;SelectedSourceId=new UTF8Encoding(false,true).GetString(Convert.FromBase64String(args[11]));}AllowInput=args[8]=="1"&&!SelectedMonitor&&!ImeCapture;string backend=args[9];if(SelectedMonitor?(Selected==IntPtr.Zero||SelectedPid!=0||SelectedSourceId.Length==0):(Selected==IntPtr.Zero||SelectedPid<=0||SelectedPid==owner&&!(ImeCapture&&ImeWindow(Selected))||SelectedPid==Process.GetCurrentProcess().Id))return 3;
   if(ImeCapture&&!ImeWindow(Selected))return 3;
   InitializeSource();
-   Writer=new BinaryWriter(Console.OpenStandardOutput());StartOutput();Interlocked.Exchange(ref lastActivity,Environment.TickCount);Timer guardian=new Timer(delegate(object ignored){Dpi();long age=(long)(uint)(Environment.TickCount-(int)Interlocked.Read(ref lastActivity));if(CursorHidden&&ControlRelay()==IntPtr.Zero)RestoreControlCursor();lock(InputLock){PublishCaret();if(NoActivateWindow!=IntPtr.Zero&&(!GameForeground()||ControlRelay()==IntPtr.Zero&&!IsIconic(Selected)))RestoreSourceActivation();}if(!OwnerAlive(owner)||age>15000){Quitting=true;if(Composition!=null)Composition.Dispose();RestoreSourceActivation();RestoreControlCursor();RestorePlacement();Environment.Exit(0);}},null,100,100);
+   Writer=new BinaryWriter(Console.OpenStandardOutput());StartOutput();Interlocked.Exchange(ref lastActivity,Environment.TickCount);Timer guardian=new Timer(delegate(object ignored){Dpi();long age=(long)(uint)(Environment.TickCount-(int)Interlocked.Read(ref lastActivity));if(CursorHidden&&!NativeGameInput&&ControlRelay()==IntPtr.Zero)RestoreControlCursor();lock(InputLock){if(NativeGameInput&&!GameForeground()&&!ValidTarget(GetForegroundWindow())){Release();Packet(109,0,0,0,0,null);}PublishCaret();if(NoActivateWindow!=IntPtr.Zero&&(!GameForeground()||ControlRelay()==IntPtr.Zero&&!IsIconic(Selected)))RestoreSourceActivation();}if(!OwnerAlive(owner)||age>15000){Quitting=true;if(Composition!=null)Composition.Dispose();RestoreSourceActivation();RestoreControlCursor();RestorePlacement();Environment.Exit(0);}},null,100,100);
   Thread input=new Thread(InputLoop);input.IsBackground=true;input.Start();try{
    if(AllowInput)StartMouseRelay();KeepSourceActive();if(State()==3){Packet(3,0,0,0,0,null);return 0;}
    // Immersive Pinyin popups expose no WGC frames; PrintWindow captures their original UI.

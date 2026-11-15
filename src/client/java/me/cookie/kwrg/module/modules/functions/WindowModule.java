@@ -31,7 +31,7 @@ public final class WindowModule extends Module {
 
     public static final class Options {
         public String process = "", title = "";
-        public boolean followCamera, throughWalls, curved;
+        public boolean followCamera, throughWalls, curved, gameInput;
         public float width = 4, distance = 4, offsetX, offsetY;
 
         public void sanitize() {
@@ -196,6 +196,12 @@ public final class WindowModule extends Module {
                 () -> CONFIG.update(s -> s.window.curved = !s.window.curved),
                 null, () -> CONFIG.get().window.curved));
 
+        panel.child(new PanelItemComponent("游戏控制（原生输入）", PanelItemComponent.ItemType.TOGGLE,
+                () -> CONFIG.update(s -> s.window.gameInput = !s.window.gameInput),
+                null, () -> CONFIG.get().window.gameInput));
+        panel.child(new TextInfoPaneComponent("输入方式", () -> CONFIG.get().window.gameInput
+                ? "目标游戏获得焦点 · 无投影鼠标 · Alt+G 返回 · 请使用窗口化/无边框"
+                : "保持 Minecraft 焦点 · 桌面窗口控制"));
         panel.child(TextInfoPaneComponent.header("右键屏幕控制 · Alt+G 进入/退出"));
 
         panel.child(new TextInfoPaneComponent("投影状态", WorldWindow::status, false, false));

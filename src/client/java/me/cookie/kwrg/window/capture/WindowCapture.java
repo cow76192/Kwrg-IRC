@@ -3,6 +3,7 @@ package me.cookie.kwrg.window.capture;
 import me.cookie.kwrg.CookieMain;
 import me.cookie.kwrg.window.input.WindowInputFocus;
 import me.cookie.kwrg.window.input.WindowInputKeys;
+import me.cookie.kwrg.window.input.WindowGameInput;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
@@ -55,10 +56,11 @@ public final class WindowCapture implements AutoCloseable {
     private final Identifier textureId;
     private final boolean ime;
     private final long sourceHandle;
+    private final int sourcePid;
     private final long restoreProtection;
     private final Thread writer;
     private final ScheduledFuture<?> watchdog;
-    private volatile boolean closed, ended;
+    private volatile boolean closed, ended, gameInputPrepared;
     private volatile long lastPacket = System.nanoTime(), activeView;
     private volatile String status = "正在获取画面";
     private DynamicTexture texture;
@@ -161,6 +163,7 @@ public final class WindowCapture implements AutoCloseable {
     WindowCapture(Window window, boolean ime) throws Exception {
         this.ime = ime;
         sourceHandle = window.handle;
+        sourcePid = window.pid;
         textureId = ime ? Identifier.fromNamespaceAndPath("kwrg", "dynamic/window_ime") : TEXTURE;
         activeView = window.handle;
 
@@ -278,6 +281,8 @@ public final class WindowCapture implements AutoCloseable {
                 } else {
                     int code = -frame.width;
                     if (code >= 100) {
+                        if (code == 108) gameInputPrepared = true;
+                        if (code == 109) gameInputPrepared = false;
                         if (code == 101 || code == 102 || code == 104 || code == 105)
                             status = "目标程序拒绝输入（权限或后台输入限制）";
                         continue;
@@ -394,6 +399,7 @@ public final class WindowCapture implements AutoCloseable {
     }
 
     public synchronized void releaseInput() {
+        gameInputPrepared = false;
         wheelX = wheelY = 0;
         move.set(null);
         commands.clear();
@@ -415,6 +421,17 @@ public final class WindowCapture implements AutoCloseable {
         String p = point(u, v);
         if (p != null) command("M\t" + p, true);
 
+    }
+
+    public void prepareGameInput() {
+        releaseInput();
+        command("P", false);
+    }
+
+    public boolean gameInputPrepared() { return gameInputPrepared; }
+
+    public void startGameInput(long game) {
+        WindowGameInput.start(game, sourceHandle, sourcePid, this::releaseInput);
     }
 
     public Caret caret() {

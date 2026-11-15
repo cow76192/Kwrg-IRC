@@ -4,6 +4,11 @@ package me.cookie.kwrg.window.input;
 public final class WindowControlInput {
     private boolean gDown, rightDown;
 
+    public void synchronize(boolean g, boolean right) {
+        gDown = g;
+        rightDown = right;
+    }
+
     public boolean shortcut(boolean pressed, boolean alt) {
         boolean edge = pressed && !gDown && alt;
         gDown = pressed;
