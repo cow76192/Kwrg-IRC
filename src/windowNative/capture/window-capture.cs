@@ -574,13 +574,16 @@ public static partial class CheatProgramWindowCapture {
    Stage="framepool-event";pool.FrameArrived+=delegate(Direct3D11CaptureFramePool sender,object args){try{arrived.Set();}catch(ObjectDisposedException){}};Stage="create-session";session=pool.CreateCaptureSession(item);ConfigureSession(false);Stage="start-session";session.StartCapture();}catch(Exception failure){try{failure.Data["CaptureStage"]=Stage;}catch{}try{Dispose();}catch{}throw;}
   }
   void ConfigureSession(bool ignored){if(Windows.Foundation.Metadata.ApiInformation.IsPropertyPresent("Windows.Graphics.Capture.GraphicsCaptureSession","IsCursorCaptureEnabled"))session.IsCursorCaptureEnabled=false;}
-  public void Run(int edge,int maxPixels,int fps,bool native,long owner,Action<ReadyFrame> publish=null){CurrentBackend=2;long lastGood=Environment.TickCount;bool gotFrame=false;bool suspended=false;while(!Quitting&&!stopping&&OwnerAlive(owner)){
+  public void Run(int edge,int maxPixels,int fps,bool native,long owner,Action<ReadyFrame> publish=null){CurrentBackend=2;long lastGood=Environment.TickCount;bool gotFrame=false;bool suspended=false;
+   WaitHandle[] wake=!wholeWindow&&Composition!=null?new WaitHandle[]{arrived,Composition.Changed}:new WaitHandle[]{arrived};
+   while(!Quitting&&!stopping&&OwnerAlive(owner)){
    if(wholeWindow){uint affinity;if(!IsWindowVisible(window)||!IsOwnedWindow(window)||GetWindowDisplayAffinity(window,out affinity)&&affinity!=0)return;}
    else{Interlocked.Exchange(ref lastActivity,Environment.TickCount);if(Composition!=null)Composition.Refresh();KeepSourceActive();int state=State();if(state!=0){Packet(state,0,0,0,0,null);if(state==3)return;suspended=true;ResetStaging(0,0);Thread.Sleep(400);continue;}}
    // Rebuild only after an actual lifecycle suspension. A paused/static image
    // need not emit FrameArrived; recreating it periodically caused black flashes.
    if(suspended){SizeInt32 resumed=item.Size;if(resumed.Width>=2&&resumed.Height>=2&&resumed.Width<=MaxEdge+128&&resumed.Height<=MaxEdge+128){Stage="resume-framepool";pool.Recreate(projected,DirectXPixelFormat.B8G8R8A8UIntNormalized,2,resumed);poolSize=resumed;}suspended=false;}
-   Stopwatch tick=Stopwatch.StartNew();arrived.WaitOne(readback.Pending?1:100);if(Quitting||!OwnerAlive(owner))return;
+   Stopwatch tick=Stopwatch.StartNew();WaitHandle.WaitAny(wake,readback.Pending?1:100);if(Quitting||!OwnerAlive(owner))return;
+   if(!wholeWindow&&Composition!=null)Composition.Refresh();
    ReadyFrame completed=DrainReadback();if(completed!=null){if(publish!=null)publish(completed);else if(Composition!=null)Composition.Parent(completed);else Packet(1,completed.W,completed.H,completed.CW,completed.CH,completed.Pixels,completed.Captured,completed.OriginX,completed.OriginY);gotFrame=true;lastGood=Environment.TickCount;}
    Direct3D11CaptureFrame latest=null,next;SizeInt32 size=default(SizeInt32);int w=2,h=2;
    try{Stage="next-frame";for(int queued=0;queued<2&&(next=pool.TryGetNextFrame())!=null;queued++){Direct3D11CaptureFrame previous=latest;latest=next;if(previous!=null)previous.Dispose();}
