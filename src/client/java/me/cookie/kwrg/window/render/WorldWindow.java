@@ -15,6 +15,7 @@ import me.cookie.kwrg.window.input.WindowIme;
 import me.cookie.kwrg.window.input.WindowInputFocus;
 import me.cookie.kwrg.window.input.WindowControlInput;
 import me.cookie.kwrg.window.input.WindowGameInput;
+import me.cookie.kwrg.window.input.WindowKeyboardInput;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -77,6 +78,15 @@ public final class WorldWindow {
             return capture != null && capture.nativePointer();
         }
     };
+    private static final WindowKeyboardInput.Listener KEYBOARD = new WindowKeyboardInput.Listener() {
+        public void key(int key, int action, int modifiers) {
+            Minecraft.getInstance().execute(() -> WorldWindow.key(key, action, modifiers));
+        }
+
+        public void character(int codepoint) {
+            Minecraft.getInstance().execute(() -> WorldWindow.character(codepoint));
+        }
+    };
 
     private WorldWindow() {
     }
@@ -128,7 +138,9 @@ public final class WorldWindow {
         return controlling;
     }
 
-    public static boolean gameControlling() { return controlling && gameControl; }
+    public static boolean gameControlling() {
+        return controlling && gameControl;
+    }
 
     private static void updateGameControl(Minecraft mc) {
         if (gameControlStarted) {
@@ -221,7 +233,8 @@ public final class WorldWindow {
 
         if (controlling && WindowIme.composing()) renderPreedit(context, surface);
 
-        if (controlling && !gameControl) {
+        boolean showPointer = controlling && updateGamePointer();
+        if (showPointer) {
             ensurePointer();
             double du = 18.0 / capture.width(), dv = 26.0 / capture.height();
             Vec3 lift = new Vec3(surface.rotation().transform(new Vector3f(0, 0, 0.02f)));
@@ -231,7 +244,17 @@ public final class WorldWindow {
         }
 
         context.bufferSource().endBatch(renderer.getRenderType(image));
-        if (controlling && !gameControl) context.bufferSource().endBatch(renderer.getRenderType(POINTER));
+        if (showPointer) context.bufferSource().endBatch(renderer.getRenderType(POINTER));
+    }
+
+    private static boolean updateGamePointer() {
+        if (!gameControl) return true;
+        WindowCapture.Cursor cursor = capture.cursor();
+        if (cursor == null) return false;
+
+        u = (cursor.x() - capture.originX()) / capture.clientWidth();
+        v = (cursor.y() - capture.originY()) / capture.clientHeight();
+        return u >= 0 && u <= 1 && v >= 0 && v <= 1;
     }
 
     private static void ensurePointer() {
@@ -302,7 +325,7 @@ public final class WorldWindow {
             if (action == GLFW.GLFW_RELEASE) return true;
         }
 
-        if (!gameControl && !WindowIme.consumes(key, action, modifiers)) capture.key(key, action);
+        if (!gameControl && !WindowIme.consumes(key, action, modifiers)) capture.key(key, action, modifiers);
         return true;
     }
 
@@ -398,6 +421,12 @@ public final class WorldWindow {
         if (capture == null || !capture.ready() || !gameInputAllowed(mc)) return false;
 
         if (WindowModule.CONFIG.get().window.gameInput) {
+            try {
+                WindowKeyboardInput.start(mc.getWindow().handle(), KEYBOARD);
+            } catch (RuntimeException | LinkageError failure) {
+                CookieMain.LOGGER.warn("Window keyboard interception initialization failed", failure);
+                return false;
+            }
             gameControl = controlling = true;
             gameControlStarted = false;
             gameControlDeadline = System.nanoTime() + 2_000_000_000L;
@@ -412,8 +441,10 @@ public final class WorldWindow {
         try {
             WindowIme.start(mc.getWindow().handle());
             mc.textInputManager().startTextInput();
+            WindowKeyboardInput.start(mc.getWindow().handle(), KEYBOARD);
         } catch (RuntimeException | LinkageError unavailable) {
             try {
+                WindowKeyboardInput.stop();
                 WindowIme.stop();
             } catch (RuntimeException | LinkageError cleanup) {
                 unavailable.addSuppressed(cleanup);
@@ -421,7 +452,7 @@ public final class WorldWindow {
                 WindowInputFocus.release();
             }
 
-            CookieMain.LOGGER.warn("Window IME initialization failed", unavailable);
+            CookieMain.LOGGER.warn("Window input initialization failed", unavailable);
             return false;
         }
 
@@ -526,6 +557,7 @@ public final class WorldWindow {
         entryAltKeys = 0;
         imeButtons = sourceButtons = 0;
         if (capture != null) capture.releaseInput();
+        WindowKeyboardInput.stop();
         WindowInputFocus.release();
 
         try {

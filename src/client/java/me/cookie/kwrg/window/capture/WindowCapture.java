@@ -37,6 +37,9 @@ public final class WindowCapture implements AutoCloseable {
     public record Caret(int x, int y, int height) {
     }
 
+    public record Cursor(int x, int y) {
+    }
+
     private static final ExecutorService IO = Executors.newVirtualThreadPerTaskExecutor();
 
     private static final ScheduledExecutorService WATCH = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -66,6 +69,7 @@ public final class WindowCapture implements AutoCloseable {
     private DynamicTexture texture;
     private Frame displayed;
     private volatile Caret caret;
+    private volatile Cursor cursor;
     private double wheelX, wheelY;
 
     private final FrameRate received = new FrameRate(System.nanoTime());
@@ -213,8 +217,9 @@ public final class WindowCapture implements AutoCloseable {
                 || cw < 0 || ch < 0 || cw > 8192 || ch > 8192 || length < 0 || length > 1920 * 1080 * 4)
             throw new IOException("无效的窗口抓取数据");
 
-        if (code == 20 || code == 22) {
-            if (length < 1 || length > 16384 || code == 20 && view == 0) throw new IOException("无效的窗口切换数据");
+        if (code == 20 || code == 22 || code == 23) {
+            if (length < 1 || length > 16384 || code == 20 && view == 0 || code == 23 && length > 64)
+                throw new IOException("无效的窗口元数据");
 
             byte[] metadata = new byte[length];
             in.readFully(metadata);
@@ -247,7 +252,9 @@ public final class WindowCapture implements AutoCloseable {
                 Frame frame = readRecord(in);
                 lastPacket = System.nanoTime();
 
-                if (frame.width == -22) {
+                if (frame.width == -23) {
+                    cursor = readCursor(new String(frame.pixels, StandardCharsets.UTF_8));
+                } else if (frame.width == -22) {
                     String[] fields = new String(frame.pixels, StandardCharsets.UTF_8).split("\t", -1);
                     if (fields.length == 1 && fields[0].equals("0")) {
                         caret = null;
@@ -415,6 +422,7 @@ public final class WindowCapture implements AutoCloseable {
 
     public synchronized void releaseInput() {
         gameInputPrepared = false;
+        cursor = null;
         wheelX = wheelY = 0;
         move.set(null);
         commands.clear();
@@ -451,6 +459,26 @@ public final class WindowCapture implements AutoCloseable {
 
     public Caret caret() {
         return caret;
+    }
+
+    public Cursor cursor() {
+        return cursor;
+    }
+
+    public static Cursor readCursor(String metadata) throws IOException {
+        if (metadata.equals("0")) return null;
+        String[] fields = metadata.split("\t", -1);
+        if (fields.length != 3 || !fields[0].equals("1")) throw new IOException("无效的游戏光标状态");
+
+        try {
+            int x = Integer.parseInt(fields[1]);
+            int y = Integer.parseInt(fields[2]);
+            if (Math.abs((long) x) > 8192 || Math.abs((long) y) > 8192)
+                throw new IOException("无效的游戏光标位置");
+            return new Cursor(x, y);
+        } catch (NumberFormatException invalid) {
+            throw new IOException("无效的游戏光标位置", invalid);
+        }
     }
 
     public void requestCaret() {
@@ -508,10 +536,13 @@ public final class WindowCapture implements AutoCloseable {
         if (vk != 0) command("K\t" + vk + "\t" + (action == 0 ? 0 : 1) + "\t" + (action == 2 ? 1 : 0), false);
     }
 
-    public void character(int codepoint) {
+    public void key(int key, int action, int modifiers) {
         if (!ready()) return;
-        // Posted printable keydowns already generate ASCII WM_CHAR in the target's message loop.
-        if (codepoint <= 127) return;
+        int vk = WindowInputKeys.virtualKey(key);
+        if (vk != 0) command("K\t" + vk + "\t" + (action == 0 ? 0 : 1) + "\t" + (action == 2 ? 1 : 0) + "\t" + (modifiers & 63), false);
+    }
+
+    public void character(int codepoint) {
         text(codepoint);
     }
 

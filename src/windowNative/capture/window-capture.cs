@@ -142,14 +142,45 @@ public static partial class CheatProgramWindowCapture {
  // never wait for a slow consumer or retain compositor buffers while writing.
  static void StartOutput(){OutputStopping=false;OutputThread=new Thread(OutputLoop);OutputThread.IsBackground=true;OutputThread.Start();}
  static void StopOutput(){OutputStopping=true;OutputReady.Set();if(OutputThread!=null)OutputThread.Join(250);}
- static void OutputLoop(){try{while(true){OutputReady.WaitOne();OutputRecord status,frame,caret;
-   lock(OutputLock){status=PendingStatus;PendingStatus=null;frame=PendingFrame;PendingFrame=null;caret=PendingCaret;PendingCaret=null;}
-   if(status!=null)WriteRecord(status);
-   if(caret!=null)WriteRecord(caret);
-   FlushInputStatus((DateTime.UtcNow.Ticks-621355968000000000L)/10000);
-   if(frame!=null)try{WriteRecord(frame);}finally{ReleaseRecord(frame);}Writer.Flush();
-   if(OutputStopping){lock(OutputLock){if(PendingStatus==null&&PendingFrame==null)break;}OutputReady.Set();}
-  }}catch{Quitting=true;}finally{lock(OutputLock){ReleaseRecord(PendingFrame);PendingStatus=PendingFrame=null;}}}
+ static void OutputLoop() {
+  Dpi();
+  try {
+   while (true) {
+    OutputReady.WaitOne(NativeGameInput ? 16 : Timeout.Infinite);
+    OutputRecord status, frame, caret;
+    lock (OutputLock) {
+     status = PendingStatus;
+     PendingStatus = null;
+     frame = PendingFrame;
+     PendingFrame = null;
+     caret = PendingCaret;
+     PendingCaret = null;
+    }
+    if (status != null) WriteRecord(status);
+    if (caret != null) WriteRecord(caret);
+    FlushInputStatus((DateTime.UtcNow.Ticks - 621355968000000000L) / 10000);
+    WriteGamePointer();
+    if (frame != null) {
+     try { WriteRecord(frame); }
+     finally { ReleaseRecord(frame); }
+    }
+    Writer.Flush();
+    if (OutputStopping) {
+     lock (OutputLock) {
+      if (PendingStatus == null && PendingFrame == null) break;
+     }
+     OutputReady.Set();
+    }
+   }
+  } catch {
+   Quitting = true;
+  } finally {
+   lock (OutputLock) {
+    ReleaseRecord(PendingFrame);
+    PendingStatus = PendingFrame = null;
+   }
+  }
+ }
  static OutputRecord Record(int status,int w,int h,int cw,int ch,byte[] bytes,long number,int hash,long time){return new OutputRecord{Status=status,W=w,H=h,CW=cw,CH=ch,Bytes=bytes,Number=number,Hash=hash,Time=time,Backend=CurrentBackend};}
  static IntPtr Selected;static int SelectedPid,OwnerPid;static bool AllowInput,SelectedMonitor,ImeCapture;static string SelectedSourceId="";static readonly HashSet<int> HeldKeys=new HashSet<int>();static readonly Dictionary<int,IntPtr> HeldButtons=new Dictionary<int,IntPtr>(),HeldKeyTargets=new Dictionary<int,IntPtr>();static IntPtr KeyTarget,HoverTarget,LogicalFocus;static int LastX,LastY,ClickX,ClickY,ClickButton=-1;static IntPtr ClickTarget;static long ClickAt;
  sealed class ViewIdentity {public IntPtr Window;public int Pid;public uint Thread;public long Start;}
@@ -398,7 +429,15 @@ public static partial class CheatProgramWindowCapture {
   CheatProgramWindowScroll.Clear();
   if(HoverTarget!=IntPtr.Zero)Post(HoverTarget,0x2A3,0,IntPtr.Zero);HoverTarget=IntPtr.Zero;
   foreach(KeyValuePair<int,IntPtr> button in new List<KeyValuePair<int,IntPtr>>(HeldButtons)){if(NativePointerSource)continue;int b=button.Key;uint msg=b==0?0x202u:b==1?0x205u:b==2?0x208u:0x20Cu;MousePost(button.Value,msg,b>=3?(uint)((b-2)<<16):0,Coords(LastX,LastY));}HeldButtons.Clear();
-  foreach(int key in new List<int>(HeldKeys)){IntPtr target;Post(HeldKeyTargets.TryGetValue(key,out target)?target:KeyTarget,IsAlt(key)?0x105u:0x101u,(uint)key,KeyBits(key,true,true));}HeldKeys.Clear();HeldKeyTargets.Clear();KeyTarget=IntPtr.Zero;
+  foreach (int key in new List<int>(HeldKeys)) {
+   IntPtr target;
+   bool alt = IsAlt(key);
+   HeldKeys.Remove(key);
+   SendKey(HeldKeyTargets.TryGetValue(key, out target) ? target : KeyTarget,
+       alt ? 0x105u : 0x101u, key, KeyBits(key, true, true), KeyboardModifiers());
+  }
+  HeldKeyTargets.Clear();
+  KeyTarget = IntPtr.Zero;
   if(ValidTarget(LogicalFocus))Post(LogicalFocus,0x8,0,IntPtr.Zero);LogicalFocus=IntPtr.Zero;ClickButton=-1;
  }
  static int Number(string text,int min,int max){int value;if(!Int32.TryParse(text,out value)||value<min||value>max)throw new ArgumentException("Input limit");return value;}
@@ -455,9 +494,56 @@ public static partial class CheatProgramWindowCapture {
         delegate{return !Quitting&&AllowInput&&State()==0&&GameForeground();},delegate(bool ok){if(!Quitting)Packet(ok?100:GameForeground()?105:106,0,0,0,0,null);});
        if(!queued)Packet(105,0,0,0,0,null);continue;
      }
-    }else if(p[0]=="K"&&p.Length==4){int vk=Number(p[1],1,255);bool down=Number(p[2],0,1)==1,repeat=Number(p[3],0,1)==1;if(down){Interlocked.Increment(ref CaretRevision);CheatProgramWindowScroll.Clear();}IntPtr heldTarget;KeyTarget=HeldKeyTargets.TryGetValue(vk,out heldTarget)?heldTarget:KeyboardTarget();FocusView(KeyTarget);bool alt=IsAlt(vk);IntPtr bits=KeyBits(vk,!down,repeat||HeldKeys.Contains(vk));if(down){HeldKeys.Add(vk);HeldKeyTargets[vk]=KeyTarget;}else{HeldKeys.Remove(vk);HeldKeyTargets.Remove(vk);}sent=Post(KeyTarget,alt?(down?0x104u:0x105u):(down?0x100u:0x101u),(uint)vk,bits);
-    }else if(p[0]=="C"&&p.Length==2){int ch=Number(p[1],32,65535);Interlocked.Increment(ref CaretRevision);CheatProgramWindowScroll.Clear();KeyTarget=KeyboardTarget();FocusView(KeyTarget);sent=Post(KeyTarget,0x102,(uint)ch,new IntPtr(1));}
-    else if(p[0]=="T"&&p.Length==2){byte[] utf8=Convert.FromBase64String(p[1]);string text=new UTF8Encoding(false,true).GetString(utf8);if(text.Length>8192)throw new ArgumentException("Text limit");Interlocked.Increment(ref CaretRevision);CheatProgramWindowScroll.Clear();KeyTarget=KeyboardTarget();FocusView(KeyTarget);sent=true;foreach(char ch in text){if(ch=='\r'||ch=='\n'||ch=='\t'||ch>=32&&ch!=127)sent&=Post(KeyTarget,0x102,(uint)(ch=='\n'?'\r':ch),new IntPtr(1));}}
+    } else if (p[0] == "K" && (p.Length == 4 || p.Length == 5)) {
+     int key = Number(p[1], 1, 255);
+     bool down = Number(p[2], 0, 1) == 1;
+     bool repeat = Number(p[3], 0, 1) == 1;
+     if (down) {
+      Interlocked.Increment(ref CaretRevision);
+      CheatProgramWindowScroll.Clear();
+     }
+     IntPtr heldTarget;
+     KeyTarget = HeldKeyTargets.TryGetValue(key, out heldTarget) ? heldTarget : KeyboardTarget();
+     FocusView(KeyTarget);
+     IntPtr bits = KeyBits(key, !down, repeat || HeldKeys.Contains(key));
+     if (down) {
+      HeldKeys.Add(key);
+      HeldKeyTargets[key] = KeyTarget;
+     } else {
+      HeldKeys.Remove(key);
+      HeldKeyTargets.Remove(key);
+     }
+     int modifiers = p.Length == 5 ? Number(p[4], 0, 63) : KeyboardModifiers();
+     bool alt = key == 0xA4 || key == 0xA5 || (modifiers & 4) != 0;
+     if (alt) bits = new IntPtr(bits.ToInt64() | (1L << 29));
+     uint message = alt ? (down ? 0x104u : 0x105u) : (down ? 0x100u : 0x101u);
+     sent = SendKey(KeyTarget, message, key, bits, modifiers);
+     if (sent && down && (modifiers & 14) == 0 && (key == 8 || key == 9 || key == 13 || key == 27))
+      sent = SendCharacter(KeyTarget, key);
+    } else if (p[0] == "C" && p.Length == 2) {
+     int character = Number(p[1], 32, 65535);
+     Interlocked.Increment(ref CaretRevision);
+     CheatProgramWindowScroll.Clear();
+     KeyTarget = KeyboardTarget();
+     FocusView(KeyTarget);
+     sent = SendCharacter(KeyTarget, character);
+    } else if (p[0] == "T" && p.Length == 2) {
+     byte[] utf8 = Convert.FromBase64String(p[1]);
+     string text = new UTF8Encoding(false, true).GetString(utf8);
+     if (text.Length > 8192) throw new ArgumentException("Text limit");
+     Interlocked.Increment(ref CaretRevision);
+     CheatProgramWindowScroll.Clear();
+     KeyTarget = KeyboardTarget();
+     FocusView(KeyTarget);
+     sent = true;
+     foreach (char character in text) {
+      if (character != '\r' && character != '\n' && character != '\t' && (character < 32 || character == 127)) continue;
+      if (!SendCharacter(KeyTarget, character == '\n' ? '\r' : character)) {
+       sent = false;
+       break;
+      }
+     }
+    }
     else throw new ArgumentException("Unknown input");Packet(sent?100:101,0,0,0,0,null);
    }catch(ArgumentException){Release();Packet(102,0,0,0,0,null);}
    }}}catch{}finally{lock(InputLock){Release();Quitting=true;RestorePlacement();if(MouseTimer!=IntPtr.Zero){CloseHandle(MouseTimer);MouseTimer=IntPtr.Zero;}}}}
