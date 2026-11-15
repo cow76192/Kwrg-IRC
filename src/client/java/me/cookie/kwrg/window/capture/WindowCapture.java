@@ -180,13 +180,14 @@ public final class WindowCapture implements AutoCloseable {
             WATCH.schedule(() -> WindowInputFocus.releaseForeground(restoreProtection), 1, TimeUnit.SECONDS);
 
         try {
-            process = new ProcessBuilder(arguments).redirectError(ProcessBuilder.Redirect.DISCARD).start();
+            process = new ProcessBuilder(arguments).start();
         } catch (Exception failure) {
             WindowInputFocus.releaseForeground(restoreProtection);
             throw failure;
         }
 
         writer = Thread.ofVirtual().name("kwrg-window-input").start(this::writeCommands);
+        IO.execute(this::readErrors);
         IO.execute(this::readFrames);
 
         watchdog = WATCH.scheduleAtFixedRate(() -> {
@@ -309,6 +310,20 @@ public final class WindowCapture implements AutoCloseable {
         } finally {
             ended = true;
             shutdownProcess();
+        }
+    }
+
+    private void readErrors() {
+        try (BufferedReader errors = process.errorReader(StandardCharsets.UTF_8)) {
+            String line, previous = "";
+            while ((line = errors.readLine()) != null) {
+                if (line.length() > 1024) line = line.substring(0, 1024);
+                if (line.equals(previous)) continue;
+                previous = line;
+                CookieMain.LOGGER.warn("Window capture helper: {}", line);
+            }
+        } catch (IOException failure) {
+            if (!closed) CookieMain.LOGGER.debug("Window capture error stream closed", failure);
         }
     }
 

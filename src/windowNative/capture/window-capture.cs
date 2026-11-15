@@ -52,6 +52,10 @@ public static partial class CheatProgramWindowCapture {
  [DllImport("kernel32.dll",SetLastError=true)] static extern bool SetWaitableTimer(IntPtr timer,ref long due,int period,IntPtr callback,IntPtr state,bool resume);
  [DllImport("kernel32.dll")] static extern uint WaitForSingleObject(IntPtr handle,uint timeout);
  [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+ [DllImport("kernel32.dll",SetLastError=true)] static extern IntPtr OpenProcess(uint access,bool inherit,uint pid);
+ [DllImport("kernel32.dll")] static extern bool GetExitCodeProcess(IntPtr process,out uint code);
+ [DllImport("kernel32.dll")] static extern bool GetProcessTimes(IntPtr process,out long created,out long exited,out long kernel,out long user);
+ [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)] static extern bool QueryFullProcessImageNameW(IntPtr process,uint flags,StringBuilder name,ref uint length);
  [DllImport("user32.dll")] static extern bool GetKeyboardState([Out]byte[] state);
  [DllImport("user32.dll")] static extern bool SetKeyboardState(byte[] state);
  [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
@@ -151,26 +155,34 @@ public static partial class CheatProgramWindowCapture {
  sealed class ViewIdentity {public IntPtr Window;public int Pid;public uint Thread;public long Start;}
  const int MaxViews=128;const long Topmost=8;
  sealed class ViewState {public ViewIdentity Identity;public bool PlacementChanged,OriginalTopmost,AddedNoActivate;}
- static ViewIdentity ActiveView;static readonly Dictionary<IntPtr,ViewState> Views=new Dictionary<IntPtr,ViewState>();static readonly Dictionary<int,Process> FollowProcesses=new Dictionary<int,Process>();
+ static ViewIdentity ActiveView;static readonly Dictionary<IntPtr,ViewState> Views=new Dictionary<IntPtr,ViewState>();static readonly Dictionary<int,IntPtr> FollowProcesses=new Dictionary<int,IntPtr>();
  static string Enc(string s){return Convert.ToBase64String(Encoding.UTF8.GetBytes(s));}
  static bool Cloaked(IntPtr h){int value;return DwmGetWindowAttribute(h,14,out value,4)==0&&value!=0;}
  static bool OwnerAlive(long pid){try{if(pid<=0)return false;using(Process process=Process.GetProcessById((int)pid))return !process.HasExited;}catch{return false;}}
  static void Dpi(){try{SetThreadDpiAwarenessContext(new IntPtr(-4));}catch(EntryPointNotFoundException){}}
  static bool WallpaperWindow(IntPtr window){StringBuilder kind=new StringBuilder(128);GetClassName(window,kind,kind.Capacity);return kind.ToString()=="Progman"||kind.ToString()=="WorkerW";}
+ static string ProcessName(uint pid){IntPtr process=OpenProcess(0x1000,false,pid);if(process==IntPtr.Zero)return "";
+  try{StringBuilder name=new StringBuilder(32768);uint length=(uint)name.Capacity;return QueryFullProcessImageNameW(process,0,name,ref length)?Path.GetFileNameWithoutExtension(name.ToString()):"";}
+  finally{CloseHandle(process);}
+ }
+ static bool ProcessStart(IntPtr process,out long start){uint code;long exited,kernel,user;start=0;return GetExitCodeProcess(process,out code)&&code==259&&GetProcessTimes(process,out start,out exited,out kernel,out user);}
  static string MonitorIdentity(string device){DISPLAYDEVICE info=new DISPLAYDEVICE{Size=Marshal.SizeOf(typeof(DISPLAYDEVICE))};return EnumDisplayDevicesW(device,0,ref info,1)&&!String.IsNullOrEmpty(info.Id)?device+"|"+info.Id:"";}
  static bool MonitorInfo(out MONITORINFOEX info){info=new MONITORINFOEX{Size=Marshal.SizeOf(typeof(MONITORINFOEX))};return SelectedMonitor&&SelectedSourceId.Length>0&&GetMonitorInfoW(Selected,ref info)&&String.Equals(MonitorIdentity(info.Device),SelectedSourceId,StringComparison.OrdinalIgnoreCase);}
  public static void List(long owner){Dpi();EnumDisplayMonitors(IntPtr.Zero,IntPtr.Zero,delegate(IntPtr monitor,IntPtr dc,ref RECT bounds,IntPtr data){MONITORINFOEX info=new MONITORINFOEX{Size=Marshal.SizeOf(typeof(MONITORINFOEX))};if(!GetMonitorInfoW(monitor,ref info))return true;
   string identity=MonitorIdentity(info.Device);if(identity.Length==0)return true;
   Console.WriteLine(monitor.ToInt64()+"\t0\t"+Enc(info.Device)+"\t"+Enc("Desktop 路 "+info.Device+" 路 "+(info.Monitor.R-info.Monitor.L)+"脳"+(info.Monitor.B-info.Monitor.T))+"\t0\tmonitor\t"+Enc(identity));return true;},IntPtr.Zero);
   EnumWindows(delegate(IntPtr h,IntPtr l){if(!IsWindowVisible(h)||Cloaked(h)||WallpaperWindow(h))return true;uint pid;GetWindowThreadProcessId(h,out pid);if(pid==owner||pid==Process.GetCurrentProcess().Id)return true;
-  StringBuilder title=new StringBuilder(2048);GetWindowText(h,title,title.Capacity);string process="";try{process=Process.GetProcessById((int)pid).ProcessName;}catch{return true;}
+  StringBuilder title=new StringBuilder(2048);GetWindowText(h,title,title.Capacity);string process=ProcessName(pid);if(process.Length==0)return true;
   // Player windows and app-owned popup views often have no title. Expose those
   // separately, but do not turn desktop/system utility surfaces into sources.
   if(title.Length==0){if(GetWindow(h,4)==IntPtr.Zero)return true;RECT r;if(!GetClientRect(h,out r)||r.R<64||r.B<48)return true;StringBuilder kind=new StringBuilder(128);GetClassName(h,kind,kind.Capacity);title.Append(process+" 路 "+kind);}
   Console.WriteLine(h.ToInt64()+"\t"+pid+"\t"+Enc(process)+"\t"+Enc(title.ToString())+"\t"+(IsIconic(h)?"1":"0")+"\twindow\t");return true;},IntPtr.Zero);}
  static ViewIdentity Identity(IntPtr window){uint pid;uint thread=GetWindowThreadProcessId(window,out pid);if(window==IntPtr.Zero||thread==0||pid<=4||pid==OwnerPid&&!(ImeCapture&&ImeWindow(window))||pid==Process.GetCurrentProcess().Id)return null;
-  try{Process process;if(!FollowProcesses.TryGetValue((int)pid,out process)){if(FollowProcesses.Count>=256)return null;process=Process.GetProcessById((int)pid);IntPtr retained=process.Handle;FollowProcesses.Add((int)pid,process);}if(process.HasExited)return null;return new ViewIdentity{Window=window,Pid=(int)pid,Thread=thread,Start=process.StartTime.ToUniversalTime().Ticks};}catch{return null;}}
- static bool ValidView(ViewIdentity view){try{if(view==null||!IsWindow(view.Window))return false;uint pid;uint thread=GetWindowThreadProcessId(view.Window,out pid);Process process;return pid==view.Pid&&thread==view.Thread&&FollowProcesses.TryGetValue(view.Pid,out process)&&!process.HasExited&&process.StartTime.ToUniversalTime().Ticks==view.Start;}catch{return false;}}
+  IntPtr process;if(!FollowProcesses.TryGetValue((int)pid,out process)){if(FollowProcesses.Count>=256)return null;
+   // Window capture needs identity queries, never full access to the source process.
+   process=OpenProcess(0x1000,false,pid);if(process==IntPtr.Zero){if(window==Selected)Console.Error.WriteLine("Window identity query failed: Win32 "+Marshal.GetLastWin32Error());return null;}FollowProcesses.Add((int)pid,process);
+  }long start;if(!ProcessStart(process,out start))return null;return new ViewIdentity{Window=window,Pid=(int)pid,Thread=thread,Start=start};}
+ static bool ValidView(ViewIdentity view){if(view==null||!IsWindow(view.Window))return false;uint pid;uint thread=GetWindowThreadProcessId(view.Window,out pid);IntPtr process;long start;return pid==view.Pid&&thread==view.Thread&&FollowProcesses.TryGetValue(view.Pid,out process)&&ProcessStart(process,out start)&&start==view.Start;}
  static ViewState Remember(IntPtr window){ViewState state;if(Views.TryGetValue(window,out state)){if(ValidView(state.Identity))return state;Views.Remove(window);}if(Views.Count>=MaxViews)return null;ViewIdentity identity=Identity(window);if(identity==null)return null;state=new ViewState{Identity=identity};Views.Add(window,state);return state;}
  // The selected HWND stays fixed; owned player toolbars must never replace it.
  static void InitializeSource(){if(SelectedMonitor)return;ActiveView=Identity(Selected);Remember(Selected);NativePointerSource=WindowClass(Selected)=="CabinetWClass";}
@@ -648,7 +660,7 @@ public static partial class CheatProgramWindowCapture {
    }
   }return target;
  }
- public static int Main(string[] args){try{Dpi();if(args.Length==2&&args[0]=="list"){List(Int64.Parse(args[1]));return 0;}if((args.Length!=10&&args.Length!=12&&args.Length!=14)||args[0]!="capture")return 2;
+ public static int Main(string[] args){try{Console.SetError(new StreamWriter(Console.OpenStandardError(),new UTF8Encoding(false)){AutoFlush=true});Dpi();if(args.Length==2&&args[0]=="list"){List(Int64.Parse(args[1]));return 0;}if((args.Length!=10&&args.Length!=12&&args.Length!=14)||args[0]!="capture")return 2;
   Selected=new IntPtr(Int64.Parse(args[1]));SelectedPid=Int32.Parse(args[2]);int edge=Math.Max(320,Math.Min(MaxEdge,Int32.Parse(args[3]))),fps=Math.Max(0,Math.Min(120,Int32.Parse(args[4])));long owner=Int64.Parse(args[5]);OwnerPid=checked((int)owner);bool native=args[6]=="1";int pixels=Math.Max(1048576,Math.Min(MaxPixels,Int32.Parse(args[7])));SelectedMonitor=args.Length>=12&&args[10]=="monitor";ImeCapture=args.Length>=12&&args[10]=="ime";if(args.Length>=12){if(args[10]!="monitor"&&args[10]!="window"&&args[10]!="ime")return 3;SelectedSourceId=new UTF8Encoding(false,true).GetString(Convert.FromBase64String(args[11]));}AllowInput=args[8]=="1"&&!SelectedMonitor&&!ImeCapture;string backend=args[9];if(SelectedMonitor?(Selected==IntPtr.Zero||SelectedPid!=0||SelectedSourceId.Length==0):(Selected==IntPtr.Zero||SelectedPid<=0||SelectedPid==owner&&!(ImeCapture&&ImeWindow(Selected))||SelectedPid==Process.GetCurrentProcess().Id))return 3;
   if(ImeCapture&&!ImeWindow(Selected))return 3;
   InitializeSource();
@@ -668,6 +680,6 @@ public static partial class CheatProgramWindowCapture {
     failures=Math.Min(5,failures+1);Thread.Sleep(Math.Min(1500,100*(1<<(failures-1))));
     Interlocked.Exchange(ref lastActivity,Environment.TickCount);
    }return 0;
-   }finally{Quitting=true;guardian.Dispose();if(Composition!=null)Composition.Dispose();StopMouseRelay();RestoreSourceActivation();RestoreControlCursor();StopOutput();RestorePlacement();foreach(Process process in FollowProcesses.Values)process.Dispose();}
+   }finally{Quitting=true;guardian.Dispose();if(Composition!=null)Composition.Dispose();StopMouseRelay();RestoreSourceActivation();RestoreControlCursor();StopOutput();RestorePlacement();foreach(IntPtr process in FollowProcesses.Values)CloseHandle(process);}
  }catch(Exception error){try{Console.Error.WriteLine(error.GetType().Name+": "+error.Message);}catch{}return 1;}}
 }
