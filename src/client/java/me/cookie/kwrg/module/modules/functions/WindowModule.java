@@ -15,6 +15,7 @@ import me.cookie.kwrg.window.render.WorldWindow;
 import net.minecraft.client.Minecraft;
 
 import java.util.List;
+import java.util.ArrayList;
 
 public final class WindowModule extends Module {
     public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class, Settings::sanitize);
@@ -45,7 +46,8 @@ public final class WindowModule extends Module {
 
     private WindowCapture.Window selected;
     private List<WindowCapture.Window> windows = List.of();
-    private boolean pickerOpen, loading;
+    private boolean pickerOpen, pickerClosing, loading;
+    private final List<PanelItemComponent> pickerItems = new ArrayList<>();
     private String listError = "";
     private int request;
 
@@ -64,12 +66,15 @@ public final class WindowModule extends Module {
         selected = null;
         request++;
         loading = false;
+        pickerClosing = false;
+        pickerItems.clear();
         WorldWindow.destroy();
     }
 
     @Override
     public void buildTertiaryUI(TertiaryPanelComponent panel) {
         pickerOpen = false;
+        pickerClosing = false;
         refresh(panel);
     }
 
@@ -107,31 +112,56 @@ public final class WindowModule extends Module {
         }));
     }
 
+    private void closePicker(TertiaryPanelComponent panel) {
+        pickerOpen = false;
+        loading = false;
+        int current = ++request;
+        if (pickerItems.isEmpty()) {
+            render(panel);
+            return;
+        }
+
+        pickerClosing = true;
+        int[] remaining = {pickerItems.size()};
+        for (PanelItemComponent item : List.copyOf(pickerItems)) {
+            item.dismiss(() -> {
+                if (current == request && --remaining[0] == 0) render(panel);
+            });
+        }
+    }
+
     private void render(TertiaryPanelComponent panel) {
+        pickerClosing = false;
+        pickerItems.clear();
         panel.clearChildren();
         Options options = CONFIG.get().window;
         String label = selected == null ? "点击以选择窗口" : selected.title();
-        panel.child(new TextInputPaneComponent(label, null).asButton(label, () -> {
-            pickerOpen = !pickerOpen;
-            if (pickerOpen) refresh(panel);
-            else render(panel);
-        }));
+        TextInputPaneComponent pickerPane = new TextInputPaneComponent(label, null).asButton(label, () -> {
+            if (pickerClosing) return;
+            if (pickerOpen) closePicker(panel);
+            else {
+                pickerOpen = true;
+                refresh(panel);
+            }
+        });
+        panel.child(pickerPane);
 
         if (pickerOpen) {
-            if (loading) panel.child(new PanelItemComponent("正在获取窗口…"));
-            else if (windows.isEmpty()) panel.child(new PanelItemComponent("暂无可用窗口"));
+            if (loading) pickerItems.add(new PanelItemComponent("正在获取窗口…").withSpawnAnimation());
+            else if (windows.isEmpty()) pickerItems.add(new PanelItemComponent("暂无可用窗口").withSpawnAnimation());
             for (WindowCapture.Window window : windows) {
-                panel.child(new PanelItemComponent(window.label(), PanelItemComponent.ItemType.TRIGGER, () -> {
+                pickerItems.add(new PanelItemComponent(window.label(), PanelItemComponent.ItemType.TRIGGER, () -> {
                     selected = window;
-                    pickerOpen = false;
                     CONFIG.update(s -> {
                         s.window.process = window.process();
                         s.window.title = window.title();
                     });
 
-                    render(panel);
-                }, null, () -> selected != null && selected.handle() == window.handle()));
+                    pickerPane.setText(window.title());
+                    closePicker(panel);
+                }, null, () -> selected != null && selected.handle() == window.handle()).withSpawnAnimation());
             }
+            for (PanelItemComponent item : pickerItems) panel.child(item);
         }
 
         if (!listError.isEmpty()) panel.child(TextInfoPaneComponent.header(listError));

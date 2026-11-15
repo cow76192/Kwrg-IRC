@@ -1,5 +1,7 @@
 package me.cookie.kwrg.window.render;
 
+import me.cookie.kwrg.util.ProjectionUtil;
+
 import com.mojang.blaze3d.platform.NativeImage;
 import me.cookie.kwrg.CookieMain;
 import me.cookie.kwrg.module.modules.functions.WindowModule;
@@ -171,8 +173,8 @@ public final class WorldWindow {
                 advance = Minecraft.getInstance().font.width(preedit.fullText().substring(0, caretIndex)) * imeLineHeight / Minecraft.getInstance().font.lineHeight / capture.clientWidth();
             }
 
-            Vector2d caret = WindowSurface.screenPoint(surface.point(imeAnchorU + advance, imeAnchorV), screenCamera, screenProjection);
-            Vector2d bottom = WindowSurface.screenPoint(surface.point(imeAnchorU + advance, imeAnchorV + imeLineHeight / capture.clientHeight()), screenCamera, screenProjection);
+            Vector2d caret = ProjectionUtil.screenPoint(surface.point(imeAnchorU + advance, imeAnchorV), screenCamera, screenProjection);
+            Vector2d bottom = ProjectionUtil.screenPoint(surface.point(imeAnchorU + advance, imeAnchorV + imeLineHeight / capture.clientHeight()), screenCamera, screenProjection);
             if (caret != null && bottom != null) {
                 WindowIme.update(caret.x, caret.y, (int) Math.max(1, Math.abs(bottom.y - caret.y) * Minecraft.getInstance().getWindow().getHeight()));
             }
@@ -344,7 +346,7 @@ public final class WorldWindow {
 
         double x = mc.mouseHandler.isMouseGrabbed() ? .5 : mc.mouseHandler.xpos() / mc.getWindow().getScreenWidth();
         double y = mc.mouseHandler.isMouseGrabbed() ? .5 : mc.mouseHandler.ypos() / mc.getWindow().getScreenHeight();
-        WindowSurface.Ray ray = WindowSurface.screenRay(screenCamera, screenProjection, x, y);
+        ProjectionUtil.Ray ray = ProjectionUtil.screenRay(screenCamera, screenProjection, x, y);
         if (ray == null) return false;
         Vec3 start = ray.origin(), direction = ray.direction();
         WindowSurface.Hit hit = surface().hit(start, direction, 64);
@@ -436,7 +438,7 @@ public final class WorldWindow {
     }
 
     private static WindowInputFocus.Point imePoint() {
-        Vector2d screen = WindowSurface.screenPoint(surface().point(u, v), screenCamera, screenProjection);
+        Vector2d screen = ProjectionUtil.screenPoint(surface().point(u, v), screenCamera, screenProjection);
         return screen == null ? null : WindowIme.point(screen.x, screen.y);
     }
 
