@@ -39,6 +39,8 @@ public final class WindowGameInput {
 
         boolean SetForegroundWindow(Pointer window);
 
+        Pointer SendMessageTimeoutW(Pointer window, int message, Pointer w, Pointer l, int flags, int timeout, Pointer result);
+
         Pointer CreateWindowExW(int exStyle, String type, String name, int style, int x, int y, int width, int height,
                                 Pointer parent, Pointer menu, Pointer instance, Pointer data);
 
@@ -101,8 +103,11 @@ public final class WindowGameInput {
                     throw new IllegalStateException("无法保持投影显示");
 
                 running = true;
-                if (!User.API.SetForegroundWindow(source) || !sourceForeground())
-                    throw new IllegalStateException("目标游戏拒绝获得焦点");
+                boolean requested = User.API.SetForegroundWindow(source);
+                // Cross-queue activation is asynchronous; WM_NULL waits for its processing without joining input queues.
+                if (requested) User.API.SendMessageTimeoutW(source, 0, null, null, 2, 1000, null);
+                if (!sourceForeground())
+                    throw new IllegalStateException(requested ? "目标游戏未及时完成激活，请稍后重试" : "目标游戏拒绝获得焦点");
 
                 User.API.SetWindowPos(source, game, 0, 0, 0, 0, 0x13);
             } catch (RuntimeException | LinkageError failure) {
@@ -145,7 +150,8 @@ public final class WindowGameInput {
     }
 
     private static void stopOnWindowThread() {
-        boolean returnFocus = running && sourceForeground();
+        Pointer foreground = User.API.GetForegroundWindow();
+        boolean returnFocus = running && (sourceForeground() || foreground == null || foreground.equals(game));
         running = false;
         if (game != null && User.API.IsWindow(game)) {
             long style = Pointer.nativeValue(User.API.GetWindowLongPtrW(game, -20));
