@@ -12,6 +12,7 @@ import com.sun.jna.win32.W32APIOptions;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWNativeWin32;
 import org.lwjgl.glfw.GLFWWindowFocusCallback;
+import me.cookie.kwrg.util.WindowThreadUtil;
 
 /**
  * Owns pointer routing only during explicit control; never brings the game back after Alt+Tab.
@@ -121,15 +122,17 @@ public final class WindowInputFocus {
 
     private static final WindowProcedure RELAY = WindowInputFocus::relayMessage;
     private static final GLFWWindowFocusCallback FOCUS = GLFWWindowFocusCallback.create(WindowInputFocus::focusChanged);
-    private static GLFWWindowFocusCallback previousFocus;
-    private static boolean focusHook, awaitingEntryRelease, addedTransparent, modeChanged, magnification;
-    private static Pointer gameWindow, relayWindow, previousRelayProcedure;
-    private static Listener listener;
+    private static volatile GLFWWindowFocusCallback previousFocus;
+    private static boolean focusHook, addedTransparent, modeChanged, magnification;
+    private static volatile boolean awaitingEntryRelease;
+    private static volatile Pointer gameWindow;
+    private static Pointer relayWindow, previousRelayProcedure;
+    private static volatile Listener listener;
     private static long glfwWindow;
     private static int previousMode;
     private static RawDevice previousDevice;
     private static final Memory RAW = new Memory(48);
-    private static double mouseX, mouseY;
+    private static volatile double mouseX, mouseY;
     private static int absoluteX, absoluteY;
     private static boolean absoluteKnown;
     private static Point previousCursor;
@@ -189,7 +192,7 @@ public final class WindowInputFocus {
 
             if (gameWindow != null && !gameWindow.equals(expected)) release();
 
-            if (gameWindow == null) acquireMouse(window, expected);
+            if (gameWindow == null) WindowThreadUtil.run(() -> acquireMouse(window, expected));
 
             listener = input;
             if (input != null && input.nativePointer() && (Windows.API.GetAsyncKeyState(0x12) & 0x8000) == 0 && (Windows.API.GetAsyncKeyState(0x5B) & 0x8000) == 0 && (Windows.API.GetAsyncKeyState(0x5C) & 0x8000) == 0) {
@@ -258,6 +261,10 @@ public final class WindowInputFocus {
     }
 
     public static void entryReleased() {
+        WindowThreadUtil.run(WindowInputFocus::entryReleasedOnWindowThread);
+    }
+
+    private static void entryReleasedOnWindowThread() {
         if (gameWindow == null) return;
 
         awaitingEntryRelease = false;
@@ -347,6 +354,10 @@ public final class WindowInputFocus {
     }
 
     public static void release() {
+        WindowThreadUtil.run(WindowInputFocus::releaseOnWindowThread);
+    }
+
+    private static void releaseOnWindowThread() {
         releaseForeground(controlProtection);
         controlProtection = 0;
         listener = null;

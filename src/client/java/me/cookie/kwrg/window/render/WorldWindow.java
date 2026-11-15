@@ -57,15 +57,17 @@ public final class WorldWindow {
     private static int imeButtons, sourceButtons;
     private static final WindowInputFocus.Listener INPUT = new WindowInputFocus.Listener() {
         public void move(double x, double y) {
-            WorldWindow.move(x, y);
+            Minecraft.getInstance().execute(() -> WorldWindow.move(x, y));
         }
 
         public boolean button(int button, int action) {
-            return WorldWindow.controlButton(button, action);
+            Minecraft.getInstance().execute(() -> WorldWindow.controlButton(button, action));
+            return true;
         }
 
         public boolean scroll(double x, double y) {
-            return WorldWindow.scroll(x, y);
+            Minecraft.getInstance().execute(() -> WorldWindow.scroll(x, y));
+            return true;
         }
 
         public boolean nativePointer() {

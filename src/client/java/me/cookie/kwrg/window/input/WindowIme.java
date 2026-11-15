@@ -9,6 +9,7 @@ import com.sun.jna.platform.win32.Tlhelp32;
 import com.sun.jna.platform.win32.WinBase;
 import com.sun.jna.platform.win32.WinDef;
 import net.minecraft.client.input.PreeditEvent;
+import me.cookie.kwrg.util.WindowThreadUtil;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWNativeWin32;
 
@@ -104,7 +105,8 @@ public final class WindowIme {
     private static final Set<Integer> CONSUMED = new HashSet<>();
     private static final Pointer SUBCLASS_ID = new Pointer(0x4B57494D);
     private static final Procedure PROCEDURE = WindowIme::message;
-    private static Pointer game, candidate;
+    private static volatile Pointer game;
+    private static Pointer candidate;
     private static long glfwWindow, nextSearch;
     private static int previousMode, caretX, caretY, anchorX = -1, anchorY = -1, anchorHeight = -1;
     private static String preedit = "";
@@ -114,6 +116,10 @@ public final class WindowIme {
     }
 
     public static void start(long window) {
+        WindowThreadUtil.run(() -> startOnWindowThread(window));
+    }
+
+    private static void startOnWindowThread(long window) {
         glfwWindow = window;
         game = new Pointer(GLFWNativeWin32.glfwGetWin32Window(window));
         previousMode = GLFW.glfwGetInputMode(window, GLFW.GLFW_IME);
@@ -337,6 +343,10 @@ public final class WindowIme {
     }
 
     public static void stop() {
+        WindowThreadUtil.run(WindowIme::stopOnWindowThread);
+    }
+
+    private static void stopOnWindowThread() {
         clearCandidate();
         if (game != null) {
             try {
