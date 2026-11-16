@@ -6,7 +6,7 @@
 ![Fabric](https://img.shields.io/badge/Loader-Fabric-DBB98F?style=flat-square)
 ![Java](https://img.shields.io/badge/Java-25-EA923E?style=flat-square)
 [![License: MIT](https://img.shields.io/badge/License-MIT-4C9BD6?style=flat-square)](./LICENSE)
-[![Java source lines: 36,200](https://img.shields.io/badge/Code%20lines-36%2C200-8B7EC8?style=flat-square)](./src "Total lines in src/**/*.java, including comments and blank lines")
+[![Java source lines: 42,115](https://img.shields.io/badge/Code%20lines-42%2C115-8B7EC8?style=flat-square)](./src "Total lines in src/**/*.java, including comments and blank lines")
 
 【[devlog] Skyblock QOL IRC Mod - KwrgIRC 26.1.2】 
 
@@ -73,6 +73,7 @@ IRC uses the project's own service and a JSON protocol over TCP. Chat and player
 - Custom static or animated capes, model scaling, and armor hiding by slot.
 - Glow effects and colors for IRC players.
 - Local nickname and Hypixel rank display overrides.
+- `antiNick`: automatically scan the current Hypixel lobby, server changes, and joining players for UUID/skin mismatches. Hover over alerts for evidence. Account guesses are unverified skin sources; preset skins cannot identify the player. Toggle or rescan with `/irc functions antiNick [true|false|scan]`.
 - Player tracking, automatic party tracking, and on-screen radar.
 
 Appearance settings such as capes and model scaling can be synchronized over IRC with other players using the mod. Nickname and rank overrides affect only your local display.

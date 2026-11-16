@@ -1,9 +1,9 @@
-package me.cookie.kwrg.mixin;
+package me.cookie.kwrg.mixin.resource;
 
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
-import me.cookie.kwrg.render.LoadingAtlasUpload;
+import me.cookie.kwrg.render.utils.LoadingAtlasUpload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.model.sprite.AtlasManager;
 import net.minecraft.server.packs.resources.PreparableReloadListener;

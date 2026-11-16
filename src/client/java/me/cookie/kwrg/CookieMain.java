@@ -46,6 +46,8 @@ public class CookieMain implements ClientModInitializer {
         ChatWaypointManager.init();
         RouteManager.init();
         GemstoneESPManager.init();
+        ClientTickEvents.START_CLIENT_TICK.register(FreecamManager::validateSession);
+        WormLavaESPManager.init();
 
         CompletableFuture.runAsync(() -> {
             try {
@@ -62,6 +64,10 @@ public class CookieMain implements ClientModInitializer {
             TpsTracker.tick();
             ExperimentsManager.onTick(client);
             GemstoneESPManager.onTick(client);
+            WormLavaESPManager.onTick(client);
+            GlaciteAdventurerManager.onTick(client);
+            HarpManager.onTick(client);
+            AntiNickManager.onTick(client);
         });
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
@@ -75,10 +81,13 @@ public class CookieMain implements ClientModInitializer {
         });
 
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            FreecamManager.disable();
+            AntiNickManager.reset();
             GreetingManager.onSessionDisconnect();
             DanceRoomManager.resetStateAndRelease();
             IrcClient.disconnect();
             GemstoneESPManager.onDisconnect();
+            WormLavaESPManager.onDisconnect();
             me.cookie.kwrg.irc.manager.IrcCapeManager.clearAll();
         });
 

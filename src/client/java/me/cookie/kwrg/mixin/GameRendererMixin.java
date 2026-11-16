@@ -1,7 +1,10 @@
 package me.cookie.kwrg.mixin;
 
-import me.cookie.kwrg.render.LoadingOverlayRenderer;
+import me.cookie.kwrg.render.utils.LoadingOverlayRenderer;
+import me.cookie.kwrg.irc.manager.FreecamManager;
+import me.cookie.kwrg.render.ServerPortalRenderer;
 import me.cookie.kwrg.render.WaypointRenderer;
+import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import org.joml.Matrix4f;
@@ -14,6 +17,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(GameRenderer.class)
 public abstract class GameRendererMixin {
+    @Inject(method = {"renderItemInHand", "bobView", "bobHurt"}, at = @At("HEAD"), cancellable = true)
+    private void kwrg$keepFreeCameraIndependent(CallbackInfo ci) {
+        if (FreecamManager.isActive()) ci.cancel();
+    }
+
     @Shadow
     public abstract Minecraft getMinecraft();
 
@@ -27,15 +35,28 @@ public abstract class GameRendererMixin {
         LoadingOverlayRenderer.beginFrame();
     }
 
+    @Inject(method = "update", at = @At("HEAD"))
+    private void kwrg$updateWarp(DeltaTracker delta, boolean renderLevel, CallbackInfo ci) {
+        ServerPortalRenderer.beginFrame(getMinecraft(), renderLevel);
+    }
+
     @Inject(method = "render", at = @At(value = "INVOKE", shift = At.Shift.AFTER,
             target = "Lnet/minecraft/client/gui/render/GuiRenderer;render(Lcom/mojang/blaze3d/buffers/GpuBufferSlice;)V"))
     private void kwrg$drawLoadingOverlay(CallbackInfo ci) {
         LoadingOverlayRenderer.render(getMinecraft().getMainRenderTarget());
+        ServerPortalRenderer.renderLaunchOverlay(getMinecraft().getMainRenderTarget());
     }
 
     @Inject(method = "close", at = @At("HEAD"))
     private void kwrg$closeLoadingOverlay(CallbackInfo ci) {
         LoadingOverlayRenderer.close();
+        ServerPortalRenderer.close();
+    }
+
+    @Inject(method = "renderLevel", at = @At("TAIL"))
+    private void kwrg$markWarpArrival(CallbackInfo ci) {
+        GameRenderer renderer = (GameRenderer) (Object) this;
+        ServerPortalRenderer.worldRendered(renderer.getMainCamera());
     }
 
     @ModifyArg(method = "renderLevel", at = @At(value = "INVOKE",

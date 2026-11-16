@@ -3,19 +3,17 @@ package me.cookie.kwrg.irc.manager;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.module.modules.cheat.ExperimentsModule;
 import me.cookie.kwrg.util.ChatNotifier;
+import me.cookie.kwrg.util.ClickUtil;
+import me.cookie.kwrg.util.InventoryUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -35,9 +33,6 @@ public class ExperimentsManager {
 
     private static final int CHRONOMATRON_SAFE_MAX_ROUND = 13;
     private static final int ULTRASEQUENCER_SAFE_MAX_ROUND = 10;
-
-    private static final double REFERENCE_DISTANCE = 3.0;
-    private static final double DISTANCE_FACTOR = 0.14;
 
     private static final Pattern ROUND_PATTERN = Pattern.compile("Round:\\s*(\\d+)");
     private static final Pattern TIMER_PATTERN = Pattern.compile("Timer:\\s*\\d+s");
@@ -112,14 +107,15 @@ public class ExperimentsManager {
         }
 
         // 离开容器界面时清空状态
-        if (!(mc.screen instanceof AbstractContainerScreen<?> screen)) {
+        AbstractContainerScreen<?> screen = InventoryUtil.getOpenContainerScreen(mc);
+        if (screen == null) {
             if (hasCachedState()) {
                 resetState();
             }
             return;
         }
 
-        String title = stripColor(screen.getTitle().getString());
+        String title = InventoryUtil.getCleanTitle(screen);
         GameType gameType = getGameType(title);
         if (gameType == GameType.NONE) {
             if (hasCachedState()) {
@@ -136,7 +132,7 @@ public class ExperimentsManager {
         }
 
         // 如果玩家鼠标光标上意外拿起了物品，暂停自动点击以防 BadPackets
-        if (!menu.getCarried().isEmpty()) {
+        if (InventoryUtil.hasCarriedItem(menu)) {
             return;
         }
 
@@ -178,9 +174,8 @@ public class ExperimentsManager {
     }
 
     private static HelperPhase readPhase(AbstractContainerMenu menu) {
-        ItemStack stack = getSlotItem(menu, PHASE_STATUS_SLOT);
-        if (stack.isEmpty()) return null;
-        String name = stripColor(stack.getHoverName().getString());
+        String name = InventoryUtil.getSlotCleanName(menu, PHASE_STATUS_SLOT);
+        if (name.isEmpty()) return null;
         if (TIMER_PATTERN.matcher(name).find()) {
             return HelperPhase.REPLICATE;
         }
@@ -194,7 +189,7 @@ public class ExperimentsManager {
         Integer round = readRound(menu);
         if (round == null) return;
 
-        //如果回合数比已记录的回合数更小（例如重新开始了第 1 轮），重置序列
+        // 如果回合数比已记录的回合数更小（例如重新开始了第 1 轮），重置序列
         if (round < currentChronomatronRound) {
             chronomatronSequence.clear();
             chronomatronSequenceIndex = 0;
@@ -207,14 +202,13 @@ public class ExperimentsManager {
         int hypixelSizeNow = chronomatronSequence.size();
 
         List<String> activeColors = new ArrayList<>();
-        for (Slot slot : menu.slots) {
-            if (slot.container instanceof Inventory) continue;
+        for (Slot slot : InventoryUtil.getContainerSlots(menu)) {
             ItemStack stack = slot.getItem();
             if (stack.isEmpty()) continue;
 
-            String itemId = BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath();
+            String itemId = InventoryUtil.getItemIdPath(stack);
             if (itemId.endsWith("_terracotta") || itemId.equals("terracotta") || itemId.contains("stained_hardened_clay")) {
-                String cleanName = stripColor(stack.getHoverName().getString()).trim();
+                String cleanName = InventoryUtil.getCleanHoverName(stack);
                 if (!cleanName.isEmpty() && !activeColors.contains(cleanName)) {
                     activeColors.add(cleanName);
                 }
@@ -273,7 +267,7 @@ public class ExperimentsManager {
         int targetSlot = findNearestChronomatronSlot(menu, targetColor, fromSlot);
         if (targetSlot == -1) return;
 
-        clickSlotPickblock(mc, menu.containerId, targetSlot);
+        ClickUtil.clickSlotPickblock(mc, menu.containerId, targetSlot);
         lastClickedSlot = targetSlot;
         autoClickIndex++;
 
@@ -285,32 +279,11 @@ public class ExperimentsManager {
     }
 
     private static int findNearestChronomatronSlot(AbstractContainerMenu menu, String targetColor, int fromSlot) {
-        int bestSlot = -1;
-        double minDistance = Double.MAX_VALUE;
-
-        for (Slot slot : menu.slots) {
-            if (slot.container instanceof Inventory) continue;
-            if (slot.index == ROUND_STATUS_SLOT || slot.index == PHASE_STATUS_SLOT) continue;
-
-            ItemStack stack = slot.getItem();
-            if (stack.isEmpty()) continue;
-
-            String name = stripColor(stack.getHoverName().getString()).trim();
-            if (!name.equalsIgnoreCase(targetColor)) continue;
-
-            double dist = getSlotDistance(fromSlot, slot.index);
-            if (dist < minDistance - 1e-4) {
-                minDistance = dist;
-                bestSlot = slot.index;
-            } else if (Math.abs(dist - minDistance) <= 1e-4 && bestSlot != -1) {
-                int currentRowDiff = Math.abs((slot.index / 9) - 2);
-                int bestRowDiff = Math.abs((bestSlot / 9) - 2);
-                if (currentRowDiff < bestRowDiff) {
-                    bestSlot = slot.index;
-                }
-            }
-        }
-        return bestSlot;
+        return InventoryUtil.findNearestContainerSlot(menu, fromSlot, 2, slot -> {
+            if (slot.index == ROUND_STATUS_SLOT || slot.index == PHASE_STATUS_SLOT) return false;
+            String name = InventoryUtil.getCleanHoverName(slot.getItem());
+            return name.equalsIgnoreCase(targetColor);
+        });
     }
 
     private record UltraSlot(int number, int slotIndex) {}
@@ -321,14 +294,10 @@ public class ExperimentsManager {
         List<UltraSlot> orderedSlots = new ArrayList<>();
         int maxNumberInMenu = 0;
 
-        for (Slot slot : menu.slots) {
-            if (slot.container instanceof Inventory) continue;
+        for (Slot slot : InventoryUtil.getContainerSlots(menu)) {
             if (slot.index == ROUND_STATUS_SLOT || slot.index == PHASE_STATUS_SLOT) continue;
 
-            ItemStack stack = slot.getItem();
-            if (stack.isEmpty()) continue;
-
-            String cleanName = stripColor(stack.getHoverName().getString()).trim();
+            String cleanName = InventoryUtil.getCleanHoverName(slot.getItem());
             if (cleanName.isEmpty()) continue;
 
             try {
@@ -368,7 +337,7 @@ public class ExperimentsManager {
         if (System.currentTimeMillis() < nextClickTimeMs) return;
 
         int targetSlot = ultrasequencerSequence.get(autoClickIndex);
-        clickSlotPickblock(mc, menu.containerId, targetSlot);
+        ClickUtil.clickSlotPickblock(mc, menu.containerId, targetSlot);
         lastClickedSlot = targetSlot;
         autoClickIndex++;
 
@@ -389,51 +358,19 @@ public class ExperimentsManager {
         return -1;
     }
 
-    private static double getSlotDistance(int slotA, int slotB) {
-        if (slotA < 0 || slotB < 0) return REFERENCE_DISTANCE;
-        int colA = slotA % 9;
-        int rowA = slotA / 9;
-        int colB = slotB % 9;
-        int rowB = slotB / 9;
-        int dx = colA - colB;
-        int dy = rowA - rowB;
-        return Math.sqrt(dx * dx + dy * dy);
-    }
-
     private static void scheduleNextClick(int fromSlot, int toSlot, boolean isFirstClickInRound) {
-        int base = getBaseDelay();
-        int rand = getRandomDelay();
-
-        double distance = getSlotDistance(fromSlot, toSlot);
-        double multiplier = 1.0 + (distance - REFERENCE_DISTANCE) * DISTANCE_FACTOR;
-        multiplier = Math.clamp(multiplier, 0.62, 1.65);
-
-        double dynamicBase = base * multiplier;
-
-        long jitter = 0;
-        if (rand > 0) {
-            int minJitter = -rand / 3;
-            int maxJitter = rand;
-            jitter = ThreadLocalRandom.current().nextInt(minJitter, maxJitter + 1);
-        }
-
-        // 回合刚变为可点击状态时
-        long reactionBonus = isFirstClickInRound ? ThreadLocalRandom.current().nextLong(180L, 321L) : 0L;
-
-        // 两次发包间隔不少于 90 ms
-        long finalDelay = Math.max(90L, Math.round(dynamicBase) + jitter + reactionBonus);
-        nextClickTimeMs = System.currentTimeMillis() + finalDelay;
-    }
-
-    private static void clickSlotPickblock(Minecraft mc, int containerId, int slotId) {
-        if (mc.gameMode == null || mc.player == null) return;
-        mc.gameMode.handleContainerInput(containerId, slotId, 2, ContainerInput.CLONE, mc.player);
+        nextClickTimeMs = ClickUtil.scheduleNextClickTimeMs(
+                fromSlot,
+                toSlot,
+                getBaseDelay(),
+                getRandomDelay(),
+                isFirstClickInRound
+        );
     }
 
     private static Integer readRound(AbstractContainerMenu menu) {
-        ItemStack stack = getSlotItem(menu, ROUND_STATUS_SLOT);
-        if (stack.isEmpty()) return null;
-        String name = stripColor(stack.getHoverName().getString());
+        String name = InventoryUtil.getSlotCleanName(menu, ROUND_STATUS_SLOT);
+        if (name.isEmpty()) return null;
         Matcher matcher = ROUND_PATTERN.matcher(name);
         if (matcher.find()) {
             try {
@@ -442,15 +379,5 @@ public class ExperimentsManager {
             }
         }
         return null;
-    }
-
-    private static ItemStack getSlotItem(AbstractContainerMenu menu, int index) {
-        if (index < 0 || index >= menu.slots.size()) return ItemStack.EMPTY;
-        return menu.slots.get(index).getItem();
-    }
-
-    private static String stripColor(String input) {
-        if (input == null) return "";
-        return input.replaceAll("(?i)§[0-9A-FK-ORX]", "");
     }
 }

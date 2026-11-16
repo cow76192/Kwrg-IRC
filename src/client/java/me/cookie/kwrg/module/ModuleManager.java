@@ -1,8 +1,7 @@
 package me.cookie.kwrg.module;
 
-import me.cookie.kwrg.module.modules.cheat.DanceRoomModule;
-import me.cookie.kwrg.module.modules.cheat.ExperimentsModule;
-import me.cookie.kwrg.module.modules.cheat.GemstoneESPModule;
+import me.cookie.kwrg.module.modules.cheat.*;
+import me.cookie.kwrg.module.modules.cheat.*;
 import me.cookie.kwrg.module.modules.config.LoadModule;
 import me.cookie.kwrg.module.modules.config.ShareModule;
 import me.cookie.kwrg.module.modules.debug.*;
@@ -33,6 +32,8 @@ public class ModuleManager {
         register(new LoadModule());
         register(new ShareModule());
         register(new GemstoneESPModule());
+        register(new WormLavaESPModule());
+        register(new HarpModule());
 
         // --- FUNCTIONS 模块 ---
         register(new HideArmorModule());
@@ -46,6 +47,7 @@ public class ModuleManager {
         register(new ModelScaleModule());
         register(new CustomCapeModule());
         register(new NickModule());
+        register(new AntiNickModule());
         register(new ChatSuffixModule());
         register(new NavigatorModule());
         register(new AutoPurchasePassModule());
@@ -71,6 +73,8 @@ public class ModuleManager {
 //        register(new test());
         register(new DanceRoomModule());
         register(new ExperimentsModule());
+        register(new GlaciteAdventurerModule());
+        register(new FreecamModule());
     }
 
     public static void init() {
