@@ -63,25 +63,41 @@ public final class WindowKeyboardInput {
     private static Pointer game;
     private static long glfwWindow;
     private static volatile Listener listener;
+    private static volatile Listener shortcutListener;
     private static char highSurrogate;
 
     private WindowKeyboardInput() { }
 
     public static void start(long window, Listener input) {
         WindowThreadUtil.run(() -> {
-            remove();
-            game = new Pointer(GLFWNativeWin32.glfwGetWin32Window(window));
-            glfwWindow = window;
-            prepareKeys(window);
-            if (!Subclass.API.SetWindowSubclass(game, PROCEDURE, ID, null)) {
-                game = null;
-                throw new IllegalStateException("键盘消息拦截初始化失败");
-            }
+            install(window, true);
             listener = input;
         });
     }
 
-    private static void prepareKeys(long window) {
+    public static void watchShortcut(long window, Listener input) {
+        if (shortcutListener == input && (input == null || glfwWindow == window)) return;
+        WindowThreadUtil.run(() -> {
+            if (input != null && (game == null || glfwWindow != window)) install(window, false);
+            shortcutListener = input;
+            removeIfIdle();
+        });
+    }
+
+    private static void install(long window, boolean clearPressedKeys) {
+        Listener shortcut = shortcutListener;
+        remove();
+        game = new Pointer(GLFWNativeWin32.glfwGetWin32Window(window));
+        glfwWindow = window;
+        prepareKeys(window, clearPressedKeys);
+        if (!Subclass.API.SetWindowSubclass(game, PROCEDURE, ID, null)) {
+            game = null;
+            throw new IllegalStateException("键盘消息拦截初始化失败");
+        }
+        shortcutListener = shortcut;
+    }
+
+    private static void prepareKeys(long window, boolean clearPressedKeys) {
         Arrays.fill(SCAN_KEYS, GLFW.GLFW_KEY_UNKNOWN);
         Arrays.fill(VIRTUAL_KEYS, GLFW.GLFW_KEY_UNKNOWN);
 
@@ -95,7 +111,7 @@ public final class WindowKeyboardInput {
                 if (scan >= 0 && scan < SCAN_KEYS.length) SCAN_KEYS[scan] = key;
                 VIRTUAL_KEYS[virtual] = key;
 
-                if (GLFW.glfwGetKey(window, key) != GLFW.GLFW_PRESS) continue;
+                if (!clearPressedKeys || GLFW.glfwGetKey(window, key) != GLFW.GLFW_PRESS) continue;
                 PRESSED.add(key);
                 long release = 0xC0000001L | (long) (scan & 0x1ff) << 16;
                 Windows.API.SendMessageW(game, WM_KEYUP, new Pointer(virtual), new Pointer(release));
@@ -114,6 +130,7 @@ public final class WindowKeyboardInput {
         if (message == WM_KILLFOCUS) {
             PRESSED.clear();
             highSurrogate = 0;
+            removeIfIdle();
             return Subclass.API.DefSubclassProc(window, message, w, l);
         }
 
@@ -138,12 +155,26 @@ public final class WindowKeyboardInput {
             boolean released = message == WM_KEYUP || message == WM_SYSKEYUP;
 
             if (listener == null) {
-                if (!PRESSED.contains(key)) return Subclass.API.DefSubclassProc(window, message, w, l);
-                if (released) {
-                    PRESSED.remove(key);
-                    if (PRESSED.isEmpty()) remove();
+                if (PRESSED.contains(key)) {
+                    if (released) {
+                        PRESSED.remove(key);
+                        if (key == GLFW.GLFW_KEY_G && shortcutListener != null)
+                            shortcutListener.key(key, GLFW.GLFW_RELEASE, modifiers());
+                        removeIfIdle();
+                    }
+                    return null;
                 }
-                return null;
+
+                boolean initialPress = !released && (Pointer.nativeValue(l) & 0x40000000L) == 0;
+                if (shortcutListener != null && key == GLFW.GLFW_KEY_G && initialPress) {
+                    int modifiers = modifiers();
+                    if ((modifiers & GLFW.GLFW_MOD_ALT) != 0) {
+                        PRESSED.add(key);
+                        shortcutListener.key(key, GLFW.GLFW_PRESS, modifiers);
+                        return null;
+                    }
+                }
+                return Subclass.API.DefSubclassProc(window, message, w, l);
             }
 
             int action;
@@ -202,12 +233,19 @@ public final class WindowKeyboardInput {
             listener = null;
             highSurrogate = 0;
             // Swallow releases belonging to control, including the Alt+G used to exit.
-            if (PRESSED.isEmpty() || !game.equals(Windows.API.GetForegroundWindow())) remove();
+            if (game != null && !game.equals(Windows.API.GetForegroundWindow())) PRESSED.clear();
+            removeIfIdle();
         });
+    }
+
+    private static void removeIfIdle() {
+        if (listener != null || shortcutListener != null) return;
+        if (PRESSED.isEmpty() || game == null || !game.equals(Windows.API.GetForegroundWindow())) remove();
     }
 
     private static void remove() {
         listener = null;
+        shortcutListener = null;
         highSurrogate = 0;
         PRESSED.clear();
         if (game != null) Subclass.API.RemoveWindowSubclass(game, PROCEDURE, ID);

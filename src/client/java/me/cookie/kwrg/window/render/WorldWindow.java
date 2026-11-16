@@ -106,6 +106,7 @@ public final class WorldWindow {
             if (controlling && ((!gameControl && !mc.isWindowActive()) || mc.screen != null || mc.getOverlay() != null || capture.ended()))
                 leave();
             if (gameControlling()) updateGameControl(mc);
+            WindowKeyboardInput.watchShortcut(mc.getWindow().handle(), gameInputAllowed(mc) ? KEYBOARD : null);
             pollControls(mc);
         });
 
@@ -127,6 +128,7 @@ public final class WorldWindow {
         Camera camera = mc.gameRenderer.getMainCamera();
         orientation = new Quaternionf(camera.rotation());
         anchor = camera.position();
+        WindowKeyboardInput.watchShortcut(mc.getWindow().handle(), gameInputAllowed(mc) ? KEYBOARD : null);
         pollControls(mc);
     }
 
@@ -583,6 +585,7 @@ public final class WorldWindow {
 
         WindowCompatibility.release(mc.getWindow().handle());
         leave();
+        WindowKeyboardInput.watchShortcut(mc.getWindow().handle(), null);
         entryRelease = false;
         if (capture != null) capture.close();
 
