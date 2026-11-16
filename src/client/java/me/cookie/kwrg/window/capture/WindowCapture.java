@@ -513,9 +513,10 @@ public final class WindowCapture implements AutoCloseable {
         command("I\t" + x + "\t" + y, true);
     }
 
-    public void button(int button, boolean down, double u, double v) {
+    public void button(int button, boolean down, double u, double v, boolean nativeDelivered) {
         String p = point(u, v);
-        if (p != null && button >= 0 && button <= 4) command("B\t" + button + "\t" + (down ? 1 : 0) + "\t" + p, false);
+        if (p != null && button >= 0 && button <= 4)
+            command("B\t" + button + "\t" + (down ? 1 : 0) + "\t" + p + "\t" + (nativeDelivered ? 1 : 0), false);
     }
 
     public void scroll(double x, double y, double u, double v) {

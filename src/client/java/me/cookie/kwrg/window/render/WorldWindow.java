@@ -64,8 +64,8 @@ public final class WorldWindow {
             Minecraft.getInstance().execute(() -> WorldWindow.move(x, y));
         }
 
-        public boolean button(int button, int action) {
-            Minecraft.getInstance().execute(() -> WorldWindow.controlButton(button, action));
+        public boolean button(int button, int action, boolean nativeDelivered) {
+            Minecraft.getInstance().execute(() -> WorldWindow.controlButton(button, action, nativeDelivered));
             return true;
         }
 
@@ -476,13 +476,13 @@ public final class WorldWindow {
         return true;
     }
 
-    private static boolean controlButton(int button, int action) {
+    private static boolean controlButton(int button, int action, boolean nativeDelivered) {
         if (!controlling) return false;
         if (gameControl) return true;
 
         if (action == GLFW.GLFW_RELEASE && (sourceButtons & (1 << button)) != 0) {
             sourceButtons &= ~(1 << button);
-            capture.button(button, false, u, v);
+            capture.button(button, false, u, v, nativeDelivered);
             return true;
         }
 
@@ -502,7 +502,7 @@ public final class WorldWindow {
             return true;
         }
 
-        capture.button(button, action != GLFW.GLFW_RELEASE, u, v);
+        capture.button(button, action != GLFW.GLFW_RELEASE, u, v, nativeDelivered);
         if (button == 0 && action == GLFW.GLFW_PRESS) {
             imeAnchorU = u;
             imeAnchorV = v;

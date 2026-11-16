@@ -25,7 +25,7 @@ public final class WindowInputFocus {
     public interface Listener {
         void move(double x, double y);
 
-        boolean button(int button, int action);
+        boolean button(int button, int action, boolean nativeDelivered);
 
         boolean scroll(double x, double y);
 
@@ -299,7 +299,7 @@ public final class WindowInputFocus {
             else {
                 int button = message <= 0x203 ? 0 : message <= 0x206 ? 1 : message <= 0x209 ? 2 : (detail >>> 16) + 2;
                 boolean up = message == 0x202 || message == 0x205 || message == 0x208 || message == 0x20C;
-                listener.button(button, up ? GLFW.GLFW_RELEASE : GLFW.GLFW_PRESS);
+                listener.button(button, up ? GLFW.GLFW_RELEASE : GLFW.GLFW_PRESS, (detail & 0x8000) != 0);
             }
         }
     }

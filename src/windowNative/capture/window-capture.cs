@@ -424,6 +424,7 @@ public static partial class CheatProgramWindowCapture {
   CaretClickWindow=IntPtr.Zero;
   Interlocked.Increment(ref CaretRevision);
   if(NativePointerSource&&HeldButtons.Count>0)Post(Selected,0x1F,0,IntPtr.Zero);
+  ReleaseNativeButtons();
   RestoreSourceActivation();
   RestoreControlCursor();
   CheatProgramWindowScroll.Clear();
@@ -469,7 +470,7 @@ public static partial class CheatProgramWindowCapture {
      int x=Number(p[1],0,MaxEdge-1),y=Number(p[2],0,MaxEdge-1);if(x>=bounds.R||y>=bounds.B)throw new ArgumentException("IME point");
      NativeArea=null;SyncVirtualCursor(ime,x,y);POINT imePoint=new POINT(x,y);if(ClientToScreen(ime,ref imePoint))MoveNativePointer(imePoint);RECT imeBounds;if(GetWindowRect(ime,out imeBounds))ImeArea=new PointerArea{Window=ime,Bounds=imeBounds};Packet(100,0,0,0,0,null);continue;
     }
-    if(p[0]=="M"&&p.Length==3||p[0]=="B"&&p.Length==5||p[0]=="W"&&p.Length==5){int offset=p[0]=="M"?1:3;int x=Number(p[offset],-MaxEdge,MaxEdge-1),y=Number(p[offset+1],-MaxEdge,MaxEdge-1);POINT point=new POINT(x,y);IntPtr target=HeldButtons.Count>0?FirstButton():Target(ref point);if(target==IntPtr.Zero){NativeArea=null;Packet(100,0,0,0,0,null);continue;}if(HeldButtons.Count>0){POINT screen=new POINT(x,y);ClientToScreen(Selected,ref screen);ScreenToClient(target,ref screen);point=screen;}LastX=point.X;LastY=point.Y;
+    if(p[0]=="M"&&p.Length==3||p[0]=="B"&&(p.Length==5||p.Length==6)||p[0]=="W"&&p.Length==5){int offset=p[0]=="M"?1:3;int x=Number(p[offset],-MaxEdge,MaxEdge-1),y=Number(p[offset+1],-MaxEdge,MaxEdge-1);POINT point=new POINT(x,y);IntPtr target=HeldButtons.Count>0?FirstButton():Target(ref point);if(target==IntPtr.Zero){NativeArea=null;Packet(100,0,0,0,0,null);continue;}if(HeldButtons.Count>0){POINT screen=new POINT(x,y);ClientToScreen(Selected,ref screen);ScreenToClient(target,ref screen);point=screen;}LastX=point.X;LastY=point.Y;
      if(p[0]=="M"){
       ImeArea=null;
       if(HoverTarget!=target){if(HoverTarget!=IntPtr.Zero)Post(HoverTarget,0x2A3,0,IntPtr.Zero);HoverTarget=target;}
@@ -478,14 +479,49 @@ public static partial class CheatProgramWindowCapture {
       if(ControlRelay()!=IntPtr.Zero)PreventSourceActivation();POINT local=new POINT(x,y);ClientToScreen(Selected,ref local);ScreenToClient(root,ref local);SyncVirtualCursor(root,local.X,local.Y);
       sent=NativePointerSource?RefreshNativePointer(x,y):MousePost(target,0x200,Flags(),Coords(point.X,point.Y));
      }
-     else if(p[0]=="B"){int b=Number(p[1],0,4);bool down=Number(p[2],0,1)==1;uint message=b==0?(down?0x201u:0x202u):b==1?(down?0x204u:0x205u):b==2?(down?0x207u:0x208u):(down?0x20Bu:0x20Cu);
-      // Deliver the exact final move while the previous button state is still
-      // held. Some drag handlers need it before the subsequent button-up.
-      sent=NativePointerSource||MousePost(target,0x200,Flags(),Coords(point.X,point.Y));
-          if(down){CheatProgramWindowScroll.Clear();Interlocked.Increment(ref CaretRevision);if(b==0){CaretClickWindow=GetAncestor(target,2);CaretClick=new POINT(x,y);CaretClickKnown=ClientToScreen(Selected,ref CaretClick)&&ScreenToClient(CaretClickWindow,ref CaretClick);}FocusView(target);HeldButtons[b]=target;KeyTarget=target;long now=DateTime.UtcNow.Ticks;
-       if(b==ClickButton&&target==ClickTarget&&Math.Abs(point.X-ClickX)<=4&&Math.Abs(point.Y-ClickY)<=4&&(now-ClickAt)/TimeSpan.TicksPerMillisecond<=GetDoubleClickTime()){message=b==0?0x203u:b==1?0x206u:b==2?0x209u:0x20Du;ClickButton=-1;}
-       else{ClickButton=b;ClickTarget=target;ClickX=point.X;ClickY=point.Y;ClickAt=now;}
-      }else{IntPtr held;if(HeldButtons.TryGetValue(b,out held))target=held;HeldButtons.Remove(b);}uint flags=Flags();if(b>=3)flags|=(uint)((b-2)<<16);if(!NativePointerSource)sent&=MousePost(target,message,flags,Coords(point.X,point.Y));}
+     else if (p[0] == "B") {
+      int b = Number(p[1], 0, 4);
+      bool down = Number(p[2], 0, 1) == 1;
+      // shortcut: legacy packets assume native delivery; retire this fallback with the five-field protocol.
+      bool delivered = p.Length == 6 ? Number(p[5], 0, 1) == 1 : NativePointerSource;
+      uint message = b == 0 ? (down ? 0x201u : 0x202u) : b == 1 ? (down ? 0x204u : 0x205u)
+          : b == 2 ? (down ? 0x207u : 0x208u) : (down ? 0x20Bu : 0x20Cu);
+      // Drag handlers need the final move before button-up, with the previous button flags.
+      sent = delivered || NativePointerSource || MousePost(target, 0x200, Flags(), Coords(point.X, point.Y));
+      if (down) {
+       CheatProgramWindowScroll.Clear();
+       Interlocked.Increment(ref CaretRevision);
+       if (b == 0) {
+        CaretClickWindow = GetAncestor(target, 2);
+        CaretClick = new POINT(x, y);
+        CaretClickKnown = ClientToScreen(Selected, ref CaretClick) && ScreenToClient(CaretClickWindow, ref CaretClick);
+       }
+       if (!delivered) FocusView(target);
+       HeldButtons[b] = target;
+       KeyTarget = target;
+       long now = DateTime.UtcNow.Ticks;
+       if (b == ClickButton && target == ClickTarget && Math.Abs(point.X - ClickX) <= 4 && Math.Abs(point.Y - ClickY) <= 4
+           && (now - ClickAt) / TimeSpan.TicksPerMillisecond <= GetDoubleClickTime()) {
+        message = b == 0 ? 0x203u : b == 1 ? 0x206u : b == 2 ? 0x209u : 0x20Du;
+        ClickButton = -1;
+       } else {
+        ClickButton = b;
+        ClickTarget = target;
+        ClickX = point.X;
+        ClickY = point.Y;
+        ClickAt = now;
+       }
+      } else {
+       IntPtr held;
+       if (HeldButtons.TryGetValue(b, out held)) target = held;
+       HeldButtons.Remove(b);
+       if (delivered) InjectedPointerButtons &= ~(1 << b);
+      }
+      uint flags = Flags();
+      if (b >= 3) flags |= (uint)((b - 2) << 16);
+      if (!delivered) sent &= NativePointerSource ? ForwardNativeButton(b, down, x, y)
+          : MousePost(target, message, flags, Coords(point.X, point.Y));
+     }
      else{int sx=Number(p[1],-12000,12000),sy=Number(p[2],-12000,12000);POINT screen=new POINT(x,y);ClientToScreen(Selected,ref screen);
        // Scroll providers smooth fractional offsets; native wheel fallback is
        // handled by the same queue for ordinary controls without a scroll pattern.
@@ -568,7 +604,7 @@ public static partial class CheatProgramWindowCapture {
     POINT at=(POINT)Marshal.PtrToStructure(data,typeof(POINT));PointerArea native=NativeArea;
     // Hit testing can send messages into the thread waiting for this hook; use the validated pointer area instead.
     if(!wheel&&((DirectButtons&(1<<button))!=0||NativePointerReady&&(!up||(InterceptedButtons&(1<<button))==0)&&native!=null&&native.Contains(at)&&IsWindow(native.Window))){
-     if(PostMessageW(relay,0x8001,new UIntPtr((uint)kind),new IntPtr(detail))){if(up)DirectButtons&=~(1<<button);else{DirectButtons|=1<<button;InterceptedButtons&=~(1<<button);}return CallNextHookEx(IntPtr.Zero,code,message,data);}
+     if(PostMessageW(relay,0x8001,new UIntPtr((uint)kind),new IntPtr(detail|NativeButtonDelivered))){if(up)DirectButtons&=~(1<<button);else{DirectButtons|=1<<button;InterceptedButtons&=~(1<<button);}return CallNextHookEx(IntPtr.Zero,code,message,data);}
     }
     if(!wheel&&up&&(InterceptedButtons&(1<<button))==0)return CallNextHookEx(IntPtr.Zero,code,message,data);
     IntPtr ime=GetPropW(GetForegroundWindow(),"kwrg_projection_ime");
