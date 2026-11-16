@@ -44,15 +44,26 @@ public static partial class CheatProgramWindowCapture {
             ModifierState(state, 0x12, 0xA4, 0xA5, (modifiers & 4) != 0);
             if (!SetKeyboardState(state)) return false;
 
-            // Sent key messages do not pass through TranslateMessage: text arrives exactly once via C/T.
             UIntPtr result;
-            bool delivered = SendMessageTimeoutW(target, message, new UIntPtr((uint)key), bits, 2, 100, out result) != IntPtr.Zero;
-            if (!delivered) return false;
+            // Sent keys bypass TranslateMessage; dispatch native edit shortcuts once, before key handling.
+            if (message == 0x100 && (modifiers & 15) == 2 && NativeEditor(target)) {
+                uint command;
+                switch (key) {
+                    case 'A': command = 0xB1; break;  // EM_SETSEL
+                    case 'C': command = 0x301; break; // WM_COPY
+                    case 'V': command = 0x302; break; // WM_PASTE
+                    case 'X': command = 0x300; break; // WM_CUT
+                    case 'Z': command = 0xC7; break;  // EM_UNDO
+                    default: command = 0; break;
+                }
+                if (command != 0)
+                    return SendMessageTimeoutW(target, command, UIntPtr.Zero,
+                        key == 'A' ? new IntPtr(-1) : IntPtr.Zero, 2, 100, out result) != IntPtr.Zero;
+            }
 
-            // WinForms handles Select All in its message pump, before the edit window procedure.
-            if (message == 0x100 && key == 0x41 && (modifiers & 15) == 2 && NativeEditor(target))
-                return SendMessageTimeoutW(target, 0xB1, UIntPtr.Zero, new IntPtr(-1), 2, 100, out result) != IntPtr.Zero;
-            return true;
+            // Printable text arrives exactly once through C/T.
+            bool delivered = SendMessageTimeoutW(target, message, new UIntPtr((uint)key), bits, 2, 100, out result) != IntPtr.Zero;
+            return delivered;
         } finally {
             if (captured) SetKeyboardState(saved);
             AttachThreadInput(sender, targetThread, false);
