@@ -223,6 +223,38 @@ public final class TitleMenuUi {
         float alpha = reveal * (button.isActive() ? 1.0f : 0.45f);
         int accent = slot.theme.color;
 
+        drawButtonBackground(button, graphics, hover, alpha, accent, time);
+
+        Font font = Minecraft.getInstance().font;
+        Component text = slot.shortcut ? shortcutLabel(button.getMessage()) : button.getMessage();
+
+        int textX = x + (slot.shortcut ? 5 : 11);
+        int textY = y + (h - 8) / 2;
+
+        float scale = Math.min(1.0f, (float) (w - (slot.shortcut ? 8 : 20)) / Math.max(1, font.width(text)));
+        var pose = graphics.pose();
+        pose.pushMatrix().translate(textX, textY).scale(scale);
+        graphics.text(font, text, 0, 0, color(0xF1FCFF, alpha * (0.70f + 0.30f * hover)), false);
+        pose.popMatrix();
+
+        if (button.isHovered()) {
+            graphics.requestCursor(button.isActive() ? CursorTypes.POINTING_HAND : CursorTypes.NOT_ALLOWED);
+        }
+    }
+
+    public static void drawButtonBackground(AbstractButton button, GuiGraphicsExtractor graphics) {
+        float hover = button.isActive() && button.isHoveredOrFocused() ? 1.0f : 0.0f;
+        float alpha = button.getAlpha() * (button.isActive() ? 1.0f : 0.45f);
+        float time = (Util.getMillis() - CLOCK_START) * 0.001f;
+        drawButtonBackground(button, graphics, hover, alpha, theme(button.getMessage()).color, time);
+    }
+
+    private static void drawButtonBackground(AbstractButton button, GuiGraphicsExtractor graphics, float hover,
+                                             float alpha, int accent, float time) {
+        int x = button.getX();
+        int y = button.getY();
+        int w = button.getWidth();
+        int h = button.getHeight();
         graphics.fillGradient(x, y, x + w, y + h, color(0x183048, alpha * 0.25f), color(0x081626, alpha * 0.20f));
         if (hover > 0.01f) {
             var pose = graphics.pose();
@@ -241,22 +273,6 @@ public final class TitleMenuUi {
         }
         int inset = Math.max(1, Math.round(h * (0.27f - 0.18f * hover)));
         graphics.fill(x, y + inset, x + 2, y + h - inset, color(accent, alpha * (0.42f + 0.58f * hover)));
-
-        Font font = Minecraft.getInstance().font;
-        Component text = slot.shortcut ? shortcutLabel(button.getMessage()) : button.getMessage();
-
-        int textX = x + (slot.shortcut ? 5 : 11);
-        int textY = y + (h - 8) / 2;
-
-        float scale = Math.min(1.0f, (float) (w - (slot.shortcut ? 8 : 20)) / Math.max(1, font.width(text)));
-        var pose = graphics.pose();
-        pose.pushMatrix().translate(textX, textY).scale(scale);
-        graphics.text(font, text, 0, 0, color(0xF1FCFF, alpha * (0.70f + 0.30f * hover)), false);
-        pose.popMatrix();
-
-        if (button.isHovered()) {
-            graphics.requestCursor(button.isActive() ? CursorTypes.POINTING_HAND : CursorTypes.NOT_ALLOWED);
-        }
     }
 
     private boolean isCopyright(AbstractButton button, int height) {
