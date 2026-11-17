@@ -12,6 +12,7 @@ import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.EmojiUtil;
 import me.cookie.kwrg.util.GreetingManager;
 import me.cookie.kwrg.util.skyblock.SkyblockItemHelper;
+import me.cookie.kwrg.window.render.WorldWindow;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -41,6 +42,7 @@ public class CookieMain implements ClientModInitializer {
         LOGGER.info(":D");
         ModuleManager.init();
         IrcConfig.load();
+        WorldWindow.init();
         IrcCommand.register();
         WaypointManager.init();
         ChatWaypointManager.init();

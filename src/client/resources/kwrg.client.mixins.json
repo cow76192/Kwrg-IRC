@@ -13,6 +13,7 @@
 		"OptionsMixin",
 		"MinecraftKeybindMixin",
 		"MouseHandlerMixin",
+		"WindowKeyboardMixin",
 		"freecam.FreecamCameraMixin",
 		"freecam.FreecamLevelRendererMixin",
 		"freecam.FreecamSodiumMixin",
