@@ -27,7 +27,7 @@ public final class RefillManager {
     private static final int MAX_TARGET = 2240;
     private static final int MAX_INTERVAL_SECONDS = 600;
 
-    private static final Map<String, Long> PENDING = new HashMap<>();
+    private static final Map<String, PendingRequest> PENDING = new HashMap<>();
     private static final Map<RefillModule.Entry, Long> NEXT_DUE = new IdentityHashMap<>();
     private static final Map<String, String> ITEM_ALIASES = Map.of(
             "PEARL", "ENDER_PEARL",
@@ -35,6 +35,9 @@ public final class RefillManager {
     );
     private static long ticks;
     private static boolean autoGateWarned;
+
+    private record PendingRequest(long until, int expectedCount) {
+    }
 
     private RefillManager() {
     }
@@ -106,14 +109,14 @@ public final class RefillManager {
     private static int refill(Minecraft mc, RefillModule.Entry entry, boolean auto) {
         String id = normalize(entry.item);
         if (id.isEmpty()) return 0;
+        if (!canRun(mc)) return 0;
         if (!islandAllows(entry)) {
-            if (!auto) ChatNotifier.send("§e[IRC] 当前岛屿不在 §f" + entry.item + " §e的生效范围内", NotificationType.WARN);
+            if (!auto) ChatNotifier.send("§e[IRC] 当前岛屿不在 §f" + id + " §e的生效范围内", NotificationType.WARN);
             return 0;
         }
-        if (!canRun(mc)) return 0;
 
         int target = clampTarget(entry.target);
-        long release = pendingUntil(mc, id, target);
+        long release = pendingUntil(mc, id);
         if (release >= 0) {
             if (auto) {
                 NEXT_DUE.put(entry, Math.max(ticks + 1, release));
@@ -131,18 +134,18 @@ public final class RefillManager {
         }
 
         mc.player.connection.sendCommand("gfs " + id + " " + delta);
-        PENDING.put(id, ticks + REQUEST_TIMEOUT_TICKS);
+        PENDING.put(id, new PendingRequest(ticks + REQUEST_TIMEOUT_TICKS, target));
         return 1;
     }
 
-    private static long pendingUntil(Minecraft mc, String id, int target) {
-        Long until = PENDING.get(id);
-        if (until == null) return -1;
-        if (ticks >= until || count(mc, id) >= target) {
+    private static long pendingUntil(Minecraft mc, String id) {
+        PendingRequest pending = PENDING.get(id);
+        if (pending == null) return -1;
+        if (ticks >= pending.until() || count(mc, id) >= pending.expectedCount()) {
             PENDING.remove(id);
             return -1;
         }
-        return until;
+        return pending.until();
     }
 
     private static int count(Minecraft mc, String id) {

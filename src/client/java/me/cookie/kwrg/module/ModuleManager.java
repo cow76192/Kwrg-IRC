@@ -53,7 +53,6 @@ public class ModuleManager {
         register(new AutoPurchasePassModule());
         register(new WindowModule());
         register(new RefillModule());
-        register(new RefillModule());
 
         // --- STYLE 模块 ---
         register(new RankModule());
