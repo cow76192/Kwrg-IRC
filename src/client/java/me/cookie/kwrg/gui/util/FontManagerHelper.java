@@ -84,7 +84,7 @@ public class FontManagerHelper {
                 for (Path p : stream) {
                     list.add(p.getFileName().toString());
                 }
-            } catch (IOException | RuntimeException ignored) {}
+            } catch (Exception ignored) {}
         }
         return list;
     }
@@ -217,7 +217,7 @@ public class FontManagerHelper {
             currentLoadedFontName = fontFileName;
             LOGGER.info("[Kwrg] 成功无缝装载外部字体: {}", fontFileName);
             return true;
-        } catch (IOException | RuntimeException e) {
+        } catch (Exception e) {
             LOGGER.error("[Kwrg] 加载外部字体失败: " + fontFileName, e);
             return false;
         }
@@ -254,7 +254,7 @@ public class FontManagerHelper {
         if (currentActiveProvider != null) {
             try {
                 currentActiveProvider.close();
-            } catch (RuntimeException ignored) {}
+            } catch (Exception ignored) {}
             currentActiveProvider = null;
         }
     }
@@ -276,7 +276,7 @@ public class FontManagerHelper {
                 sb.append(String.format("%02x", b));
             }
             return sb.toString();
-        } catch (java.security.NoSuchAlgorithmException | IOException | RuntimeException e) {
+        } catch (Exception e) {
             return "";
         }
     }
@@ -293,7 +293,7 @@ public class FontManagerHelper {
                     return p.getFileName().toString();
                 }
             }
-        } catch (IOException | RuntimeException ignored) {}
+        } catch (Exception ignored) {}
         return null;
     }
 }

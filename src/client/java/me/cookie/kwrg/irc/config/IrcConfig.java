@@ -208,7 +208,7 @@ public class IrcConfig {
                 return;
             }
             suppressSelectorWrite = false;
-        } catch (IOException | RuntimeException e) {
+        } catch (Exception e) {
             suppressSelectorWrite = false;
             LOGGER.error("[Kwrg] 初始化读取配置文件失败，启用内存默认配置", e);
         }
@@ -248,7 +248,7 @@ public class IrcConfig {
                 if (!suppressSelectorWrite) saveSelectorMeta(cleanName);
                 return true;
             }
-        } catch (IOException | RuntimeException e) {
+        } catch (Exception e) {
             LOGGER.error("[Kwrg] 加载配置文件 {}.json 失败", cleanName, e);
         }
         return false;
@@ -328,7 +328,7 @@ public class IrcConfig {
             saveSelectorMeta(cleanName);
             LOGGER.info("[Kwrg] 配置已成功保存至: {}.json", cleanName);
             return true;
-        } catch (IOException | RuntimeException e) {
+        } catch (Exception e) {
             dirty = true;
             LOGGER.error("[Kwrg] 保存配置文件失败", e);
             return false;
@@ -384,7 +384,7 @@ public class IrcConfig {
             ProfileSelector selector = new ProfileSelector();
             selector.selected = selected;
             Files.writeString(getMetaPath(), GSON.toJson(selector));
-        } catch (IOException | RuntimeException e) {
+        } catch (Exception e) {
             LOGGER.error("[Kwrg] 更新 config.json 失败", e);
         }
     }
@@ -400,7 +400,7 @@ public class IrcConfig {
                         list.add(fileName.substring(0, fileName.length() - 5));
                     }
                 }
-            } catch (IOException | RuntimeException ignored) {
+            } catch (Exception ignored) {
             }
         }
         return list;

@@ -103,7 +103,7 @@ public class LoadModule extends Module {
                     this.pendingImport = null;
                     ChatNotifier.send("§a[IRC] 成功从剪贴板导入并创建配置: §f" + cleanName + ".json", NotificationType.SUCCESS);
                     renderConfigManagerUI(panel, cleanName);
-                } catch (java.io.IOException | RuntimeException e) {
+                } catch (Exception e) {
                     ChatNotifier.send("§c[IRC] 保存导入配置失败: " + e.getMessage(), NotificationType.ERR);
                 }
             } else {
@@ -144,7 +144,7 @@ public class LoadModule extends Module {
                 ChatNotifier.send("§e[IRC] 请在输入框输入该配置文件的名称，按回车键完成保存。", NotificationType.INFO);
 
                 renderConfigManagerUI(panel, null);
-            } catch (RuntimeException e) {
+            } catch (Exception e) {
                 this.pendingImport = null;
                 ChatNotifier.send("§c[IRC] 剪贴板内容不是有效的配置 JSON！解析失败。", NotificationType.ERR);
             }
@@ -161,7 +161,7 @@ public class LoadModule extends Module {
                     }
                     net.minecraft.util.Util.getPlatform().openPath(configDir);
                     ChatNotifier.send("§a[IRC] 已打开配置文件夹: §f" + configDir.toAbsolutePath(), NotificationType.SUCCESS);
-                } catch (java.io.IOException | RuntimeException e) {
+                } catch (Exception e) {
                     ChatNotifier.send("§c[IRC] 打开文件夹失败: " + e.getMessage(), NotificationType.ERR);
                 }
             }
@@ -199,7 +199,7 @@ public class LoadModule extends Module {
                                     }
 
                                     renderConfigManagerUI(panel, null);
-                                } catch (java.io.IOException | RuntimeException e) {
+                                } catch (Exception e) {
                                     ChatNotifier.send("§c[IRC] 删除文件失败: " + e.getMessage(), NotificationType.ERR);
                                 }
                             });
@@ -223,7 +223,7 @@ public class LoadModule extends Module {
                                 } else {
                                     ChatNotifier.send("§e[IRC] 配置文件 §f" + profileName + ".json §e内容为空", NotificationType.WARN);
                                 }
-                            } catch (java.io.IOException | RuntimeException e) {
+                            } catch (Exception e) {
                                 ChatNotifier.send("§c[IRC] 读取文件失败: " + e.getMessage(), NotificationType.ERR);
                             }
                         }

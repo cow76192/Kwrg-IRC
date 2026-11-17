@@ -67,7 +67,7 @@ public class HideArmorManager {
         if (cachedField != null) {
             try {
                 return getStringFromField(cachedField, state);
-            } catch (ReflectiveOperationException | RuntimeException ignored) {
+            } catch (Exception ignored) {
             }
         }
 
@@ -83,7 +83,7 @@ public class HideArmorManager {
                             NAME_FIELD_CACHE.put(clazz, f);
                             return extracted;
                         }
-                    } catch (ReflectiveOperationException | RuntimeException ignored) {
+                    } catch (Exception ignored) {
                     }
                 }
             }

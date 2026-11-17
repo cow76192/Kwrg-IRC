@@ -147,7 +147,7 @@ public class PlayerCustomizationManager {
         long modified;
         try {
             modified = Files.getLastModifiedTime(file).toMillis();
-        } catch (java.io.IOException | RuntimeException e) {
+        } catch (Exception e) {
             return;
         }
 
@@ -202,7 +202,7 @@ public class PlayerCustomizationManager {
                         mc.getTextureManager().register(id,
                                 new DynamicTexture(() -> "kwrg_cape_preview", finalImg));
                         CAPE_PREVIEW_CACHE.put(fileName, new CapePreview(id, modified));
-                    } catch (RuntimeException e) {
+                    } catch (Exception e) {
                         e.printStackTrace();
                         finalImg.close();
                     } finally {
@@ -210,7 +210,7 @@ public class PlayerCustomizationManager {
                     }
                 });
                 handedOver = true;
-            } catch (java.io.IOException | RuntimeException e) {
+            } catch (Exception e) {
                 System.err.println("[KWRG Preview] load failed: " + fileName);
                 e.printStackTrace();
             } finally {
@@ -298,7 +298,7 @@ public class PlayerCustomizationManager {
                         return lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".gif");
                     })
                     .collect(Collectors.toList());
-        } catch (java.io.IOException | RuntimeException e) {
+        } catch (Exception e) {
             return new ArrayList<>();
         }
     }
@@ -632,7 +632,7 @@ public class PlayerCustomizationManager {
                         CAPE_LAST_FRAME_TIME.put(value, System.currentTimeMillis());
 
                         activeCapeName = value;
-                    } catch (RuntimeException e) {
+                    } catch (Exception e) {
                         if (finalActive != frames.get(0)) finalActive.close();
                         frames.forEach(NativeImage::close);
                     } finally {
@@ -640,7 +640,7 @@ public class PlayerCustomizationManager {
                     }
                 });
 
-            } catch (java.io.IOException | RuntimeException e) {
+            } catch (Exception e) {
                 if (activeImage != null && (frames.isEmpty() || activeImage != frames.get(0))) activeImage.close();
                 frames.forEach(NativeImage::close);
                 cleanupLoading(token);
@@ -784,7 +784,7 @@ public class PlayerCustomizationManager {
             StringBuilder hex = new StringBuilder();
             for (int i = 0; i < Math.min(read, 8); i++) hex.append(String.format("%02X", header[i]));
             return "raw:" + hex;
-        } catch (java.io.IOException | RuntimeException e) {
+        } catch (Exception e) {
             return "unreadable";
         }
     }
@@ -795,7 +795,7 @@ public class PlayerCustomizationManager {
             int read = in.read(chunk);
             if (read <= 0) return false;
             return new String(chunk, 0, read, StandardCharsets.ISO_8859_1).contains("acTL");
-        } catch (java.io.IOException | RuntimeException e) {
+        } catch (Exception e) {
             return false;
         }
     }
@@ -904,7 +904,7 @@ public class PlayerCustomizationManager {
 
         try {
             gifCollect(metadata.getAsTree(format), info);
-        } catch (RuntimeException ignored) {}
+        } catch (Exception ignored) {}
         return info;
     }
 
@@ -929,7 +929,7 @@ public class PlayerCustomizationManager {
         if (value == null) return fallback;
         try {
             return Integer.parseInt(value.getNodeValue().trim());
-        } catch (RuntimeException ignored) {
+        } catch (Exception ignored) {
             return fallback;
         }
     }
@@ -975,7 +975,7 @@ public class PlayerCustomizationManager {
         try {
             int n = Integer.parseInt(num);
             return n >= 2 ? n : 1;
-        } catch (RuntimeException ignored) {
+        } catch (Exception ignored) {
             return 1;
         }
     }
@@ -997,7 +997,7 @@ public class PlayerCustomizationManager {
         try {
             int n = Integer.parseInt(num);
             return n >= 1 ? clampFps(n) : -1;
-        } catch (RuntimeException ignored) {
+        } catch (Exception ignored) {
             return -1;
         }
     }

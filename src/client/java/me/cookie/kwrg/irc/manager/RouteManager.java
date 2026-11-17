@@ -702,7 +702,7 @@ public final class RouteManager {
                 object.addProperty(key, coordinate);
                 return;
             }
-        } catch (NumberFormatException ignored) {
+        } catch (Exception ignored) {
         }
         object.addProperty(key, value == null ? "" : value);
     }

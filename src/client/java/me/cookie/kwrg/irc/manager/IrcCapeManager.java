@@ -34,7 +34,7 @@ public class IrcCapeManager {
             if (!Files.exists(cacheDir)) {
                 Files.createDirectories(cacheDir);
             }
-        } catch (java.io.IOException | RuntimeException ignored) {}
+        } catch (Exception ignored) {}
         return cacheDir;
     }
 
@@ -51,7 +51,7 @@ public class IrcCapeManager {
                 hex.append(h);
             }
             return hex.toString();
-        } catch (java.io.IOException | java.security.NoSuchAlgorithmException | RuntimeException e) {
+        } catch (Exception e) {
             return null;
         }
     }
@@ -86,7 +86,7 @@ public class IrcCapeManager {
                 byte[] bytes = Files.readAllBytes(capeFile);
                 String base64 = Base64.getEncoder().encodeToString(bytes);
                 IrcClient.sendCapeUploadAndSync(hash, myCape, base64);
-            } catch (java.io.IOException | RuntimeException ignored) {}
+            } catch (Exception ignored) {}
         } else {
             IrcClient.sendCapeSync(hash, myCape);
         }
@@ -98,7 +98,7 @@ public class IrcCapeManager {
             if (uuidStr != null && !uuidStr.isBlank()) {
                 uuid = UUID.fromString(uuidStr);
             }
-        } catch (IllegalArgumentException ignored) {}
+        } catch (Exception ignored) {}
 
         if (hash == null || hash.isBlank()) {
             if (uuid != null) UUID_TO_CAPE.remove(uuid);
@@ -128,7 +128,7 @@ public class IrcCapeManager {
             if (uuidStr != null && !uuidStr.isBlank()) {
                 UUID_TO_CAPE.remove(UUID.fromString(uuidStr));
             }
-        } catch (IllegalArgumentException ignored) {}
+        } catch (Exception ignored) {}
         if (username != null) {
             NAME_TO_CAPE.remove(username.toLowerCase(Locale.ROOT));
         }
@@ -228,7 +228,7 @@ public class IrcCapeManager {
                         }
                     });
                 }
-            } catch (java.io.IOException | RuntimeException e) {
+            } catch (Exception e) {
                 LOGGER.warn("[Kwrg] 披风缓存写入失败: {}", resolvedFileName, e);
             }
         });

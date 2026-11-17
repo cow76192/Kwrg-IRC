@@ -151,7 +151,7 @@ public class IrcClient {
                 startHeartbeat();
                 sendImportantPlayersSync();
                 listenLoop();
-            } catch (java.io.IOException | RuntimeException e) {
+            } catch (Exception e) {
                 LOGGER.warn("[IRC] 连接尝试失败 (isSilent={}): {}", isSilent, e.getMessage());
                 if (!isSilent) {
                     ChatNotifier.send("§c[IRC] 无法连接到 IRC 服务器: " + e.getMessage(), NotificationType.ERR);
@@ -201,7 +201,7 @@ public class IrcClient {
                                 for (Consumer<Long> cb : pingCallbacks) {
                                     try {
                                         cb.accept(latency);
-                                    } catch (RuntimeException ignored) {
+                                    } catch (Exception ignored) {
                                     }
                                 }
                                 pingCallbacks.clear();
@@ -224,7 +224,7 @@ public class IrcClient {
                     Minecraft.getInstance().execute(() -> IrcMessageHandler.handleIncomingJson(rawJson));
                 }
             }
-        } catch (java.io.IOException | RuntimeException e) {
+        } catch (Exception e) {
             if (isRunning) {
                 LOGGER.warn("[IRC] 接收线程中断: {}", e.getMessage());
             }
@@ -244,7 +244,7 @@ public class IrcClient {
             for (Consumer<Long> cb : pingCallbacks) {
                 try {
                     cb.accept(-1L);
-                } catch (RuntimeException ignored) {
+                } catch (Exception ignored) {
                 }
             }
             pingCallbacks.clear();
@@ -674,7 +674,7 @@ public class IrcClient {
             for (Consumer<Long> cb : pingCallbacks) {
                 try {
                     cb.accept(-1L);
-                } catch (RuntimeException ignored) {
+                } catch (Exception ignored) {
                 }
             }
             pingCallbacks.clear();
@@ -698,7 +698,7 @@ public class IrcClient {
             if (writer != null) writer.close();
             if (reader != null) reader.close();
             if (socket != null && !socket.isClosed()) socket.close();
-        } catch (java.io.IOException | RuntimeException ignored) {
+        } catch (Exception ignored) {
         }
         writer = null;
         reader = null;
