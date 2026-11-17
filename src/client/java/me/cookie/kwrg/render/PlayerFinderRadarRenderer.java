@@ -32,8 +32,8 @@ public class PlayerFinderRadarRenderer {
         int screenW = window.getGuiScaledWidth();
         int screenH = window.getGuiScaledHeight();
 
-        float yawRad = (float) Math.toRadians(camera.yRot());
-        float pitchRad = (float) Math.toRadians(camera.xRot());
+        double yawRad = Math.toRadians(camera.yRot());
+        double pitchRad = Math.toRadians(camera.xRot());
         Vec3 forward = new Vec3(
                 -Math.sin(yawRad) * Math.cos(pitchRad),
                 -Math.sin(pitchRad),

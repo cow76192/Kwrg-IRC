@@ -17,6 +17,8 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public final class InventoryHudRenderer {
 
@@ -30,7 +32,10 @@ public final class InventoryHudRenderer {
     private static final float FADE_SPEED = 6.0f;
 
     private static final float[] ISLAND_BOUNDS = new float[]{0.0f, 0.0f, 0.0f, 0.0f};
-    private static final ItemStack[] PREVIEW_ITEMS = new ItemStack[36];
+    private static final Logger LOGGER = LoggerFactory.getLogger("kwrg");
+    private static ItemStack[] previewStacks;
+    private static boolean previewStacksFailed;
+    private static final Component PREVIEW_COUNT_LABEL = Component.literal("64");
 
     private static boolean editorPreview = false;
     private static boolean renderedThisFrame = false;
@@ -282,32 +287,44 @@ public final class InventoryHudRenderer {
                 SLOT_TEXTURE_SIZE * 4, SLOT_TEXTURE_SIZE, color.argb());
     }
 
+    private static ItemStack[] previewStacks() {
+        if (previewStacks == null && !previewStacksFailed) {
+            try {
+                ItemStack[] stacks = new ItemStack[36];
+                for (int i = 0; i < stacks.length; i++) {
+                    stacks[i] = ItemStack.EMPTY;
+                }
+                stacks[9] = new ItemStack(Items.DIAMOND_SWORD);
+                stacks[10] = new ItemStack(Items.BOW);
+                stacks[11] = new ItemStack(Items.ARROW, 64);
+                stacks[13] = new ItemStack(Items.GOLDEN_APPLE, 12);
+                stacks[17] = new ItemStack(Items.TOTEM_OF_UNDYING);
+                stacks[18] = new ItemStack(Items.ENDER_PEARL, 16);
+                stacks[22] = new ItemStack(Items.FIREWORK_ROCKET, 32);
+                stacks[26] = new ItemStack(Items.WIND_CHARGE, 24);
+                stacks[27] = new ItemStack(Items.COBBLESTONE, 64);
+                stacks[28] = new ItemStack(Items.OAK_PLANKS, 48);
+                stacks[35] = new ItemStack(Items.WATER_BUCKET);
+                stacks[0] = new ItemStack(Items.NETHERITE_SWORD);
+                stacks[1] = new ItemStack(Items.ENDER_PEARL, 16);
+                stacks[8] = new ItemStack(Items.COOKED_BEEF, 64);
+                previewStacks = stacks;
+            } catch (Throwable throwable) {
+                previewStacksFailed = true;
+                LOGGER.warn("[Kwrg] 背包预览物品初始化失败，已降级为空槽", throwable);
+            }
+        }
+        return previewStacks;
+    }
+
     private static ItemStack resolveSlotStack(Minecraft mc, Inventory inventory, int slotIndex, boolean usePreviewItems) {
         if (inventory != null && !usePreviewItems) {
             return inventory.getItem(slotIndex);
         }
         if (usePreviewItems && mc.level != null) {
-            if (PREVIEW_ITEMS[slotIndex] != null) return PREVIEW_ITEMS[slotIndex];
-            try {
-                return PREVIEW_ITEMS[slotIndex] = switch (slotIndex) {
-                    case 9 -> new ItemStack(Items.DIAMOND_SWORD);
-                    case 10 -> new ItemStack(Items.BOW);
-                    case 11 -> new ItemStack(Items.ARROW, 64);
-                    case 13 -> new ItemStack(Items.GOLDEN_APPLE, 12);
-                    case 17 -> new ItemStack(Items.TOTEM_OF_UNDYING);
-                    case 18 -> new ItemStack(Items.ENDER_PEARL, 16);
-                    case 22 -> new ItemStack(Items.FIREWORK_ROCKET, 32);
-                    case 26 -> new ItemStack(Items.WIND_CHARGE, 24);
-                    case 27 -> new ItemStack(Items.COBBLESTONE, 64);
-                    case 28 -> new ItemStack(Items.OAK_PLANKS, 48);
-                    case 35 -> new ItemStack(Items.WATER_BUCKET);
-                    case 0 -> new ItemStack(Items.NETHERITE_SWORD);
-                    case 1 -> new ItemStack(Items.ENDER_PEARL, 16);
-                    case 8 -> new ItemStack(Items.COOKED_BEEF, 64);
-                    default -> ItemStack.EMPTY;
-                };
-            } catch (Throwable ignored) {
-                return ItemStack.EMPTY;
+            ItemStack[] stacks = previewStacks();
+            if (stacks != null) {
+                return stacks[slotIndex];
             }
         }
         return ItemStack.EMPTY;
@@ -322,7 +339,7 @@ public final class InventoryHudRenderer {
                                                  Color dotFill, Color dotBorder, int textColor) {
         RenderUtil.drawSubpixelRoundedPanel(owo, slotX + 3.0f, slotY + 3.0f, SLOT_SIZE - 6.0f, SLOT_SIZE - 6.0f, 3.0f, 0.8f, SLOT_ARC_SEGMENTS, dotFill, dotBorder);
         if (slotIndex == 11 || slotIndex == 13 || slotIndex == 18) {
-            RenderUtil.drawFluidSubpixelText(owo, Component.literal("64"), slotX + 5.5f, slotY + 8.5f, textColor);
+            RenderUtil.drawFluidSubpixelText(owo, PREVIEW_COUNT_LABEL, slotX + 5.5f, slotY + 8.5f, textColor);
         }
     }
 }

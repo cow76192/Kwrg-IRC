@@ -83,7 +83,7 @@ public class TotemAnimationManager {
                                 javax.imageio.ImageIO.write(bufferedImage, "png", baos);
                                 nativeImage = NativeImage.read(new java.io.ByteArrayInputStream(baos.toByteArray()));
                             }
-                        } catch (Exception ignored) {
+                        } catch (java.io.IOException | RuntimeException ignored) {
                         }
 
                         if (nativeImage == null) {
@@ -116,7 +116,7 @@ public class TotemAnimationManager {
                                 IMAGE_CACHE.put(url, new CachedImage(textureId, memSize));
 
                                 triggerAnimation(sender, textureId);
-                            } catch (Exception e) {
+                            } catch (RuntimeException e) {
                                 LOGGER.error("注册动态材质失败", e);
                                 String error = "注册动态材质失败: " + e.getMessage();
                                 ChatNotifier.sendInChatScreen("§c[IRC] " + error);
@@ -129,7 +129,13 @@ public class TotemAnimationManager {
                     ChatNotifier.sendInChatScreen("§c[IRC] " + error);
                     me.cookie.kwrg.irc.IrcClient.sendPlayFail(sender, url, error);
                 }
-            } catch (Exception e) {
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                LOGGER.error("下载图片被中断", e);
+                String error = "图片下载被中断";
+                ChatNotifier.sendInChatScreen("§c[IRC] " + error);
+                me.cookie.kwrg.irc.IrcClient.sendPlayFail(sender, url, error);
+            } catch (java.io.IOException | RuntimeException e) {
                 LOGGER.error("下载图片异常", e);
                 String error = "图片无法下载: " + e.getMessage();
                 ChatNotifier.sendInChatScreen("§c[IRC] " + error);

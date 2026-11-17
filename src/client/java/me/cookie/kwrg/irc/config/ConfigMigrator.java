@@ -15,10 +15,13 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -26,6 +29,7 @@ import java.util.UUID;
 public final class ConfigMigrator {
 
     private static final Gson BACKUP_GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final int MAX_BACKUPS = 6;
 
     private ConfigMigrator() {
     }
@@ -35,24 +39,10 @@ public final class ConfigMigrator {
         JsonObject originalConfig = jsonObj.deepCopy();
 
         // 1. onlyTab -> onlyApplyToTab
-        if (jsonObj.has("onlyTab")) {
-            JsonElement onlyTabVal = jsonObj.get("onlyTab");
-            if (!jsonObj.has("onlyApplyToTab")) {
-                jsonObj.add("onlyApplyToTab", onlyTabVal);
-                notifyMigration("onlyTab", "onlyApplyToTab", onlyTabVal);
-            }
-            jsonObj.remove("onlyTab");
-        }
+        renameField(jsonObj, "onlyTab", "onlyApplyToTab");
 
         // 2. 远程新增：chatSuffixText -> chatSuffix
-        if (jsonObj.has("chatSuffixText")) {
-            JsonElement chatSuffixVal = jsonObj.get("chatSuffixText");
-            if (!jsonObj.has("chatSuffix")) {
-                jsonObj.add("chatSuffix", chatSuffixVal);
-                notifyMigration("chatSuffixText", "chatSuffix", chatSuffixVal);
-            }
-            jsonObj.remove("chatSuffixText");
-        }
+        renameField(jsonObj, "chatSuffixText", "chatSuffix");
 
         // 3. 移除已废弃字段
         removeDeprecatedField(jsonObj, "autoTrackPlayer");
@@ -70,6 +60,17 @@ public final class ConfigMigrator {
 
         // 5. 校验未知字段
         checkUnknownFields(jsonObj, originalConfig);
+    }
+
+    private static void renameField(JsonObject jsonObj, String oldKey, String newKey) {
+        if (!jsonObj.has(oldKey)) return;
+
+        JsonElement value = jsonObj.get(oldKey);
+        if (!jsonObj.has(newKey)) {
+            jsonObj.add(newKey, value);
+            notifyMigration(oldKey, newKey, value);
+        }
+        jsonObj.remove(oldKey);
     }
 
     private static void removeDeprecatedField(JsonObject jsonObj, String key) {
@@ -92,14 +93,51 @@ public final class ConfigMigrator {
         try {
             Path backupDir = IrcConfig.getKwrgDir().resolve("backUp");
             Files.createDirectories(backupDir);
-            Path backupFile = backupDir.resolve("config-" + System.currentTimeMillis() + "-" + UUID.randomUUID() + ".json");
-            Files.writeString(backupFile, BACKUP_GSON.toJson(originalConfig), StandardOpenOption.CREATE_NEW,
-                    StandardOpenOption.WRITE);
+            Path backupFile = findOrWriteBackup(backupDir, BACKUP_GSON.toJson(originalConfig));
             notifyBackup("§e未知配置字段: §f" + unknownFields + "\n§e原始配置已备份至: §f" + backupFile.toAbsolutePath(),
                     NotificationType.WARN);
         } catch (IOException | SecurityException e) {
             notifyBackup("§c未知配置字段: §f" + unknownFields + "\n§c原始配置备份失败: §f" + e.getMessage(),
                     NotificationType.ERR);
+        }
+    }
+
+    private static Path findOrWriteBackup(Path backupDir, String content) throws IOException {
+        List<Path> backups = listBackups(backupDir);
+        for (int i = 0; i < backups.size(); i++) {
+            Path existing = backups.get(i);
+            if (content.equals(Files.readString(existing))) {
+                backups.remove(i);
+                backups.add(0, existing);
+                pruneBackups(backups);
+                return existing;
+            }
+        }
+
+        Path backupFile = backupDir.resolve("config-" + System.currentTimeMillis() + "-" + UUID.randomUUID() + ".json");
+        Files.writeString(backupFile, content, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+        backups.add(0, backupFile);
+        pruneBackups(backups);
+        return backupFile;
+    }
+
+    private static List<Path> listBackups(Path backupDir) throws IOException {
+        List<Path> backups = new ArrayList<>();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(backupDir, "config-*.json")) {
+            for (Path file : stream) {
+                backups.add(file);
+            }
+        }
+        backups.sort((a, b) -> b.getFileName().toString().compareTo(a.getFileName().toString()));
+        return backups;
+    }
+
+    private static void pruneBackups(List<Path> backups) {
+        for (int i = MAX_BACKUPS; i < backups.size(); i++) {
+            try {
+                Files.deleteIfExists(backups.get(i));
+            } catch (IOException ignored) {
+            }
         }
     }
 

@@ -23,6 +23,16 @@ public class ColorUtil {
 
     private static final Pattern SPACE_RGB_PATTERN = Pattern.compile("^\\s*(\\d{1,3})\\s+(\\d{1,3})\\s+(\\d{1,3})\\s*$");
 
+    private static final List<String> MODIFIERS = List.of("bold", "underline", "italic", "strikethrough", "obfuscated", "flow");
+
+    private static final String[] STYLE_PRESET_ARRAY = new String[]{
+            "rainbow", "sunset", "ocean", "fire", "sakura", "neon", "gold", "purple",
+            "bold", "underline", "italic", "strikethrough", "obfuscated", "flow",
+            "rainbow bold", "#FF55AA", "rgb(255,100,50)", "gradient(#ff758c,#ff7eb3)", "gradient(#00f2fe,#4facfe,#00ff87)"
+    };
+
+    public static final List<String> STYLE_PRESETS = List.of(STYLE_PRESET_ARRAY);
+
     public static Component applyStyle(String text, String styleConfig) {
         if (text == null || text.isEmpty()) return Component.empty();
         if (styleConfig == null || styleConfig.isBlank()) return Component.literal(text);
@@ -200,6 +210,30 @@ public class ColorUtil {
             return new Color[]{new Color(0x8A2387), new Color(0xE94057), new Color(0xF27121)};
         }
         return null;
+    }
+
+    public static String mergePreset(String current, String preset) {
+        if (MODIFIERS.contains(preset.toLowerCase())) {
+            if (current.toLowerCase().contains(preset.toLowerCase())) {
+                return current.replaceAll("(?i)\\b" + preset + "\\b", "").trim().replaceAll(" +", " ");
+            }
+            return current.isEmpty() ? preset : current + " " + preset;
+        }
+
+        List<String> currentMods = new ArrayList<>();
+        for (String mod : MODIFIERS) {
+            if (current.toLowerCase().matches(".*\\b" + mod + "\\b.*")) {
+                currentMods.add(mod);
+            }
+        }
+
+        StringBuilder sb = new StringBuilder(preset);
+        for (String mod : currentMods) {
+            if (!preset.toLowerCase().matches(".*\\b" + mod + "\\b.*")) {
+                sb.append(" ").append(mod);
+            }
+        }
+        return sb.toString().trim();
     }
 
     public static Color parseSingleColor(String str) {

@@ -9,6 +9,7 @@ import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.mixin.accessor.NativeImageAccessor;
 import me.cookie.kwrg.module.modules.functions.CustomCapeModule;
 import me.cookie.kwrg.module.modules.functions.ModelScaleModule;
+import me.cookie.kwrg.util.SafePaths;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
@@ -503,8 +504,8 @@ public class PlayerCustomizationManager {
             List<NativeImage> frames = new ArrayList<>();
             NativeImage activeImage = null;
             try {
-                Path file = getCapeDir().resolve(value);
-                if (!Files.exists(file) || token != CURRENT_LOAD_TOKEN.get()) {
+                Path file = SafePaths.resolveInside(getCapeDir(), getCapeDir().resolve(value));
+                if (file == null || !Files.exists(file) || token != CURRENT_LOAD_TOKEN.get()) {
                     cleanupLoading(token);
                     return;
                 }
@@ -816,7 +817,7 @@ public class PlayerCustomizationManager {
         return true;
     }
 
-    private static List<BufferedImage> layoutGifFrames(Path file, String fileName) throws Exception {
+    private static List<BufferedImage> layoutGifFrames(Path file, String fileName) throws java.io.IOException {
         boolean isRemote = fileName != null && fileName.startsWith("cache/");
         int block = isRemote ? Math.min(CustomCapeModule.CONFIG.get().remoteCapeCanvasSize, 512) : Math.min(CustomCapeModule.CONFIG.get().capeCanvasSize, 1024);
         int faceW = block * 10 / 64;

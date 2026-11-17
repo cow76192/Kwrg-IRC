@@ -7,6 +7,7 @@ import me.cookie.kwrg.mixin.accessor.FontSetAccessor;
 import me.cookie.kwrg.mixin.accessor.MinecraftAccessor;
 import me.cookie.kwrg.module.modules.style.FontModule;
 import me.cookie.kwrg.render.utils.LoadingFontSets;
+import me.cookie.kwrg.util.SafePaths;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GlyphSource;
@@ -184,7 +185,11 @@ public class FontManagerHelper {
             return true;
         }
 
-        Path fontFile = ensureFontDir().resolve(fontFileName);
+        Path fontFile = SafePaths.resolveUnder(ensureFontDir(), fontFileName);
+        if (fontFile == null) {
+            LOGGER.warn("[Kwrg] 字体文件名非法: {}", fontFileName);
+            return false;
+        }
         if (!Files.exists(fontFile)) {
             LOGGER.warn("[Kwrg] 目标字体文件不存在: {}", fontFile);
             return false;

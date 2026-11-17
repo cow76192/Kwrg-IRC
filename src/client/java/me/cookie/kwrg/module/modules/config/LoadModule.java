@@ -15,6 +15,7 @@ import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.module.modules.functions.ChannelModule;
 import me.cookie.kwrg.module.modules.functions.GlowColorModule;
 import me.cookie.kwrg.util.ChatNotifier;
+import me.cookie.kwrg.util.SafePaths;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 
@@ -72,7 +73,8 @@ public class LoadModule extends Module {
             return "配置名称不能以空格或句号（.）结尾！";
         }
 
-        if (WINDOWS_RESERVED_NAMES.contains(name.toUpperCase(java.util.Locale.ROOT))) {
+        if (WINDOWS_RESERVED_NAMES.contains(name.toUpperCase(java.util.Locale.ROOT))
+                || SafePaths.isReservedDeviceName(name)) {
             return "该名称为系统保留设备名 (" + name + ")，无法使用！";
         }
 
@@ -186,7 +188,10 @@ public class LoadModule extends Module {
 
                             btn.dismiss(() -> {
                                 try {
-                                    IrcConfig.deleteProfile(profileName);
+                                    if (!IrcConfig.deleteProfile(profileName)) {
+                                        ChatNotifier.send("§c[IRC] 删除失败：非法配置文件名 §f" + profileName, NotificationType.ERR);
+                                        return;
+                                    }
                                     ChatNotifier.send("§e[IRC] 已删除配置文件: §f" + profileName + ".json", NotificationType.SUCCESS);
 
                                     if (profileName.equalsIgnoreCase(IrcConfig.getCurrentProfileName())) {
@@ -201,7 +206,11 @@ public class LoadModule extends Module {
                             });
                         } else {
                             try {
-                                Path filePath = IrcConfig.getKwrgDir().resolve(profileName + ".json");
+                                Path filePath = SafePaths.resolveUnder(IrcConfig.getKwrgDir(), profileName + ".json");
+                                if (filePath == null) {
+                                    ChatNotifier.send("§c[IRC] 非法配置文件名: " + profileName, NotificationType.ERR);
+                                    return;
+                                }
                                 String jsonContent = Files.exists(filePath) ? Files.readString(filePath) : "";
                                 if (!jsonContent.isEmpty()) {
                                     com.google.gson.JsonObject jsonObject = com.google.gson.JsonParser.parseString(jsonContent).getAsJsonObject();

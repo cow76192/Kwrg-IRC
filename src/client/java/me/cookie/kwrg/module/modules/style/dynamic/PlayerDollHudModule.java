@@ -10,11 +10,9 @@ import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.config.ModuleConfig;
-import me.cookie.kwrg.module.Category;
-import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
 
-public class PlayerDollHudModule extends Module {
+public class PlayerDollHudModule extends DynamicModule {
 
     public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
 
@@ -27,22 +25,14 @@ public class PlayerDollHudModule extends Module {
     private static final float DEFAULT_SCALE = 1.0f;
 
     public PlayerDollHudModule() {
-        super(
-                "playerDollHud",
-                Category.STYLE,
-                PanelItemComponent.ItemType.TOGGLE,
-                () -> HudElementRegistry.isEnabled(HudElementRegistry.PLAYER_DOLL),
-                CONFIG
-        );
+        super("playerDollHud", HudElementRegistry.PLAYER_DOLL, CONFIG);
     }
 
     @Override
     public void onExecute() {
-        HudElement.State state = HudElementRegistry.state(HudElementRegistry.PLAYER_DOLL);
-        state.enabled = !state.enabled;
-        IrcConfig.saveDelayed(400L);
+        boolean enabled = toggleElement();
 
-        if (state.enabled) {
+        if (enabled) {
             ChatNotifier.send("§a[HUD] 玩家模型显示已开启", NotificationType.SUCCESS);
         } else {
             ChatNotifier.send("§e[HUD] 玩家模型显示已关闭", NotificationType.INFO);

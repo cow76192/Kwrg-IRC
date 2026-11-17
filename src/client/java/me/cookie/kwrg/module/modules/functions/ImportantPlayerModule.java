@@ -136,40 +136,54 @@ public class ImportantPlayerModule extends Module {
         }
     }
 
+    private static final String SAVE_FAILED_MESSAGE = "§c[IRC] 关注名单未改动，写入配置文件失败。";
+
+    private record ToggleResult(boolean removed, boolean saved) {
+    }
+
+    private static String toggleSuccessMessage(boolean removed, String player) {
+        return removed
+                ? "§e[IRC] 已将玩家 §f" + player + " §e从关注名单中移除。"
+                : "§a[IRC] 已将玩家 §f" + player + " §a添加到关注名单!";
+    }
+
     private static void toggleImportantWithGui(String player) {
+        ToggleResult result = applyImportantPlayerToggle(player);
+        if (!result.saved()) {
+            ChatNotifier.send(SAVE_FAILED_MESSAGE, NotificationType.ERR);
+            return;
+        }
+        ChatNotifier.send(toggleSuccessMessage(result.removed(), player), NotificationType.INFO);
+    }
+
+    private static ToggleResult applyImportantPlayerToggle(String player) {
         Settings config = CONFIG.get();
         if (config.importantPlayers == null) config.importantPlayers = new ArrayList<>();
 
+        var snapshot = new ArrayList<>(config.importantPlayers);
         boolean removed = config.importantPlayers.removeIf(p -> p.equalsIgnoreCase(player));
-        if (removed) {
-            IrcConfig.save();
-            PlayerFinderManager.onImportantPlayerChanged(player, false);
-            IrcClient.sendImportantPlayersSync();
-            ChatNotifier.send("§e[IRC] 已将玩家 §f" + player + " §e从关注名单中移除。", NotificationType.INFO);
-        } else {
+        if (!removed) {
             config.importantPlayers.add(player);
-            IrcConfig.save();
-            PlayerFinderManager.onImportantPlayerChanged(player, true);
-            IrcClient.sendImportantPlayersSync();
-            ChatNotifier.send("§a[IRC] 已将玩家 §f" + player + " §a添加到关注名单!", NotificationType.INFO);
         }
+
+        if (!IrcConfig.save()) {
+            config.importantPlayers.clear();
+            config.importantPlayers.addAll(snapshot);
+            return new ToggleResult(removed, false);
+        }
+
+        PlayerFinderManager.onImportantPlayerChanged(player, !removed);
+        IrcClient.sendImportantPlayersSync();
+        return new ToggleResult(removed, true);
     }
 
     public static int toggleImportant(String player) {
-        Settings config = CONFIG.get();
-        boolean removed = config.importantPlayers.removeIf(p -> p.equalsIgnoreCase(player));
-        if (removed) {
-            IrcConfig.save();
-            PlayerFinderManager.onImportantPlayerChanged(player, false);
-            IrcClient.sendImportantPlayersSync();
-            ChatNotifier.sendInChatScreen("§e[IRC] 已将玩家 §f" + player + " §e从关注名单中移除。");
-        } else {
-            config.importantPlayers.add(player);
-            IrcConfig.save();
-            PlayerFinderManager.onImportantPlayerChanged(player, true);
-            IrcClient.sendImportantPlayersSync();
-            ChatNotifier.sendInChatScreen("§a[IRC] 已将玩家 §f" + player + " §a添加到关注名单!");
+        ToggleResult result = applyImportantPlayerToggle(player);
+        if (!result.saved()) {
+            ChatNotifier.sendInChatScreen(SAVE_FAILED_MESSAGE);
+            return 0;
         }
+        ChatNotifier.sendInChatScreen(toggleSuccessMessage(result.removed(), player));
         return 1;
     }
 

@@ -24,6 +24,7 @@ public class SecondaryPanelComponent extends FlowLayout {
 
     private final String categoryTitle;
     private final Identifier iconTexture;
+    private final Component titleComponent;
     private final StackLayout rootContainer;
     private final SmoothScrollbar scrollbar = new SmoothScrollbar();
 
@@ -47,6 +48,7 @@ public class SecondaryPanelComponent extends FlowLayout {
         this.categoryTitle = categoryTitle;
         this.rootContainer = rootContainer;
         this.iconTexture = Identifier.fromNamespaceAndPath("kwrg", "textures/gui/buttons/" + categoryTitle.toLowerCase(Locale.ROOT) + ".png");
+        this.titleComponent = Component.literal(Character.toUpperCase(this.categoryTitle.charAt(0)) + this.categoryTitle.substring(1));
 
         this.positioning(Positioning.relative(50, 50));
         this.padding(Insets.of(52, 10, 10, 10));
@@ -231,9 +233,8 @@ public class SecondaryPanelComponent extends FlowLayout {
             graphics.blit(RenderPipelines.GUI_TEXTURED, this.iconTexture, iconBadgeX - iconSize / 2, iconBadgeY - iconSize / 2, 0, 0, iconSize, iconSize, 512, 512);
         }
 
-        String titleStr = Character.toUpperCase(this.categoryTitle.charAt(0)) + this.categoryTitle.substring(1);
         int headerTextColor = AnimationUtil.withAlpha(GuiThemeService.textStrong(), (int) (255 * panelAlpha)).argb();
-        RenderUtil.drawSmoothText(graphics, Component.literal(titleStr), iconBadgeX + 18, iconBadgeY - 4.5f, 1.0f, headerTextColor);
+        RenderUtil.drawSmoothText(graphics, this.titleComponent, iconBadgeX + 18, iconBadgeY - 4.5f, 1.0f, headerTextColor);
 
         graphics.fill(px + 12, py + headerHeight, px + width - 12, py + headerHeight + 1, AnimationUtil.argb(GuiThemeService.textStrong(), (int) (45 * panelAlpha)));
 

@@ -2,8 +2,11 @@ package me.cookie.kwrg.irc.manager;
 
 import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.config.IrcConfig;
+import me.cookie.kwrg.util.SafePaths;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.player.Player;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -13,6 +16,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class IrcCapeManager {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger("kwrg");
 
     public record CapeMeta(String hash, String fileName) {}
 
@@ -58,8 +63,8 @@ public class IrcCapeManager {
             return;
         }
 
-        Path capeFile = PlayerCustomizationManager.getCapeDir().resolve(myCape);
-        if (!Files.exists(capeFile)) return;
+        Path capeFile = SafePaths.resolveUnder(PlayerCustomizationManager.getCapeDir(), myCape);
+        if (capeFile == null || !Files.exists(capeFile)) return;
 
         String hash = computeFileHash(capeFile);
         if (hash != null) {
@@ -71,7 +76,8 @@ public class IrcCapeManager {
         String myCape = PlayerCustomizationManager.getMyCape();
         if (myCape == null || myCape.isBlank()) return;
 
-        Path capeFile = PlayerCustomizationManager.getCapeDir().resolve(myCape);
+        Path capeFile = SafePaths.resolveUnder(PlayerCustomizationManager.getCapeDir(), myCape);
+        if (capeFile == null) return;
         String currentHash = computeFileHash(capeFile);
         if (currentHash == null || !currentHash.equalsIgnoreCase(hash)) return;
 
@@ -161,7 +167,13 @@ public class IrcCapeManager {
 
     private static void applyCapeForPlayer(Player player, CapeMeta meta) {
         String cacheFileName = resolveCacheFileName(meta.hash(), meta.fileName());
-        Path cachedFile = getCacheDir().resolve(cacheFileName);
+        if (cacheFileName == null) {
+            return;
+        }
+        Path cachedFile = SafePaths.resolveUnder(getCacheDir(), cacheFileName);
+        if (cachedFile == null) {
+            return;
+        }
 
         if (Files.exists(cachedFile)) {
             PlayerCustomizationManager.setIrcPlayerCustomization(
@@ -182,13 +194,19 @@ public class IrcCapeManager {
         if (hash == null || base64Data == null || base64Data.isBlank()) return;
 
         String lowerHash = hash.toLowerCase(Locale.ROOT);
+        String resolvedFileName = resolveCacheFileName(lowerHash, fileName);
+        if (resolvedFileName == null) {
+            return;
+        }
         DOWNLOADING_HASHES.remove(lowerHash);
 
         CompletableFuture.runAsync(() -> {
             try {
                 byte[] bytes = Base64.getDecoder().decode(base64Data);
-                String cacheFileName = resolveCacheFileName(lowerHash, fileName);
-                Path targetPath = getCacheDir().resolve(cacheFileName);
+                Path targetPath = SafePaths.resolveUnder(getCacheDir(), resolvedFileName);
+                if (targetPath == null) {
+                    return;
+                }
                 Files.write(targetPath, bytes);
 
                 Set<UUID> waitingUuids = PENDING_ENTITIES.remove(lowerHash);
@@ -203,14 +221,16 @@ public class IrcCapeManager {
                             if (p != null) {
                                 PlayerCustomizationManager.setIrcPlayerCustomization(
                                         p.getGameProfile().name(),
-                                        "cache/" + cacheFileName,
+                                        "cache/" + resolvedFileName,
                                         1.0f
                                 );
                             }
                         }
                     });
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                LOGGER.warn("[Kwrg] 披风缓存写入失败: {}", resolvedFileName, e);
+            }
         });
     }
 
@@ -222,6 +242,10 @@ public class IrcCapeManager {
     }
 
     private static String resolveCacheFileName(String hash, String originalName) {
+        if (hash == null || !SafePaths.isHexId(hash) || (hash.length() != 40 && hash.length() != 64)) {
+            LOGGER.warn("[Kwrg] 披风哈希非法（需 40/64 位十六进制），已丢弃: {}", hash);
+            return null;
+        }
         StringBuilder suffix = new StringBuilder();
 
         int frames = PlayerCustomizationManager.getCapeFrameCount(originalName);
@@ -231,6 +255,10 @@ public class IrcCapeManager {
         if (presetFps > 0) suffix.append('#').append(presetFps);
 
         String extension = originalName != null && originalName.toLowerCase(Locale.ROOT).endsWith(".gif") ? ".gif" : ".png";
-        return hash + suffix + extension;
+        String safeHash = SafePaths.sanitizeFileName(hash);
+        if (safeHash.isEmpty()) {
+            return null;
+        }
+        return safeHash + suffix + extension;
     }
 }
