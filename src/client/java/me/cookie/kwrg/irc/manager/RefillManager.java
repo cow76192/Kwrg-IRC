@@ -98,10 +98,15 @@ public final class RefillManager {
             String id = normalize(entry.item);
             if (id.isEmpty()) continue;
 
+            long interval = Math.max(1, entry.autoSeconds) * 20L;
             long due = NEXT_DUE.getOrDefault(entry, 0L);
+            if (due > ticks + interval) {
+                due = ticks + interval;
+                NEXT_DUE.put(entry, due);
+            }
             if (ticks < due) continue;
 
-            NEXT_DUE.put(entry, ticks + Math.max(1, entry.autoSeconds) * 20L);
+            NEXT_DUE.put(entry, ticks + interval);
             refill(mc, entry, true);
         }
     }
