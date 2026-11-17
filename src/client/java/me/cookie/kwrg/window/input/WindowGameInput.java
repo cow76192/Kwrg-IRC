@@ -54,6 +54,7 @@ public final class WindowGameInput {
     }
 
     private static final int HOTKEY = 0x4B57;
+    private static final int SWP_ASYNCWINDOWPOS = 0x4000;
     private static final Procedure PROCEDURE = WindowGameInput::message;
     private static Pointer game, source, relay, previous;
     private static int sourcePid;
@@ -109,7 +110,7 @@ public final class WindowGameInput {
                 if (!sourceForeground())
                     throw new IllegalStateException(requested ? "目标游戏未及时完成激活，请稍后重试" : "目标游戏拒绝获得焦点");
 
-                User.API.SetWindowPos(source, game, 0, 0, 0, 0, 0x13);
+                User.API.SetWindowPos(source, game, 0, 0, 0, 0, 0x13 | SWP_ASYNCWINDOWPOS);
             } catch (RuntimeException | LinkageError failure) {
                 stopOnWindowThread();
                 throw failure;
