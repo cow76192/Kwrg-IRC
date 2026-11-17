@@ -27,6 +27,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(Minecraft.class)
 public abstract class MinecraftTickMixin extends ReentrantBlockableEventLoop<Runnable> {
+    @Inject(method = "pauseGame", at = @At("HEAD"), cancellable = true)
+    private void kwrg$keepWindowGameProjection(boolean pauseOnly, CallbackInfo ci) {
+        if (me.cookie.kwrg.window.render.WorldWindow.gameControlling()) ci.cancel();
+    }
+
     @Unique private final LoadingFramePacer kwrg$loadingPacer = new LoadingFramePacer();
     @Unique private long kwrg$tickStarted;
     @Unique private boolean kwrg$deferLoadingTasks;

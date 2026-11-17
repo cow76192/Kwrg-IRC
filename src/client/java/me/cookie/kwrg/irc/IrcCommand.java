@@ -12,24 +12,19 @@ import me.cookie.kwrg.gui.IrcScreen;
 import me.cookie.kwrg.gui.hud.HudEditorScreen;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
-import me.cookie.kwrg.irc.manager.ChatWaypointManager;
-import me.cookie.kwrg.irc.manager.RouteEditor;
-import me.cookie.kwrg.irc.manager.RouteManager;
-import me.cookie.kwrg.irc.manager.WaypointManager;
-import me.cookie.kwrg.module.modules.debug.ClearIndexCacheModule;
-import me.cookie.kwrg.module.modules.functions.ChannelModule;
-import me.cookie.kwrg.module.modules.functions.AntiNickModule;
-import me.cookie.kwrg.irc.manager.AntiNickManager;
+import me.cookie.kwrg.irc.manager.*;
 import me.cookie.kwrg.module.modules.cheat.FreecamModule;
-import me.cookie.kwrg.module.modules.functions.GlowColorModule;
-import me.cookie.kwrg.module.modules.functions.HideArmorModule;
-import me.cookie.kwrg.module.modules.functions.ImportantPlayerModule;
+import me.cookie.kwrg.module.modules.debug.ClearIndexCacheModule;
+import me.cookie.kwrg.module.modules.functions.*;
 import me.cookie.kwrg.module.modules.play.PlayModule;
 import me.cookie.kwrg.module.modules.style.MessageStyleModule;
 import me.cookie.kwrg.module.modules.style.NameStyleModule;
 import me.cookie.kwrg.module.modules.style.RankModule;
 import me.cookie.kwrg.render.WorldTextRenderer;
-import me.cookie.kwrg.util.*;
+import me.cookie.kwrg.render.WorldTextureRenderer;
+import me.cookie.kwrg.util.ChatNotifier;
+import me.cookie.kwrg.util.EmojiUtil;
+import me.cookie.kwrg.util.getBanUtil;
 import me.cookie.kwrg.util.skyblock.SkyblockItemHelper;
 import me.cookie.kwrg.util.skyblock.SkyblockLocation;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -373,6 +368,8 @@ public class IrcCommand {
                 .then(literal("debug")
                         .then(literal("wordTextRenderTest")
                                 .executes(context -> WorldTextRenderer.toggleDebugTest()))
+                        .then(literal("worldTextureRenderTest")
+                                .executes(context -> WorldTextureRenderer.toggleDebugTest()))
                         .then(literal("clearImgCache")
                                 .executes(context -> ClearIndexCacheModule.handleClearImgCache()))
                         .then(literal("connect")

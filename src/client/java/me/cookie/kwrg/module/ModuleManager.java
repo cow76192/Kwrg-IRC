@@ -51,6 +51,7 @@ public class ModuleManager {
         register(new ChatSuffixModule());
         register(new NavigatorModule());
         register(new AutoPurchasePassModule());
+        register(new WindowModule());
 
         // --- STYLE 模块 ---
         register(new RankModule());

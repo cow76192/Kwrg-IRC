@@ -19,8 +19,9 @@ import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Locale;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class ChatSuffixModule extends Module {
 
@@ -48,6 +49,10 @@ public class ChatSuffixModule extends Module {
     private static final String STYLE_RESET = "§r";
 
     private static final int MAX_MESSAGE_LENGTH = 256;
+    private static final Pattern CHAT_COMMAND_PREFIX = Pattern.compile(
+            "(?:ac|pc|pchat|r|reply) +"
+                    + "|(?:msg|message|tell|w|whisper) +\\S+ +"
+                    + "|(?:p|party) +chat +", Pattern.CASE_INSENSITIVE);
 
     private static final String[] PRESETS = new String[]{
             "&o&d喵~",
@@ -284,15 +289,14 @@ public class ChatSuffixModule extends Module {
         Settings config = CONFIG.get();
         if (!config.chatSuffixEnabled || !config.chatSuffixPublicChat) return command;
 
-        String lower = command.toLowerCase(Locale.ROOT);
-        if (!lower.equals("ac") && !lower.startsWith("ac ")) return command;
+        Matcher prefix = CHAT_COMMAND_PREFIX.matcher(command);
+        if (!prefix.lookingAt()) return command;
 
-        int space = command.indexOf(' ');
-        if (space < 0 || space + 1 >= command.length()) return command;
-
-        String text = command.substring(space + 1);
+        String text = command.substring(prefix.end());
+        if (text.isBlank()) return command;
         String decorated = decoratePlain(config, text);
-        return decorated.equals(text) ? command : command.substring(0, space + 1) + decorated;
+        String result = command.substring(0, prefix.end()) + decorated;
+        return result.length() > MAX_MESSAGE_LENGTH ? command : result;
     }
 
     private static String resolveSuffixValue(Settings config, String message) {

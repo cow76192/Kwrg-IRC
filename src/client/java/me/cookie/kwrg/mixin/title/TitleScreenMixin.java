@@ -346,6 +346,6 @@ public abstract class TitleScreenMixin extends Screen implements TitleBrowser.Ho
     @WrapWithCondition(method = "extractRenderState", at = @At(value = "INVOKE",
             target = "Lcom/mojang/realmsclient/gui/screens/RealmsNotificationsScreen;extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V"))
     private boolean kwrg$drawRealms(RealmsNotificationsScreen screen, GuiGraphicsExtractor graphics, int x, int y, float tick) {
-        return !kwrg$mode.switching();
+        return !kwrg$themed && !kwrg$mode.switching();
     }
 }

@@ -10,7 +10,9 @@ import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.module.modules.style.dynamic.InventoryHudModule;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
@@ -24,8 +26,9 @@ public final class InventoryHudRenderer {
     private static final int MAIN_ROWS = 3;
     private static final float SLOT_SIZE = 18.0f;
     private static final float HOTBAR_GAP = 4.0f;
-    private static final float SLOT_RADIUS = 4.5f;
-    private static final int SLOT_ARC_SEGMENTS = 12;
+    private static final Identifier SLOT_TEXTURE = Identifier.fromNamespaceAndPath("kwrg", "textures/gui/inventory_slots.png");
+    private static final int SLOT_TEXTURE_SIZE = 72;
+    private static final int SLOT_ARC_SEGMENTS = 6;
     private static final float FADE_SPEED = 6.0f;
 
     private static final float[] ISLAND_BOUNDS = new float[]{0.0f, 0.0f, 0.0f, 0.0f};
@@ -104,7 +107,7 @@ public final class InventoryHudRenderer {
         ISLAND_BOUNDS[3] = scaledH;
 
         Inventory inventory = mc.player != null ? mc.player.getInventory() : null;
-        boolean hasAnyItem = hasDisplayedItems(inventory, showHotbar);
+        boolean hasAnyItem = (editorPreview || config.inventoryHudHideEmpty) && hasDisplayedItems(inventory, showHotbar);
 
         boolean shouldShow = editorPreview || (enabled && (!config.inventoryHudHideEmpty || hasAnyItem));
         updateVisibility(shouldShow);
@@ -246,21 +249,24 @@ public final class InventoryHudRenderer {
                     Color cellFill = occupied ? occupiedSlotFill : emptySlotFill;
                     Color cellOutline = isSelectedHotbar ? selectedSlotOutline : (occupied ? occupiedSlotOutline : null);
 
-                    RenderUtil.drawSubpixelRoundedPanel(
-                            owo, slotX, rowY, SLOT_SIZE, SLOT_SIZE,
-                            SLOT_RADIUS, isSelectedHotbar ? 1.3f : 0.8f, SLOT_ARC_SEGMENTS,
-                            cellFill, cellOutline
-                    );
+                    drawSlotTexture(graphics, slotX, rowY, 0, cellFill);
+                    drawSlotTexture(graphics, slotX, rowY, isSelectedHotbar ? 3 : 1, cellOutline);
                 } else if (isSelectedHotbar) {
-                    RenderUtil.drawSubpixelRoundedPanel(
-                            owo, slotX, rowY, SLOT_SIZE, SLOT_SIZE,
-                            SLOT_RADIUS, 1.2f, SLOT_ARC_SEGMENTS,
-                            selectedSlotFill,
-                            selectedSlotOutline
-                    );
+                    drawSlotTexture(graphics, slotX, rowY, 0, selectedSlotFill);
+                    drawSlotTexture(graphics, slotX, rowY, 2, selectedSlotOutline);
                 }
+            }
+        }
 
-                if (occupied) {
+        // Submit every slot background before items and their live decorations.
+        for (int row = 0; row < totalRows; row++) {
+            boolean isHotbarRow = row == MAIN_ROWS;
+            float rowY = panelY + padding + row * (SLOT_SIZE + spacing) + (isHotbarRow ? HOTBAR_GAP : 0.0f);
+            for (int col = 0; col < COLS; col++) {
+                float slotX = panelX + padding + col * (SLOT_SIZE + spacing);
+                int slotIndex = isHotbarRow ? col : (9 + row * COLS + col);
+                ItemStack stack = resolveSlotStack(mc, inventory, slotIndex, usePreviewItems);
+                if (!stack.isEmpty()) {
                     int itemX = Math.round(slotX + (SLOT_SIZE - 16.0f) * 0.5f);
                     int itemY = Math.round(rowY + (SLOT_SIZE - 16.0f) * 0.5f);
                     graphics.item(stack, itemX, itemY);
@@ -271,6 +277,14 @@ public final class InventoryHudRenderer {
                 }
             }
         }
+    }
+
+    private static void drawSlotTexture(GuiGraphicsExtractor graphics, float x, float y, int tile, Color color) {
+        if (color == null || (color.argb() >>> 24) == 0) return;
+        graphics.blit(RenderPipelines.GUI_TEXTURED, SLOT_TEXTURE,
+                Math.round(x), Math.round(y), (float) (tile * SLOT_TEXTURE_SIZE), 0.0f,
+                (int) SLOT_SIZE, (int) SLOT_SIZE, SLOT_TEXTURE_SIZE, SLOT_TEXTURE_SIZE,
+                SLOT_TEXTURE_SIZE * 4, SLOT_TEXTURE_SIZE, color.argb());
     }
 
     private static ItemStack[] previewStacks() {
@@ -310,8 +324,7 @@ public final class InventoryHudRenderer {
         if (usePreviewItems && mc.level != null) {
             ItemStack[] stacks = previewStacks();
             if (stacks != null) {
-                ItemStack template = stacks[slotIndex];
-                return template.isEmpty() ? ItemStack.EMPTY : template.copy();
+                return stacks[slotIndex];
             }
         }
         return ItemStack.EMPTY;

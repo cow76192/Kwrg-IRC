@@ -42,6 +42,7 @@ public class PanelItemComponent extends BaseGuiComponent {
 
     private boolean isDismissing = false;
     private float dismissProgress = 0.0f;
+    private int dismissFootprint = FULL_FOOTPRINT;
     private Runnable onDismissComplete = null;
 
     private Identifier previewTexture = null;
@@ -126,6 +127,7 @@ public class PanelItemComponent extends BaseGuiComponent {
 
     public void dismiss(Runnable onComplete) {
         if (this.isDismissing) return;
+        this.dismissFootprint = this.getLayoutFootprint();
         this.isDismissing = true;
         this.dismissProgress = 0.0f;
         this.onDismissComplete = onComplete;
@@ -134,7 +136,7 @@ public class PanelItemComponent extends BaseGuiComponent {
     public int getLayoutFootprint() {
         if (this.isDismissing) {
             float dismissEase = AnimationUtil.easeOutCubic(this.dismissProgress);
-            return Math.round((1.0f - dismissEase) * FULL_FOOTPRINT);
+            return Math.round((1.0f - dismissEase) * this.dismissFootprint);
         }
         if (this.playSpawnAnimation && this.spawnProgress < 1.0f) {
             float spawnEase = AnimationUtil.easeOutCubic(this.spawnProgress);
@@ -167,11 +169,12 @@ public class PanelItemComponent extends BaseGuiComponent {
     }
 
     @Override
-    public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
-        if (this.playSpawnAnimation && this.spawnProgress < 1.0f) {
+    public void update(float delta, int mouseX, int mouseY) {
+        super.update(delta, mouseX, mouseY);
+        // Layout and drawing must see the same progress, including offscreen rows.
+        if (this.playSpawnAnimation && !this.isDismissing && this.spawnProgress < 1.0f) {
             this.spawnProgress = Math.min(1.0f, this.spawnProgress + delta * 0.30f);
         }
-        float spawnEase = this.playSpawnAnimation ? AnimationUtil.easeOutCubic(this.spawnProgress) : 1.0f;
 
         if (this.isDismissing) {
             this.dismissProgress = Math.min(1.0f, this.dismissProgress + delta * 0.32f);
@@ -182,6 +185,11 @@ public class PanelItemComponent extends BaseGuiComponent {
                 return;
             }
         }
+    }
+
+    @Override
+    public void draw(OwoUIGraphics graphics, int mouseX, int mouseY, float partialTicks, float delta) {
+        float spawnEase = this.playSpawnAnimation ? AnimationUtil.easeOutCubic(this.spawnProgress) : 1.0f;
         float dismissEase = this.isDismissing ? AnimationUtil.easeOutCubic(this.dismissProgress) : 0.0f;
 
         float totalAlpha = (1.0f - dismissEase) * spawnEase;
@@ -191,7 +199,7 @@ public class PanelItemComponent extends BaseGuiComponent {
         float targetHover = this.hovered ? 1.0f : 0.0f;
         this.hoverAnimation = Mth.clamp(this.hoverAnimation + (targetHover - this.hoverAnimation) * delta * 0.35f, 0.0f, 1.0f);
 
-        float targetActive = (this.type == ItemType.TOGGLE && this.isItemActive()) ? 1.0f : 0.0f;
+        float targetActive = this.isItemActive() ? 1.0f : 0.0f;
         this.activeAnimation = Mth.clamp(this.activeAnimation + (targetActive - this.activeAnimation) * delta * 0.30f, 0.0f, 1.0f);
 
         if (this.clickFeedback > 0.01f) {
@@ -218,6 +226,8 @@ public class PanelItemComponent extends BaseGuiComponent {
         float cx = x + width / 2.0f;
         float cy = y + Math.min(BASE_HEIGHT, footprint) / 2.0f;
 
+        boolean clipped = footprint < BASE_HEIGHT;
+        if (clipped) graphics.enableScissor(x, y, x + width, y + footprint);
         graphics.pose().pushMatrix();
         graphics.pose().translate(cx, cy);
         graphics.pose().scale(curScale, curScale);
@@ -269,6 +279,7 @@ public class PanelItemComponent extends BaseGuiComponent {
         }
 
         graphics.pose().popMatrix();
+        if (clipped) graphics.disableScissor();
     }
 
     @Override

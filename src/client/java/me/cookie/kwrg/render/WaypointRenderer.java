@@ -63,6 +63,8 @@ public final class WaypointRenderer {
         WORLD_PROJECTION.set(projection);
     }
 
+    public static Matrix4fc worldProjection() { return WORLD_PROJECTION; }
+
     public WaypointRenderer(LevelRenderContext context, float animationTime) {
         this.context = context;
         this.cameraPosition = context.levelState().cameraRenderState.pos;
