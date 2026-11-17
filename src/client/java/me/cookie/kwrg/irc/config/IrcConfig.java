@@ -136,25 +136,7 @@ public class IrcConfig {
         if (clean.endsWith(".json")) {
             clean = clean.substring(0, clean.length() - 5).strip();
         }
-        if (clean.isEmpty() || clean.length() > 64) {
-            return null;
-        }
-        if (clean.equals(".") || clean.equals("..") || clean.contains("..")) {
-            return null;
-        }
-        if (clean.endsWith(".")) {
-            return null;
-        }
-        if (RESERVED_PROFILE_NAMES.contains(clean.toUpperCase(Locale.ROOT))) {
-            return null;
-        }
-        for (int i = 0; i < clean.length(); i++) {
-            char c = clean.charAt(i);
-            if (c < 0x20 || "<>:\"|?*/\\".indexOf(c) >= 0) {
-                return null;
-            }
-        }
-        return clean;
+        return isValidProfileName(clean) ? clean : null;
     }
 
     private static boolean isValidProfileName(String clean) {

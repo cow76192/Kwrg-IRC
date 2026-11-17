@@ -73,7 +73,8 @@ public class LoadModule extends Module {
             return "配置名称不能以空格或句号（.）结尾！";
         }
 
-        if (WINDOWS_RESERVED_NAMES.contains(name.toUpperCase(java.util.Locale.ROOT))) {
+        if (WINDOWS_RESERVED_NAMES.contains(name.toUpperCase(java.util.Locale.ROOT))
+                || SafePaths.isReservedDeviceName(name)) {
             return "该名称为系统保留设备名 (" + name + ")，无法使用！";
         }
 
