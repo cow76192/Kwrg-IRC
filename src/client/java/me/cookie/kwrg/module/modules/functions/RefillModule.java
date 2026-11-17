@@ -16,6 +16,7 @@ public class RefillModule extends Module {
     public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class);
 
     public static final class Settings {
+        public int commandCooldownTicks = RefillManager.DEFAULT_COMMAND_COOLDOWN_TICKS;
         public List<Entry> refillEntries = new ArrayList<>();
     }
 
@@ -47,7 +48,9 @@ public class RefillModule extends Module {
     protected void onConfigLoaded() {
         RefillManager.reset();
         Settings settings = CONFIG.get();
-        if (settings == null || settings.refillEntries == null) return;
+        if (settings == null) return;
+        settings.commandCooldownTicks = RefillManager.clampCooldownTicks(settings.commandCooldownTicks);
+        if (settings.refillEntries == null) return;
         for (Entry entry : settings.refillEntries) {
             if (entry != null && entry.auto && entry.autoSeconds <= 0) entry.autoSeconds = 5;
         }

@@ -40,7 +40,7 @@ public final class RefillScreen extends OverlayScreen {
     private static final int MIN_TRAILING_WIDTH = 24;
 
     private enum Field {
-        ITEM, TARGET, AUTO
+        ITEM, TARGET, AUTO, COOLDOWN
     }
 
     private int contentX, contentY, contentW, contentH;
@@ -48,6 +48,7 @@ public final class RefillScreen extends OverlayScreen {
 
     private final RouteButtonComponent closeButton = new RouteButtonComponent();
     private final RouteButtonComponent addButton = new RouteButtonComponent();
+    private final RouteButtonComponent cooldownButton = new RouteButtonComponent();
     private final List<Row> rows = new ArrayList<>();
     private final List<RouteButtonComponent> suggestionButtons = new ArrayList<>();
 
@@ -136,7 +137,7 @@ public final class RefillScreen extends OverlayScreen {
             regionPane = null;
             regionIndex = -1;
         }
-        if (editingIndex >= size) {
+        if (editingField != Field.COOLDOWN && editingIndex >= size) {
             editor = null;
             editingIndex = -1;
         }
@@ -162,12 +163,19 @@ public final class RefillScreen extends OverlayScreen {
 
         closeButton.bounds(panelX + panelW - 32, panelY + 14, 20, 22);
         addButton.bounds(panelX + panelW - 150, panelY + 14, 108, 22);
+        cooldownButton.bounds(panelX + panelW - 246, panelY + 14, 88, 22);
+
+        if (editor != null && editingField == Field.COOLDOWN) {
+            editor.setX(cooldownButton.bounds().x());
+            editor.setY(cooldownButton.bounds().y() + 2);
+            editor.setWidth(cooldownButton.bounds().width());
+        }
 
         for (int index = 0; index < rows.size(); index++) {
             Row row = rows.get(index);
             int y = contentY + index * ROW_HEIGHT - scroll;
             row.bounds(contentX, y, contentW);
-            if (editingIndex == index && editor != null) {
+            if (editingField != Field.COOLDOWN && editingIndex == index && editor != null) {
                 RouteButtonComponent field = row.field(editingField);
                 editor.setX(field.bounds().x());
                 editor.setY(field.bounds().y() + 2);
@@ -211,8 +219,12 @@ public final class RefillScreen extends OverlayScreen {
             long now = System.currentTimeMillis();
             closeButton.draw(owo, "×", false, mouseX, mouseY);
             addButton.draw(owo, "+ 添加物品", false, mouseX, mouseY);
+            if (editor == null || editingField != Field.COOLDOWN) {
+                int cd = RefillManager.clampCooldownTicks(settings().commandCooldownTicks);
+                cooldownButton.draw(owo, "冷却 " + cd + "t", cd > 0, mouseX, mouseY);
+            }
 
-            RenderUtil.drawSmoothText(owo, RenderUtil.fitText("自动补充", panelW - 260, 0.85f), panelX + 16, panelY + 17,
+            RenderUtil.drawSmoothText(owo, RenderUtil.fitText("自动补充", panelW - 270, 0.85f), panelX + 16, panelY + 17,
                     AnimationUtil.opaqueArgb(GuiThemeService.routeTitle()));
             RenderUtil.drawSmoothText(owo, "GFS 补货 · 每条目独立目标 / 自动间隔 / 快捷键 / 生效岛屿", panelX + 16, panelY + 45,
                     AnimationUtil.opaqueArgb(GuiThemeService.routeMuted()));
@@ -373,14 +385,19 @@ public final class RefillScreen extends OverlayScreen {
     }
 
     private void openEditor(int index, Field field) {
-        RefillModule.Entry entry = entryAt(index);
-        if (entry == null) return;
-
-        String value = switch (field) {
-            case ITEM -> entry.item == null ? "" : entry.item;
-            case TARGET -> String.valueOf(entry.target);
-            case AUTO -> String.valueOf(entry.autoSeconds);
-        };
+        String value;
+        if (field == Field.COOLDOWN) {
+            value = String.valueOf(RefillManager.clampCooldownTicks(settings().commandCooldownTicks));
+        } else {
+            RefillModule.Entry entry = entryAt(index);
+            if (entry == null) return;
+            value = switch (field) {
+                case ITEM -> entry.item == null ? "" : entry.item;
+                case TARGET -> String.valueOf(entry.target);
+                case AUTO -> String.valueOf(entry.autoSeconds);
+                case COOLDOWN -> "";
+            };
+        }
 
         editingIndex = index;
         editingField = field;
@@ -393,16 +410,30 @@ public final class RefillScreen extends OverlayScreen {
     }
 
     private void commitEditor() {
-        if (editor == null || editingIndex < 0) return;
+        if (editor == null) return;
+        String value = editor.getValue() == null ? "" : editor.getValue().trim();
+        if (editingField == Field.COOLDOWN) {
+            RefillModule.Settings s = settings();
+            s.commandCooldownTicks = RefillManager.clampCooldownTicks(parseInt(value, s.commandCooldownTicks));
+            save();
+            editor = null;
+            editingIndex = -1;
+            return;
+        }
+        if (editingIndex < 0) {
+            editor = null;
+            return;
+        }
         RefillModule.Entry entry = entryAt(editingIndex);
         if (entry != null) {
-            String value = editor.getValue() == null ? "" : editor.getValue().trim();
             switch (editingField) {
                 case ITEM -> {
                     if (!value.isEmpty()) entry.item = value.toUpperCase(Locale.ROOT);
                 }
                 case TARGET -> entry.target = RefillManager.clampTarget(parseInt(value, entry.target));
                 case AUTO -> entry.autoSeconds = RefillManager.clampInterval(parseInt(value, entry.autoSeconds), entry.auto);
+                case COOLDOWN -> {
+                }
             }
             save();
         }
@@ -481,6 +512,13 @@ public final class RefillScreen extends OverlayScreen {
             entries().add(entry);
             syncRows();
             save();
+            return;
+        }
+
+        if (cooldownButton.contains(click.x(), click.y())) {
+            cooldownButton.press();
+            commitEditor();
+            openEditor(-1, Field.COOLDOWN);
             return;
         }
 
@@ -706,7 +744,7 @@ public final class RefillScreen extends OverlayScreen {
             return switch (field) {
                 case ITEM -> item;
                 case TARGET -> target;
-                case AUTO -> auto;
+                case AUTO, COOLDOWN -> auto;
             };
         }
     }

@@ -22,7 +22,9 @@ import java.util.Set;
 
 public final class RefillManager {
 
+    public static final int DEFAULT_COMMAND_COOLDOWN_TICKS = 42;
     private static final int REQUEST_TIMEOUT_TICKS = 48;
+    private static final int MAX_COOLDOWN_TICKS = 600;
     private static final int INVENTORY_SLOT_COUNT = 36;
     private static final int MAX_TARGET = 2240;
     private static final int MAX_INTERVAL_SECONDS = 600;
@@ -34,6 +36,7 @@ public final class RefillManager {
             "EPEARL", "ENDER_PEARL"
     );
     private static long ticks;
+    private static long nextCommandTick;
     private static boolean autoGateWarned;
 
     private record PendingRequest(long until, int expectedCount) {
@@ -53,6 +56,7 @@ public final class RefillManager {
     public static void reset() {
         PENDING.clear();
         NEXT_DUE.clear();
+        nextCommandTick = 0;
         autoGateWarned = false;
         KeyInputs.reset();
     }
@@ -99,9 +103,10 @@ public final class RefillManager {
             if (id.isEmpty()) continue;
 
             long interval = Math.max(1, entry.autoSeconds) * 20L;
+            long maxDue = Math.max(ticks + interval, nextCommandTick);
             long due = NEXT_DUE.getOrDefault(entry, 0L);
-            if (due > ticks + interval) {
-                due = ticks + interval;
+            if (due > maxDue) {
+                due = maxDue;
                 NEXT_DUE.put(entry, due);
             }
             if (ticks < due) continue;
@@ -124,7 +129,7 @@ public final class RefillManager {
         long release = pendingUntil(mc, id);
         if (release >= 0) {
             if (auto) {
-                NEXT_DUE.put(entry, Math.max(ticks + 1, release));
+                NEXT_DUE.put(entry, Math.max(ticks + 1, Math.max(release, nextCommandTick)));
             } else {
                 ChatNotifier.send("§e[IRC] 正在等待 §f" + id + " §e的补充结果", NotificationType.WARN);
             }
@@ -138,7 +143,20 @@ public final class RefillManager {
             return 0;
         }
 
+        if (ticks < nextCommandTick) {
+            nextCommandTick = Math.min(nextCommandTick, ticks + commandCooldownTicks());
+        }
+        if (ticks < nextCommandTick) {
+            if (auto) {
+                NEXT_DUE.put(entry, nextCommandTick);
+            } else {
+                ChatNotifier.send("§e[IRC] /gfs 冷却中，请稍候", NotificationType.WARN);
+            }
+            return 0;
+        }
+
         mc.player.connection.sendCommand("gfs " + id + " " + delta);
+        nextCommandTick = ticks + commandCooldownTicks();
         PENDING.put(id, new PendingRequest(ticks + REQUEST_TIMEOUT_TICKS, target));
         return 1;
     }
@@ -199,6 +217,16 @@ public final class RefillManager {
 
     public static int clampInterval(int seconds, boolean auto) {
         return Math.max(auto ? 1 : 0, Math.min(MAX_INTERVAL_SECONDS, seconds));
+    }
+
+    public static int clampCooldownTicks(int cooldownTicks) {
+        return Math.max(0, Math.min(MAX_COOLDOWN_TICKS, cooldownTicks));
+    }
+
+    private static int commandCooldownTicks() {
+        RefillModule.Settings settings = RefillModule.CONFIG.get();
+        if (settings == null) return DEFAULT_COMMAND_COOLDOWN_TICKS;
+        return clampCooldownTicks(settings.commandCooldownTicks);
     }
 
     public static String normalize(String raw) {
