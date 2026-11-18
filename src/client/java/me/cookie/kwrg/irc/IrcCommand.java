@@ -9,6 +9,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import me.cookie.kwrg.gui.IrcScreen;
+import me.cookie.kwrg.gui.RefillScreen;
 import me.cookie.kwrg.gui.hud.HudEditorScreen;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
@@ -172,6 +173,11 @@ public class IrcCommand {
                         .executes(context -> FreecamModule.setEnabled(!me.cookie.kwrg.irc.manager.FreecamManager.isActive()))
                         .then(argument("enabled", BoolArgumentType.bool())
                                 .executes(context -> FreecamModule.setEnabled(BoolArgumentType.getBool(context, "enabled")))))
+                .then(literal("refill")
+                        .executes(context -> {
+                            RefillScreen.open();
+                            return 1;
+                        }))
                 .then(hideArmorNode())
                 .then(literal("antiNick")
                         .executes(context -> AntiNickModule.setEnabled(!AntiNickModule.CONFIG.get().antiNickEnabled))

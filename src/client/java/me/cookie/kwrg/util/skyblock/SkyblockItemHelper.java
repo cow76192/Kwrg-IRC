@@ -37,6 +37,7 @@ public class SkyblockItemHelper {
     private static final List<String> PET_TIER_PRIORITY = List.of("COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC");
 
     private static volatile boolean isIndexed = false;
+    private static volatile boolean repoMissing = false;
 
     public static boolean isSkyblockItem(String str) {
         if (str == null) return false;
@@ -112,6 +113,7 @@ public class SkyblockItemHelper {
 
         Path repoDir = Minecraft.getInstance().gameDirectory.toPath().resolve("skyblock-repo-cache");
         if (!Files.exists(repoDir)) {
+            repoMissing = true;
             LOGGER.warn("[Kwrg] 未找到目录: {}", repoDir);
             ChatNotifier.sendInChatScreen("§c[Kwrg] 未找到 skyblock-repo-cache 文件夹");
             return false;
@@ -130,6 +132,7 @@ public class SkyblockItemHelper {
         int totalCount = itemsCount + attributesCount + petsCount + enchantmentsCount + runesCount;
         if (totalCount > 0) {
             isIndexed = true;
+            repoMissing = false;
             LOGGER.info("[Kwrg] 成功索引 items:{}, attributes:{}, pets:{}, enchants:{}, runes:{}, 共 {} 个标识符",
                     itemsCount, attributesCount, petsCount, enchantmentsCount, runesCount, RAW_ITEM_INDEX.size());
             return true;
@@ -469,6 +472,37 @@ public class SkyblockItemHelper {
         if (!isIndexed) {
             indexItemRepo();
         }
+        return snapshotIds();
+    }
+
+    public static List<String> peekSuggestedIds() {
+        if (!isIndexed) return List.of();
+        return snapshotIds();
+    }
+
+    private static List<String> snapshotIds() {
         return new ArrayList<>(KNOWN_IDS);
+    }
+
+    public static String skyblockId(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return "";
+
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        if (data == null) return "";
+
+        CompoundTag tag = data.copyTag();
+        String id = tag.getCompoundOrEmpty("ExtraAttributes").getStringOr("id", "");
+        if (id.isBlank()) {
+            id = tag.getStringOr("id", "");
+        }
+        return id.toUpperCase(Locale.ROOT);
+    }
+
+    public static boolean isIndexed() {
+        return isIndexed;
+    }
+
+    public static boolean isRepoMissing() {
+        return repoMissing;
     }
 }
