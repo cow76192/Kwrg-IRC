@@ -255,24 +255,31 @@ public final class TitleMenuUi {
         int y = button.getY();
         int w = button.getWidth();
         int h = button.getHeight();
+        if (w <= 0 || h <= 0) return;
+
         graphics.fillGradient(x, y, x + w, y + h, color(0x183048, alpha * 0.25f), color(0x081626, alpha * 0.20f));
         if (hover > 0.01f) {
             var pose = graphics.pose();
             pose.pushMatrix().translate(x + w, y).rotate((float) (Math.PI * 0.5));
             graphics.fillGradient(0, 0, h, w, color(accent, alpha * hover * 0.025f), color(accent, alpha * hover * 0.34f));
             pose.popMatrix();
-            graphics.fill(x + 2, y, x + 12 + Math.round(15.0f * hover), y + 1, color(accent, alpha * hover * 0.74f));
+            int highlightEnd = Math.min(w - 2, 12 + Math.round(15.0f * hover));
+            if (highlightEnd > 2) {
+                graphics.fill(x + 2, y, x + highlightEnd, y + 1, color(accent, alpha * hover * 0.74f));
+            }
 
-            for (int spark = 0; spark < 4; spark++) {
-                float age = (time * (0.67f + spark * 0.11f) + spark * 0.27f) % 1.0f;
-                int px = x + w - 12 + spark * 3 + Math.round(age * 10);
-                int py = y + h / 2 - 2 + spark * 2 - Math.round(age * 5);
+            if (w > 20 && h >= 16) {
+                for (int spark = 0; spark < 4; spark++) {
+                    float age = (time * (0.67f + spark * 0.11f) + spark * 0.27f) % 1.0f;
+                    int px = x + w - 16 + spark * 3 + Math.round(age * 6);
+                    int py = y + h / 2 - 2 + spark * 2 - Math.round(age * 5);
 
-                graphics.fill(px, py, px + 1, py + 1, color(accent, alpha * hover * (1.0f - age) * 0.8f));
+                    graphics.fill(px, py, px + 1, py + 1, color(accent, alpha * hover * (1.0f - age) * 0.8f));
+                }
             }
         }
-        int inset = Math.max(1, Math.round(h * (0.27f - 0.18f * hover)));
-        graphics.fill(x, y + inset, x + 2, y + h - inset, color(accent, alpha * (0.42f + 0.58f * hover)));
+        int inset = Math.min(Math.max(1, Math.round(h * (0.27f - 0.18f * hover))), (h - 1) / 2);
+        graphics.fill(x, y + inset, x + Math.min(w, 2), y + h - inset, color(accent, alpha * (0.42f + 0.58f * hover)));
     }
 
     private boolean isCopyright(AbstractButton button, int height) {
