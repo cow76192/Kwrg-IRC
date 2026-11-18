@@ -45,6 +45,10 @@ public final class ModuleConfig<T> {
         }
     }
 
+    Class<T> type() {
+        return type;
+    }
+
     Set<String> keys() {
         return GSON.toJsonTree(read(null)).getAsJsonObject().keySet();
     }

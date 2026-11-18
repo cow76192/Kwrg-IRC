@@ -7,6 +7,7 @@ import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.manager.HideArmorManager;
 import me.cookie.kwrg.irc.manager.IrcGlowManager;
+import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
 import me.cookie.kwrg.module.modules.functions.ChannelModule;
 import me.cookie.kwrg.module.modules.functions.ChatSuffixModule;
 import me.cookie.kwrg.module.modules.functions.HideArmorModule;
@@ -123,6 +124,14 @@ public class IrcClient {
 
                 writer = new PrintWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8), true);
                 reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+
+                JsonObject joinJson = new JsonObject();
+                joinJson.addProperty("type", "join");
+                joinJson.addProperty("senderId", Minecraft.getInstance().getUser().getProfileId().toString());
+                joinJson.addProperty("username", Minecraft.getInstance().getUser().getName());
+                joinJson.addProperty("rank", RankModule.CONFIG.get().rank);
+                writer.println(GSON.toJson(joinJson));
+
                 isRunning = true;
                 isIrcConnect = true;
 
@@ -136,15 +145,8 @@ public class IrcClient {
                     LOGGER.info("[IRC] 手动连接成功");
                 }
 
-                JsonObject joinJson = new JsonObject();
-                joinJson.addProperty("type", "join");
-                joinJson.addProperty("senderId", Minecraft.getInstance().getUser().getProfileId().toString());
-                joinJson.addProperty("username", Minecraft.getInstance().getUser().getName());
-                joinJson.addProperty("rank", RankModule.CONFIG.get().rank);
-                sendRaw(GSON.toJson(joinJson));
-
                 sendHideArmorSync();
-                sendScaleSync(ModelScaleModule.CONFIG.get().myScale);
+                sendScaleSync();
                 me.cookie.kwrg.irc.manager.IrcCapeManager.syncMyCape();
                 sendChannelSync(ChannelModule.CONFIG.get().currentChannel, ChannelModule.CONFIG.get().channelEnabled, ChannelModule.CONFIG.get().savedChannels);
                 queryOnline();
@@ -255,6 +257,7 @@ public class IrcClient {
 
         HideArmorManager.clear();
         IrcGlowManager.clear();
+        PlayerCustomizationManager.clearRemoteModelAppearances();
 
         if (shouldAutoReconnect) {
             int currentAttempt = reconnectAttempts.incrementAndGet();
@@ -528,19 +531,24 @@ public class IrcClient {
         sendShare(targetPlayer, "invite", inviteType, content);
     }
 
-    public static void sendScaleSync(float scale) {
-        Minecraft mc = Minecraft.getInstance();
-        String senderId = currentSenderId();
-        String username = mc.getUser().getName();
+    public static void sendScaleSync() {
+        if (!isRunning) return;
+        CompletableFuture.runAsync(() -> {
+            synchronized (SEND_LOCK) {
+                if (writer == null || !isRunning) return;
 
-        JsonObject json = new JsonObject();
-        json.addProperty("type", "function_sync");
-        json.addProperty("function", "modelScale");
-        json.addProperty("senderId", senderId);
-        json.addProperty("username", username);
-        json.addProperty("scale", scale);
-
-        sendRaw(GSON.toJson(json));
+                // Read the current settings when sending so queued tasks cannot replay an old toggle.
+                ModelScaleModule.Settings settings = IrcConfig.get(ModelScaleModule.Settings.class);
+                JsonObject json = new JsonObject();
+                json.addProperty("type", "function_sync");
+                json.addProperty("function", "modelScale");
+                json.addProperty("senderId", currentSenderId());
+                json.addProperty("username", Minecraft.getInstance().getUser().getName());
+                json.addProperty("scale", settings.myScale);
+                json.addProperty("upsideDown", settings.upsideDown);
+                writer.println(GSON.toJson(json));
+            }
+        });
     }
 
     // 检查服务端是否已有该披风哈希
@@ -689,6 +697,7 @@ public class IrcClient {
 
         HideArmorManager.clear();
         IrcGlowManager.clear();
+        PlayerCustomizationManager.clearRemoteModelAppearances();
         LOGGER.info("[IRC] 已手动断开连接");
         ChatNotifier.send("§c[IRC] 已断开连接", NotificationType.INFO);
     }

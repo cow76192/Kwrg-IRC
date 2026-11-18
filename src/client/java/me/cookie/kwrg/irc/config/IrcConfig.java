@@ -31,6 +31,7 @@ public class IrcConfig {
     private static final Logger LOGGER = LoggerFactory.getLogger("kwrg-irc-config");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Map<ModuleConfig<?>, Runnable> MODULE_CONFIGS = new LinkedHashMap<>();
+    private static final Map<Class<?>, ModuleConfig<?>> MODULE_CONFIGS_BY_TYPE = new ConcurrentHashMap<>();
     private static final Set<String> KNOWN_KEYS = new HashSet<>();
     private static final Set<String> RESERVED_PROFILE_NAMES = Set.of(
             "CON", "PRN", "AUX", "NUL",
@@ -62,6 +63,10 @@ public class IrcConfig {
 
     public static synchronized void register(ModuleConfig<?> config, Runnable onLoad) {
         if (!MODULE_CONFIGS.containsKey(config)) {
+            if (MODULE_CONFIGS_BY_TYPE.containsKey(config.type())) {
+                throw new IllegalArgumentException("Duplicate module settings type: " + config.type().getName());
+            }
+
             Set<String> keys = config.keys();
             for (String key : keys) {
                 if (KNOWN_KEYS.contains(key)) throw new IllegalArgumentException("Duplicate config key: " + key);
@@ -70,6 +75,7 @@ public class IrcConfig {
             KNOWN_KEYS.addAll(keys);
         }
         MODULE_CONFIGS.put(config, onLoad);
+        MODULE_CONFIGS_BY_TYPE.put(config.type(), config);
         if (profileLoaded) notifyLoaded(onLoad);
     }
 
@@ -81,8 +87,21 @@ public class IrcConfig {
         return instance;
     }
 
+    public static <T> T get(Class<T> type) {
+        return current().settings(type);
+    }
+
     public <T> T settings(ModuleConfig<T> config) {
         return config.cast(settings.computeIfAbsent(config, key -> key.read(source)));
+    }
+
+    /** Returns the registered module settings for this profile. */
+    public <T> T settings(Class<T> type) {
+        ModuleConfig<?> config = MODULE_CONFIGS_BY_TYPE.get(type);
+        if (config == null) {
+            throw new IllegalArgumentException("Unregistered module settings type: " + type.getName());
+        }
+        return type.cast(settings(config));
     }
 
     public static synchronized IrcConfig parse(JsonObject json) {
