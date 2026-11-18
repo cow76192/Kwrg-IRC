@@ -37,6 +37,7 @@ public final class RefillManager {
     );
     private static long ticks;
     private static long nextCommandTick;
+    private static int nextAutoIndex;
     private static boolean autoGateWarned;
 
     private record PendingRequest(long until, int expectedCount) {
@@ -57,6 +58,7 @@ public final class RefillManager {
         PENDING.clear();
         NEXT_DUE.clear();
         nextCommandTick = 0;
+        nextAutoIndex = 0;
         autoGateWarned = false;
         KeyInputs.reset();
     }
@@ -97,8 +99,13 @@ public final class RefillManager {
         }
         if (!canRun(mc)) return;
 
-        for (RefillModule.Entry entry : settings.refillEntries) {
+        int size = settings.refillEntries.size();
+        int start = nextAutoIndex % size;
+        for (int offset = 0; offset < size; offset++) {
+            int index = (start + offset) % size;
+            RefillModule.Entry entry = settings.refillEntries.get(index);
             if (entry == null || !entry.auto || entry.autoSeconds <= 0) continue;
+
             String id = normalize(entry.item);
             if (id.isEmpty()) continue;
 
@@ -112,7 +119,9 @@ public final class RefillManager {
             if (ticks < due) continue;
 
             NEXT_DUE.put(entry, ticks + interval);
-            refill(mc, entry, true);
+            if (refill(mc, entry, true) > 0) {
+                nextAutoIndex = (index + 1) % size;
+            }
         }
     }
 
