@@ -20,6 +20,7 @@ import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen;
 import net.minecraft.client.gui.screens.worldselection.WorldSelectionList;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.ARGB;
 import net.minecraft.util.Util;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.storage.LevelSummary;
@@ -520,25 +521,26 @@ public final class TitleBrowser {
         }
     }
 
-    public static boolean drawButton(AbstractButton button, GuiGraphicsExtractor graphics) {
+    public static boolean drawButton(AbstractButton button, GuiGraphicsExtractor graphics, float hover) {
         if (drawing == null) return false;
 
         int accent = drawing.network ? NETWORK : SOLO;
-        boolean hot = button.isActive() && button.isHoveredOrFocused();
-
         int x = button.getX();
         int y = button.getY();
         int w = button.getWidth();
         int h = button.getHeight();
 
-        graphics.fillGradient(x, y, x + w, y + h, drawing.panelColor(hot ? color(accent, 86) : 0x59192B40),
+        int background = ARGB.srgbLerp(hover, 0x59192B40, color(accent, 86));
+        int idleBarAlpha = button.isActive() ? 140 : 65;
+        int barAlpha = Math.round(idleBarAlpha + (255 - idleBarAlpha) * hover);
+        graphics.fillGradient(x, y, x + w, y + h, drawing.panelColor(background),
                 drawing.panelColor(0x49101B2D));
-        graphics.fill(x, y + 3, x + 2, y + h - 3, drawing.panelColor(color(accent, hot ? 255 : button.isActive() ? 140 : 65)));
+        graphics.fill(x, y + 3, x + 2, y + h - 3, drawing.panelColor(color(accent, barAlpha)));
 
         label(graphics, drawing.title.getFont(), button.getMessage(), x + 5, y + (h - 8) / 2, w - 8, 1.0f,
                 drawing.panelColor(button.isActive() ? 0xFFE3F6FF : 0xFF8392A6));
 
-        if (hot && button.isHovered()) graphics.requestCursor(CursorTypes.POINTING_HAND);
+        if (button.isActive() && button.isHovered()) graphics.requestCursor(CursorTypes.POINTING_HAND);
         return true;
     }
 
