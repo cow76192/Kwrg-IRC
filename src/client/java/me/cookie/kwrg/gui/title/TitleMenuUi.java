@@ -242,8 +242,7 @@ public final class TitleMenuUi {
         }
     }
 
-    public static void drawButtonBackground(AbstractButton button, GuiGraphicsExtractor graphics) {
-        float hover = button.isActive() && button.isHoveredOrFocused() ? 1.0f : 0.0f;
+    public static void drawButtonBackground(AbstractButton button, GuiGraphicsExtractor graphics, float hover) {
         float alpha = button.getAlpha() * (button.isActive() ? 1.0f : 0.45f);
         float time = (Util.getMillis() - CLOCK_START) * 0.001f;
         drawButtonBackground(button, graphics, hover, alpha, theme(button.getMessage()).color, time);
