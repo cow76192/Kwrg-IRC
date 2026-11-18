@@ -4,7 +4,6 @@ import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.textures.GpuSampler;
-import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.mixin.accessor.NativeImageAccessor;
 import me.cookie.kwrg.module.modules.functions.CustomCapeModule;
@@ -59,7 +58,8 @@ public class PlayerCustomizationManager {
     private static final Map<String, String> IRC_PLAYER_CAPES = new ConcurrentHashMap<>();
     private static final Map<String, Float> IRC_PLAYER_SCALES = new ConcurrentHashMap<>();
     private static final Map<String, Set<String>> CAPE_ACTIVE_USERS = new ConcurrentHashMap<>();
-    private static final Map<String, Float> REMOTE_PLAYER_SCALES = new ConcurrentHashMap<>();
+    private static final Map<String, ModelAppearance> REMOTE_MODEL_APPEARANCES = new ConcurrentHashMap<>();
+    private static final ModelAppearance DEFAULT_MODEL_APPEARANCE = new ModelAppearance(1.0f, false);
     // 记录对应披风是否具备合法鞘翅贴图
     private static final Map<String, Boolean> CAPE_HAS_ELYTRA = new ConcurrentHashMap<>();
     private static final Map<String, RenderType> ELYTRA_TYPE_CACHE = new ConcurrentHashMap<>();
@@ -71,6 +71,7 @@ public class PlayerCustomizationManager {
     public static final int CAPE_PREVIEW_H = 64;
 
     private record CapePreview(Identifier id, long lastModified) {}
+    private record ModelAppearance(float scale, boolean upsideDown) {}
 
     private static final Map<String, CapePreview> CAPE_PREVIEW_CACHE = new ConcurrentHashMap<>();
     private static final Set<String> CAPE_PREVIEW_LOADING = ConcurrentHashMap.newKeySet();
@@ -91,7 +92,9 @@ public class PlayerCustomizationManager {
     private static volatile String activeCapeName = null;
     private static volatile String loadingCapeName = null;
 
-    public static float getMyScale() { return ModelScaleModule.CONFIG.get().myScale; }
+    public static float getMyScale() {
+        return IrcConfig.get(ModelScaleModule.Settings.class).myScale;
+    }
 
     public static Identifier peekCapePreview(String fileName) {
         CapePreview p = CAPE_PREVIEW_CACHE.get(fileName);
@@ -234,33 +237,33 @@ public class PlayerCustomizationManager {
         CAPE_PREVIEW_CACHE.clear();
     }
 
-    public static void setMyScale(float scale) {
-        ModelScaleModule.CONFIG.get().myScale = scale;
-        IrcConfig.save();
-        IrcClient.sendScaleSync(scale);
-    }
-
-    public static void setRemotePlayerScale(String username, float scale) {
+    public static void setRemoteModelAppearance(String username, float scale, boolean upsideDown) {
         if (username == null || username.isBlank()) return;
         String key = username.toLowerCase(Locale.ROOT);
-        if (Math.abs(scale - 1.0f) > 0.001f) {
-            REMOTE_PLAYER_SCALES.put(key, scale);
+        if (upsideDown || Math.abs(scale - 1.0f) > 0.001f) {
+            REMOTE_MODEL_APPEARANCES.put(key, new ModelAppearance(scale, upsideDown));
         } else {
-            REMOTE_PLAYER_SCALES.remove(key);
+            REMOTE_MODEL_APPEARANCES.remove(key);
         }
     }
 
     public static float getPlayerScale(Player player) {
-        Minecraft mc = Minecraft.getInstance();
-        if (player == mc.player) {
-            return getMyScale();
-        }
-        String name = player.getGameProfile().name().toLowerCase(Locale.ROOT);
-        return REMOTE_PLAYER_SCALES.getOrDefault(name, 1.0f);
+        return player == Minecraft.getInstance().player ? getMyScale() : getRemoteModelAppearance(player).scale();
     }
 
-    public static void clearRemotePlayerScales() {
-        REMOTE_PLAYER_SCALES.clear();
+    public static boolean isPlayerUpsideDown(Player player) {
+        return player == Minecraft.getInstance().player
+                ? IrcConfig.get(ModelScaleModule.Settings.class).upsideDown
+                : getRemoteModelAppearance(player).upsideDown();
+    }
+
+    private static ModelAppearance getRemoteModelAppearance(Player player) {
+        String name = player.getGameProfile().name().toLowerCase(Locale.ROOT);
+        return REMOTE_MODEL_APPEARANCES.getOrDefault(name, DEFAULT_MODEL_APPEARANCE);
+    }
+
+    public static void clearRemoteModelAppearances() {
+        REMOTE_MODEL_APPEARANCES.clear();
     }
 
     public static float cycleMyScale() {
@@ -268,11 +271,11 @@ public class PlayerCustomizationManager {
         for (int i = 0; i < SCALE_STEPS.length; i++) {
             if (Math.abs(current - SCALE_STEPS[i]) < 0.001f) {
                 float next = SCALE_STEPS[(i + 1) % SCALE_STEPS.length];
-                setMyScale(next);
+                ModelScaleModule.setMyScale(next);
                 return next;
             }
         }
-        setMyScale(1.0f);
+        ModelScaleModule.setMyScale(1.0f);
         return 1.0f;
     }
 

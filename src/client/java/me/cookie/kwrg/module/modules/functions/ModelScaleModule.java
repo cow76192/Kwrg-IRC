@@ -4,6 +4,7 @@ import me.cookie.kwrg.gui.component.*;
 import me.cookie.kwrg.gui.component.pane.SlotInputPaneComponent;
 import me.cookie.kwrg.gui.component.pane.TextInfoPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationType;
+import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.config.ModuleConfig;
 import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
 import me.cookie.kwrg.module.Category;
@@ -12,13 +13,14 @@ import me.cookie.kwrg.util.ChatNotifier;
 
 public class ModelScaleModule extends Module {
 
-    public static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class, Settings::sanitize);
+    private static final ModuleConfig<Settings> CONFIG = new ModuleConfig<>(Settings.class, Settings::sanitize);
 
     public static final class Settings {
         public float myScale = 1.0f;
+        public boolean upsideDown;
 
         private void sanitize() {
-            if (myScale <= 0.0f || Float.isNaN(myScale)) myScale = 1.0f;
+            if (myScale <= 0.0f || !Float.isFinite(myScale)) myScale = 1.0f;
         }
     }
 
@@ -29,6 +31,16 @@ public class ModelScaleModule extends Module {
     @Override
     public void onExecute() {}
 
+    public static void setMyScale(float scale) {
+        CONFIG.update(settings -> settings.myScale = scale);
+        IrcClient.sendScaleSync();
+    }
+
+    @Override
+    protected void onConfigLoaded() {
+        IrcClient.sendScaleSync();
+    }
+
     @Override
     public void buildTertiaryUI(TertiaryPanelComponent panel) {
         renderScaleUI(panel);
@@ -37,6 +49,16 @@ public class ModelScaleModule extends Module {
     private void renderScaleUI(TertiaryPanelComponent panel) {
         panel.clearChildren();
         panel.child(new TextInfoPaneComponent("当前模型大小", () -> Math.round(PlayerCustomizationManager.getMyScale() * 100) + "%", false, false));
+        panel.child(new PanelItemComponent(
+                "人物倒立",
+                PanelItemComponent.ItemType.TOGGLE,
+                () -> {
+                    CONFIG.update(settings -> settings.upsideDown = !settings.upsideDown);
+                    IrcClient.sendScaleSync();
+                },
+                null,
+                () -> CONFIG.get().upsideDown
+        ));
 
         panel.child(new SlotInputPaneComponent(
                 "自定义大小",
@@ -47,7 +69,7 @@ public class ModelScaleModule extends Module {
                         int v = Integer.parseInt(values[0].trim());
                         v = Math.max(10, Math.min(500, v));
                         float scale = v / 100.0f;
-                        PlayerCustomizationManager.setMyScale(scale);
+                        setMyScale(scale);
                         ChatNotifier.send("§a[Scale] 模型大小已设为: §f" + v + "%", NotificationType.SUCCESS);
                         renderScaleUI(panel);
                     } catch (NumberFormatException e) {
@@ -64,7 +86,7 @@ public class ModelScaleModule extends Module {
                     label,
                     PanelItemComponent.ItemType.TOGGLE,
                     () -> {
-                        PlayerCustomizationManager.setMyScale(step);
+                        setMyScale(step);
                         ChatNotifier.send("§a[Scale] 模型大小已设为: §f" + label, NotificationType.SUCCESS);
                         renderScaleUI(panel);
                     },

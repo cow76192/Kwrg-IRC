@@ -1,5 +1,6 @@
 package me.cookie.kwrg.mixin.cape;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import me.cookie.kwrg.duck.KwrgAvatarState;
 import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
 import me.cookie.kwrg.render.PlayerDollHudRenderer;
@@ -16,6 +17,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(LivingEntityRenderer.class)
 public abstract class PlayerScaleMixin {
+
+    @ModifyExpressionValue(method = "extractRenderState", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/renderer/entity/LivingEntityRenderer;isEntityUpsideDown(Lnet/minecraft/world/entity/LivingEntity;)Z"))
+    private boolean kwrg$applyUpsideDown(boolean vanillaUpsideDown, LivingEntity entity) {
+        return vanillaUpsideDown || entity instanceof Player player && PlayerCustomizationManager.isPlayerUpsideDown(player);
+    }
 
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void kwrg$onExtractStateTail(LivingEntity entity, LivingEntityRenderState state, float partialTick, CallbackInfo ci) {
@@ -44,6 +51,7 @@ public abstract class PlayerScaleMixin {
             if (Math.abs(scale - 1.0f) > 0.001f) {
                 state.scale *= scale;
                 state.shadowRadius *= scale;
+                if (state.isUpsideDown) state.boundingBoxHeight *= scale;
                 if (state.nameTagAttachment != null) {
                     state.nameTagAttachment = state.nameTagAttachment.scale(scale);
                 }

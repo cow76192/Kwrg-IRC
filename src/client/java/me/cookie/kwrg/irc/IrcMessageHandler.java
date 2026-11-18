@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import me.cookie.kwrg.irc.manager.HideArmorManager;
 import me.cookie.kwrg.irc.manager.IrcGlowManager;
+import me.cookie.kwrg.irc.manager.PlayerCustomizationManager;
 import me.cookie.kwrg.module.modules.functions.ImportantPlayerModule;
 import me.cookie.kwrg.module.modules.style.ChatModule;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
@@ -145,8 +146,12 @@ public class IrcMessageHandler {
                     boolean enabled = obj.has("enabled") && obj.get("enabled").getAsBoolean();
                     HideArmorManager.setRemotePlayerHideArmor(user, slot, enabled);
                 } else if ("modelScale".equalsIgnoreCase(function)) {
+                    if (user.equalsIgnoreCase(mc.getUser().getName())) return;
                     float scale = obj.has("scale") ? obj.get("scale").getAsFloat() : 1.0f;
-                    me.cookie.kwrg.irc.manager.PlayerCustomizationManager.setRemotePlayerScale(user, scale);
+                    if (!Float.isFinite(scale) || scale <= 0.0f) return;
+                    JsonElement upsideDown = obj.get("upsideDown");
+                    if (upsideDown != null && (!upsideDown.isJsonPrimitive() || !upsideDown.getAsJsonPrimitive().isBoolean())) return;
+                    PlayerCustomizationManager.setRemoteModelAppearance(user, scale, upsideDown != null && upsideDown.getAsBoolean());
                 }
                 return;
             }
@@ -156,6 +161,7 @@ public class IrcMessageHandler {
                 String rank = obj.has("rank") ? obj.get("rank").getAsString() : "";
                 String formattedRank = formatRankWithBrackets(rank);
                 IrcClient.sendHideArmorSync();
+                if (!user.equalsIgnoreCase(mc.getUser().getName())) IrcClient.sendScaleSync();
                 me.cookie.kwrg.irc.manager.IrcGlowManager.addPlayer(user);
                 ChatNotifier.sendInChatScreen("§e[IRC] " + (formattedRank.isEmpty() ? "" : formattedRank + " ") + "§f" + user + " §a加入了 IRC!");
                 return;
@@ -166,7 +172,7 @@ public class IrcMessageHandler {
                 String senderUuid = obj.has("senderId") ? obj.get("senderId").getAsString() : "";
 
                 HideArmorManager.setRemotePlayerHideArmor(user, false);
-                me.cookie.kwrg.irc.manager.PlayerCustomizationManager.setRemotePlayerScale(user, 1.0f);
+                PlayerCustomizationManager.setRemoteModelAppearance(user, 1.0f, false);
                 me.cookie.kwrg.irc.manager.IrcGlowManager.removePlayer(user);
                 me.cookie.kwrg.irc.manager.IrcCapeManager.handlePlayerLeave(senderUuid, user);
 
