@@ -1,7 +1,6 @@
 package me.cookie.kwrg.irc.manager;
 
 import me.cookie.kwrg.module.modules.cheat.GlaciteAdventurerModule;
-import me.cookie.kwrg.render.EntityOutlineRenderer;
 import me.cookie.kwrg.render.WaypointRenderer;
 import me.cookie.kwrg.util.skyblock.SkyblockLocation;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
@@ -23,7 +22,6 @@ import java.util.concurrent.TimeUnit;
 
 public final class GlaciteAdventurerManager {
     private static final String MINESHAFT_MODE = "mineshaft";
-    private static final int ENTITY_OUTLINE_COLOR = 0xFF00E5FF;
     private static final long ENTRY_DELAY = TimeUnit.SECONDS.toNanos(1);
     private static final long SCAN_INTERVAL = TimeUnit.MILLISECONDS.toNanos(250);
     private static final List<EquipmentSlot> ARMOR_SLOTS =
@@ -40,9 +38,12 @@ public final class GlaciteAdventurerManager {
         LevelRenderEvents.BEFORE_GIZMOS.register(GlaciteAdventurerManager::render);
     }
 
+    public static boolean isActiveInMineshaft() {
+        return GlaciteAdventurerModule.isEnabled() && MINESHAFT_MODE.equals(SkyblockLocation.island());
+    }
+
     public static void onTick(Minecraft client) {
-        if (!GlaciteAdventurerModule.isEnabled() || client.level == null || client.player == null
-                || !MINESHAFT_MODE.equals(SkyblockLocation.island())) {
+        if (client.level == null || client.player == null || !isActiveInMineshaft()) {
             level = null;
             WAYPOINTS.clear();
             return;
@@ -77,21 +78,9 @@ public final class GlaciteAdventurerManager {
 
     private static void render(LevelRenderContext context) {
         Minecraft client = Minecraft.getInstance();
-        if (!GlaciteAdventurerModule.isEnabled() || client.level == null || client.player == null
+        if (client.level == null || client.player == null
                 || !context.levelState().cameraRenderState.initialized
-                || !MINESHAFT_MODE.equals(SkyblockLocation.island())) return;
-
-        var outlines = new EntityOutlineRenderer();
-        var tickRate = client.level.tickRateManager();
-        var deltaTracker = client.getDeltaTracker();
-        for (var entity : client.level.entitiesForRendering()) {
-            if (entity instanceof ArmorStand || entity.isRemoved()) continue;
-            float partialTick = deltaTracker.getGameTimeDeltaPartialTick(!tickRate.isEntityFrozen(entity));
-            outlines.outline(entity, partialTick, ENTITY_OUTLINE_COLOR);
-        }
-        outlines.draw(context);
-
-        if (WAYPOINTS.isEmpty() || level != client.level
+                || WAYPOINTS.isEmpty() || level != client.level || !isActiveInMineshaft()
                 || !server.equals(SkyblockLocation.server())) return;
 
         var renderer = new WaypointRenderer(context, 0.0f);

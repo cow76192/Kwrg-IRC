@@ -7,7 +7,9 @@ import me.cookie.kwrg.irc.IrcCommand;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.manager.*;
 import me.cookie.kwrg.module.ModuleManager;
+import me.cookie.kwrg.module.modules.cheat.ESPModule;
 import me.cookie.kwrg.module.modules.style.FontModule;
+import me.cookie.kwrg.render.EntityOutlineRenderer;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.EmojiUtil;
 import me.cookie.kwrg.util.GreetingManager;
@@ -47,6 +49,8 @@ public class CookieMain implements ClientModInitializer {
         IrcCommand.register();
         SkyblockLocation.init();
         WaypointManager.init();
+        EntityOutlineRenderer.init(ESPModule::isEnabled, GlaciteAdventurerManager::isActiveInMineshaft,
+                ESPModule::entityOutlineColor);
         GlaciteAdventurerManager.init();
         ChatWaypointManager.init();
         RouteManager.init();
