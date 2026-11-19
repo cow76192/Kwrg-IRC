@@ -37,7 +37,7 @@ public final class ESPModule extends Module {
 
     @Override
     public void onExecute() {
-        CONFIG.updateDelayed(400, settings -> settings.espEnabled = !settings.espEnabled);
+        CONFIG.update(settings -> settings.espEnabled = !settings.espEnabled);
     }
 
     @Override
