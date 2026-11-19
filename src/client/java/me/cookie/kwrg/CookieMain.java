@@ -49,8 +49,7 @@ public class CookieMain implements ClientModInitializer {
         IrcCommand.register();
         SkyblockLocation.init();
         WaypointManager.init();
-        EntityOutlineRenderer.init(ESPModule::isEnabled, GlaciteAdventurerManager::isActiveInMineshaft,
-                ESPModule::entityOutlineColor);
+        EntityOutlineRenderer.init(ESPModule::isEnabled, GlaciteAdventurerManager::isActiveInMineshaft, ESPModule::entityOutlineColor, ESPModule::showsTarget);
         GlaciteAdventurerManager.init();
         ChatWaypointManager.init();
         RouteManager.init();
