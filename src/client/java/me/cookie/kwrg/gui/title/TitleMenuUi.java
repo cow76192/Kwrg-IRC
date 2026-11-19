@@ -132,7 +132,7 @@ public final class TitleMenuUi {
             Theme theme = theme(button.getMessage());
 
             boolean hover = reveal > 0.05f && button.isActive() && contains(mouseX, mouseY, left, y, panelWidth + Math.round(6.0f * slot.hover), rowHeight);
-            boolean focus = reveal > 0.05f && button.isActive() && button.isFocused();
+            boolean focus = reveal > 0.05f && button.isActive() && hasKeyboardFocus(button);
 
             if (hover) selected = theme;
             if (focus) focused = theme;
@@ -146,7 +146,7 @@ public final class TitleMenuUi {
             int x = left + i * 29;
 
             boolean hover = reveal > 0.05f && button.isActive() && contains(mouseX, mouseY, x, shortcutY, 25, 18);
-            boolean focus = reveal > 0.05f && button.isActive() && button.isFocused();
+            boolean focus = reveal > 0.05f && button.isActive() && hasKeyboardFocus(button);
 
             if (hover) selected = Theme.SETTINGS;
             if (focus) focused = Theme.SETTINGS;
@@ -159,6 +159,10 @@ public final class TitleMenuUi {
             drawHeader(graphics, game.font, left, header, top, panelWidth, game.options.hideSplashTexts().get());
         }
         return selected == Theme.IDLE ? focused : selected;
+    }
+
+    public static boolean hasKeyboardFocus(AbstractButton button) {
+        return button.isFocused() && Minecraft.getInstance().getLastInputType().isKeyboard();
     }
 
     public TitleMenuUi activate() {
