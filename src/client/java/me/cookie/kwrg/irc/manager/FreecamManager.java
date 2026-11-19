@@ -1,6 +1,7 @@
 package me.cookie.kwrg.irc.manager;
 
 import me.cookie.kwrg.module.modules.cheat.FreecamModule;
+import me.cookie.kwrg.window.input.WindowKeyInterceptManager;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -10,6 +11,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
+import org.lwjgl.glfw.GLFW;
 
 public final class FreecamManager {
     private static final ClientInput CAMERA_INPUT = new ClientInput() {
@@ -24,6 +26,9 @@ public final class FreecamManager {
             // A pending vanilla auto-jump must not turn camera movement into a body jump.
         }
     };
+
+    private static final WindowKeyInterceptManager.KeyHoldGuard CTRL_GUARD =
+            WindowKeyInterceptManager.holdGuard(GLFW.GLFW_KEY_LEFT_CONTROL, GLFW.GLFW_KEY_RIGHT_CONTROL);
 
     private static LocalPlayer player;
     private static ClientLevel level;
@@ -55,6 +60,7 @@ public final class FreecamManager {
         CAMERA_INPUT.tick();
         player.input = CAMERA_INPUT;
         lastFrame = System.nanoTime();
+        CTRL_GUARD.enable(client.getWindow().handle(), canMoveCamera(client));
 
         client.levelRenderer.allChanged();
         return true;
@@ -63,6 +69,7 @@ public final class FreecamManager {
     public static void disable() {
         if (!isActive()) return;
 
+        CTRL_GUARD.disable();
         if (player.input == CAMERA_INPUT) player.input = savedInput;
         player = null;
         level = null;
@@ -74,10 +81,13 @@ public final class FreecamManager {
 
 
      public static void validateSession(Minecraft client) {
-        if (isActive() && (client.player != player || client.level != level || !player.isAlive()
-                || client.getCameraEntity() != player || player.input != CAMERA_INPUT)) {
+        if (!isActive()) return;
+        if (client.player != player || client.level != level || !player.isAlive()
+                || client.getCameraEntity() != player || player.input != CAMERA_INPUT) {
             disable();
+            return;
         }
+        CTRL_GUARD.setActive(canMoveCamera(client));
     }
 
     public static void turn(double horizontal, double vertical) {
@@ -91,8 +101,9 @@ public final class FreecamManager {
         double seconds = Math.min((now - lastFrame) / 1_000_000_000.0, 0.1);
         lastFrame = now;
 
-        if (client.screen != null || client.getOverlay() != null || client.isPaused()
-                || !client.isWindowActive() || !client.mouseHandler.isMouseGrabbed()) return;
+        boolean canMove = canMoveCamera(client);
+        CTRL_GUARD.setActive(canMove);
+        if (!canMove) return;
 
         var options = client.options;
         double forward = axis(options.keyUp.isDown(), options.keyDown.isDown());
@@ -108,8 +119,13 @@ public final class FreecamManager {
         if (motion.lengthSqr() > 1.0) motion = motion.normalize();
         double speed = FreecamModule.CONFIG.get().freecamSpeed;
 
-        if (options.keySprint.isDown()) speed *= 3.0;
+        if (CTRL_GUARD.isDown(client.getWindow())) speed *= 3.0;
         position = position.add(motion.scale(speed * seconds));
+    }
+
+    private static boolean canMoveCamera(Minecraft client) {
+        return isActive() && client.screen == null && client.getOverlay() == null && !client.isPaused()
+                && client.isWindowActive() && client.mouseHandler.isMouseGrabbed();
     }
 
     private static double axis(boolean positive, boolean negative) {
