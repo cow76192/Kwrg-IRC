@@ -1,8 +1,11 @@
 package me.cookie.kwrg.irc.manager;
 
 import me.cookie.kwrg.module.modules.cheat.GlaciteAdventurerModule;
+import me.cookie.kwrg.render.EntityOutlineRenderer;
 import me.cookie.kwrg.render.WaypointRenderer;
 import me.cookie.kwrg.util.skyblock.SkyblockLocation;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -20,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 
 public final class GlaciteAdventurerManager {
     private static final String MINESHAFT_MODE = "mineshaft";
+    private static final int ENTITY_OUTLINE_COLOR = 0xFF00E5FF;
     private static final long ENTRY_DELAY = TimeUnit.SECONDS.toNanos(1);
     private static final long SCAN_INTERVAL = TimeUnit.MILLISECONDS.toNanos(250);
     private static final List<EquipmentSlot> ARMOR_SLOTS =
@@ -31,6 +35,10 @@ public final class GlaciteAdventurerManager {
     private static long nextScan;
 
     private GlaciteAdventurerManager() {}
+
+    public static void init() {
+        LevelRenderEvents.BEFORE_GIZMOS.register(GlaciteAdventurerManager::render);
+    }
 
     public static void onTick(Minecraft client) {
         if (!GlaciteAdventurerModule.isEnabled() || client.level == null || client.player == null
@@ -67,16 +75,32 @@ public final class GlaciteAdventurerManager {
         }
     }
 
-    static void render(ClientLevel currentLevel, WaypointRenderer renderer) {
-        if (level != currentLevel || !GlaciteAdventurerModule.isEnabled()
-                || !MINESHAFT_MODE.equals(SkyblockLocation.island())
+    private static void render(LevelRenderContext context) {
+        Minecraft client = Minecraft.getInstance();
+        if (!GlaciteAdventurerModule.isEnabled() || client.level == null || client.player == null
+                || !context.levelState().cameraRenderState.initialized
+                || !MINESHAFT_MODE.equals(SkyblockLocation.island())) return;
+
+        var outlines = new EntityOutlineRenderer();
+        var tickRate = client.level.tickRateManager();
+        var deltaTracker = client.getDeltaTracker();
+        for (var entity : client.level.entitiesForRendering()) {
+            if (entity instanceof ArmorStand || entity.isRemoved()) continue;
+            float partialTick = deltaTracker.getGameTimeDeltaPartialTick(!tickRate.isEntityFrozen(entity));
+            outlines.outline(entity, partialTick, ENTITY_OUTLINE_COLOR);
+        }
+        outlines.draw(context);
+
+        if (WAYPOINTS.isEmpty() || level != client.level
                 || !server.equals(SkyblockLocation.server())) return;
 
+        var renderer = new WaypointRenderer(context, 0.0f);
         WAYPOINTS.forEach((pos, color) -> {
             Gizmos.cuboid(pos, GizmoStyle.strokeAndFill(color, 1.0f, 0x40000000 | (color & 0xFFFFFF)))
                     .setAlwaysOnTop();
-            Gizmos.billboardTextOverBlock("冒险家", pos, 0, color, 1.0f);
+            Gizmos.billboardTextOverBlock("Adventurer", pos, 0, color, 1.0f);
             renderer.waypoint(pos, color, false, true);
         });
+        renderer.draw();
     }
 }

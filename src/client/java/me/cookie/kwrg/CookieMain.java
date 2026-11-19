@@ -12,6 +12,7 @@ import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.EmojiUtil;
 import me.cookie.kwrg.util.GreetingManager;
 import me.cookie.kwrg.util.skyblock.SkyblockItemHelper;
+import me.cookie.kwrg.util.skyblock.SkyblockLocation;
 import me.cookie.kwrg.window.render.WorldWindow;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
@@ -44,7 +45,9 @@ public class CookieMain implements ClientModInitializer {
         IrcConfig.load();
         WorldWindow.init();
         IrcCommand.register();
+        SkyblockLocation.init();
         WaypointManager.init();
+        GlaciteAdventurerManager.init();
         ChatWaypointManager.init();
         RouteManager.init();
         GemstoneESPManager.init();
