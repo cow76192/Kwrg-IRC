@@ -2,6 +2,7 @@ package me.cookie.kwrg.mixin.title;
 
 import me.cookie.kwrg.gui.title.TitleBrowser;
 import me.cookie.kwrg.gui.title.TitleMenuUi;
+import me.cookie.kwrg.module.modules.debug.TitleStyleModule;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
@@ -35,7 +36,7 @@ public abstract class TitleButtonMixin {
 
     @Inject(method = "extractDefaultSprite", at = @At("HEAD"), cancellable = true)
     private void kwrg$drawButtonBackground(GuiGraphicsExtractor graphics, CallbackInfo ci) {
-        if (Minecraft.getInstance().screen instanceof TitleScreen) return;
+        if (Minecraft.getInstance().screen instanceof TitleScreen || !TitleStyleModule.CONFIG.get().customTitleButtons) return;
         TitleMenuUi.drawButtonBackground((AbstractButton) (Object) this, graphics, kwrg$hoverBlend);
         ci.cancel();
     }

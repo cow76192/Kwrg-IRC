@@ -2,6 +2,7 @@ package me.cookie.kwrg.gui.title;
 
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import me.cookie.kwrg.mixin.accessor.TitleBrowserLanServerAccessor;
+import me.cookie.kwrg.module.modules.debug.TitleStyleModule;
 import me.cookie.kwrg.render.utils.LoadingOverlayRenderer;
 import me.cookie.kwrg.render.ServerPortalRenderer;
 import net.minecraft.client.Minecraft;
@@ -522,7 +523,7 @@ public final class TitleBrowser {
     }
 
     public static boolean drawButton(AbstractButton button, GuiGraphicsExtractor graphics, float hover) {
-        if (drawing == null) return false;
+        if (drawing == null || !TitleStyleModule.CONFIG.get().customTitleButtons) return false;
 
         int accent = drawing.network ? NETWORK : SOLO;
         int x = button.getX();

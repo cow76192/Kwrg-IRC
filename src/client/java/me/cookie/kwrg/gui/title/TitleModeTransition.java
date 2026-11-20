@@ -1,5 +1,6 @@
 package me.cookie.kwrg.gui.title;
 
+import me.cookie.kwrg.module.modules.debug.TitleStyleModule;
 import me.cookie.kwrg.render.utils.LoadingOverlayRenderer.SwitchFrame;
 import net.minecraft.util.Util;
 
@@ -9,12 +10,17 @@ public final class TitleModeTransition {
     private static final float ENTER_END = 0.74f;
     private static final float EXIT_END = 0.94f;
 
-    private static boolean preferredClassic;
+    private static Boolean preferredClassic;
 
-    private boolean classic = preferredClassic;
+    private boolean classic;
     private boolean switching;
     private long start;
     private float elapsed;
+
+    public void init() {
+        if (preferredClassic == null) preferredClassic = !TitleStyleModule.CONFIG.get().customTitleOnStartup;
+        classic = preferredClassic;
+    }
 
     public void start() {
         switching = true;
