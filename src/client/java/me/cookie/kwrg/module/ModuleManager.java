@@ -25,6 +25,7 @@ public class ModuleManager {
         register(new PingModule());
         register(new DisableBlurModule());
         register(new GuiFpsModule());
+        register(new TitleStyleModule());
         register(new NavigatorWeightModule());
         register(new DynamicIslandAAValve());
         register(new ClearCapeCacheModule());

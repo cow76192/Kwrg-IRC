@@ -53,6 +53,7 @@ public abstract class TitleScreenMixin extends Screen implements TitleBrowser.Ho
 
     @Inject(method = "init", at = @At("TAIL"))
     private void kwrg$addModeButton(CallbackInfo ci) {
+        kwrg$mode.init();
         kwrg$title.restoreBounds();
         kwrg$modeButton = addWidget(new TitleModeButton(width, button -> {
             if (kwrg$canSwitch() && LoadingOverlayRenderer.prepareSwitch()) kwrg$mode.start();
