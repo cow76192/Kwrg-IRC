@@ -50,6 +50,7 @@
 		"SimplePreparableReloadListenerMixin",
 		"GlDeviceMixin",
 		"InventoryScreenMixin",
+		"GuiEntityRendererMixin",
 		"ConnectionMixin",
 		"ChatScreenMixin",
 		"JoinMultiplayerScreenMixin",
