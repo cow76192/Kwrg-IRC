@@ -23,6 +23,6 @@ public final class GlaciteAdventurerModule extends Module {
 
     @Override
     public void onExecute() {
-        CONFIG.updateDelayed(400, settings -> settings.glaciteAdventurerEnabled = !settings.glaciteAdventurerEnabled);
+        CONFIG.update( settings -> settings.glaciteAdventurerEnabled = !settings.glaciteAdventurerEnabled);
     }
 }

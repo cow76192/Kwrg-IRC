@@ -3,6 +3,8 @@ package me.cookie.kwrg.irc.manager;
 import me.cookie.kwrg.module.modules.cheat.GlaciteAdventurerModule;
 import me.cookie.kwrg.render.WaypointRenderer;
 import me.cookie.kwrg.util.skyblock.SkyblockLocation;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -32,9 +34,16 @@ public final class GlaciteAdventurerManager {
 
     private GlaciteAdventurerManager() {}
 
+    public static void init() {
+        LevelRenderEvents.BEFORE_GIZMOS.register(GlaciteAdventurerManager::render);
+    }
+
+    public static boolean isActiveInMineshaft() {
+        return GlaciteAdventurerModule.isEnabled() && MINESHAFT_MODE.equals(SkyblockLocation.island());
+    }
+
     public static void onTick(Minecraft client) {
-        if (!GlaciteAdventurerModule.isEnabled() || client.level == null || client.player == null
-                || !MINESHAFT_MODE.equals(SkyblockLocation.island())) {
+        if (client.level == null || client.player == null || !isActiveInMineshaft()) {
             level = null;
             WAYPOINTS.clear();
             return;
@@ -67,16 +76,20 @@ public final class GlaciteAdventurerManager {
         }
     }
 
-    static void render(ClientLevel currentLevel, WaypointRenderer renderer) {
-        if (level != currentLevel || !GlaciteAdventurerModule.isEnabled()
-                || !MINESHAFT_MODE.equals(SkyblockLocation.island())
+    private static void render(LevelRenderContext context) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || client.player == null
+                || !context.levelState().cameraRenderState.initialized
+                || WAYPOINTS.isEmpty() || level != client.level || !isActiveInMineshaft()
                 || !server.equals(SkyblockLocation.server())) return;
 
+        var renderer = new WaypointRenderer(context, 0.0f);
         WAYPOINTS.forEach((pos, color) -> {
             Gizmos.cuboid(pos, GizmoStyle.strokeAndFill(color, 1.0f, 0x40000000 | (color & 0xFFFFFF)))
                     .setAlwaysOnTop();
-            Gizmos.billboardTextOverBlock("冒险家", pos, 0, color, 1.0f);
+            Gizmos.billboardTextOverBlock("Adventurer", pos, 0, color, 1.0f);
             renderer.waypoint(pos, color, false, true);
         });
+        renderer.draw();
     }
 }

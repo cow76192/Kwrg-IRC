@@ -26,7 +26,7 @@ public abstract class TitleButtonMixin {
         long now = Util.getMillis();
         float elapsed = Math.clamp(now - kwrg$hoverTime, 0L, 50L) * 0.001f;
         kwrg$hoverTime = now;
-        boolean highlighted = button.isActive() && button.isHoveredOrFocused();
+        boolean highlighted = button.isActive() && (button.isHovered() || TitleMenuUi.hasKeyboardFocus(button));
         float ease = 1.0f - (float) Math.exp(-16.0f * elapsed);
         kwrg$hoverBlend = Mth.lerp(ease, kwrg$hoverBlend, highlighted ? 1.0f : 0.0f);
         if (TitleBrowser.drawButton(button, graphics, kwrg$hoverBlend) || TitleMenuUi.drawButton(button, graphics)) {

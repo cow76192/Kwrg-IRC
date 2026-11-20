@@ -75,7 +75,6 @@ public final class WaypointManager {
     }
 
     public static void init() {
-        SkyblockLocation.init();
         LevelRenderEvents.BEFORE_GIZMOS.register(WaypointManager::renderWaypoints);
     }
 
@@ -167,7 +166,6 @@ public final class WaypointManager {
             }
         }
 
-        GlaciteAdventurerManager.render(mc.level, renderer);
         renderer.draw();
     }
 

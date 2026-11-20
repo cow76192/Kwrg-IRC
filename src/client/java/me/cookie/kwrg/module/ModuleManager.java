@@ -76,6 +76,7 @@ public class ModuleManager {
 //        register(new test());
         register(new DanceRoomModule());
         register(new ExperimentsModule());
+        register(new ESPModule());
         register(new GlaciteAdventurerModule());
         register(new FreecamModule());
     }

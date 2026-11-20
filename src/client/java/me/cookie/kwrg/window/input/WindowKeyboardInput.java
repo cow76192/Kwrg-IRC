@@ -32,6 +32,11 @@ public final class WindowKeyboardInput {
         void character(int codepoint);
     }
 
+    public interface KeyInterceptor {
+        boolean key(int key, int action, int modifiers);
+        default void reset() { }
+    }
+
     private interface Procedure extends StdCallLibrary.StdCallCallback {
         Pointer invoke(Pointer window, int message, Pointer w, Pointer l, Pointer id, Pointer data);
     }
@@ -60,10 +65,12 @@ public final class WindowKeyboardInput {
     private static final int[] SCAN_KEYS = new int[512];
     private static final int[] VIRTUAL_KEYS = new int[256];
     private static final Set<Integer> PRESSED = new HashSet<>();
+    private static final Set<Integer> PASSIVE_PRESSED = new HashSet<>();
     private static Pointer game;
     private static long glfwWindow;
     private static volatile Listener listener;
     private static volatile Listener shortcutListener;
+    private static volatile KeyInterceptor passiveInterceptor;
     private static char highSurrogate;
 
     private WindowKeyboardInput() { }
@@ -84,8 +91,23 @@ public final class WindowKeyboardInput {
         });
     }
 
+    public static void setPassiveInterceptor(long window, KeyInterceptor interceptor) {
+        if (passiveInterceptor == interceptor && (interceptor == null || glfwWindow == window)) return;
+        WindowThreadUtil.run(() -> {
+            KeyInterceptor previous = passiveInterceptor;
+            if (interceptor != null && (game == null || glfwWindow != window)) install(window, false);
+            passiveInterceptor = interceptor;
+            if (previous != null && previous != interceptor) {
+                PASSIVE_PRESSED.clear();
+                previous.reset();
+            }
+            removeIfIdle();
+        });
+    }
+
     private static void install(long window, boolean clearPressedKeys) {
         Listener shortcut = shortcutListener;
+        KeyInterceptor passive = passiveInterceptor;
         remove();
         game = new Pointer(GLFWNativeWin32.glfwGetWin32Window(window));
         glfwWindow = window;
@@ -95,6 +117,7 @@ public final class WindowKeyboardInput {
             throw new IllegalStateException("键盘消息拦截初始化失败");
         }
         shortcutListener = shortcut;
+        passiveInterceptor = passive;
     }
 
     private static void prepareKeys(long window, boolean clearPressedKeys) {
@@ -129,6 +152,7 @@ public final class WindowKeyboardInput {
         }
         if (message == WM_KILLFOCUS) {
             PRESSED.clear();
+            resetPassiveInterceptor();
             highSurrogate = 0;
             removeIfIdle();
             return Subclass.API.DefSubclassProc(window, message, w, l);
@@ -148,29 +172,42 @@ public final class WindowKeyboardInput {
             int virtual = (int) Pointer.nativeValue(w);
             if (virtual == VK_PROCESSKEY) return Subclass.API.DefSubclassProc(window, message, w, l);
 
-            int scan = (int) (Pointer.nativeValue(l) >>> 16) & 0x1ff;
-            int key = scan < SCAN_KEYS.length ? SCAN_KEYS[scan] : GLFW.GLFW_KEY_UNKNOWN;
-            if (key == GLFW.GLFW_KEY_UNKNOWN && virtual >= 0 && virtual < VIRTUAL_KEYS.length)
-                key = VIRTUAL_KEYS[virtual];
+            long lParam = Pointer.nativeValue(l);
+            int key = resolveKey(virtual, lParam);
             boolean released = message == WM_KEYUP || message == WM_SYSKEYUP;
 
             if (listener == null) {
                 if (PRESSED.contains(key)) {
                     if (released) {
                         PRESSED.remove(key);
-                        if (key == GLFW.GLFW_KEY_G && shortcutListener != null)
+                        boolean passive = PASSIVE_PRESSED.remove(key);
+                        if (passive) {
+                            KeyInterceptor interceptor = passiveInterceptor;
+                            if (interceptor != null) interceptor.key(key, GLFW.GLFW_RELEASE, modifiers());
+                        } else if (key == GLFW.GLFW_KEY_G && shortcutListener != null) {
                             shortcutListener.key(key, GLFW.GLFW_RELEASE, modifiers());
+                        }
                         removeIfIdle();
+                    } else if (PASSIVE_PRESSED.contains(key)) {
+                        KeyInterceptor interceptor = passiveInterceptor;
+                        if (interceptor != null) interceptor.key(key, GLFW.GLFW_REPEAT, modifiers());
                     }
                     return null;
                 }
 
-                boolean initialPress = !released && (Pointer.nativeValue(l) & 0x40000000L) == 0;
-                if (shortcutListener != null && key == GLFW.GLFW_KEY_G && initialPress) {
+                boolean initialPress = !released && (lParam & 0x40000000L) == 0;
+                if (initialPress) {
                     int modifiers = modifiers();
-                    if ((modifiers & GLFW.GLFW_MOD_ALT) != 0) {
+                    if (shortcutListener != null && key == GLFW.GLFW_KEY_G && (modifiers & GLFW.GLFW_MOD_ALT) != 0) {
                         PRESSED.add(key);
                         shortcutListener.key(key, GLFW.GLFW_PRESS, modifiers);
+                        return null;
+                    }
+
+                    KeyInterceptor interceptor = passiveInterceptor;
+                    if (interceptor != null && interceptor.key(key, GLFW.GLFW_PRESS, modifiers)) {
+                        PRESSED.add(key);
+                        PASSIVE_PRESSED.add(key);
                         return null;
                     }
                 }
@@ -238,8 +275,26 @@ public final class WindowKeyboardInput {
         });
     }
 
+    private static int resolveKey(int virtual, long lParam) {
+        int scan = (int) (lParam >>> 16) & 0x1ff;
+        int key = scan < SCAN_KEYS.length ? SCAN_KEYS[scan] : GLFW.GLFW_KEY_UNKNOWN;
+        if (key != GLFW.GLFW_KEY_UNKNOWN) return key;
+        boolean extended = (lParam & 0x01000000L) != 0;
+        if (virtual == 0x11) return extended ? GLFW.GLFW_KEY_RIGHT_CONTROL : GLFW.GLFW_KEY_LEFT_CONTROL;
+        if (virtual == 0x12) return extended ? GLFW.GLFW_KEY_RIGHT_ALT : GLFW.GLFW_KEY_LEFT_ALT;
+        if (virtual == 0x10) return GLFW.GLFW_KEY_LEFT_SHIFT;
+        if (virtual >= 0 && virtual < VIRTUAL_KEYS.length) return VIRTUAL_KEYS[virtual];
+        return GLFW.GLFW_KEY_UNKNOWN;
+    }
+
+    private static void resetPassiveInterceptor() {
+        PASSIVE_PRESSED.clear();
+        KeyInterceptor interceptor = passiveInterceptor;
+        if (interceptor != null) interceptor.reset();
+    }
+
     private static void removeIfIdle() {
-        if (listener != null || shortcutListener != null) return;
+        if (listener != null || shortcutListener != null || passiveInterceptor != null) return;
         if (PRESSED.isEmpty() || game == null || !game.equals(Windows.API.GetForegroundWindow())) remove();
     }
 
@@ -248,6 +303,8 @@ public final class WindowKeyboardInput {
         shortcutListener = null;
         highSurrogate = 0;
         PRESSED.clear();
+        resetPassiveInterceptor();
+        passiveInterceptor = null;
         if (game != null) Subclass.API.RemoveWindowSubclass(game, PROCEDURE, ID);
         game = null;
     }
