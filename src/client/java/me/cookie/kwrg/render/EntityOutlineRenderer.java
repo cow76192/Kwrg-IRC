@@ -45,11 +45,10 @@ public final class EntityOutlineRenderer {
 
     private static final RenderPipeline PIPELINE = RenderPipeline.builder()
             .withLocation(Identifier.fromNamespaceAndPath("kwrg", "pipeline/entity_outline"))
-            .withVertexShader("core/rendertype_lines")
+            .withVertexShader(Identifier.fromNamespaceAndPath("kwrg", "core/world_lines"))
             .withFragmentShader("core/position_color")
             .withBindGroupLayout(BindGroupLayouts.MATRICES_PROJECTION)
             .withBindGroupLayout(BindGroupLayouts.GLOBALS)
-            .withBindGroupLayout(BindGroupLayouts.FOG)
             .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR_NORMAL_LINE_WIDTH)
             .withPrimitiveTopology(PrimitiveTopology.LINES)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))

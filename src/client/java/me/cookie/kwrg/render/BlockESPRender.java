@@ -49,11 +49,10 @@ public final class BlockESPRender {
     // 外轮廓线管线
     private static final RenderPipeline ESP_LINES_PIPELINE = RenderPipeline.builder()
             .withLocation(Identifier.fromNamespaceAndPath("kwrg", "pipeline/block_esp_lines"))
-            .withVertexShader("core/rendertype_lines")
+            .withVertexShader(Identifier.fromNamespaceAndPath("kwrg", "core/world_lines"))
             .withFragmentShader("core/position_color")
             .withBindGroupLayout(BindGroupLayouts.MATRICES_PROJECTION)
             .withBindGroupLayout(BindGroupLayouts.GLOBALS)
-            .withBindGroupLayout(BindGroupLayouts.FOG)
             .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR_NORMAL_LINE_WIDTH)
             .withPrimitiveTopology(PrimitiveTopology.LINES)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))

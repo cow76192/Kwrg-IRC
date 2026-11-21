@@ -19,12 +19,10 @@ import net.minecraft.world.phys.Vec3;
 public class RouteLineRenderer {
     private static final RenderPipeline PIPELINE = RenderPipeline.builder()
             .withLocation(Identifier.fromNamespaceAndPath("kwrg", "pipeline/route_lines"))
-            .withVertexShader("core/rendertype_lines")
-            // Unlike rendertype_lines.fsh, position_color.fsh never applies fog.
+            .withVertexShader(Identifier.fromNamespaceAndPath("kwrg", "core/world_lines"))
             .withFragmentShader("core/position_color")
             .withBindGroupLayout(BindGroupLayouts.MATRICES_PROJECTION)
             .withBindGroupLayout(BindGroupLayouts.GLOBALS)
-            .withBindGroupLayout(BindGroupLayouts.FOG)
             .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR_NORMAL_LINE_WIDTH)
             .withPrimitiveTopology(PrimitiveTopology.LINES)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
