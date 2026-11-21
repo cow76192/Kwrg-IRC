@@ -47,6 +47,7 @@ Hypixel Mod API is bundled with the mod and does not need to be installed separa
 - Send totem effects to other players.
 - Emoji shortcodes such as `:skull:` and `:joy:`.
 - Sharing of configuration profiles, styles, and private channel invitations.
+- `chatSuffix`: adds a custom prefix and suffix to IRC messages, can follow the message style, and offers preset suffixes; when public sync is on, public chat and channel commands such as `/ac` and `/pc` get the same decoration (public chat drops color codes).
 
 IRC uses the project's own service and a JSON protocol over TCP. Chat and player appearance synchronization require a connection to that service.
 
@@ -67,6 +68,15 @@ IRC uses the project's own service and a JSON protocol over TCP. Chat and player
 - Custom Tab overlay and scoreboard styling.
 - HUD layout editor with dragging, snapping, and position reset.
 - Load local TTF / OTF fonts without restarting the game.
+- Inventory HUD: a persistent inventory panel with background and slot opacity, hotbar inclusion, slot backgrounds, GUI theme colors, empty-inventory hiding, spacing, and corner radius; position and scale it in the HUD editor.
+- Player doll HUD: renders your own player model on screen with independent opacity and scale; the model turns with your view.
+
+### Title screen
+
+- 3D menu: browse servers and single-player worlds in a portal scene, then connect or enter directly.
+- Portal transition when connecting, with abort and return-to-server-list buttons.
+- Custom button styling and hover effects; switch between the classic and 3D menus and choose which one appears at startup.
+- A custom startup loading screen.
 
 ### Player display
 
@@ -74,10 +84,26 @@ IRC uses the project's own service and a JSON protocol over TCP. Chat and player
 - Glow effects and colors for IRC players.
 - Local nickname and Hypixel rank display overrides.
 - `antiNick`: automatically scan the current Hypixel lobby, server changes, and joining players for UUID/skin mismatches. Hover over alerts for evidence. Account guesses are unverified skin sources; preset skins cannot identify the player. Toggle or rescan with `/irc functions antiNick [true|false|scan]`.
-- `refill`: keep a target count of an item in your inventory, with per-item target, auto interval, hotkey, and island filters. Open with `/irc functions refill`; auto mode requires the skyblock-repo-cache folder.
 - Player tracking, automatic party tracking, and on-screen radar.
 
 Appearance settings such as capes and model scaling can be synchronized over IRC with other players using the mod. Nickname and rank overrides affect only your local display.
+
+### Assistive cheats
+
+- `ESP`: outlines players, monsters, animals, and other entities with a translucent fill; toggle each category, hide specific ones, and set the outline color. The `other` category also covers chests.
+- `gemstoneESP`: marks gemstone blocks in the Crystal Hollows, with a 16–128 block scan range, opacity, and filters for Ruby, Amber, Jade, Jasper, Amethyst, and Topaz.
+- `wormLavaESP`: marks flowing lava at Y ≥ 64 in the Sapphire area, with configurable color and opacity.
+- `Glacite Adventurer`: marks Adventurer armor stands in Glacite mineshafts by armor color, with labels and waypoints; ESP then only covers monsters and animals.
+- `AutoHarp`: automatically completes the Harp minigame, clicking each note column with a configurable base delay and random jitter.
+- `experiments`: automatically completes the Chronomatron and Ultrasequencer experiments, with a configurable base delay and random variation.
+- `danceroom`: performs the Dance Room sequence (move, sneak, jump, punch) on the beat, with jump/punch lead ticks, a drift dead zone, and rotation direction.
+- `AutoPurchasePass`: clicks `Click to buy a new pass` automatically, with a 6-second cooldown.
+- `refill`: keep a target count of an item in your inventory, with per-item target, auto interval, hotkey, and island filters, plus a global `/gfs` cooldown; open with `/irc functions refill`; auto mode requires the skyblock-repo-cache folder.
+- `freecam`: detaches the camera for free flight, with a configurable speed of 1–100 blocks per second and a temporary speed boost while holding Ctrl; use `/irc functions freecam [true|false]`.
+
+### Window projection
+
+- `window`: projects another desktop window into the world, with size, distance, offset, follow-camera, through-walls, and curved-screen options; native input lets you operate it by right-click or Alt+G. Windows x64 only.
 
 ### DEBUG
 - Connect to and disconnect from IRC, and measure the current latency.
@@ -86,6 +112,7 @@ Appearance settings such as capes and model scaling can be synchronized over IRC
 - Tune the pathfinding heuristic weight, trading search speed against path quality.
 - Tune the anti-aliasing strength of the Dynamic Island.
 - Clear the item index cache, reload the item repository, or clear the cape cache.
+- Choose whether the 3D or classic menu appears at startup, and whether other screens reuse the custom button style.
 
 ## Common commands
 
@@ -133,6 +160,18 @@ These commands modify the currently selected route. Node indices start at **1**.
 | `/route ins <name> <before> <after>` | Insert your current position between two adjacent node indices |
 | `/route del <index>` | Delete a node by index |
 | `/irc routeEdit [true\|false]` | Toggle quick editing or explicitly enable or disable it |
+
+### Feature commands
+
+| Command | Description |
+| --- | --- |
+| `/irc functions freecam [true\|false]` | Toggle freecam; omit the argument to switch |
+| `/irc functions refill` | Open the auto-refill screen |
+| `/irc functions antiNick [true\|false\|scan]` | Toggle antiNick or scan immediately |
+| `/irc functions hideArmor [head\|chest\|legs\|feet] [true\|false]` | Hide all armor or one slot; omit arguments to show status |
+| `/irc functions glowColor [color]` | Set or show the IRC glow color |
+| `/irc play <player> <item>` | Send a totem animation to a player |
+| `/irc waypoint chat <x> <y> <z> <label>` | Create a temporary waypoint from chat coordinates |
 
 ## Local files
 
