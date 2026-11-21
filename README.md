@@ -136,7 +136,7 @@ IRC 使用项目自建服务和基于 TCP 的 JSON 协议；聊天与玩家外�
 | --- | --- |
 | `/irc` | 查看命令帮助 |
 | `/irc gui` | 打开主界面，默认快捷键为右 Shift |
-| `/irc hud` | 打开 HUD 布局编辑器 |
+| `/irc hudeditor` | 打开 HUD 布局编辑器 |
 | `/irc rank <称号>` | 设置 IRC 称号 |
 | `/irc nameStyle <样式>` | 设置名字样式 |
 | `/irc messageStyle <样式>` | 设置消息样式 |
