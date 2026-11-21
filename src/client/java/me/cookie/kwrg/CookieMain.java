@@ -9,7 +9,9 @@ import me.cookie.kwrg.irc.manager.*;
 import me.cookie.kwrg.module.ModuleManager;
 import me.cookie.kwrg.module.modules.cheat.ESPModule;
 import me.cookie.kwrg.module.modules.style.FontModule;
+import me.cookie.kwrg.module.modules.style.ParticleLyricsModule;
 import me.cookie.kwrg.render.EntityOutlineRenderer;
+import me.cookie.kwrg.render.WorldParticleLyricsRenderer;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.EmojiUtil;
 import me.cookie.kwrg.util.GreetingManager;
@@ -18,6 +20,7 @@ import me.cookie.kwrg.util.skyblock.SkyblockLocation;
 import me.cookie.kwrg.window.render.WorldWindow;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.KeyMapping;
@@ -44,6 +47,7 @@ public class CookieMain implements ClientModInitializer {
     public void onInitializeClient() {
         LOGGER.info(":D");
         ModuleManager.init();
+        WorldParticleLyricsRenderer.init();
         IrcConfig.load();
         WorldWindow.init();
         IrcCommand.register();
@@ -56,6 +60,8 @@ public class CookieMain implements ClientModInitializer {
         GemstoneESPManager.init();
         ClientTickEvents.START_CLIENT_TICK.register(FreecamManager::validateSession);
         WormLavaESPManager.init();
+
+        ClientLifecycleEvents.CLIENT_STOPPING.register(client -> ParticleLyricsModule.stop());
 
         CompletableFuture.runAsync(() -> {
             try {
@@ -77,6 +83,7 @@ public class CookieMain implements ClientModInitializer {
             HarpManager.onTick(client);
             AntiNickManager.onTick(client);
             RefillManager.onTick(client);
+            ParticleLyricsModule.tick();
         });
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {

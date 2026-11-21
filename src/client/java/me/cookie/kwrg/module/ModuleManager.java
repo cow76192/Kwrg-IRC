@@ -64,11 +64,11 @@ public class ModuleManager {
         register(new HudEditorModule());
         register(new InventoryHudModule());
         register(new PlayerDollHudModule());
+        register(new ParticleLyricsModule());
         // --- PLAY 模块 ---
         register(new PlayModule());
 
         // --- CHEAT 模块 ---
-//        register(new test());
         register(new DanceRoomModule());
         register(new ExperimentsModule());
         register(new ESPModule());
