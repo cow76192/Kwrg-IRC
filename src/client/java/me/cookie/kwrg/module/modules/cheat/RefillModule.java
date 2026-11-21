@@ -1,4 +1,4 @@
-package me.cookie.kwrg.module.modules.functions;
+package me.cookie.kwrg.module.modules.cheat;
 
 import me.cookie.kwrg.gui.RefillScreen;
 import me.cookie.kwrg.gui.component.PanelItemComponent;
@@ -30,7 +30,7 @@ public class RefillModule extends Module {
     }
 
     public RefillModule() {
-        super("refill", Category.FUNCTIONS, PanelItemComponent.ItemType.TRIGGER, CONFIG);
+        super("refill", Category.CHEAT, PanelItemComponent.ItemType.TRIGGER, CONFIG);
     }
 
     @Override

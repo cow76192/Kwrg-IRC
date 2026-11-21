@@ -51,6 +51,17 @@ public class WorldTextRenderer {
     private static boolean testActive = false;
     private static Vec3 testAnchorPos = null;
 
+    static void pushAt(PoseStack pose, Camera camera, Vec3 anchor) {
+        Vec3 relative = anchor.subtract(camera.position());
+        pose.pushPose();
+        pose.translate(relative.x, relative.y, relative.z);
+    }
+
+    static void pushBillboard(PoseStack pose, Camera camera, Vec3 anchor) {
+        pushAt(pose, camera, anchor);
+        pose.mulPose(camera.rotation());
+    }
+
     /**
      * 供 /irc debug wordTextRenderTest 调用的测试开关
      */
@@ -303,14 +314,9 @@ public class WorldTextRenderer {
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
         Camera camera = mc.gameRenderer.mainCamera();
-        Vec3 camPos = camera.position();
-
         FormattedCharSequence wrappedSeq = NickManager.wrap(component.getVisualOrderText());
 
-        poseStack.pushPose();
-        poseStack.translate(bottomLeft.x - camPos.x, bottomLeft.y - camPos.y, bottomLeft.z - camPos.z);
-
-        poseStack.mulPose(camera.rotation());
+        pushBillboard(poseStack, camera, bottomLeft);
         poseStack.scale(-scale, -scale, scale);
 
         Font.DisplayMode displayMode = seeThrough ? Font.DisplayMode.SEE_THROUGH : Font.DisplayMode.NORMAL;

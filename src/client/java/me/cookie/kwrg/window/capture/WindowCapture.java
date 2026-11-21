@@ -125,6 +125,11 @@ public final class WindowCapture implements AutoCloseable {
         return helper = target;
     }
 
+    public static Process startMediaSessionReader() throws Exception {
+        return new ProcessBuilder(helper().toString(), "media-session")
+                .redirectError(ProcessBuilder.Redirect.DISCARD).start();
+    }
+
     public static CompletableFuture<List<Window>> windows() {
         return CompletableFuture.supplyAsync(() -> {
             Process p = null;

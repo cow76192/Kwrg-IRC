@@ -64,6 +64,10 @@ public abstract class HudNotificationMixin {
         InventoryHudRenderer.render(graphics, delta);
         PlayerDollHudRenderer.render(graphics, delta);
 
+        if (this.minecraft.level != null && !this.minecraft.gui.hud.isHidden()) {
+            ParticleLyricsRenderer.render(graphics);
+        }
+
         if (this.minecraft.level != null && !this.minecraft.options.keyPlayerList.isDown() && DynamicIslandRenderer.isTabAnimating()) {
             if (me.cookie.kwrg.render.DynamicIslandRenderer.wasSkyHanniActive()) {
                 me.cookie.kwrg.render.DynamicIslandRenderer.renderSkyHanniTab(graphics);

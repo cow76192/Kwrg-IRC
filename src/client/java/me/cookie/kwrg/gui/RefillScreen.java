@@ -11,7 +11,7 @@ import me.cookie.kwrg.gui.util.FontManagerHelper;
 import me.cookie.kwrg.gui.util.RenderUtil;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.irc.manager.RefillManager;
-import me.cookie.kwrg.module.modules.functions.RefillModule;
+import me.cookie.kwrg.module.modules.cheat.RefillModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.KeyInputs;
 import me.cookie.kwrg.util.skyblock.SkyblockIsland;
