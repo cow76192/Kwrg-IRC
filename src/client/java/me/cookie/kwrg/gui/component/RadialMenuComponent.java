@@ -183,8 +183,8 @@ public class RadialMenuComponent extends BaseGuiComponent {
         float panelEase = AnimationUtil.easeOutCubic(panelProgress);
 
         var client = Minecraft.getInstance();
-        int screenW = client.screen != null ? client.screen.width : (this.parent() != null ? this.parent().width() : client.getWindow().getGuiScaledWidth());
-        int screenH = client.screen != null ? client.screen.height : (this.parent() != null ? this.parent().height() : client.getWindow().getGuiScaledHeight());
+        int screenW = client.gui.screen() != null ? client.gui.screen().width : (this.parent() != null ? this.parent().width() : client.getWindow().getGuiScaledWidth());
+        int screenH = client.gui.screen() != null ? client.gui.screen().height : (this.parent() != null ? this.parent().height() : client.getWindow().getGuiScaledHeight());
 
         int cx = screenW / 2;
         int cy = screenH / 2;

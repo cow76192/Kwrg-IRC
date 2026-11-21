@@ -7,7 +7,7 @@ import com.mojang.blaze3d.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.systems.GpuDevice;
 import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.TextureFormat;
+import com.mojang.blaze3d.GpuFormat;
 import me.cookie.kwrg.duck.KwrgAtlasStaging;
 import me.cookie.kwrg.render.utils.LoadingAtlasUpload;
 import me.cookie.kwrg.render.utils.StagedAtlasAnimations;
@@ -98,8 +98,8 @@ public abstract class TextureAtlasMixin extends AbstractTexture implements KwrgA
     }
 
     @WrapOperation(method = "createTexture", at = @At(value = "INVOKE",
-            target = "Lcom/mojang/blaze3d/systems/GpuDevice;createTexture(Ljava/util/function/Supplier;ILcom/mojang/blaze3d/textures/TextureFormat;IIII)Lcom/mojang/blaze3d/textures/GpuTexture;"))
-    private GpuTexture kwrg$reuseTexture(GpuDevice device, Supplier<String> label, int usage, TextureFormat format,
+            target = "Lcom/mojang/blaze3d/systems/GpuDevice;createTexture(Ljava/util/function/Supplier;ILcom/mojang/blaze3d/GpuFormat;IIII)Lcom/mojang/blaze3d/textures/GpuTexture;"))
+    private GpuTexture kwrg$reuseTexture(GpuDevice device, Supplier<String> label, int usage, GpuFormat format,
                                         int width, int height, int layers, int mipLevels, Operation<GpuTexture> original) {
         GpuTexture staged = kwrg$stagedTexture;
         if (staged == null || staged.getWidth(0) != width || staged.getHeight(0) != height

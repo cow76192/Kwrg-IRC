@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.util.FormattedCharSink;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -187,8 +188,19 @@ public class NickManager {
 
     private record StyledChar(int codePoint, Style style) {}
 
+    public static FormattedCharSequence keepAsIs(FormattedCharSequence text) {
+        return new UnchangedText(text);
+    }
+
+    private record UnchangedText(FormattedCharSequence text) implements FormattedCharSequence {
+        @Override
+        public boolean accept(FormattedCharSink sink) {
+            return text.accept(sink);
+        }
+    }
+
     public static FormattedCharSequence wrap(FormattedCharSequence original) {
-        if (!isEnabled() || original == null) return original;
+        if (!isEnabled() || original == null || original instanceof UnchangedText) return original;
 
         String realName = getRealPlayerName();
         if (realName.isEmpty()) return original;

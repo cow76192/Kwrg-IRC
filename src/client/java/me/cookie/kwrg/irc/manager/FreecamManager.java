@@ -50,7 +50,7 @@ public final class FreecamManager {
 
         if (client.player == null || client.level == null || !client.player.isAlive() || client.getCameraEntity() != client.player) return false;
 
-        Camera camera = client.gameRenderer.getMainCamera();
+        Camera camera = client.gameRenderer.mainCamera();
         player = client.player;
         level = client.level;
         position = camera.isInitialized() ? camera.position() : player.getEyePosition();
@@ -62,7 +62,7 @@ public final class FreecamManager {
         lastFrame = System.nanoTime();
         CTRL_GUARD.enable(client.getWindow().handle(), canMoveCamera(client));
 
-        client.levelRenderer.allChanged();
+        client.levelRenderer.invalidateCompiledGeometry(client.level, client.options, client.gameRenderer.mainCamera(), client.getBlockColors());
         return true;
     }
 
@@ -76,7 +76,7 @@ public final class FreecamManager {
         savedInput = null;
         lastFrame = 0;
         Minecraft client = Minecraft.getInstance();
-        if (client.level != null) client.levelRenderer.allChanged();
+        if (client.level != null) client.levelRenderer.invalidateCompiledGeometry(client.level, client.options, client.gameRenderer.mainCamera(), client.getBlockColors());
     }
 
 
@@ -124,7 +124,7 @@ public final class FreecamManager {
     }
 
     private static boolean canMoveCamera(Minecraft client) {
-        return isActive() && client.screen == null && client.getOverlay() == null && !client.isPaused()
+        return isActive() && client.gui.screen() == null && client.gui.overlay() == null && !client.isPaused()
                 && client.isWindowActive() && client.mouseHandler.isMouseGrabbed();
     }
 

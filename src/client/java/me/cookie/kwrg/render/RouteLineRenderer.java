@@ -3,11 +3,12 @@ package me.cookie.kwrg.render;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
+import com.mojang.blaze3d.pipeline.BindGroupLayout;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.shaders.UniformType;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.PrimitiveTopology;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.renderer.gizmos.DrawableGizmoPrimitives;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
@@ -22,10 +23,11 @@ public class RouteLineRenderer {
             .withVertexShader("core/rendertype_lines")
             // Unlike rendertype_lines.fsh, position_color.fsh never applies fog.
             .withFragmentShader("core/position_color")
-            .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
-            .withUniform("Projection", UniformType.UNIFORM_BUFFER)
-            .withUniform("Globals", UniformType.UNIFORM_BUFFER)
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL_LINE_WIDTH, VertexFormat.Mode.LINES)
+            .withBindGroupLayout(BindGroupLayout.builder().withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER).build())
+            .withBindGroupLayout(BindGroupLayout.builder().withUniform("Projection", UniformType.UNIFORM_BUFFER).build())
+            .withBindGroupLayout(BindGroupLayout.builder().withUniform("Globals", UniformType.UNIFORM_BUFFER).build())
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR_NORMAL_LINE_WIDTH)
+            .withPrimitiveTopology(PrimitiveTopology.LINES)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
@@ -40,14 +42,8 @@ public class RouteLineRenderer {
 
     public void draw(LevelRenderContext context) {
         var camera = context.levelState().cameraRenderState;
-        if (lines.isEmpty() || !camera.initialized) return;
-
-        var buffers = context.bufferSource();
-        var vertices = buffers.getBuffer(RenderTypeHolder.LINES);
-        // Only lines are queued here. Reuse vanilla near-plane clipping and camera-relative
-        // vertex generation, while directing every line into our own render type.
-        lines.render(context.poseStack(), ignored -> vertices, camera, camera.viewRotationMatrix);
-        buffers.endBatch(RenderTypeHolder.LINES);
+        if (!camera.initialized) return;
+        OverlayGizmos.submit(context, lines, RenderTypeHolder.LINES, 1.0f);
     }
 
     private static final class RenderTypeHolder {

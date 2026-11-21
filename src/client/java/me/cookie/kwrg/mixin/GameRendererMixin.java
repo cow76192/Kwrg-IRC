@@ -1,5 +1,6 @@
 package me.cookie.kwrg.mixin;
 
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import me.cookie.kwrg.render.utils.LoadingOverlayRenderer;
 import me.cookie.kwrg.irc.manager.FreecamManager;
 import me.cookie.kwrg.render.ServerPortalRenderer;
@@ -23,11 +24,11 @@ public abstract class GameRendererMixin {
     }
 
     @Shadow
-    public abstract Minecraft getMinecraft();
+    public abstract RenderTarget mainRenderTarget();
 
     @Inject(method = "preloadUiShader", at = @At("TAIL"))
     private void kwrg$preloadLoadingOverlay(CallbackInfo ci) {
-        LoadingOverlayRenderer.preload(getMinecraft().getMainRenderTarget());
+        LoadingOverlayRenderer.preload(mainRenderTarget());
     }
 
     @Inject(method = "extract", at = @At("HEAD"))
@@ -35,16 +36,16 @@ public abstract class GameRendererMixin {
         LoadingOverlayRenderer.beginFrame();
     }
 
-    @Inject(method = "update", at = @At("HEAD"))
+    @Inject(method = "extract", at = @At("HEAD"))
     private void kwrg$updateWarp(DeltaTracker delta, boolean renderLevel, CallbackInfo ci) {
-        ServerPortalRenderer.beginFrame(getMinecraft(), renderLevel);
+        ServerPortalRenderer.beginFrame(Minecraft.getInstance(), renderLevel);
     }
 
     @Inject(method = "render", at = @At(value = "INVOKE", shift = At.Shift.AFTER,
-            target = "Lnet/minecraft/client/gui/render/GuiRenderer;render(Lcom/mojang/blaze3d/buffers/GpuBufferSlice;)V"))
+            target = "Lnet/minecraft/client/gui/render/GuiRenderer;render()V"))
     private void kwrg$drawLoadingOverlay(CallbackInfo ci) {
-        LoadingOverlayRenderer.render(getMinecraft().getMainRenderTarget());
-        ServerPortalRenderer.renderLaunchOverlay(getMinecraft().getMainRenderTarget());
+        LoadingOverlayRenderer.render(mainRenderTarget());
+        ServerPortalRenderer.renderLaunchOverlay(mainRenderTarget());
     }
 
     @Inject(method = "close", at = @At("HEAD"))
@@ -56,7 +57,7 @@ public abstract class GameRendererMixin {
     @Inject(method = "renderLevel", at = @At("TAIL"))
     private void kwrg$markWarpArrival(CallbackInfo ci) {
         GameRenderer renderer = (GameRenderer) (Object) this;
-        ServerPortalRenderer.worldRendered(renderer.getMainCamera());
+        ServerPortalRenderer.worldRendered(renderer.mainCamera());
     }
 
     @ModifyArg(method = "renderLevel", at = @At(value = "INVOKE",

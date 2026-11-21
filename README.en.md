@@ -2,7 +2,7 @@
 
 ![Kwrg IRC banner](./docs/banner.png)
 
-![Minecraft](https://img.shields.io/badge/Minecraft-26.1.2-62B47A?style=flat-square)
+![Minecraft](https://img.shields.io/badge/Minecraft-26.2-62B47A?style=flat-square)
 ![Fabric](https://img.shields.io/badge/Loader-Fabric-DBB98F?style=flat-square)
 ![Java](https://img.shields.io/badge/Java-25-EA923E?style=flat-square)
 [![License: MIT](https://img.shields.io/badge/License-MIT-4C9BD6?style=flat-square)](./LICENSE)
@@ -22,13 +22,13 @@ The current source targets the following environment:
 
 | Component | Version |
 | --- | --- |
-| Minecraft | 26.1.2 |
+| Minecraft | 26.2 |
 | Java | 25 or later |
 | Fabric Loader | 0.19.3 or later |
-| Fabric API | Compatible with Minecraft 26.1.2 |
-| owo-lib | 0.13.1+26.1 |
+| Fabric API | Compatible with Minecraft 26.2 |
+| owo-lib | 0.13.1+26.2 |
 
-1. Install Fabric Loader for Minecraft 26.1.2.
+1. Install Fabric Loader for Minecraft 26.2.
 2. Place the Kwrg mod JAR and the matching Fabric API JAR in your game's `mods/` folder.
 3. Install the matching version of owo-lib. The build also includes owo-sentinel, which can guide installation if owo-lib is missing.
 4. Launch the game and enter a world. Press **Right Shift** or run `/irc gui` to open the interface.

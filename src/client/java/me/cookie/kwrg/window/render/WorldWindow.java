@@ -28,8 +28,10 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.input.PreeditEvent;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -94,7 +96,7 @@ public final class WorldWindow {
     public static void init() {
         if (initialized) return;
         initialized = true;
-        LevelRenderEvents.END_MAIN.register(WorldWindow::render);
+        LevelRenderEvents.COLLECT_SUBMITS.register(WorldWindow::render);
         ClientTickEvents.START_CLIENT_TICK.register(mc -> {
             WindowCompatibility.update(mc.getWindow().handle(), capture != null && !capture.ended() && (mc.isWindowActive() || gameControlling()));
             if (capture == null) return;
@@ -103,7 +105,7 @@ public final class WorldWindow {
                 return;
             }
 
-            if (controlling && ((!gameControl && !mc.isWindowActive()) || mc.screen != null || mc.getOverlay() != null || capture.ended()))
+            if (controlling && ((!gameControl && !mc.isWindowActive()) || mc.gui.screen() != null || mc.gui.overlay() != null || capture.ended()))
                 leave();
             if (gameControlling()) updateGameControl(mc);
             WindowKeyboardInput.watchShortcut(mc.getWindow().handle(), gameInputAllowed(mc) ? KEYBOARD : null);
@@ -125,7 +127,7 @@ public final class WorldWindow {
         WindowCompatibility.update(mc.getWindow().handle(), true);
 
         level = mc.level;
-        Camera camera = mc.gameRenderer.getMainCamera();
+        Camera camera = mc.gameRenderer.mainCamera();
         orientation = new Quaternionf(camera.rotation());
         anchor = camera.position();
         WindowKeyboardInput.watchShortcut(mc.getWindow().handle(), gameInputAllowed(mc) ? KEYBOARD : null);
@@ -172,7 +174,7 @@ public final class WorldWindow {
     }
 
     private static WindowSurface surface() {
-        Camera camera = Minecraft.getInstance().gameRenderer.getMainCamera();
+        Camera camera = Minecraft.getInstance().gameRenderer.mainCamera();
         var settings = WindowModule.CONFIG.get().window;
 
         Quaternionf rotation = settings.followCamera ? new Quaternionf(camera.rotation()) : orientation;
@@ -183,7 +185,7 @@ public final class WorldWindow {
     }
 
     private static void render(LevelRenderContext context) {
-        if (capture == null || Minecraft.getInstance().level != level || context.poseStack() == null || context.bufferSource() == null)
+        if (capture == null || Minecraft.getInstance().level != level || context.poseStack() == null || context.submitNodeCollector() == null)
             return;
 
         Identifier image = capture.upload();
@@ -194,7 +196,7 @@ public final class WorldWindow {
             leave();
 
         WindowSurface surface = surface();
-        screenCamera = Minecraft.getInstance().gameRenderer.getMainCamera().position();
+        screenCamera = Minecraft.getInstance().gameRenderer.mainCamera().position();
         screenProjection.set(WaypointRenderer.worldProjection()).mul(context.levelState().cameraRenderState.viewRotationMatrix).mul(context.poseStack().last().pose());
         projectionReady = true;
         pollControls(Minecraft.getInstance());
@@ -230,7 +232,7 @@ public final class WorldWindow {
         var renderer = WindowModule.CONFIG.get().window.throughWalls ? THROUGH : DEPTH;
         for (int i = 0; i < surface.segments(); i++) {
             float a = (float) i / surface.segments(), b = (float) (i + 1) / surface.segments();
-            renderer.renderQuad(context.poseStack(), context.bufferSource(), image, surface.point(a, 1), surface.point(b, 1), surface.point(b, 0), surface.point(a, 0), a, 0, b, 1, 0xFFFFFFFF);
+            renderer.renderQuad(context.poseStack(), context.submitNodeCollector(), image, surface.point(a, 1), surface.point(b, 1), surface.point(b, 0), surface.point(a, 0), a, 0, b, 1, 0xFFFFFFFF);
         }
 
         if (controlling && WindowIme.composing()) renderPreedit(context, surface);
@@ -240,13 +242,11 @@ public final class WorldWindow {
             ensurePointer();
             double du = 18.0 / capture.width(), dv = 26.0 / capture.height();
             Vec3 lift = new Vec3(surface.rotation().transform(new Vector3f(0, 0, 0.02f)));
-            renderer.renderQuad(context.poseStack(), context.bufferSource(), POINTER,
+            renderer.renderQuad(context.poseStack(), context.submitNodeCollector(), POINTER,
                     surface.point(u, v + dv).add(lift), surface.point(u + du, v + dv).add(lift),
                     surface.point(u + du, v).add(lift), surface.point(u, v).add(lift), 0, 0, 1, 1, 0xFFFFFFFF);
         }
 
-        context.bufferSource().endBatch(renderer.getRenderType(image));
-        if (showPointer) context.bufferSource().endBatch(renderer.getRenderType(POINTER));
     }
 
     private static boolean updateGamePointer() {
@@ -295,10 +295,12 @@ public final class WorldWindow {
         poses.scale(scale, -scale, scale);
 
         var mode = WindowModule.CONFIG.get().window.throughWalls ? Font.DisplayMode.SEE_THROUGH : Font.DisplayMode.POLYGON_OFFSET;
-        mc.font.drawInBatch(event.toFormattedText(Style.EMPTY.withUnderlined(true)), 0, 0, foreground, false, poses.last().pose(), context.bufferSource(), mode, background, 0xf000f0);
+        var text = Language.getInstance().getVisualOrder(event.toFormattedText(Style.EMPTY.withUnderlined(true)));
+        context.submitNodeCollector().submitText(poses, 0, 0, text, false, mode, 0xf000f0, foreground, background, 0);
         int cursor = WindowIme.caretIndex(event);
         if ((System.currentTimeMillis() / 500 & 1) == 0)
-            mc.font.drawInBatch("|", mc.font.width(event.fullText().substring(0, cursor)), 0, foreground, false, poses.last().pose(), context.bufferSource(), mode, 0, 0xf000f0);
+            context.submitNodeCollector().submitText(poses, mc.font.width(event.fullText().substring(0, cursor)), 0,
+                    FormattedCharSequence.codepoint('|', Style.EMPTY), false, mode, 0xf000f0, foreground, 0, 0);
         poses.popPose();
     }
 
@@ -368,7 +370,7 @@ public final class WorldWindow {
     }
 
     private static boolean gameInputAllowed(Minecraft mc) {
-        return mc.player != null && mc.level == level && mc.screen == null && mc.getOverlay() == null && mc.isWindowActive();
+        return mc.player != null && mc.level == level && mc.gui.screen() == null && mc.gui.overlay() == null && mc.isWindowActive();
     }
 
     private static void pollControls(Minecraft mc) {

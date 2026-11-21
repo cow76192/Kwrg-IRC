@@ -2,7 +2,7 @@
 
 ![Kwrg IRC 横幅](./docs/banner.png)
 
-![Minecraft](https://img.shields.io/badge/Minecraft-26.1.2-62B47A?style=flat-square)
+![Minecraft](https://img.shields.io/badge/Minecraft-26.2-62B47A?style=flat-square)
 ![Fabric](https://img.shields.io/badge/Loader-Fabric-DBB98F?style=flat-square)
 ![Java](https://img.shields.io/badge/Java-25-EA923E?style=flat-square)
 [![License: MIT](https://img.shields.io/badge/License-MIT-4C9BD6?style=flat-square)](./LICENSE)
@@ -22,13 +22,13 @@ https://www.bilibili.com/video/BV1Ukxh6NEbi/?share_source=copy_web&vd_source=626
 
 | 组件 | 版本 |
 | --- | --- |
-| Minecraft | 26.1.2 |
+| Minecraft | 26.2 |
 | Java | 25 或更高 |
 | Fabric Loader | 0.19.3 或更高 |
-| Fabric API | 与 Minecraft 26.1.2 匹配 |
-| owo-lib | 0.13.1+26.1 |
+| Fabric API | 与 Minecraft 26.2 匹配 |
+| owo-lib | 0.13.1+26.2 |
 
-1. 为 Minecraft 26.1.2 安装 Fabric Loader。
+1. 为 Minecraft 26.2 安装 Fabric Loader。
 2. 将 Kwrg 模组 JAR 和对应版本的 Fabric API 放入游戏目录的 `mods/` 文件夹。
 3. 安装对应版本的 owo-lib。构建包也包含 owo-sentinel，可在缺少 owo-lib 时引导安装。
 4. 启动游戏并进入世界，按 **右 Shift** 或输入 `/irc gui` 打开界面。

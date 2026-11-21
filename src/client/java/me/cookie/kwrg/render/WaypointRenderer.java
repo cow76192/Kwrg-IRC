@@ -3,13 +3,14 @@ package me.cookie.kwrg.render;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
+import com.mojang.blaze3d.pipeline.BindGroupLayout;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.shaders.UniformType;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.PrimitiveTopology;
 import com.mojang.math.Axis;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
@@ -38,10 +39,11 @@ public final class WaypointRenderer {
             .withLocation(Identifier.fromNamespaceAndPath("kwrg", "pipeline/waypoint_beam"))
             .withVertexShader("core/position_tex_color")
             .withFragmentShader("core/position_tex_color")
-            .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
-            .withUniform("Projection", UniformType.UNIFORM_BUFFER)
-            .withSampler("Sampler0")
-            .withVertexFormat(DefaultVertexFormat.POSITION_TEX_COLOR, VertexFormat.Mode.QUADS)
+            .withBindGroupLayout(BindGroupLayout.builder().withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER).build())
+            .withBindGroupLayout(BindGroupLayout.builder().withUniform("Projection", UniformType.UNIFORM_BUFFER).build())
+            .withBindGroupLayout(BindGroupLayout.builder().withSampler("Sampler0").build())
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_TEX_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
@@ -149,10 +151,11 @@ public final class WaypointRenderer {
 
     public void draw() {
         if (!beams.isEmpty()) {
-            var buffers = context.bufferSource();
-            var vertices = buffers.getBuffer(BeamRenderType.TYPE);
-            for (Beam beam : beams) drawBeam(context.poseStack(), vertices, beam);
-            buffers.endBatch(BeamRenderType.TYPE);
+            context.submitNodeCollector().submitCustomGeometry(context.poseStack(), BeamRenderType.TYPE, (pose, vertices) -> {
+                var poses = new PoseStack();
+                poses.last().set(pose);
+                for (Beam beam : beams) drawBeam(poses, vertices, beam);
+            });
         }
         tracers.draw(context);
     }

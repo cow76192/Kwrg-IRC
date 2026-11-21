@@ -8,7 +8,7 @@ import me.cookie.kwrg.gui.hud.HudElementRegistry;
 import me.cookie.kwrg.module.modules.style.dynamic.DynamicScoreboardModule;
 import me.cookie.kwrg.render.ScoreboardIslandRenderer;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.Hud;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.scores.Objective;
@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
-@Mixin(Gui.class)
+@Mixin(Hud.class)
 public abstract class VanillaScoreboardMixin {
 
     @Unique private static float kwrg$currentMinX = Float.MAX_VALUE;
@@ -56,10 +56,10 @@ public abstract class VanillaScoreboardMixin {
             method = "extractScoreboardSidebar",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/Gui;displayScoreboardSidebar(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/world/scores/Objective;)V"
+                    target = "Lnet/minecraft/client/gui/Hud;displayScoreboardSidebar(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/world/scores/Objective;)V"
             )
     )
-    private void kwrg$safelyWrapScoreboard(Gui instance, GuiGraphicsExtractor graphics, Objective objective, Operation<Void> original) {
+    private void kwrg$safelyWrapScoreboard(Hud instance, GuiGraphicsExtractor graphics, Objective objective, Operation<Void> original) {
         if (!ScoreboardIslandRenderer.isEnabled() || kwrg$isSkyHanniHandlingScoreboard()) {
             original.call(instance, graphics, objective);
             return;
@@ -70,7 +70,7 @@ public abstract class VanillaScoreboardMixin {
         kwrg$currentMaxX = -Float.MAX_VALUE;
         kwrg$currentMaxY = -Float.MAX_VALUE;
 
-        // Do not rely on the mixin field initializer being injected into Gui's constructor.
+        // Do not rely on the mixin field initializer being injected into Hud's constructor.
         if (kwrg$scoreboardText == null) {
             kwrg$scoreboardText = new ArrayList<>();
         }

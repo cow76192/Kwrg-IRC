@@ -36,7 +36,7 @@ public abstract class TitleButtonMixin {
 
     @Inject(method = "extractDefaultSprite", at = @At("HEAD"), cancellable = true)
     private void kwrg$drawButtonBackground(GuiGraphicsExtractor graphics, CallbackInfo ci) {
-        if (Minecraft.getInstance().screen instanceof TitleScreen || !TitleStyleModule.CONFIG.get().customTitleButtons) return;
+        if (Minecraft.getInstance().gui.screen() instanceof TitleScreen || !TitleStyleModule.CONFIG.get().customTitleButtons) return;
         TitleMenuUi.drawButtonBackground((AbstractButton) (Object) this, graphics, kwrg$hoverBlend);
         ci.cancel();
     }

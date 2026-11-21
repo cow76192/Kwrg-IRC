@@ -25,7 +25,7 @@ public class PlayerFinderRadarRenderer {
 
         if (PlayerFinderManager.getPlayers().isEmpty()) return;
 
-        Camera camera = mc.gameRenderer.getMainCamera();
+        Camera camera = mc.gameRenderer.mainCamera();
         Vec3 camPos = camera.position();
 
         var window = mc.getWindow();

@@ -125,7 +125,7 @@ public class TokenLoginScreen extends Screen {
 
         future.thenAccept(result -> {
             this.minecraft.execute(() -> {
-                if (this.minecraft.screen != this || this.activeLoginFuture != future) {
+                if (this.minecraft.gui.screen() != this || this.activeLoginFuture != future) {
                     return;
                 }
 
@@ -178,6 +178,6 @@ public class TokenLoginScreen extends Screen {
     @Override
     public void onClose() {
         this.invalidatePendingLogin();
-        this.minecraft.setScreen(this.lastScreen);
+        this.minecraft.gui.setScreen(this.lastScreen);
     }
 }

@@ -12,7 +12,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -89,7 +89,7 @@ public class WorldTextureRenderer {
 
         if (!testHookRegistered) {
             testHookRegistered = true;
-            LevelRenderEvents.END_MAIN.register(WorldTextureRenderer::onRenderWorldTest);
+            LevelRenderEvents.COLLECT_SUBMITS.register(WorldTextureRenderer::onRenderWorldTest);
         }
 
         if (!testActive) {
@@ -107,7 +107,7 @@ public class WorldTextureRenderer {
     private static void onRenderWorldTest(LevelRenderContext context) {
         if (!testActive || testAnchorPos == null) return;
         PoseStack poseStack = context.poseStack();
-        MultiBufferSource.BufferSource bufferSource = context.bufferSource();
+        SubmitNodeCollector bufferSource = context.submitNodeCollector();
         if (poseStack == null || bufferSource == null) return;
 
         // ==================== 左列：测试开启深度测试 (depthTest = true，会被方块遮挡) ====================
@@ -153,7 +153,6 @@ public class WorldTextureRenderer {
         WorldTextRenderer.render(poseStack, bufferSource, rightBase.add(-0.6, 0.6, 0), "[S4] 2-Point See-Through (bottomLeft -> topRight)");
         TEST_DEPTH_OFF_RENDERER.render(poseStack, bufferSource, rightBase.add(-0.6, -0.5, 0), rightBase.add(0.8, 0.5, 0));
 
-        bufferSource.endBatch();
     }
 
     public boolean isDepthTest() {
@@ -185,59 +184,59 @@ public class WorldTextureRenderer {
     }
 
     // 使用构造时绑定的纹理的重载方法
-    public void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft) {
+    public void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft) {
         requireBoundTexture();
         render(poseStack, bufferSource, this.boundTexture, bottomLeft, DEFAULT_SIZE, DEFAULT_SIZE, DEFAULT_COLOR);
     }
 
-    public void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, int color) {
+    public void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, int color) {
         requireBoundTexture();
         render(poseStack, bufferSource, this.boundTexture, bottomLeft, DEFAULT_SIZE, DEFAULT_SIZE, color);
     }
 
-    public void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, float width, float height) {
+    public void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, float width, float height) {
         requireBoundTexture();
         render(poseStack, bufferSource, this.boundTexture, bottomLeft, width, height, DEFAULT_COLOR);
     }
 
-    public void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, float width, float height, int color) {
+    public void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, float width, float height, int color) {
         requireBoundTexture();
         render(poseStack, bufferSource, this.boundTexture, bottomLeft, width, height, color);
     }
 
-    public void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight) {
+    public void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight) {
         requireBoundTexture();
         render(poseStack, bufferSource, this.boundTexture, bottomLeft, topRight, DEFAULT_COLOR);
     }
 
-    public void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, int color) {
+    public void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, int color) {
         requireBoundTexture();
         render(poseStack, bufferSource, this.boundTexture, bottomLeft, topRight, color);
     }
 
     // 指定左下角的重载方法 (面向相机的 Billboard 模式)
-    public void render(PoseStack poseStack, MultiBufferSource bufferSource, Identifier texture, Vec3 bottomLeft) {
+    public void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Identifier texture, Vec3 bottomLeft) {
         render(poseStack, bufferSource, texture, bottomLeft, DEFAULT_SIZE, DEFAULT_SIZE, 0.0F, 0.0F, 1.0F, 1.0F, DEFAULT_COLOR);
     }
 
-    public void render(PoseStack poseStack, MultiBufferSource bufferSource, Identifier texture, Vec3 bottomLeft, int color) {
+    public void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Identifier texture, Vec3 bottomLeft, int color) {
         render(poseStack, bufferSource, texture, bottomLeft, DEFAULT_SIZE, DEFAULT_SIZE, 0.0F, 0.0F, 1.0F, 1.0F, color);
     }
 
-    public void render(PoseStack poseStack, MultiBufferSource bufferSource, Identifier texture, Vec3 bottomLeft, Color color) {
+    public void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Identifier texture, Vec3 bottomLeft, Color color) {
         int argb = color != null ? color.getRGB() : DEFAULT_COLOR;
         render(poseStack, bufferSource, texture, bottomLeft, DEFAULT_SIZE, DEFAULT_SIZE, 0.0F, 0.0F, 1.0F, 1.0F, argb);
     }
 
-    public void render(PoseStack poseStack, MultiBufferSource bufferSource, Identifier texture, Vec3 bottomLeft, float width, float height) {
+    public void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Identifier texture, Vec3 bottomLeft, float width, float height) {
         render(poseStack, bufferSource, texture, bottomLeft, width, height, 0.0F, 0.0F, 1.0F, 1.0F, DEFAULT_COLOR);
     }
 
-    public void render(PoseStack poseStack, MultiBufferSource bufferSource, Identifier texture, Vec3 bottomLeft, float width, float height, int color) {
+    public void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Identifier texture, Vec3 bottomLeft, float width, float height, int color) {
         render(poseStack, bufferSource, texture, bottomLeft, width, height, 0.0F, 0.0F, 1.0F, 1.0F, color);
     }
 
-    public void render(PoseStack poseStack, MultiBufferSource bufferSource, Identifier texture, Vec3 bottomLeft, float width, float height, Color color) {
+    public void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Identifier texture, Vec3 bottomLeft, float width, float height, Color color) {
         int argb = color != null ? color.getRGB() : DEFAULT_COLOR;
         render(poseStack, bufferSource, texture, bottomLeft, width, height, 0.0F, 0.0F, 1.0F, 1.0F, argb);
     }
@@ -245,7 +244,7 @@ public class WorldTextureRenderer {
     // 左下角的世界空间 3D 区域纹理渲染方法
     public void render(
             PoseStack poseStack,
-            MultiBufferSource bufferSource,
+            SubmitNodeCollector bufferSource,
             Identifier texture,
             Vec3 bottomLeft,
             float width,
@@ -259,7 +258,7 @@ public class WorldTextureRenderer {
         if (texture == null || width <= 0.0F || height <= 0.0F) return;
 
         Minecraft mc = Minecraft.getInstance();
-        Camera camera = mc.gameRenderer.getMainCamera();
+        Camera camera = mc.gameRenderer.mainCamera();
         Vec3 camPos = camera.position();
 
         poseStack.pushPose();
@@ -269,25 +268,23 @@ public class WorldTextureRenderer {
         poseStack.mulPose(camera.rotation());
         poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
 
-        Matrix4f matrix = poseStack.last().pose();
-        VertexConsumer consumer = bufferSource.getBuffer(getRenderType(texture));
         int finalColor = ColorUtil.ensureAlpha(color);
-
-        drawQuad(consumer, matrix, 0.0F, 0.0F, width, height, u0, v0, u1, v1, finalColor);
+        bufferSource.submitCustomGeometry(poseStack, getRenderType(texture), (pose, consumer) ->
+                drawQuad(consumer, pose.pose(), 0.0F, 0.0F, width, height, u0, v0, u1, v1, finalColor));
 
         poseStack.popPose();
     }
 
     //  指定左下角  和 右上角 的世界空间 3D 区域重载方法
-    public void render(PoseStack poseStack, MultiBufferSource bufferSource, Identifier texture, Vec3 bottomLeft, Vec3 topRight) {
+    public void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Identifier texture, Vec3 bottomLeft, Vec3 topRight) {
         render(poseStack, bufferSource, texture, bottomLeft, topRight, 0.0F, 0.0F, 1.0F, 1.0F, DEFAULT_COLOR);
     }
 
-    public void render(PoseStack poseStack, MultiBufferSource bufferSource, Identifier texture, Vec3 bottomLeft, Vec3 topRight, int color) {
+    public void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Identifier texture, Vec3 bottomLeft, Vec3 topRight, int color) {
         render(poseStack, bufferSource, texture, bottomLeft, topRight, 0.0F, 0.0F, 1.0F, 1.0F, color);
     }
 
-    public void render(PoseStack poseStack, MultiBufferSource bufferSource, Identifier texture, Vec3 bottomLeft, Vec3 topRight, Color color) {
+    public void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Identifier texture, Vec3 bottomLeft, Vec3 topRight, Color color) {
         int argb = color != null ? color.getRGB() : DEFAULT_COLOR;
         render(poseStack, bufferSource, texture, bottomLeft, topRight, 0.0F, 0.0F, 1.0F, 1.0F, argb);
     }
@@ -297,7 +294,7 @@ public class WorldTextureRenderer {
      */
     public void render(
             PoseStack poseStack,
-            MultiBufferSource bufferSource,
+            SubmitNodeCollector bufferSource,
             Identifier texture,
             Vec3 bottomLeft,
             Vec3 topRight,
@@ -310,7 +307,7 @@ public class WorldTextureRenderer {
         if (texture == null) return;
 
         Minecraft mc = Minecraft.getInstance();
-        Camera camera = mc.gameRenderer.getMainCamera();
+        Camera camera = mc.gameRenderer.mainCamera();
         Vec3 camPos = camera.position();
 
         double dx = topRight.x - bottomLeft.x;
@@ -337,36 +334,34 @@ public class WorldTextureRenderer {
         poseStack.translate(bottomLeft.x - camPos.x, bottomLeft.y - camPos.y, bottomLeft.z - camPos.z);
         poseStack.mulPose(Axis.YP.rotation(yaw));
 
-        Matrix4f matrix = poseStack.last().pose();
-        VertexConsumer consumer = bufferSource.getBuffer(getRenderType(texture));
         int finalColor = ColorUtil.ensureAlpha(color);
-
-        drawQuad(consumer, matrix, 0.0F, 0.0F, targetWidth, height, u0, v0, u1, v1, finalColor);
+        bufferSource.submitCustomGeometry(poseStack, getRenderType(texture), (pose, consumer) ->
+                drawQuad(consumer, pose.pose(), 0.0F, 0.0F, targetWidth, height, u0, v0, u1, v1, finalColor));
 
         poseStack.popPose();
     }
 
     /** Four world-space corners, ordered bottom-left, bottom-right, top-right, top-left. */
-    public void renderQuad(PoseStack poses, MultiBufferSource buffers, Identifier texture,
+    public void renderQuad(PoseStack poses, SubmitNodeCollector buffers, Identifier texture,
                            Vec3 bl, Vec3 br, Vec3 tr, Vec3 tl, float u0, float v0, float u1, float v1) {
         renderQuad(poses, buffers, texture, bl, br, tr, tl, u0, v0, u1, v1, DEFAULT_COLOR);
     }
 
     /** Draws an oriented surface without imposing billboard rotation. */
-    public void renderQuad(PoseStack poses, MultiBufferSource buffers, Identifier texture,
+    public void renderQuad(PoseStack poses, SubmitNodeCollector buffers, Identifier texture,
                            Vec3 bottomLeft, Vec3 bottomRight, Vec3 topRight, Vec3 topLeft,
                            float u0, float v0, float u1, float v1, int color) {
-        Vec3 camera = Minecraft.getInstance().gameRenderer.getMainCamera().position();
-        bottomLeft = bottomLeft.subtract(camera);
-        bottomRight = bottomRight.subtract(camera);
-        topRight = topRight.subtract(camera);
-        topLeft = topLeft.subtract(camera);
-        Matrix4f matrix = poses.last().pose();
-        VertexConsumer consumer = buffers.getBuffer(getRenderType(texture));
-        consumer.addVertex(matrix, (float) bottomLeft.x, (float) bottomLeft.y, (float) bottomLeft.z).setUv(u0, v1).setColor(color);
-        consumer.addVertex(matrix, (float) bottomRight.x, (float) bottomRight.y, (float) bottomRight.z).setUv(u1, v1).setColor(color);
-        consumer.addVertex(matrix, (float) topRight.x, (float) topRight.y, (float) topRight.z).setUv(u1, v0).setColor(color);
-        consumer.addVertex(matrix, (float) topLeft.x, (float) topLeft.y, (float) topLeft.z).setUv(u0, v0).setColor(color);
+        Vec3 camera = Minecraft.getInstance().gameRenderer.mainCamera().position();
+        Vec3 relativeBottomLeft = bottomLeft.subtract(camera);
+        Vec3 relativeBottomRight = bottomRight.subtract(camera);
+        Vec3 relativeTopRight = topRight.subtract(camera);
+        Vec3 relativeTopLeft = topLeft.subtract(camera);
+        buffers.submitCustomGeometry(poses, getRenderType(texture), (pose, consumer) -> {
+            consumer.addVertex(pose.pose(), (float) relativeBottomLeft.x, (float) relativeBottomLeft.y, (float) relativeBottomLeft.z).setUv(u0, v1).setColor(color);
+            consumer.addVertex(pose.pose(), (float) relativeBottomRight.x, (float) relativeBottomRight.y, (float) relativeBottomRight.z).setUv(u1, v1).setColor(color);
+            consumer.addVertex(pose.pose(), (float) relativeTopRight.x, (float) relativeTopRight.y, (float) relativeTopRight.z).setUv(u1, v0).setColor(color);
+            consumer.addVertex(pose.pose(), (float) relativeTopLeft.x, (float) relativeTopLeft.y, (float) relativeTopLeft.z).setUv(u0, v0).setColor(color);
+        });
     }
 
     // 顶点绘制辅助

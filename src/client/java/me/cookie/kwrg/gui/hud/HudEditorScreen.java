@@ -76,7 +76,7 @@ public class HudEditorScreen extends Screen {
 
     public static void open(String elementId) {
         Minecraft mc = Minecraft.getInstance();
-        mc.execute(() -> mc.setScreen(new HudEditorScreen(elementId)));
+        mc.execute(() -> mc.gui.setScreen(new HudEditorScreen(elementId)));
     }
 
     @Override
