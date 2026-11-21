@@ -39,7 +39,7 @@ public class WorldTextureRenderer {
     private static final RenderPipeline TEXTURE_DEPTH_PIPELINE = RenderPipelines.register(
             RenderPipeline.builder(RenderPipelines.GUI_TEXTURED_SNIPPET)
                     .withLocation(Identifier.fromNamespaceAndPath("kwrg", "pipeline/world_texture_depth"))
-                    .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true))
+                    .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, true))
                     .withCull(false)
                     .build()
     );

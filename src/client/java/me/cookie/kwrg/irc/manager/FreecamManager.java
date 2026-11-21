@@ -62,7 +62,6 @@ public final class FreecamManager {
         lastFrame = System.nanoTime();
         CTRL_GUARD.enable(client.getWindow().handle(), canMoveCamera(client));
 
-        client.levelRenderer.invalidateCompiledGeometry(client.level, client.options, client.gameRenderer.mainCamera(), client.getBlockColors());
         return true;
     }
 
@@ -75,8 +74,6 @@ public final class FreecamManager {
         level = null;
         savedInput = null;
         lastFrame = 0;
-        Minecraft client = Minecraft.getInstance();
-        if (client.level != null) client.levelRenderer.invalidateCompiledGeometry(client.level, client.options, client.gameRenderer.mainCamera(), client.getBlockColors());
     }
 
 

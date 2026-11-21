@@ -274,6 +274,7 @@ public final class WindowCapture implements AutoCloseable {
                     int pid = Integer.parseInt(fields[0]);
                     if (pid <= 4 || pid == ProcessHandle.current().pid()) throw new IOException("无效的窗口进程");
 
+                    if (activeView != frame.view) status = "正在获取画面";
                     activeView = frame.view;
                     pending.set(null);
                     releaseInput();
@@ -301,7 +302,7 @@ public final class WindowCapture implements AutoCloseable {
                         case 3 -> "目标窗口已关闭";
                         case 4 -> "窗口被系统隐藏，请移回游戏所在桌面";
                         case 5 -> "目标窗口禁止捕获";
-                        case 12 -> "等待窗口画面";
+                        case 12 -> "实时画面".equals(status) ? status : "等待窗口画面";
                         case 13 -> "WGC 不可用，正在重试";
                         default -> "等待捕获（状态 " + code + "）";
                     };
