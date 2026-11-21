@@ -6,7 +6,7 @@ import me.cookie.kwrg.module.modules.functions.ImportantPlayerModule;
 import me.cookie.kwrg.render.*;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.Hud;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.scores.Scoreboard;
@@ -18,7 +18,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(Gui.class)
+@Mixin(Hud.class)
 public abstract class HudNotificationMixin {
 
     @Shadow @Final private Minecraft minecraft;
@@ -53,7 +53,7 @@ public abstract class HudNotificationMixin {
 
         int mouseX = -1;
         int mouseY = -1;
-        if (this.minecraft.screen != null) {
+        if (this.minecraft.gui.screen() != null) {
             var window = this.minecraft.getWindow();
             mouseX = (int) (this.minecraft.mouseHandler.xpos() * ((double) window.getGuiScaledWidth() / (double) window.getScreenWidth()));
             mouseY = (int) (this.minecraft.mouseHandler.ypos() * ((double) window.getGuiScaledHeight() / (double) window.getScreenHeight()));
@@ -64,7 +64,7 @@ public abstract class HudNotificationMixin {
         InventoryHudRenderer.render(graphics, delta);
         PlayerDollHudRenderer.render(graphics, delta);
 
-        if (this.minecraft.level != null && !this.minecraft.options.hideGui) {
+        if (this.minecraft.level != null && !this.minecraft.gui.hud.isHidden()) {
             ParticleLyricsRenderer.render(graphics);
         }
 
@@ -79,7 +79,7 @@ public abstract class HudNotificationMixin {
             }
         }
 
-        if (!(this.minecraft.screen instanceof me.cookie.kwrg.gui.IrcScreen)) {
+        if (!(this.minecraft.gui.screen() instanceof me.cookie.kwrg.gui.IrcScreen)) {
             me.cookie.kwrg.render.DynamicIslandRenderer.render(graphics, delta);
         }
     }

@@ -445,7 +445,7 @@ public class IrcMessageHandler {
     private static void showImportantTitle(String rank, String nameStyle, String username, String chatStyle, String content) {
         Minecraft mc = Minecraft.getInstance();
         mc.execute(() -> {
-            mc.gui.setTimes(8, 35, 8);
+            mc.gui.hud.setTimes(8, 35, 8);
 
             MutableComponent title = Component.empty();
             String formattedRank = formatRankWithBrackets(rank);
@@ -453,10 +453,10 @@ public class IrcMessageHandler {
                 title.append(Component.literal(formattedRank + " "));
             }
             title.append(ColorUtil.applyStyle(username, nameStyle));
-            mc.gui.setTitle(title);
+            mc.gui.hud.setTitle(title);
 
             Component subtitle = ColorUtil.applyStyle(content, chatStyle);
-            mc.gui.setSubtitle(subtitle);
+            mc.gui.hud.setSubtitle(subtitle);
 
             ImportantTitleManager.start(rank, nameStyle, username, chatStyle, content);
         });

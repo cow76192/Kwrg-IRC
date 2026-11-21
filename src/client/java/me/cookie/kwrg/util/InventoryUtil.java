@@ -22,7 +22,7 @@ public final class InventoryUtil {
      */
     public static AbstractContainerScreen<?> getOpenContainerScreen(Minecraft mc) {
         if (mc == null) return null;
-        return mc.screen instanceof AbstractContainerScreen<?> screen ? screen : null;
+        return mc.gui.screen() instanceof AbstractContainerScreen<?> screen ? screen : null;
     }
 
     /**

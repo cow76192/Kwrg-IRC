@@ -217,7 +217,7 @@ public final class WindowModule extends Module {
                 CONFIG.update(s -> {
                 });
                 WorldWindow.create(selected);
-                Minecraft.getInstance().setScreen(null);
+                Minecraft.getInstance().gui.setScreen(null);
                 ChatNotifier.send("§a[Window] 已创建投影，右键或 Alt+G 控制，再按 Alt+G 退出", NotificationType.SUCCESS);
             } catch (Exception e) {
                 ChatNotifier.send("§c[Window] " + e.getMessage(), NotificationType.ERR);

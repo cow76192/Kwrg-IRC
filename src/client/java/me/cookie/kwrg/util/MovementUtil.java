@@ -13,7 +13,7 @@ public final class MovementUtil {
     }
 
     public static boolean canSimulateInput() {
-        return MC.player != null && MC.level != null && MC.screen == null && MC.options != null;
+        return MC.player != null && MC.level != null && MC.gui.screen() == null && MC.options != null;
     }
 
     public static void setForward(boolean pressed) {
@@ -70,7 +70,7 @@ public final class MovementUtil {
 
         setToggleableKey(options.keyShift, options.toggleCrouch().get(), false);
 
-        if (MC.screen == null) {
+        if (MC.gui.screen() == null) {
             KeyMapping.setAll();
         }
     }

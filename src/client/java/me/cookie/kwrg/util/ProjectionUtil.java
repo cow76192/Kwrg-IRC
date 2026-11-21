@@ -16,7 +16,7 @@ public final class ProjectionUtil {
         if (!Double.isFinite(u) || !Double.isFinite(v) || u < 0 || u > 1 || v < 0 || v > 1) return null;
 
         Matrix4f inverse = new Matrix4f(viewProjection).invert();
-        Vector3f near = inverse.transformProject(new Vector3f((float)(u * 2 - 1), (float)(1 - v * 2), 0));
+        Vector3f near = inverse.transformProject(new Vector3f((float)(u * 2 - 1), (float)(1 - v * 2), 1));
         Vector3f far = inverse.transformProject(new Vector3f((float)(u * 2 - 1), (float)(1 - v * 2), .5f));
         if (!near.isFinite() || !far.isFinite()) return null;
 

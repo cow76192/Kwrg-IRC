@@ -111,7 +111,7 @@ public final class TitleBrowser {
 
         TitleScreen title = new TitleScreen();
         ServerPortalRenderer.returnTo(title);
-        game.setScreen(title);
+        game.gui.setScreen(title);
 
         TitleBrowser browser = ((Host) title).kwrg$browser();
         browser.open(new JoinMultiplayerScreen(title), true);
@@ -125,7 +125,7 @@ public final class TitleBrowser {
             return true;
         }
 
-        if (game.screen instanceof Host host) {
+        if (game.gui.screen() instanceof Host host) {
             TitleBrowser browser = host.kwrg$browser();
             if (browser.open && next == browser.title) {
                 browser.close();
@@ -171,7 +171,7 @@ public final class TitleBrowser {
     }
 
     private void resume(Minecraft game) {
-        if (game.screen == title && !suspended) return;
+        if (game.gui.screen() == title && !suspended) return;
 
         String selectedWorld = list instanceof WorldSelectionList worlds
                 && worlds.getSelected() instanceof WorldSelectionList.WorldListEntry row ? row.getLevelSummary().getLevelId() : null;
@@ -183,7 +183,7 @@ public final class TitleBrowser {
 
         Screen next = network ? new JoinMultiplayerScreen(title) : new SelectWorldScreen(title);
 
-        game.setScreen(title);
+        game.gui.setScreen(title);
         open = true;
         travelFrom = 1.0f;
         travelStart = Util.getMillis();
@@ -263,7 +263,7 @@ public final class TitleBrowser {
     }
 
     public boolean isActive(Screen screen) {
-        return open && !suspended && panel == screen && Minecraft.getInstance().screen == title;
+        return open && !suspended && panel == screen && Minecraft.getInstance().gui.screen() == title;
     }
 
     public void tick() {

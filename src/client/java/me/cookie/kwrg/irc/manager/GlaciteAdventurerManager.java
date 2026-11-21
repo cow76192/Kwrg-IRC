@@ -35,7 +35,7 @@ public final class GlaciteAdventurerManager {
     private GlaciteAdventurerManager() {}
 
     public static void init() {
-        LevelRenderEvents.BEFORE_GIZMOS.register(GlaciteAdventurerManager::render);
+        LevelRenderEvents.COLLECT_SUBMITS.register(GlaciteAdventurerManager::render);
     }
 
     public static boolean isActiveInMineshaft() {

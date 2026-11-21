@@ -88,7 +88,7 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
         Minecraft mc = Minecraft.getInstance();
         mc.execute(() -> {
             if (mc.gui != null) {
-                mc.setScreen(new IrcScreen());
+                mc.gui.setScreen(new IrcScreen());
             }
         });
         NotificationManager.send("ClickGUI Opened");
@@ -99,7 +99,7 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
         mc.execute(() -> {
             IrcScreen screen = new IrcScreen();
             screen.setDirectOpenTarget(categoryName, moduleName);
-            mc.setScreen(screen);
+            mc.gui.setScreen(screen);
         });
     }
 

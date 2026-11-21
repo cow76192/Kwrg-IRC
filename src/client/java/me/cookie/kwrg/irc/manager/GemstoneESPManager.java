@@ -51,32 +51,32 @@ public final class GemstoneESPManager {
 
     public enum GemstoneType {
         RUBY("Ruby",
-                Blocks.RED_STAINED_GLASS, Blocks.RED_STAINED_GLASS_PANE,
+                Blocks.STAINED_GLASS.red(), Blocks.STAINED_GLASS_PANE.red(),
                 0xF0FF3B3B,
                 0x42FF7A7A
         ),
         AMBER("Amber",
-                Blocks.ORANGE_STAINED_GLASS, Blocks.ORANGE_STAINED_GLASS_PANE,
+                Blocks.STAINED_GLASS.orange(), Blocks.STAINED_GLASS_PANE.orange(),
                 0xF0FF9E22,
                 0x42FFC266
         ),
         JADE("Jade",
-                Blocks.LIME_STAINED_GLASS, Blocks.LIME_STAINED_GLASS_PANE,
+                Blocks.STAINED_GLASS.lime(), Blocks.STAINED_GLASS_PANE.lime(),
                 0xF048FF48,
                 0x428AFF8A
         ),
         JASPER("Jasper",
-                Blocks.MAGENTA_STAINED_GLASS, Blocks.MAGENTA_STAINED_GLASS_PANE,
+                Blocks.STAINED_GLASS.magenta(), Blocks.STAINED_GLASS_PANE.magenta(),
                 0xF0FF44CC,
                 0x42FF88DF
         ),
         AMETHYST("Amethyst",
-                Blocks.PURPLE_STAINED_GLASS, Blocks.PURPLE_STAINED_GLASS_PANE,
+                Blocks.STAINED_GLASS.purple(), Blocks.STAINED_GLASS_PANE.purple(),
                 0xF0A844FF,
                 0x42C888FF
         ),
         TOPAZ("Topaz",
-                Blocks.YELLOW_STAINED_GLASS, Blocks.YELLOW_STAINED_GLASS_PANE,
+                Blocks.STAINED_GLASS.yellow(), Blocks.STAINED_GLASS_PANE.yellow(),
                 0xF0FFDE3B,
                 0x42FFF28A
         );

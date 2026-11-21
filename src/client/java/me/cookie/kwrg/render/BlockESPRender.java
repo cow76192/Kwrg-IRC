@@ -5,11 +5,12 @@ import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.CompareOp;
-import com.mojang.blaze3d.shaders.UniformType;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import me.cookie.kwrg.mixin.accessor.DrawableGizmoPrimitivesAccessor;
+import com.mojang.blaze3d.PrimitiveTopology;
 import me.cookie.kwrg.render.vertex.OverlayVertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.minecraft.client.renderer.BindGroupLayouts;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.renderer.gizmos.DrawableGizmoPrimitives;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
@@ -49,10 +50,10 @@ public final class BlockESPRender {
             .withLocation(Identifier.fromNamespaceAndPath("kwrg", "pipeline/block_esp_lines"))
             .withVertexShader(Identifier.fromNamespaceAndPath("kwrg", "core/world_lines"))
             .withFragmentShader("core/position_color")
-            .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
-            .withUniform("Projection", UniformType.UNIFORM_BUFFER)
-            .withUniform("Globals", UniformType.UNIFORM_BUFFER)
-            .withVertexFormat(OverlayVertexConsumer.LINE_FORMAT, VertexFormat.Mode.LINES)
+            .withBindGroupLayout(BindGroupLayouts.MATRICES_PROJECTION)
+            .withBindGroupLayout(BindGroupLayouts.GLOBALS)
+            .withVertexBinding(0, OverlayVertexConsumer.LINE_FORMAT)
+            .withPrimitiveTopology(PrimitiveTopology.LINES)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
@@ -63,9 +64,9 @@ public final class BlockESPRender {
             .withLocation(Identifier.fromNamespaceAndPath("kwrg", "pipeline/block_esp_quads"))
             .withVertexShader("core/position_color")
             .withFragmentShader("core/position_color")
-            .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
-            .withUniform("Projection", UniformType.UNIFORM_BUFFER)
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withBindGroupLayout(BindGroupLayouts.MATRICES_PROJECTION)
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
@@ -75,13 +76,11 @@ public final class BlockESPRender {
         private static final RenderType LINES = RenderType.create(
                 "kwrg_block_esp_lines",
                 RenderSetup.builder(ESP_LINES_PIPELINE)
-                        .bufferSize(RenderType.BIG_BUFFER_SIZE)
                         .createRenderSetup()
         );
         private static final RenderType QUADS = RenderType.create(
                 "kwrg_block_esp_quads",
                 RenderSetup.builder(ESP_QUADS_PIPELINE)
-                        .bufferSize(RenderType.BIG_BUFFER_SIZE)
                         .createRenderSetup()
         );
     }
@@ -91,7 +90,7 @@ public final class BlockESPRender {
 
     public static void init() {
         if (!INITIALIZED.compareAndSet(false, true)) return;
-        LevelRenderEvents.BEFORE_GIZMOS.register(BlockESPRender::onWorldRender);
+        LevelRenderEvents.COLLECT_SUBMITS.register(BlockESPRender::onWorldRender);
     }
 
     private static void onWorldRender(LevelRenderContext context) {
@@ -107,18 +106,8 @@ public final class BlockESPRender {
         if (mesh == null || mesh.isEmpty() || opacity <= 0.0f) return;
         var camera = context.levelState().cameraRenderState;
         if (!camera.initialized) return;
-        var buffers = context.bufferSource();
-        var poseStack = context.poseStack();
-        if (!mesh.quadPrimitives().isEmpty()) {
-            var vertices = new OverlayVertexConsumer(buffers.getBuffer(RenderTypeHolder.QUADS), opacity);
-            mesh.quadPrimitives().render(poseStack, ignored -> vertices, camera, camera.viewRotationMatrix);
-            buffers.endBatch(RenderTypeHolder.QUADS);
-        }
-        if (!mesh.linePrimitives().isEmpty()) {
-            var vertices = new OverlayVertexConsumer(buffers.getBuffer(RenderTypeHolder.LINES), opacity);
-            mesh.linePrimitives().render(poseStack, ignored -> vertices, camera, camera.viewRotationMatrix);
-            buffers.endBatch(RenderTypeHolder.LINES);
-        }
+        OverlayGizmos.submit(context, mesh.quadPrimitives(), RenderTypeHolder.QUADS, opacity);
+        OverlayGizmos.submit(context, mesh.linePrimitives(), RenderTypeHolder.LINES, opacity);
     }
 
     /** Build a block overlay using caller-supplied ARGB outline and fill colors. */
@@ -165,7 +154,8 @@ public final class BlockESPRender {
         );
 
         public boolean isEmpty() {
-            return quadPrimitives.isEmpty() && linePrimitives.isEmpty();
+            return ((DrawableGizmoPrimitivesAccessor) quadPrimitives).kwrg$isEmpty()
+                    && ((DrawableGizmoPrimitivesAccessor) linePrimitives).kwrg$isEmpty();
         }
     }
 

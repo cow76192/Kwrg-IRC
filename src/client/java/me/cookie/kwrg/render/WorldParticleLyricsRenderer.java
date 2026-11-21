@@ -1,8 +1,12 @@
 package me.cookie.kwrg.render;
 
+import com.mojang.blaze3d.PrimitiveTopology;
+import com.mojang.blaze3d.pipeline.BlendFunction;
+import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.CompareOp;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import me.cookie.kwrg.util.lyrics.LyricTimeline;
 import me.cookie.kwrg.module.modules.style.ParticleLyricsModule;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -11,7 +15,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.BindGroupLayouts;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.core.BlockPos;
@@ -105,11 +109,17 @@ public final class WorldParticleLyricsRenderer {
 
     private static final class ParticleRenderType {
         private static final RenderType TYPE = RenderType.create("kwrg_world_lyric_particles",
-                RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+                RenderSetup.builder(RenderPipeline.builder()
                                 .withLocation(Identifier.fromNamespaceAndPath("kwrg", "pipeline/world_lyric_particles"))
-                                .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false))
+                                .withVertexShader("core/position_color")
+                                .withFragmentShader("core/position_color")
+                                .withBindGroupLayout(BindGroupLayouts.MATRICES_PROJECTION)
+                                .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+                                .withPrimitiveTopology(PrimitiveTopology.QUADS)
+                                .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
+                                .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false))
                                 .withCull(false)
-                                .build()))
+                                .build())
                         .sortOnUpload()
                         .createRenderSetup());
     }
@@ -118,7 +128,7 @@ public final class WorldParticleLyricsRenderer {
     }
 
     public static void init() {
-        LevelRenderEvents.END_MAIN.register(WorldParticleLyricsRenderer::render);
+        LevelRenderEvents.COLLECT_SUBMITS.register(WorldParticleLyricsRenderer::render);
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> reset(null, null)));
     }
 
@@ -175,14 +185,12 @@ public final class WorldParticleLyricsRenderer {
             }
         }
 
-        if (context.poseStack() == null || context.bufferSource() == null) return;
+        if (context.poseStack() == null) return;
         int disperseMs = ParticleLyricsModule.disperseMs();
         FADING.removeIf(anchored -> position - anchored.line().end() >= disperseMs);
-        boolean drew = false;
         for (LineAtAnchor anchored : FADING)
-            drew |= draw(context, mc, anchored, position, gatherMs, disperseMs, disperseRadius);
-        drew |= draw(context, mc, current, position, gatherMs, disperseMs, disperseRadius);
-        if (drew) context.bufferSource().endBatch(ParticleRenderType.TYPE);
+            draw(context, mc, anchored, position, gatherMs, disperseMs, disperseRadius);
+        draw(context, mc, current, position, gatherMs, disperseMs, disperseRadius);
     }
 
     private static void reset(ClientLevel nextLevel, List<LyricTimeline.Line> nextTrack) {
@@ -238,7 +246,7 @@ public final class WorldParticleLyricsRenderer {
         float particleRadius = Math.max(ParticleLyricsModule.MAX_PARTICLE_SIZE * 0.5f, MAX_WORLD_PIXEL_RADIUS / scale);
         var footprint = row.footprint(disperseRadius, particleRadius);
 
-        Vec3 camera = mc.gameRenderer.getMainCamera().position();
+        Vec3 camera = mc.gameRenderer.mainCamera().position();
         Vec3 eye = player.getEyePosition();
         Vec3 forward = player.getViewVector(1);
         Vec3 right = Vec3.directionFromRotation(0, player.getYRot()).cross(UP).normalize();
@@ -325,20 +333,20 @@ public final class WorldParticleLyricsRenderer {
                 + Math.abs(horizontal - 0.48) * 3 + Math.abs(height) * 0.25;
     }
 
-    private static boolean draw(LevelRenderContext context, Minecraft mc, LineAtAnchor line, long position,
+    private static void draw(LevelRenderContext context, Minecraft mc, LineAtAnchor line, long position,
                                 int gatherMs, int disperseMs, int disperseRadius) {
-        if (line == null) return false;
+        if (line == null) return;
 
         var animation = ParticleLyricsRenderer.animate(line.row(), line.line(), position, gatherMs, disperseMs,
                 Math.min(disperseRadius, line.anchor().disperseRadius()));
-        if (animation == null) return false;
+        if (animation == null) return;
 
         float width = line.row().width();
         float scale = Math.min(line.anchor().scale(), worldScale(width));
         Vec3 right = line.anchor().right();
         var pose = context.poseStack();
 
-        var camera = mc.gameRenderer.getMainCamera();
+        var camera = mc.gameRenderer.mainCamera();
         double depth = line.anchor().position().subtract(camera.position()).dot(new Vec3(camera.forwardVector()));
 
         float pixelRadius = pixelRadius(depth, context.levelState().cameraRenderState.projectionMatrix.m11(),
@@ -349,25 +357,25 @@ public final class WorldParticleLyricsRenderer {
         int density = ParticleLyricsRenderer.effectiveDensity(ParticleLyricsModule.particleDensity(), particleSize);
         WorldTextRenderer.pushAt(pose, camera, line.anchor().position());
         try {
-            var matrix = pose.last().pose();
-            var vertices = context.bufferSource().getBuffer(ParticleRenderType.TYPE);
             float radius = quad.radius() / scale;
-            animation.draw(density, (x, y, color) -> {
-                float centered = x - width * 0.5f;
-                float left = (centered - radius) * scale;
-                float rightEdge = (centered + radius) * scale;
-                float top = -(y - radius) * scale;
-                float bottom = -(y + radius) * scale;
-                int argb = quad.color(color);
-                vertices.addVertex(matrix, (float) (right.x * left), top, (float) (right.z * left)).setColor(argb);
-                vertices.addVertex(matrix, (float) (right.x * left), bottom, (float) (right.z * left)).setColor(argb);
-                vertices.addVertex(matrix, (float) (right.x * rightEdge), bottom, (float) (right.z * rightEdge)).setColor(argb);
-                vertices.addVertex(matrix, (float) (right.x * rightEdge), top, (float) (right.z * rightEdge)).setColor(argb);
+            context.submitNodeCollector().submitCustomGeometry(pose, ParticleRenderType.TYPE, (entry, vertices) -> {
+                var matrix = entry.pose();
+                animation.draw(density, (x, y, color) -> {
+                    float centered = x - width * 0.5f;
+                    float left = (centered - radius) * scale;
+                    float rightEdge = (centered + radius) * scale;
+                    float top = -(y - radius) * scale;
+                    float bottom = -(y + radius) * scale;
+                    int argb = quad.color(color);
+                    vertices.addVertex(matrix, (float) (right.x * left), top, (float) (right.z * left)).setColor(argb);
+                    vertices.addVertex(matrix, (float) (right.x * left), bottom, (float) (right.z * left)).setColor(argb);
+                    vertices.addVertex(matrix, (float) (right.x * rightEdge), bottom, (float) (right.z * rightEdge)).setColor(argb);
+                    vertices.addVertex(matrix, (float) (right.x * rightEdge), top, (float) (right.z * rightEdge)).setColor(argb);
+                });
             });
         } finally {
             pose.popPose();
         }
-        return true;
     }
 
     static float pixelRadius(double depth, float projectionY, int height) {

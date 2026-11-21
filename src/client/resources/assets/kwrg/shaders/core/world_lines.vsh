@@ -6,8 +6,8 @@
 
 in vec3 Position;
 in vec4 Color;
-in vec2 DirectionXY;
-in ivec2 DirectionZBits;
+in vec2 UV0;
+in ivec2 UV1;
 in float LineWidth;
 
 // Match the color-only fragment shader's interface, including on Vulkan.
@@ -22,8 +22,8 @@ vec4 projectLineVector(vec4 vector) {
 
 void main() {
     vec4 clip = projectLineVector(vec4(Position, 1.0));
-    uint zBits = (uint(DirectionZBits.x) & 0xffffu) | (uint(DirectionZBits.y) << 16);
-    vec4 delta = projectLineVector(vec4(DirectionXY, uintBitsToFloat(zBits), 0.0));
+    uint zBits = (uint(UV1.x) & 0xffffu) | (uint(UV1.y) << 16);
+    vec4 delta = projectLineVector(vec4(UV0, uintBitsToFloat(zBits), 0.0));
     // The perspective derivative has the same direction at both ends without dividing by w.
     vec2 tangent = (delta.xy * clip.w - clip.xy * delta.w) * ScreenSize;
     float tangentLength = length(tangent);

@@ -60,7 +60,7 @@ public final class RouteManager {
     }
 
     public static void init() {
-        LevelRenderEvents.BEFORE_GIZMOS.register(RouteManager::render);
+        LevelRenderEvents.COLLECT_SUBMITS.register(RouteManager::render);
     }
 
     public static void reloadFromConfig() {
