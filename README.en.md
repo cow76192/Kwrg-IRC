@@ -136,7 +136,7 @@ On Hypixel, use another `/chat` command, such as `/chat all`, to leave IRC chat 
 | --- | --- |
 | `/irc` | Show command help |
 | `/irc gui` | Open the main interface; the default shortcut is Right Shift |
-| `/irc hud` | Open the HUD layout editor |
+| `/irc hudeditor` | Open the HUD layout editor |
 | `/irc rank <tag>` | Set your IRC tag |
 | `/irc nameStyle <style>` | Set your name style |
 | `/irc messageStyle <style>` | Set your message style |
