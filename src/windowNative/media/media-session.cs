@@ -67,20 +67,12 @@ internal static class MediaSessionReader {
         long duration = (long)timeline.EndTime.TotalMilliseconds;
         long position = (long)timeline.Position.TotalMilliseconds;
         if (updated.Year < 2000 || (duration > 0 && position > duration)) {
-            string logged = log.Report();
-            if (logged != null) return logged;
-            int progress = WindowProgress.Read(media.Title);
-            return progress < 0 ? "timeline" : Format("progress", media, 0, progress, playing);
+            return log.Report() ?? "timeline";
         }
         if (playing) {
             position += (long)Math.Max(0, (captured - updated).TotalMilliseconds);
         }
-        return Format("media", media, duration, position, playing);
-    }
-
-    private static string Format(string source, GlobalSystemMediaTransportControlsSessionMediaProperties media,
-            long duration, long position, bool playing) {
-        return String.Join("\t", source, Encode(media.Title), Encode(media.Artist), Encode(media.AlbumTitle),
+        return String.Join("\t", "media", Encode(media.Title), Encode(media.Artist), Encode(media.AlbumTitle),
             duration.ToString(CultureInfo.InvariantCulture), position.ToString(CultureInfo.InvariantCulture),
             playing ? "1" : "0");
     }

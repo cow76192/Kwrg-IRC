@@ -30,13 +30,8 @@ public final class NetEaseLyrics implements AutoCloseable {
         }
     }
 
-    private record Sample(Song song, long position, long received, boolean playing, boolean visual) {
+    private record Sample(Song song, long position, long received, boolean playing) {
     }
-
-    private record TrackLyrics(List<LyricTimeline.Line> lines, long duration) {
-    }
-
-    private static final TrackLyrics EMPTY = new TrackLyrics(List.of(), 0);
 
     public record Playback(List<LyricTimeline.Line> lines, long position) {
     }
@@ -47,8 +42,8 @@ public final class NetEaseLyrics implements AutoCloseable {
     private Process reporter;
     private boolean closed;
     private Song requested;
-    private TrackLyrics lyrics = EMPTY;
-    private CompletableFuture<TrackLyrics> pending;
+    private List<LyricTimeline.Line> lyrics = List.of();
+    private CompletableFuture<List<LyricTimeline.Line>> pending;
     private long retryAt;
 
     public NetEaseLyrics() {
@@ -63,11 +58,11 @@ public final class NetEaseLyrics implements AutoCloseable {
         Sample current = sample;
         if (!isResponsive() && !report.equals("failed")) return "Windows 媒体会话读取超时。";
         return switch (report) {
-            case "idle" -> "未检测到网易云媒体会话。请在网易云开启 SMTC 后播放或切换歌曲。";
-            case "timeline" -> "未读到播放进度。请保留网易云主窗口，退出最小化或托盘模式。";
-            case "retry", "failed" -> "无法读取 Windows 媒体会话。";
-            case "media", "log", "progress" ->
-                    pending == null && current != null && current.song().equals(requested) && lyrics.lines().isEmpty()
+            case "idle" -> "未检测到网易云播放进度。请尝试播放或切换歌曲。";
+            case "timeline" -> "SMTC 和网易云播放日志未提供有效进度。";
+            case "retry", "failed" -> "无法读取网易云播放进度。";
+            case "media", "log" ->
+                    pending == null && current != null && current.song().equals(requested) && lyrics.isEmpty()
                             ? "当前歌曲未匹配到可用歌词。" : null;
             default -> null;
         };
@@ -75,15 +70,11 @@ public final class NetEaseLyrics implements AutoCloseable {
 
     public Playback playback() {
         Sample current = sample;
-        if (current == null || !current.song().equals(requested) || lyrics.lines().isEmpty()) return null;
-        long duration = current.visual() ? lyrics.duration() : current.song().duration();
+        if (current == null || !current.song().equals(requested) || lyrics.isEmpty()) return null;
+        long duration = current.song().duration();
         long elapsed = current.playing() ? TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - current.received()) : 0;
-        return new Playback(lyrics.lines(), playbackPosition(current.position(), elapsed, duration, current.visual()));
-    }
-
-    static long playbackPosition(long raw, long elapsed, long duration, boolean visual) {
-        long position = visual ? Math.round(raw * duration / 1_000_000d) + Math.min(elapsed, 750) : raw + elapsed;
-        return duration > 0 ? Math.min(position, duration) : position;
+        long position = current.position() + elapsed;
+        return new Playback(lyrics, duration > 0 ? Math.min(position, duration) : position);
     }
 
     public void updateLyrics() {
@@ -97,9 +88,9 @@ public final class NetEaseLyrics implements AutoCloseable {
         if (current == null || pending != null) return;
 
         Song song = current.song();
-        if (!song.equals(requested) || (lyrics.lines().isEmpty() && System.nanoTime() >= retryAt)) {
+        if (!song.equals(requested) || (lyrics.isEmpty() && System.nanoTime() >= retryAt)) {
             requested = song;
-            lyrics = EMPTY;
+            lyrics = List.of();
             pending = CompletableFuture.supplyAsync(() -> loadLyrics(song));
         }
     }
@@ -118,7 +109,7 @@ public final class NetEaseLyrics implements AutoCloseable {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     String[] fields = line.split("\\t", -1);
-                    sample = fields.length == 7 ? sample(fields, sample) : null;
+                    sample = fields.length == 7 ? sample(fields) : null;
                     if (!report.equals(fields[0]) && sample != null) {
                         CookieMain.LOGGER.debug("Particle Lyrics playback source: {}", fields[0]);
                     }
@@ -139,60 +130,52 @@ public final class NetEaseLyrics implements AutoCloseable {
         }
     }
 
-    private static Sample sample(String[] fields, Sample previous) {
-        boolean visual = fields[0].equals("progress");
+    private static Sample sample(String[] fields) {
         boolean log = fields[0].equals("log");
-        if (!visual && !log && !fields[0].equals("media")) return null;
+        if (!log && !fields[0].equals("media")) return null;
 
         long duration = Long.parseLong(fields[4]);
         Song song = log ? new Song("", "", "", duration, Long.parseLong(fields[1]))
                 : new Song(decode(fields[1]), decode(fields[2]), decode(fields[3]), duration);
         long position = Math.max(0, Long.parseLong(fields[5]));
-        if (visual && position > 1_000_000) return null;
-
-        boolean playing = fields[6].equals("1");
-        if (visual && previous != null && previous.visual() && previous.song().equals(song)
-                && position == previous.position() && playing == previous.playing()) return previous;
-        return new Sample(song, position, System.nanoTime(), playing, visual);
+        return new Sample(song, position, System.nanoTime(), fields[6].equals("1"));
     }
 
     private static String decode(String value) {
         return new String(Base64.getDecoder().decode(value), StandardCharsets.UTF_8);
     }
 
-    private static TrackLyrics loadLyrics(Song song) {
+    private static List<LyricTimeline.Line> loadLyrics(Song song) {
         try {
-            if (song.id() > 0) return loadTrackLyrics(song.id(), song.duration());
+            if (song.id() > 0) return loadTrackLyrics(song.id());
             String query = URLEncoder.encode(song.title() + " " + song.artist(), StandardCharsets.UTF_8);
             JsonObject results = get("/api/search/get?type=1&limit=15&s=" + query).getAsJsonObject("result");
-            if (results == null || !results.has("songs")) return EMPTY;
+            if (results == null || !results.has("songs")) return List.of();
 
             long bestId = 0;
-            long bestDuration = 0;
             long bestScore = Long.MAX_VALUE;
             for (var candidate : results.getAsJsonArray("songs")) {
                 JsonObject track = candidate.getAsJsonObject();
                 long score = matchScore(song, track);
                 if (score < bestScore) {
                     bestId = track.get("id").getAsLong();
-                    bestDuration = track.get("duration").getAsLong();
                     bestScore = score;
                 }
             }
 
-            if (bestId <= 0 || bestDuration <= 0) return EMPTY;
-            return loadTrackLyrics(bestId, bestDuration);
+            if (bestId <= 0) return List.of();
+            return loadTrackLyrics(bestId);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
         } catch (IOException | RuntimeException exception) {
             CookieMain.LOGGER.debug("NetEase lyric lookup failed", exception);
         }
-        return EMPTY;
+        return List.of();
     }
 
-    private static TrackLyrics loadTrackLyrics(long id, long duration) throws IOException, InterruptedException {
+    private static List<LyricTimeline.Line> loadTrackLyrics(long id) throws IOException, InterruptedException {
         JsonObject response = get("/api/song/lyric/v1?id=" + id + "&cp=false&lv=0&kv=0&rv=0&tv=0&yv=0&ytv=0&yrv=0");
-        return new TrackLyrics(LyricTimeline.parse(lyric(response, "yrc"), lyric(response, "lrc")), duration);
+        return LyricTimeline.parse(lyric(response, "yrc"), lyric(response, "lrc"));
     }
 
     static long matchScore(Song song, JsonObject track) {
@@ -206,6 +189,7 @@ public final class NetEaseLyrics implements AutoCloseable {
         }))) return Long.MAX_VALUE;
 
         long duration = track.get("duration").getAsLong();
+        if (duration <= 0) return Long.MAX_VALUE;
         long difference = song.duration() > 0 ? Math.abs(duration - song.duration()) : 0;
         if (difference > 5000) return Long.MAX_VALUE;
 
