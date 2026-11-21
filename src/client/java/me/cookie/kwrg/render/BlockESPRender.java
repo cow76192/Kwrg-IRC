@@ -7,15 +7,14 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.shaders.UniformType;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import me.cookie.kwrg.render.vertex.OverlayVertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.renderer.gizmos.DrawableGizmoPrimitives;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.resources.Identifier;
-import net.minecraft.util.ARGB;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,12 +47,12 @@ public final class BlockESPRender {
     // 外轮廓线管线
     private static final RenderPipeline ESP_LINES_PIPELINE = RenderPipeline.builder()
             .withLocation(Identifier.fromNamespaceAndPath("kwrg", "pipeline/block_esp_lines"))
-            .withVertexShader("core/rendertype_lines")
+            .withVertexShader(Identifier.fromNamespaceAndPath("kwrg", "core/world_lines"))
             .withFragmentShader("core/position_color")
             .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
             .withUniform("Projection", UniformType.UNIFORM_BUFFER)
             .withUniform("Globals", UniformType.UNIFORM_BUFFER)
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL_LINE_WIDTH, VertexFormat.Mode.LINES)
+            .withVertexFormat(OverlayVertexConsumer.LINE_FORMAT, VertexFormat.Mode.LINES)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
@@ -111,12 +110,12 @@ public final class BlockESPRender {
         var buffers = context.bufferSource();
         var poseStack = context.poseStack();
         if (!mesh.quadPrimitives().isEmpty()) {
-            VertexConsumer vertices = new OpacityVertexConsumer(buffers.getBuffer(RenderTypeHolder.QUADS), opacity);
+            var vertices = new OverlayVertexConsumer(buffers.getBuffer(RenderTypeHolder.QUADS), opacity);
             mesh.quadPrimitives().render(poseStack, ignored -> vertices, camera, camera.viewRotationMatrix);
             buffers.endBatch(RenderTypeHolder.QUADS);
         }
         if (!mesh.linePrimitives().isEmpty()) {
-            VertexConsumer vertices = new OpacityVertexConsumer(buffers.getBuffer(RenderTypeHolder.LINES), opacity);
+            var vertices = new OverlayVertexConsumer(buffers.getBuffer(RenderTypeHolder.LINES), opacity);
             mesh.linePrimitives().render(poseStack, ignored -> vertices, camera, camera.viewRotationMatrix);
             buffers.endBatch(RenderTypeHolder.LINES);
         }
@@ -153,55 +152,6 @@ public final class BlockESPRender {
             }
         }
         return new CompiledMesh(quads, lines);
-    }
-
-    private record OpacityVertexConsumer(VertexConsumer delegate, float opacity) implements VertexConsumer {
-        @Override
-        public VertexConsumer addVertex(float x, float y, float z) {
-            delegate.addVertex(x, y, z);
-            return this;
-        }
-
-        @Override
-        public VertexConsumer setColor(int red, int green, int blue, int alpha) {
-            return setColor(ARGB.color(alpha, red, green, blue));
-        }
-
-        @Override
-        public VertexConsumer setColor(int argb) {
-            delegate.setColor(ARGB.multiplyAlpha(argb, opacity));
-            return this;
-        }
-
-        @Override
-        public VertexConsumer setUv(float u, float v) {
-            delegate.setUv(u, v);
-            return this;
-        }
-
-        @Override
-        public VertexConsumer setUv1(int u, int v) {
-            delegate.setUv1(u, v);
-            return this;
-        }
-
-        @Override
-        public VertexConsumer setUv2(int u, int v) {
-            delegate.setUv2(u, v);
-            return this;
-        }
-
-        @Override
-        public VertexConsumer setNormal(float x, float y, float z) {
-            delegate.setNormal(x, y, z);
-            return this;
-        }
-
-        @Override
-        public VertexConsumer setLineWidth(float width) {
-            delegate.setLineWidth(width);
-            return this;
-        }
     }
 
     // 渲染网格数据结构

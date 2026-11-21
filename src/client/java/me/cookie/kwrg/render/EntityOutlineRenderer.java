@@ -6,6 +6,7 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.shaders.UniformType;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import me.cookie.kwrg.render.vertex.OverlayVertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
@@ -44,12 +45,12 @@ public final class EntityOutlineRenderer {
 
     private static final RenderPipeline PIPELINE = RenderPipeline.builder()
             .withLocation(Identifier.fromNamespaceAndPath("kwrg", "pipeline/entity_outline"))
-            .withVertexShader("core/rendertype_lines")
+            .withVertexShader(Identifier.fromNamespaceAndPath("kwrg", "core/world_lines"))
             .withFragmentShader("core/position_color")
             .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
             .withUniform("Projection", UniformType.UNIFORM_BUFFER)
             .withUniform("Globals", UniformType.UNIFORM_BUFFER)
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR_NORMAL_LINE_WIDTH, VertexFormat.Mode.LINES)
+            .withVertexFormat(OverlayVertexConsumer.LINE_FORMAT, VertexFormat.Mode.LINES)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(Optional.empty())
             .withCull(false)
@@ -139,7 +140,7 @@ public final class EntityOutlineRenderer {
         faces.render(context.poseStack(), ignored -> fillVertices, camera, camera.viewRotationMatrix);
         buffers.endBatch(OutlineRenderType.FILL);
 
-        var vertices = buffers.getBuffer(OutlineRenderType.TYPE);
+        var vertices = new OverlayVertexConsumer(buffers.getBuffer(OutlineRenderType.TYPE), 1.0f);
         outlines.render(context.poseStack(), ignored -> vertices, camera, camera.viewRotationMatrix);
         buffers.endBatch(OutlineRenderType.TYPE);
     }
