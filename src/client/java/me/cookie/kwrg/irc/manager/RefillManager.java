@@ -1,7 +1,7 @@
 package me.cookie.kwrg.irc.manager;
 
 import me.cookie.kwrg.gui.notification.NotificationType;
-import me.cookie.kwrg.module.modules.functions.RefillModule;
+import me.cookie.kwrg.module.modules.cheat.RefillModule;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.KeyInputs;
 import me.cookie.kwrg.util.skyblock.SkyblockItemHelper;

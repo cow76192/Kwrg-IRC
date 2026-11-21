@@ -1,7 +1,6 @@
 package me.cookie.kwrg.module;
 
 import me.cookie.kwrg.module.modules.cheat.*;
-import me.cookie.kwrg.module.modules.cheat.*;
 import me.cookie.kwrg.module.modules.config.LoadModule;
 import me.cookie.kwrg.module.modules.config.ShareModule;
 import me.cookie.kwrg.module.modules.debug.*;
@@ -32,9 +31,6 @@ public class ModuleManager {
         // --- CONFIG 模块 ---
         register(new LoadModule());
         register(new ShareModule());
-        register(new GemstoneESPModule());
-        register(new WormLavaESPModule());
-        register(new HarpModule());
 
         // --- FUNCTIONS 模块 ---
         register(new HideArmorModule());
@@ -53,7 +49,6 @@ public class ModuleManager {
         register(new NavigatorModule());
         register(new AutoPurchasePassModule());
         register(new WindowModule());
-        register(new RefillModule());
 
         // --- STYLE 模块 ---
         register(new RankModule());
@@ -79,6 +74,10 @@ public class ModuleManager {
         register(new ESPModule());
         register(new GlaciteAdventurerModule());
         register(new FreecamModule());
+        register(new RefillModule());
+        register(new GemstoneESPModule());
+        register(new WormLavaESPModule());
+        register(new HarpModule());
     }
 
     public static void init() {
