@@ -8,7 +8,6 @@ import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.shaders.UniformType;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import me.cookie.kwrg.render.vertex.OverlayVertexConsumer;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.renderer.gizmos.DrawableGizmoPrimitives;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -38,8 +37,8 @@ public class RouteLineRenderer {
         lines.addLine(start, end, color, 3.0f);
     }
 
-    public void draw(LevelRenderContext context) {
-        var camera = context.levelState().cameraRenderState;
+    public void draw(WorldOverlayRender.Context context) {
+        var camera = context.camera();
         if (lines.isEmpty() || !camera.initialized) return;
 
         var buffers = context.bufferSource();

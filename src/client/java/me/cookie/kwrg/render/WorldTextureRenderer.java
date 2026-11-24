@@ -8,8 +8,6 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -89,7 +87,7 @@ public class WorldTextureRenderer {
 
         if (!testHookRegistered) {
             testHookRegistered = true;
-            LevelRenderEvents.END_MAIN.register(WorldTextureRenderer::onRenderWorldTest);
+            WorldOverlayRender.END_MAIN.register(WorldTextureRenderer::onRenderWorldTest);
         }
 
         if (!testActive) {
@@ -104,7 +102,7 @@ public class WorldTextureRenderer {
         return 1;
     }
 
-    private static void onRenderWorldTest(LevelRenderContext context) {
+    private static void onRenderWorldTest(WorldOverlayRender.Context context) {
         if (!testActive || testAnchorPos == null) return;
         PoseStack poseStack = context.poseStack();
         MultiBufferSource.BufferSource bufferSource = context.bufferSource();

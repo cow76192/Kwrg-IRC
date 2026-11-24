@@ -2,9 +2,8 @@ package me.cookie.kwrg.irc.manager;
 
 import me.cookie.kwrg.module.modules.cheat.GlaciteAdventurerModule;
 import me.cookie.kwrg.render.WaypointRenderer;
+import me.cookie.kwrg.render.WorldOverlayRender;
 import me.cookie.kwrg.util.skyblock.SkyblockLocation;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.core.BlockPos;
@@ -35,7 +34,7 @@ public final class GlaciteAdventurerManager {
     private GlaciteAdventurerManager() {}
 
     public static void init() {
-        LevelRenderEvents.BEFORE_GIZMOS.register(GlaciteAdventurerManager::render);
+        WorldOverlayRender.BEFORE_GIZMOS.register(GlaciteAdventurerManager::render);
     }
 
     public static boolean isActiveInMineshaft() {
@@ -76,10 +75,10 @@ public final class GlaciteAdventurerManager {
         }
     }
 
-    private static void render(LevelRenderContext context) {
+    private static void render(WorldOverlayRender.Context context) {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null || client.player == null
-                || !context.levelState().cameraRenderState.initialized
+                || !context.camera().initialized
                 || WAYPOINTS.isEmpty() || level != client.level || !isActiveInMineshaft()
                 || !server.equals(SkyblockLocation.server())) return;
 

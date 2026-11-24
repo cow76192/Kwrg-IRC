@@ -11,7 +11,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Axis;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -47,7 +46,7 @@ public final class WaypointRenderer {
             .withCull(false)
             .build();
 
-    private final LevelRenderContext context;
+    private final WorldOverlayRender.Context context;
     private final Vec3 cameraPosition;
     private final Vec3 projectionOffset;
     private final Vec3 projectionOrigin;
@@ -65,14 +64,14 @@ public final class WaypointRenderer {
 
     public static Matrix4fc worldProjection() { return WORLD_PROJECTION; }
 
-    public WaypointRenderer(LevelRenderContext context, float animationTime) {
+    public WaypointRenderer(WorldOverlayRender.Context context, float animationTime) {
         this.context = context;
-        this.cameraPosition = context.levelState().cameraRenderState.pos;
+        this.cameraPosition = context.camera().pos;
         this.animationTime = animationTime;
         // Camera rotation is applied globally by LevelRenderer; the callback pose
         // stack contains only local transforms. Both are needed for view-space tests.
         this.viewMatrix = new Matrix4f().scaling(LINE_VIEW_SHRINK)
-                .mul(context.levelState().cameraRenderState.viewRotationMatrix)
+                .mul(context.camera().viewRotationMatrix)
                 .mul(context.poseStack().last().pose());
         // GameRenderer adds walking/hurt bobbing to the uploaded projection, rather
         // than cameraRenderState.projectionMatrix or the callback pose stack.

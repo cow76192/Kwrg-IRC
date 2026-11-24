@@ -4,12 +4,11 @@ import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.IrcMessageHandler;
 import me.cookie.kwrg.module.modules.debug.NavigatorWeightModule;
 import me.cookie.kwrg.render.WaypointRenderer;
+import me.cookie.kwrg.render.WorldOverlayRender;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.Navigator;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gizmos.GizmoStyle;
@@ -71,7 +70,7 @@ public final class ChatWaypointManager {
 
     public static void init() {
         Navigator.setHeuristicWeight(NavigatorWeightModule.CONFIG.get().navigatorWeight);
-        LevelRenderEvents.BEFORE_GIZMOS.register(ChatWaypointManager::render);
+        WorldOverlayRender.BEFORE_GIZMOS.register(ChatWaypointManager::render);
         ClientTickEvents.END_CLIENT_TICK.register(ChatWaypointManager::onTick);
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> POINTS.clear());
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> POINTS.clear());
@@ -149,16 +148,16 @@ public final class ChatWaypointManager {
         return 1;
     }
 
-    private static void render(LevelRenderContext context) {
+    private static void render(WorldOverlayRender.Context context) {
         if (POINTS.isEmpty()) return;
 
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || mc.player == null || !context.levelState().cameraRenderState.initialized) return;
+        if (mc.level == null || mc.player == null || !context.camera().initialized) return;
 
         float animationTime = Math.floorMod(mc.level.getGameTime(), 40)
                 + mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);
         WaypointRenderer renderer = new WaypointRenderer(context, animationTime);
-        Vec3 cameraPos = context.levelState().cameraRenderState.pos;
+        Vec3 cameraPos = context.camera().pos;
 
         for (ChatWaypoint waypoint : POINTS.values()) {
             if (!waypoint.dimension.equals(mc.level.dimension())) continue;

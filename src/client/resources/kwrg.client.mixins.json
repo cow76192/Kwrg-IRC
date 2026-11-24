@@ -19,6 +19,7 @@
 		"freecam.FreecamSodiumMixin",
 		"freecam.FreecamInteractionMixin",
 		"GameRendererMixin",
+		"LevelRendererMixin",
 		"LoadingOverlayMixin",
 		"warp.ConnectScreenMixin",
 		"warp.LevelLoadingScreenMixin",

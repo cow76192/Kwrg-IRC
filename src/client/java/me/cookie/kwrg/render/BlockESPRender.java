@@ -9,8 +9,6 @@ import com.mojang.blaze3d.shaders.UniformType;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import me.cookie.kwrg.render.vertex.OverlayVertexConsumer;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.renderer.gizmos.DrawableGizmoPrimitives;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -91,11 +89,11 @@ public final class BlockESPRender {
 
     public static void init() {
         if (!INITIALIZED.compareAndSet(false, true)) return;
-        LevelRenderEvents.BEFORE_GIZMOS.register(BlockESPRender::onWorldRender);
+        WorldOverlayRender.BEFORE_GIZMOS.register(BlockESPRender::onWorldRender);
     }
 
-    private static void onWorldRender(LevelRenderContext context) {
-        if (!context.levelState().cameraRenderState.initialized) return;
+    private static void onWorldRender(WorldOverlayRender.Context context) {
+        if (!context.camera().initialized) return;
         for (MeshSource source : SOURCES) {
             if (source.enabled().getAsBoolean()) {
                 renderMesh(context, source.mesh().get(), source.opacity().getAsInt() / 100.0f);
@@ -103,9 +101,9 @@ public final class BlockESPRender {
         }
     }
 
-    public static void renderMesh(LevelRenderContext context, CompiledMesh mesh, float opacity) {
+    public static void renderMesh(WorldOverlayRender.Context context, CompiledMesh mesh, float opacity) {
         if (mesh == null || mesh.isEmpty() || opacity <= 0.0f) return;
-        var camera = context.levelState().cameraRenderState;
+        var camera = context.camera();
         if (!camera.initialized) return;
         var buffers = context.bufferSource();
         var poseStack = context.poseStack();
