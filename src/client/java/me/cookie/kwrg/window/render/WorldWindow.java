@@ -8,6 +8,7 @@ import me.cookie.kwrg.module.modules.functions.WindowModule;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.render.WaypointRenderer;
+import me.cookie.kwrg.render.WorldOverlayRender;
 import me.cookie.kwrg.render.WorldTextureRenderer;
 import me.cookie.kwrg.window.capture.WindowCapture;
 import me.cookie.kwrg.window.capture.WindowCompatibility;
@@ -19,8 +20,6 @@ import me.cookie.kwrg.window.input.WindowKeyboardInput;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Camera;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -94,7 +93,7 @@ public final class WorldWindow {
     public static void init() {
         if (initialized) return;
         initialized = true;
-        LevelRenderEvents.END_MAIN.register(WorldWindow::render);
+        WorldOverlayRender.END_MAIN.register(WorldWindow::render);
         ClientTickEvents.START_CLIENT_TICK.register(mc -> {
             WindowCompatibility.update(mc.getWindow().handle(), capture != null && !capture.ended() && (mc.isWindowActive() || gameControlling()));
             if (capture == null) return;
@@ -182,7 +181,7 @@ public final class WorldWindow {
         return new WindowSurface(center.add(offset.x, offset.y, offset.z), rotation, settings.width, settings.width * capture.height() / capture.width(), settings.curved);
     }
 
-    private static void render(LevelRenderContext context) {
+    private static void render(WorldOverlayRender.Context context) {
         if (capture == null || Minecraft.getInstance().level != level || context.poseStack() == null || context.bufferSource() == null)
             return;
 
@@ -195,7 +194,7 @@ public final class WorldWindow {
 
         WindowSurface surface = surface();
         screenCamera = Minecraft.getInstance().gameRenderer.getMainCamera().position();
-        screenProjection.set(WaypointRenderer.worldProjection()).mul(context.levelState().cameraRenderState.viewRotationMatrix).mul(context.poseStack().last().pose());
+        screenProjection.set(WaypointRenderer.worldProjection()).mul(context.camera().viewRotationMatrix).mul(context.poseStack().last().pose());
         projectionReady = true;
         pollControls(Minecraft.getInstance());
         if (controlling && !gameControl) {
@@ -272,7 +271,7 @@ public final class WorldWindow {
         pointerCreated = true;
     }
 
-    private static void renderPreedit(LevelRenderContext context, WindowSurface surface) {
+    private static void renderPreedit(WorldOverlayRender.Context context, WindowSurface surface) {
         var event = WindowIme.composition();
         if (event == null || event.fullText().isEmpty()) return;
 

@@ -5,9 +5,8 @@ import me.cookie.kwrg.util.PointEntry;
 import me.cookie.kwrg.util.WaypointFiles;
 import me.cookie.kwrg.util.skyblock.SkyblockLocation;
 import me.cookie.kwrg.render.WaypointRenderer;
+import me.cookie.kwrg.render.WorldOverlayRender;
 
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gizmos.GizmoStyle;
@@ -75,7 +74,7 @@ public final class WaypointManager {
     }
 
     public static void init() {
-        LevelRenderEvents.BEFORE_GIZMOS.register(WaypointManager::renderWaypoints);
+        WorldOverlayRender.BEFORE_GIZMOS.register(WaypointManager::renderWaypoints);
     }
 
     public static List<WaypointEntry> savedEntries() {
@@ -146,9 +145,9 @@ public final class WaypointManager {
                 && Math.abs(x) <= MAX_COORD && Math.abs(y) <= MAX_COORD && Math.abs(z) <= MAX_COORD;
     }
 
-    private static void renderWaypoints(LevelRenderContext context) {
+    private static void renderWaypoints(WorldOverlayRender.Context context) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null || mc.player == null || !context.levelState().cameraRenderState.initialized) return;
+        if (mc.level == null || mc.player == null || !context.camera().initialized) return;
         float animationTime = Math.floorMod(mc.level.getGameTime(), 40)
                 + mc.getDeltaTracker().getGameTimeDeltaPartialTick(true);
         WaypointRenderer renderer = new WaypointRenderer(context, animationTime);

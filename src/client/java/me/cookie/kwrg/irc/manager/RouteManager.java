@@ -2,6 +2,7 @@ package me.cookie.kwrg.irc.manager;
 
 import me.cookie.kwrg.module.modules.functions.RouteModule;
 import me.cookie.kwrg.render.RouteLineRenderer;
+import me.cookie.kwrg.render.WorldOverlayRender;
 import me.cookie.kwrg.util.PointEntry;
 
 import com.google.gson.Gson;
@@ -13,8 +14,6 @@ import com.google.gson.JsonParser;
 import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.irc.config.IrcConfig;
 import me.cookie.kwrg.util.ChatNotifier;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gizmos.GizmoStyle;
@@ -60,7 +59,7 @@ public final class RouteManager {
     }
 
     public static void init() {
-        LevelRenderEvents.BEFORE_GIZMOS.register(RouteManager::render);
+        WorldOverlayRender.BEFORE_GIZMOS.register(RouteManager::render);
     }
 
     public static void reloadFromConfig() {
@@ -735,10 +734,10 @@ public final class RouteManager {
         return element == null || element.isJsonNull() ? "" : element.getAsString().trim();
     }
 
-    private static void render(LevelRenderContext context) {
+    private static void render(WorldOverlayRender.Context context) {
         if (!visible || ENTRIES.isEmpty()) return;
 
-        var camera = context.levelState().cameraRenderState;
+        var camera = context.camera();
         if (!camera.initialized) return;
 
         Vec3 cameraPosition = camera.pos;

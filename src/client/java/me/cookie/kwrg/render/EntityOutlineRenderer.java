@@ -7,8 +7,6 @@ import com.mojang.blaze3d.shaders.UniformType;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import me.cookie.kwrg.render.vertex.OverlayVertexConsumer;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.gizmos.DrawableGizmoPrimitives;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
@@ -72,13 +70,13 @@ public final class EntityOutlineRenderer {
 
     public static void init(BooleanSupplier manualEsp, BooleanSupplier automaticEsp, IntSupplier color,
                             Predicate<Target> showsTarget) {
-        LevelRenderEvents.BEFORE_GIZMOS.register(context -> render(context, manualEsp, automaticEsp, color, showsTarget));
+        WorldOverlayRender.BEFORE_GIZMOS.register(context -> render(context, manualEsp, automaticEsp, color, showsTarget));
     }
 
-    private static void render(LevelRenderContext context, BooleanSupplier manualEsp, BooleanSupplier automaticEsp,
+    private static void render(WorldOverlayRender.Context context, BooleanSupplier manualEsp, BooleanSupplier automaticEsp,
                                IntSupplier color, Predicate<Target> showsTarget) {
         Minecraft client = Minecraft.getInstance();
-        if (client.level == null || client.player == null || !context.levelState().cameraRenderState.initialized) return;
+        if (client.level == null || client.player == null || !context.camera().initialized) return;
 
         boolean mineshaft = automaticEsp.getAsBoolean();
         if (!mineshaft && !manualEsp.getAsBoolean()) return;
@@ -131,8 +129,8 @@ public final class EntityOutlineRenderer {
         new CuboidGizmo(bounds, GizmoStyle.fill(ARGB.multiplyAlpha(argb, 0.25f)), false).emit(faces, 1.0f);
     }
 
-    public void draw(LevelRenderContext context) {
-        var camera = context.levelState().cameraRenderState;
+    public void draw(WorldOverlayRender.Context context) {
+        var camera = context.camera();
         if (outlines.isEmpty() || !camera.initialized) return;
 
         var buffers = context.bufferSource();

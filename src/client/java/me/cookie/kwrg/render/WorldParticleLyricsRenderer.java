@@ -6,8 +6,6 @@ import com.mojang.blaze3d.platform.CompareOp;
 import me.cookie.kwrg.util.lyrics.LyricTimeline;
 import me.cookie.kwrg.module.modules.style.ParticleLyricsModule;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
-import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -119,11 +117,11 @@ public final class WorldParticleLyricsRenderer {
     }
 
     public static void init() {
-        LevelRenderEvents.END_MAIN.register(WorldParticleLyricsRenderer::render);
+        WorldOverlayRender.END_MAIN.register(WorldParticleLyricsRenderer::render);
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> client.execute(() -> reset(null, null)));
     }
 
-    private static void render(LevelRenderContext context) {
+    private static void render(WorldOverlayRender.Context context) {
         Minecraft mc = Minecraft.getInstance();
         var playback = ParticleLyricsModule.worldSpace() ? ParticleLyricsModule.playback() : null;
         if (mc.level == null || mc.player == null || playback == null) {
@@ -209,10 +207,10 @@ public final class WorldParticleLyricsRenderer {
         return stationary ? Math.min(MAX_DEPTH, lastDepth + 1) : START_DEPTH;
     }
 
-    private static Anchor findAnchor(LevelRenderContext context, Minecraft mc, ParticleLyricsRenderer.Row row,
+    private static Anchor findAnchor(WorldOverlayRender.Context context, Minecraft mc, ParticleLyricsRenderer.Row row,
                                      int side, double desiredDepth, int disperseRadius) {
         if (row.letters().isEmpty()) return null;
-        var cameraState = context.levelState().cameraRenderState;
+        var cameraState = context.camera();
         var viewProjection = new Matrix4f(cameraState.projectionMatrix).mul(cameraState.viewRotationMatrix);
         float requestedScale = worldScale(row.width());
         Anchor preferred = fitAnchor(mc, row, side, desiredDepth, disperseRadius, requestedScale, viewProjection, true);
@@ -326,7 +324,7 @@ public final class WorldParticleLyricsRenderer {
                 + Math.abs(horizontal - 0.48) * 3 + Math.abs(height) * 0.25;
     }
 
-    private static boolean draw(LevelRenderContext context, Minecraft mc, LineAtAnchor line, long position,
+    private static boolean draw(WorldOverlayRender.Context context, Minecraft mc, LineAtAnchor line, long position,
                                 int gatherMs, int disperseMs, int disperseRadius) {
         if (line == null) return false;
 
@@ -342,7 +340,7 @@ public final class WorldParticleLyricsRenderer {
         var camera = mc.gameRenderer.getMainCamera();
         double depth = line.anchor().position().subtract(camera.position()).dot(new Vec3(camera.forwardVector()));
 
-        float pixelRadius = pixelRadius(depth, context.levelState().cameraRenderState.projectionMatrix.m11(),
+        float pixelRadius = pixelRadius(depth, context.camera().projectionMatrix.m11(),
                 mc.getWindow().getHeight());
         float particleSize = ParticleLyricsModule.particleSize();
 
