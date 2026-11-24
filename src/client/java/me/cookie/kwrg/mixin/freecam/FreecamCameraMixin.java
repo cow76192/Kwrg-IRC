@@ -3,6 +3,7 @@ package me.cookie.kwrg.mixin.freecam;
 import me.cookie.kwrg.irc.manager.FreecamManager;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -25,5 +26,10 @@ public abstract class FreecamCameraMixin {
         setRotation(FreecamManager.yaw(), FreecamManager.pitch());
         detached = true;
         ci.cancel();
+    }
+
+    @Inject(method = "extractRenderState", at = @At("TAIL"))
+    private void kwrg$allowCameraInsideTerrain(CameraRenderState state, float partialTick, CallbackInfo ci) {
+        if (FreecamManager.isActive()) state.smartCull = false;
     }
 }

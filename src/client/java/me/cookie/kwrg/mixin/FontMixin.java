@@ -38,7 +38,7 @@ public abstract class FontMixin {
     }
 
     @ModifyVariable(
-            method = "drawInBatch8xOutline",
+            method = "prepare8xTextOutline",
             at = @At("HEAD"),
             ordinal = 0,
             argsOnly = true

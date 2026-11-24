@@ -46,8 +46,8 @@ public class GreetingManager {
         if ("kwrg".equalsIgnoreCase(playerName) || "kwrg".equalsIgnoreCase(entityName)) {
             String period = getTimePeriod();
 
-            client.gui.setTimes(20, 80, 20);
-            client.gui.setTitle(Component.literal("§d§l宝宝" + period + "好~"));
+            client.gui.hud.setTimes(20, 80, 20);
+            client.gui.hud.setTitle(Component.literal("§d§l宝宝" + period + "好~"));
 
             hasGreetedInCurrentSession = true;
         }

@@ -3,7 +3,7 @@ package me.cookie.kwrg.mixin;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.Hud;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.ARGB;
@@ -18,7 +18,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.time.LocalTime;
 
-@Mixin(Gui.class)
+@Mixin(Hud.class)
 public abstract class GuiGreetingMixin {
 
     @Shadow @Final private Minecraft minecraft;

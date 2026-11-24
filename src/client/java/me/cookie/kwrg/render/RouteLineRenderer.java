@@ -5,10 +5,10 @@ import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.CompareOp;
-import com.mojang.blaze3d.shaders.UniformType;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.PrimitiveTopology;
 import me.cookie.kwrg.render.vertex.OverlayVertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.minecraft.client.renderer.BindGroupLayouts;
 import net.minecraft.client.renderer.gizmos.DrawableGizmoPrimitives;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
@@ -20,12 +20,11 @@ public class RouteLineRenderer {
     private static final RenderPipeline PIPELINE = RenderPipeline.builder()
             .withLocation(Identifier.fromNamespaceAndPath("kwrg", "pipeline/route_lines"))
             .withVertexShader(Identifier.fromNamespaceAndPath("kwrg", "core/world_lines"))
-            // Unlike rendertype_lines.fsh, position_color.fsh never applies fog.
             .withFragmentShader("core/position_color")
-            .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
-            .withUniform("Projection", UniformType.UNIFORM_BUFFER)
-            .withUniform("Globals", UniformType.UNIFORM_BUFFER)
-            .withVertexFormat(OverlayVertexConsumer.LINE_FORMAT, VertexFormat.Mode.LINES)
+            .withBindGroupLayout(BindGroupLayouts.MATRICES_PROJECTION)
+            .withBindGroupLayout(BindGroupLayouts.GLOBALS)
+            .withVertexBinding(0, OverlayVertexConsumer.LINE_FORMAT)
+            .withPrimitiveTopology(PrimitiveTopology.LINES)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
             .withCull(false)
@@ -40,14 +39,8 @@ public class RouteLineRenderer {
 
     public void draw(LevelRenderContext context) {
         var camera = context.levelState().cameraRenderState;
-        if (lines.isEmpty() || !camera.initialized) return;
-
-        var buffers = context.bufferSource();
-        var vertices = new OverlayVertexConsumer(buffers.getBuffer(RenderTypeHolder.LINES), 1.0f);
-        // Only lines are queued here. Reuse vanilla near-plane clipping and camera-relative
-        // vertex generation, while directing every line into our own render type.
-        lines.render(context.poseStack(), ignored -> vertices, camera, camera.viewRotationMatrix);
-        buffers.endBatch(RenderTypeHolder.LINES);
+        if (!camera.initialized) return;
+        OverlayGizmos.submit(context, lines, RenderTypeHolder.LINES, 1.0f);
     }
 
     private static final class RenderTypeHolder {

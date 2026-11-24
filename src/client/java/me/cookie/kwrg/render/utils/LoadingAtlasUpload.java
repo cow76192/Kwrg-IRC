@@ -29,7 +29,7 @@ public final class LoadingAtlasUpload {
     }
 
     public static boolean isLoadingWithoutWorld(Minecraft client) {
-        return client != null && client.isSameThread() && client.level == null && client.getOverlay() instanceof LoadingOverlay;
+        return client != null && client.isSameThread() && client.level == null && client.gui.overlay() instanceof LoadingOverlay;
     }
 
     public static void stage(Minecraft client, AtlasManager manager, AtlasManager.PendingStitchResults stitches,

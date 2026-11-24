@@ -21,10 +21,10 @@ public final class RouteScreen extends PointCollectionScreen {
         Minecraft mc = Minecraft.getInstance();
         mc.execute(() -> {
             IrcScreen host = IrcScreen.getCurrentScreen();
-            if (host == null || mc.screen != host) {
+            if (host == null || mc.gui.screen() != host) {
                 host = new IrcScreen();
                 host.setDirectOpenTarget("functions", "route");
-                mc.setScreen(host);
+                mc.gui.setScreen(host);
             }
             float cx = host.width / 2.0f, cy = host.height / 2.0f;
             var panel = host.getActiveTertiaryPanel();

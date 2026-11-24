@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class TitleGuiRendererMixin {
     @Inject(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/render/GuiRenderer;prepare()V"))
     private void kwrg$drawTitleAfterPanorama(CallbackInfo ci) {
-        var target = Minecraft.getInstance().getMainRenderTarget();
+        var target = Minecraft.getInstance().gameRenderer.mainRenderTarget();
         LoadingOverlayRenderer.renderTitle(target);
         ServerPortalRenderer.renderBackground(target);
     }

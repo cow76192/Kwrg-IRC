@@ -51,7 +51,7 @@ public final class StagedAtlasAnimations implements AutoCloseable {
 
     private void allocateUniforms() {
         var device = RenderSystem.getDevice();
-        stride = Mth.roundToward(SpriteContents.UBO_SIZE, device.getUniformOffsetAlignment());
+        stride = Mth.roundToward(SpriteContents.UBO_SIZE, device.getDeviceInfo().limits().minUniformOffsetAlignment());
 
         int mip = preparations.mipLevel();
         bytesPerSprite = stride * (mip + 1);

@@ -3,7 +3,7 @@ package me.cookie.kwrg.mixin;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.mojang.blaze3d.TracyFrameCapture;
+import com.mojang.blaze3d.systems.GpuSurface;
 import com.mojang.blaze3d.textures.GpuTexture;
 import me.cookie.kwrg.CookieMain;
 import me.cookie.kwrg.irc.manager.DanceRoomManager;
@@ -94,34 +94,38 @@ public abstract class MinecraftTickMixin extends ReentrantBlockableEventLoop<Run
     }
 
     @WrapOperation(method = "renderFrame", at = @At(value = "INVOKE",
-            target = "Lcom/mojang/blaze3d/systems/RenderSystem;flipFrame(Lcom/mojang/blaze3d/TracyFrameCapture;)V"))
-    private void kwrg$presentBeforeReloadWork(TracyFrameCapture capture, Operation<Void> original) {
+            target = "Lcom/mojang/blaze3d/systems/GpuSurface;present()V"))
+    private void kwrg$pacePresent(GpuSurface surface, Operation<Void> original) {
         if (!kwrg$presentLoadingFrame) {
-            original.call(capture);
+            original.call(surface);
             return;
         }
-        kwrg$presentLoadingFrame = false;
         Minecraft client = (Minecraft) (Object) this;
         var window = client.getWindow();
-        int vanillaLimit = client.gameRenderer.getGameRenderState().framerateLimit;
-        boolean loading = LoadingAtlasUpload.isLoadingWithoutWorld(client);
-        boolean paced = loading && !window.isMinimized();
-        if (loading) {
+        int vanillaLimit = client.gameRenderer.gameRenderState().framerateLimit;
+        if (LoadingAtlasUpload.isLoadingWithoutWorld(client)) {
             long renderNanos = System.nanoTime() - kwrg$tickStarted;
             try (var ignored = Profiler.get().zone("kwrgLoadingPacing")) {
-                kwrg$loadingPacer.beforePresent(client.getOverlay(), window, client.options.enableVsync().get(),
+                kwrg$loadingPacer.beforePresent(client.gui.overlay(), window, client.options.enableVsync().get(),
                         vanillaLimit, renderNanos);
             }
+            kwrg$usedLoadingLimiter = !window.isMinimized();
         }
-        original.call(capture);
+        original.call(surface);
+        if (kwrg$usedLoadingLimiter) kwrg$loadingPacer.presented(System.nanoTime(), vanillaLimit);
+    }
 
+    @Inject(method = "renderFrame", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/renderer/LevelRenderer;endFrame()V"))
+    private void kwrg$runDeferredReloadWork(CallbackInfo ci) {
+        if (!kwrg$presentLoadingFrame) return;
+        kwrg$presentLoadingFrame = false;
+        Minecraft client = (Minecraft) (Object) this;
         if (LoadingAtlasUpload.isLoadingWithoutWorld(client)) {
-            kwrg$loadingPacer.presented(System.nanoTime(), vanillaLimit);
             try (var ignored = Profiler.get().zone("kwrgLoadingWork")) {
                 kwrg$loadingPacer.runWork(() -> LoadingAtlasUpload.step(client),
                         () -> LoadingFontSets.step(client), () -> LoadingShaderPipelines.step(client), this::pollTask);
             }
-            kwrg$usedLoadingLimiter = paced;
         } else {
             kwrg$loadingPacer.reset();
             LoadingAtlasUpload.step(client);

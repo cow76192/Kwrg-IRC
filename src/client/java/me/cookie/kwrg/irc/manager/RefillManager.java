@@ -200,7 +200,7 @@ public final class RefillManager {
     }
 
     private static boolean canRun(Minecraft mc) {
-        if (mc.player == null || mc.player.connection == null || mc.level == null || mc.screen != null) return false;
+        if (mc.player == null || mc.player.connection == null || mc.level == null || mc.gui.screen() != null) return false;
         return isInSkyblock(mc);
     }
 

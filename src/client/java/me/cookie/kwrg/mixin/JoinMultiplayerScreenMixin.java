@@ -41,7 +41,7 @@ public abstract class JoinMultiplayerScreenMixin extends Screen {
 
         Button tokenBtn = Button.builder(
                 Component.literal("Token 登录"),
-                button -> this.minecraft.setScreen(new TokenLoginScreen(this))
+                button -> this.minecraft.gui.setScreen(new TokenLoginScreen(this))
         ).bounds(x, y, 80, 20).build();
 
         this.addRenderableWidget(tokenBtn);

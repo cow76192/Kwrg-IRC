@@ -3,11 +3,11 @@ package me.cookie.kwrg.render;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.shaders.UniformType;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.PrimitiveTopology;
 import me.cookie.kwrg.render.vertex.OverlayVertexConsumer;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
+import net.minecraft.client.renderer.BindGroupLayouts;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.gizmos.DrawableGizmoPrimitives;
@@ -19,6 +19,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.block.AbstractChestBlock;
 import net.minecraft.world.phys.AABB;
 
@@ -34,7 +35,7 @@ public final class EntityOutlineRenderer {
         PLAYER, MONSTER, ANIMAL, OTHER;
 
         static Target forEntityType(EntityType<?> type) {
-            if (type == EntityType.PLAYER) return PLAYER;
+            if (type == EntityTypes.PLAYER) return PLAYER;
             return switch (type.getCategory()) {
                 case MONSTER -> MONSTER;
                 case MISC -> OTHER;
@@ -47,10 +48,10 @@ public final class EntityOutlineRenderer {
             .withLocation(Identifier.fromNamespaceAndPath("kwrg", "pipeline/entity_outline"))
             .withVertexShader(Identifier.fromNamespaceAndPath("kwrg", "core/world_lines"))
             .withFragmentShader("core/position_color")
-            .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
-            .withUniform("Projection", UniformType.UNIFORM_BUFFER)
-            .withUniform("Globals", UniformType.UNIFORM_BUFFER)
-            .withVertexFormat(OverlayVertexConsumer.LINE_FORMAT, VertexFormat.Mode.LINES)
+            .withBindGroupLayout(BindGroupLayouts.MATRICES_PROJECTION)
+            .withBindGroupLayout(BindGroupLayouts.GLOBALS)
+            .withVertexBinding(0, OverlayVertexConsumer.LINE_FORMAT)
+            .withPrimitiveTopology(PrimitiveTopology.LINES)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(Optional.empty())
             .withCull(false)
@@ -59,9 +60,9 @@ public final class EntityOutlineRenderer {
             .withLocation(Identifier.fromNamespaceAndPath("kwrg", "pipeline/entity_outline_fill"))
             .withVertexShader("core/position_color")
             .withFragmentShader("core/position_color")
-            .withUniform("DynamicTransforms", UniformType.UNIFORM_BUFFER)
-            .withUniform("Projection", UniformType.UNIFORM_BUFFER)
-            .withVertexFormat(DefaultVertexFormat.POSITION_COLOR, VertexFormat.Mode.QUADS)
+            .withBindGroupLayout(BindGroupLayouts.MATRICES_PROJECTION)
+            .withVertexBinding(0, DefaultVertexFormat.POSITION_COLOR)
+            .withPrimitiveTopology(PrimitiveTopology.QUADS)
             .withColorTargetState(new ColorTargetState(BlendFunction.TRANSLUCENT))
             .withDepthStencilState(Optional.empty())
             .withCull(false)
@@ -72,7 +73,7 @@ public final class EntityOutlineRenderer {
 
     public static void init(BooleanSupplier manualEsp, BooleanSupplier automaticEsp, IntSupplier color,
                             Predicate<Target> showsTarget) {
-        LevelRenderEvents.BEFORE_GIZMOS.register(context -> render(context, manualEsp, automaticEsp, color, showsTarget));
+        LevelRenderEvents.COLLECT_SUBMITS.register(context -> render(context, manualEsp, automaticEsp, color, showsTarget));
     }
 
     private static void render(LevelRenderContext context, BooleanSupplier manualEsp, BooleanSupplier automaticEsp,
@@ -133,16 +134,9 @@ public final class EntityOutlineRenderer {
 
     public void draw(LevelRenderContext context) {
         var camera = context.levelState().cameraRenderState;
-        if (outlines.isEmpty() || !camera.initialized) return;
-
-        var buffers = context.bufferSource();
-        var fillVertices = buffers.getBuffer(OutlineRenderType.FILL);
-        faces.render(context.poseStack(), ignored -> fillVertices, camera, camera.viewRotationMatrix);
-        buffers.endBatch(OutlineRenderType.FILL);
-
-        var vertices = new OverlayVertexConsumer(buffers.getBuffer(OutlineRenderType.TYPE), 1.0f);
-        outlines.render(context.poseStack(), ignored -> vertices, camera, camera.viewRotationMatrix);
-        buffers.endBatch(OutlineRenderType.TYPE);
+        if (!camera.initialized) return;
+        OverlayGizmos.submit(context, faces, OutlineRenderType.FILL, 1.0f);
+        OverlayGizmos.submit(context, outlines, OutlineRenderType.TYPE, 1.0f);
     }
 
     private static final class OutlineRenderType {

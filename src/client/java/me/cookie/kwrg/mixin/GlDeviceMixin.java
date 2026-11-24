@@ -13,10 +13,10 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(targets = "com.mojang.blaze3d.opengl.GlDevice")
 public abstract class GlDeviceMixin {
     @WrapOperation(method = "compileProgram", at = @At(value = "INVOKE",
-            target = "Lcom/mojang/blaze3d/opengl/GlProgram;link(Lcom/mojang/blaze3d/opengl/GlShaderModule;Lcom/mojang/blaze3d/opengl/GlShaderModule;Lcom/mojang/blaze3d/vertex/VertexFormat;Ljava/lang/String;)Lcom/mojang/blaze3d/opengl/GlProgram;"))
-    private GlProgram kwrg$linkStagedProgram(GlShaderModule vertex, GlShaderModule fragment, VertexFormat format,
+            target = "Lcom/mojang/blaze3d/opengl/GlProgram;link(Lcom/mojang/blaze3d/opengl/GlShaderModule;Lcom/mojang/blaze3d/opengl/GlShaderModule;[Lcom/mojang/blaze3d/vertex/VertexFormat;Ljava/lang/String;)Lcom/mojang/blaze3d/opengl/GlProgram;"))
+    private GlProgram kwrg$linkStagedProgram(GlShaderModule vertex, GlShaderModule fragment, VertexFormat[] formats,
                                              String label, Operation<GlProgram> original) throws ShaderManager.CompilationException {
         var staged = ParallelShaderLinks.current();
-        return staged == null ? original.call(vertex, fragment, format, label) : staged.link(vertex, fragment, format, label);
+        return staged == null ? original.call(vertex, fragment, formats, label) : staged.link(vertex, fragment, formats, label);
     }
 }

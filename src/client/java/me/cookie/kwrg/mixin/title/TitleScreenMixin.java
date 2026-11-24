@@ -11,7 +11,7 @@ import me.cookie.kwrg.gui.title.TitleModeButton;
 import me.cookie.kwrg.gui.title.TitleModeTransition;
 import me.cookie.kwrg.render.utils.LoadingOverlayRenderer;
 import me.cookie.kwrg.render.ServerPortalRenderer;
-import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -63,20 +63,20 @@ public abstract class TitleScreenMixin extends Screen implements TitleBrowser.Ho
 
     @Unique
     private boolean kwrg$canSwitch() {
-        return !kwrg$mode.switching() && !kwrg$browser.handlesInput() && minecraft.getOverlay() == null;
+        return !kwrg$mode.switching() && !kwrg$browser.handlesInput() && minecraft.gui.overlay() == null;
     }
 
     @WrapWithCondition(method = "lambda$createNormalMenuOptions$0", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/Minecraft;setScreen(Lnet/minecraft/client/gui/screens/Screen;)V"))
-    private boolean kwrg$openWorlds(Minecraft game, Screen screen) {
+            target = "Lnet/minecraft/client/gui/Gui;setScreen(Lnet/minecraft/client/gui/screens/Screen;)V"))
+    private boolean kwrg$openWorlds(Gui gui, Screen screen) {
         if (kwrg$mode.classic() || !LoadingOverlayRenderer.prepareBrowser()) return true;
         kwrg$browser.open(screen, false);
         return false;
     }
 
-    @WrapWithCondition(method = "lambda$createNormalMenuOptions$1", at = @At(value = "INVOKE",
-            target = "Lnet/minecraft/client/Minecraft;setScreen(Lnet/minecraft/client/gui/screens/Screen;)V"))
-    private boolean kwrg$openServers(Minecraft game, Screen screen) {
+    @WrapWithCondition(method = "lambda$createNormalMenuOptions$3", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/gui/Gui;setScreen(Lnet/minecraft/client/gui/screens/Screen;)V"))
+    private boolean kwrg$openServers(Gui gui, Screen screen) {
         if (kwrg$mode.classic() || !LoadingOverlayRenderer.prepareBrowser()) return true;
         kwrg$browser.open(screen, true);
         return false;
@@ -94,7 +94,7 @@ public abstract class TitleScreenMixin extends Screen implements TitleBrowser.Ho
             return;
         }
 
-        if (!classic && !kwrg$warmedProjection && minecraft.getOverlay() == null) {
+        if (!classic && !kwrg$warmedProjection && minecraft.gui.overlay() == null) {
             kwrg$warmedProjection = true;
             LoadingOverlayRenderer.prepareBrowser();
             LoadingOverlayRenderer.prepareSwitch();
@@ -130,7 +130,7 @@ public abstract class TitleScreenMixin extends Screen implements TitleBrowser.Ho
                     ((int) (245 * flash) << 24) | 0xC2F1F5);
         }
 
-        kwrg$modeButton.visible = !kwrg$browser.handlesInput() && minecraft.getOverlay() == null;
+        kwrg$modeButton.visible = !kwrg$browser.handlesInput() && minecraft.gui.overlay() == null;
         kwrg$modeButton.active = kwrg$canSwitch();
         kwrg$modeButton.setClassic(classic);
         if (kwrg$modeButton.visible) {

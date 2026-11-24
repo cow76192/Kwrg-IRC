@@ -75,7 +75,7 @@ public final class WaypointManager {
     }
 
     public static void init() {
-        LevelRenderEvents.BEFORE_GIZMOS.register(WaypointManager::renderWaypoints);
+        LevelRenderEvents.COLLECT_SUBMITS.register(WaypointManager::renderWaypoints);
     }
 
     public static List<WaypointEntry> savedEntries() {

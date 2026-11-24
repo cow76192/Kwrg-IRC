@@ -71,7 +71,7 @@ public final class ParallelShaderLinks implements AutoCloseable {
         }
     }
 
-    public GlProgram link(GlShaderModule vertex, GlShaderModule fragment, VertexFormat format, String label)
+    public GlProgram link(GlShaderModule vertex, GlShaderModule fragment, VertexFormat[] formats, String label)
             throws ShaderManager.CompilationException {
         PendingLink completed = pending.remove(compiling);
         int program = completed == null ? GlStateManager.glCreateProgram() : completed.program();
@@ -83,8 +83,15 @@ public final class ParallelShaderLinks implements AutoCloseable {
         try {
             if (completed == null) {
                 int attribute = 0;
-                for (String name : format.getElementAttributeNames()) {
-                    GlStateManager._glBindAttribLocation(program, attribute++, name);
+                String previous = null;
+                for (VertexFormat format : formats) {
+                    if (format == null) continue;
+                    for (var element : format.getElements()) {
+                        String name = element.name();
+                        if (!name.equals(previous)) GlStateManager._glBindAttribLocation(program, attribute, name);
+                        previous = name;
+                        attribute++;
+                    }
                 }
                 GlStateManager.glAttachShader(program, vertex.getShaderId());
                 GlStateManager.glAttachShader(program, fragment.getShaderId());

@@ -99,7 +99,7 @@ public class PingModule extends Module {
 
         autoRefreshTask = TIMER.scheduleAtFixedRate(() -> {
             Minecraft mc = Minecraft.getInstance();
-            if (mc.screen instanceof IrcScreen screen) {
+            if (mc.gui.screen() instanceof IrcScreen screen) {
                 if (screen.getActiveTertiaryPanel() != null && "ping".equalsIgnoreCase(screen.getActiveTertiaryPanel().getItemTitle())) {
                     if (IrcClient.isIrcConnect) {
                         executePing(false);

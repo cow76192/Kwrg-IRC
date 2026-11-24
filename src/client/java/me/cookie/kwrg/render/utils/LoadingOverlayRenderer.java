@@ -5,6 +5,7 @@ import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
+import com.mojang.blaze3d.pipeline.BindGroupLayout;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.CompareOp;
@@ -19,9 +20,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.textures.GpuTextureView;
-import com.mojang.blaze3d.textures.TextureFormat;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.GpuFormat;
+import com.mojang.blaze3d.PrimitiveTopology;
 import me.cookie.kwrg.CookieMain;
 import net.minecraft.client.renderer.MappableRingBuffer;
 import net.minecraft.resources.Identifier;
@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
-import java.util.OptionalInt;
 
 public final class LoadingOverlayRenderer {
     private static final int GRID_SIZE = 16;
@@ -58,7 +57,7 @@ public final class LoadingOverlayRenderer {
     private static final int FRAME_UNIFORM_BYTES = 304;
     private static final String FRAME_UNIFORM = "LoadingFrame";
     private static final ColorTargetState BLEND = new ColorTargetState(
-            Optional.of(BlendFunction.TRANSLUCENT), ColorTargetState.WRITE_COLOR);
+            Optional.of(BlendFunction.TRANSLUCENT), GpuFormat.RGBA8_UNORM, ColorTargetState.WRITE_COLOR);
 
     private static final RenderPipeline BACKGROUND = pipeline("loading_background", "loading_background")
             .withCull(false)
@@ -66,7 +65,7 @@ public final class LoadingOverlayRenderer {
     private static final RenderPipeline TITLE_WARP = pipeline("title_warp", "loading_background")
             .withCull(false)
             .withShaderDefine("PANORAMA_WARP")
-            .withSampler("PanoramaSampler")
+            .withBindGroupLayout(BindGroupLayout.builder().withSampler("PanoramaSampler").build())
             .build();
     private static final DepthStencilState SOLID_DEPTH = new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true);
     private static final RenderPipeline VOXELS = pipeline("loading_voxels", "loading_voxels")
@@ -134,12 +133,12 @@ public final class LoadingOverlayRenderer {
                 .withLocation(Identifier.fromNamespaceAndPath(CookieMain.MOD_ID, "pipeline/" + name))
                 .withVertexShader(shaderId)
                 .withFragmentShader(shaderId)
-                .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.Mode.TRIANGLES)
+                .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
                 .withCull(true)
                 .withShaderDefine("GRID_SIZE", GRID_SIZE)
                 .withShaderDefine("BUILD_START", BUILD_START)
                 .withShaderDefine("BUILD_END", BUILD_END)
-                .withUniform(FRAME_UNIFORM, UniformType.UNIFORM_BUFFER)
+                .withBindGroupLayout(BindGroupLayout.builder().withUniform(FRAME_UNIFORM, UniformType.UNIFORM_BUFFER).build())
                 .withColorTargetState(BLEND);
     }
 
@@ -194,7 +193,7 @@ public final class LoadingOverlayRenderer {
         prepare();
         if (target != null && target.width > 0 && target.height > 0) {
             prepareBuffers(device, target.width, target.height);
-            RenderSystem.getSequentialBuffer(VertexFormat.Mode.TRIANGLES).getBuffer(CUBE_INDICES);
+            RenderSystem.getSequentialBuffer(PrimitiveTopology.TRIANGLES).getBuffer(CUBE_INDICES);
         }
     }
 
@@ -305,7 +304,7 @@ public final class LoadingOverlayRenderer {
 
         GpuBuffer uniform = uniforms.currentBuffer();
 
-        try (var mapped = encoder.mapBuffer(uniform, false, true)) {
+        try (var mapped = uniform.map(false, true)) {
             Std140Builder data = Std140Builder.intoBuffer(mapped.data())
                     .putVec4(current.time(), current.progress(), current.opacity(), current.burst())
                     .putVec4(target.width, target.height, current.mouseX(), current.mouseY())
@@ -328,29 +327,29 @@ public final class LoadingOverlayRenderer {
             }
         }
 
-        var indices = RenderSystem.getSequentialBuffer(VertexFormat.Mode.TRIANGLES);
+        var indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.TRIANGLES);
         GpuBuffer cubeIndices = indices.getBuffer(CUBE_INDICES);
         try (RenderPass pass = encoder.createRenderPass(() -> "KWRG loading overlay", target.getColorTextureView(),
-                OptionalInt.empty(), depthView, OptionalDouble.of(1.0))) {
+                Optional.empty(), depthView, OptionalDouble.of(1.0))) {
             if (menu != null || current.burst() < 0.69f) {
                 usePipeline(pass, warp ? TITLE_WARP : BACKGROUND, uniform);
                 if (warp) {
                     pass.bindTexture("PanoramaSampler", panoramaView, RenderSystem.getSamplerCache().getClampToEdge(FilterMode.LINEAR));
                 }
-                pass.draw(0, 3);
+                pass.draw(3, 1, 0, 0);
             }
 
             boolean showScene = !warp || mode.gather() >= 0.0f || mode.burst() < 1.0f;
             boolean switchBurst = mode.burst() > 0.0f;
             if (showScene && rows > 0 && !switchBurst && (menu != null || !bursting)) {
                 usePipeline(pass, SHELL, uniform);
-                pass.draw(0, CUBE_INDICES);
+                pass.draw(CUBE_INDICES, 1, 0, 0);
             }
 
             pass.setIndexBuffer(cubeIndices, indices.type());
             if (showScene) {
                 usePipeline(pass, VOXELS, uniform);
-                pass.drawIndexed(0, 0, CUBE_INDICES, particles);
+                pass.drawIndexed(CUBE_INDICES, particles, 0, 0, 0);
             }
 
             if (drawProjection) {
@@ -358,11 +357,11 @@ public final class LoadingOverlayRenderer {
                         ? browser.count() * BEACON_VOXELS + (browser.selected() >= 0 ? PORTAL_VOXELS : 0)
                         : MODEL_VOXELS;
                 usePipeline(pass, TITLE_PROJECTION, uniform);
-                pass.drawIndexed(0, 0, CUBE_INDICES, LAYER_VOXELS + count);
+                pass.drawIndexed(CUBE_INDICES, LAYER_VOXELS + count, 0, 0, 0);
             }
             if (showScene && (menu != null || current.burst() < 0.46f)) {
                 usePipeline(pass, HOLOGRAM, uniform);
-                pass.drawIndexed(0, 0, 6, lines + ringLines + boardLines + ATMOSPHERE_VOXELS);
+                pass.drawIndexed(6, lines + ringLines + boardLines + ATMOSPHERE_VOXELS, 0, 0, 0);
             }
         }
         uniforms.rotate();
@@ -382,7 +381,7 @@ public final class LoadingOverlayRenderer {
         if (depth == null || depth.getWidth(0) != width || depth.getHeight(0) != height) {
             closeDepth();
             depth = device.createTexture("KWRG loading depth", GpuTexture.USAGE_RENDER_ATTACHMENT,
-                    TextureFormat.DEPTH32, width, height, 1, 1);
+                    GpuFormat.D32_FLOAT, width, height, 1, 1);
             depthView = device.createTextureView(depth);
         }
     }

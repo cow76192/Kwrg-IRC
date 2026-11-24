@@ -71,7 +71,7 @@ public final class ChatWaypointManager {
 
     public static void init() {
         Navigator.setHeuristicWeight(NavigatorWeightModule.CONFIG.get().navigatorWeight);
-        LevelRenderEvents.BEFORE_GIZMOS.register(ChatWaypointManager::render);
+        LevelRenderEvents.COLLECT_SUBMITS.register(ChatWaypointManager::render);
         ClientTickEvents.END_CLIENT_TICK.register(ChatWaypointManager::onTick);
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> POINTS.clear());
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> POINTS.clear());
@@ -234,7 +234,7 @@ public final class ChatWaypointManager {
     }
 
     private static boolean seesBlock(Minecraft mc, BlockPos pos) {
-        Vec3 from = mc.gameRenderer.getMainCamera().position();
+        Vec3 from = mc.gameRenderer.mainCamera().position();
         Vec3 to = Vec3.atCenterOf(pos);
         BlockHitResult hit = mc.level.clip(new ClipContext(from, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, mc.player));
         if (hit.getType() == HitResult.Type.MISS) return true;

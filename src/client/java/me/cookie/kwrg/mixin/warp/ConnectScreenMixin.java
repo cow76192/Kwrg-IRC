@@ -38,7 +38,7 @@ public abstract class ConnectScreenMixin extends Screen {
     @Inject(method = "startConnecting", at = @At("HEAD"))
     private static void kwrg$rememberEndpoint(Screen parent, Minecraft game, ServerAddress address, ServerData server,
                                               boolean quickPlay, TransferState transfer, CallbackInfo ci) {
-        if (!(game.screen instanceof ConnectScreen)) ServerRetry.remember(parent, address, server, transfer != null);
+        if (!(game.gui.screen() instanceof ConnectScreen)) ServerRetry.remember(parent, address, server, transfer != null);
     }
 
     @Inject(method = "init", at = @At("HEAD"))

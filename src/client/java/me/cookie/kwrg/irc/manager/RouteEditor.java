@@ -56,7 +56,7 @@ public final class RouteEditor {
 
         Minecraft client = Minecraft.getInstance();
         if (window != client.getWindow().handle() || client.player == null || client.level == null
-                || client.screen != null || client.getOverlay() != null || !client.isWindowActive()
+                || client.gui.screen() != null || client.gui.overlay() != null || !client.isWindowActive()
                 || !client.mouseHandler.isMouseGrabbed()) return;
 
         if (client.hitResult instanceof BlockHitResult hit && hit.getType() == HitResult.Type.BLOCK) {

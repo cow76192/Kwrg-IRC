@@ -1,17 +1,17 @@
 package me.cookie.kwrg.render.vertex;
 
+import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import com.mojang.blaze3d.vertex.VertexFormatElement;
 import net.minecraft.util.ARGB;
 
 public record OverlayVertexConsumer(VertexConsumer delegate, float opacity) implements VertexConsumer {
-    public static final VertexFormat LINE_FORMAT = VertexFormat.builder()
-            .add("Position", VertexFormatElement.POSITION)
-            .add("Color", VertexFormatElement.COLOR)
-            .add("DirectionXY", VertexFormatElement.UV0)
-            .add("DirectionZBits", VertexFormatElement.UV1)
-            .add("LineWidth", VertexFormatElement.LINE_WIDTH)
+    public static final VertexFormat LINE_FORMAT = VertexFormat.builder(0)
+            .addAttribute("Position", GpuFormat.RGB32_FLOAT)
+            .addAttribute("Color", GpuFormat.RGBA8_UNORM)
+            .addAttribute("UV0", GpuFormat.RG32_FLOAT)
+            .addAttribute("UV1", GpuFormat.RG16_SINT)
+            .addAttribute("LineWidth", GpuFormat.R32_FLOAT)
             .build();
 
     @Override

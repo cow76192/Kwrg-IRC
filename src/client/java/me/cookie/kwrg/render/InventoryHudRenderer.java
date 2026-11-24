@@ -65,7 +65,7 @@ public final class InventoryHudRenderer {
 
     public static void render(GuiGraphicsExtractor graphics, float delta) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.screen instanceof me.cookie.kwrg.gui.IrcScreen) return;
+        if (mc.gui.screen() instanceof me.cookie.kwrg.gui.IrcScreen) return;
 
         HudElement.State state = HudElementRegistry.state(HudElementRegistry.INVENTORY);
         boolean enabled = state.enabled;

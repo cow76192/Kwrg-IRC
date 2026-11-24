@@ -10,14 +10,13 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Matrix4f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,7 +74,7 @@ public class WorldTextRenderer {
 
         if (!testHookRegistered) {
             testHookRegistered = true;
-            LevelRenderEvents.END_MAIN.register(WorldTextRenderer::onRenderWorldTest);
+            LevelRenderEvents.COLLECT_SUBMITS.register(WorldTextRenderer::onRenderWorldTest);
         }
 
         if (!testActive) {
@@ -93,7 +92,7 @@ public class WorldTextRenderer {
     private static void onRenderWorldTest(LevelRenderContext context) {
         if (!testActive || testAnchorPos == null) return;
         PoseStack poseStack = context.poseStack();
-        MultiBufferSource.BufferSource bufferSource = context.bufferSource();
+        SubmitNodeCollector bufferSource = context.submitNodeCollector();
         if (poseStack == null || bufferSource == null) return;
 
         Vec3 leftBase = testAnchorPos.add(-3.8, 0, 0);
@@ -179,285 +178,283 @@ public class WorldTextRenderer {
         renderStyled(poseStack, bufferSource, rightBL.add(0, 0.0, 0), rightTR.add(0, 0.22, 0), "[R13] 2-Point Styled Full Args", "purple wave", false, true);
         render(poseStack, bufferSource, rightBL.add(0, -0.3, 0), rightTR.add(0, -0.08, 0), ColorUtil.applyStyle("[R14] 2-Point Full Args Comp", "gradient(#00F2FE,#00FF87) animate"), DEFAULT_COLOR, false, true);
 
-        bufferSource.endBatch();
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, String text) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, String text) {
         render(poseStack, bufferSource, bottomLeft, Component.literal(text), DEFAULT_COLOR, DEFAULT_SCALE, true, true, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, String text, boolean shadow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, String text, boolean shadow) {
         render(poseStack, bufferSource, bottomLeft, Component.literal(text), DEFAULT_COLOR, DEFAULT_SCALE, shadow, true, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, String text, boolean shadow, boolean floating, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, String text, boolean shadow, boolean floating, boolean glow) {
         render(poseStack, bufferSource, bottomLeft, Component.literal(text), DEFAULT_COLOR, DEFAULT_SCALE, shadow, true, floating, floating, glow);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, String text, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, String text, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
         render(poseStack, bufferSource, bottomLeft, Component.literal(text), DEFAULT_COLOR, DEFAULT_SCALE, shadow, true, floating, floatAnimated, glow);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, String text, int color) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, String text, int color) {
         render(poseStack, bufferSource, bottomLeft, Component.literal(text), color, DEFAULT_SCALE, true, true, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, String text, int color, boolean shadow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, String text, int color, boolean shadow) {
         render(poseStack, bufferSource, bottomLeft, Component.literal(text), color, DEFAULT_SCALE, shadow, true, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, String text, int color, boolean shadow, boolean floating, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, String text, int color, boolean shadow, boolean floating, boolean glow) {
         render(poseStack, bufferSource, bottomLeft, Component.literal(text), color, DEFAULT_SCALE, shadow, true, floating, floating, glow);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, String text, int color, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, String text, int color, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
         render(poseStack, bufferSource, bottomLeft, Component.literal(text), color, DEFAULT_SCALE, shadow, true, floating, floatAnimated, glow);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, String text, Color color) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, String text, Color color) {
         int argb = color != null ? color.getRGB() : DEFAULT_COLOR;
         render(poseStack, bufferSource, bottomLeft, Component.literal(text), argb, DEFAULT_SCALE, true, true, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, String text, Color color, boolean shadow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, String text, Color color, boolean shadow) {
         int argb = color != null ? color.getRGB() : DEFAULT_COLOR;
         render(poseStack, bufferSource, bottomLeft, Component.literal(text), argb, DEFAULT_SCALE, shadow, true, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, String text, Color color, boolean shadow, boolean floating, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, String text, Color color, boolean shadow, boolean floating, boolean glow) {
         int argb = color != null ? color.getRGB() : DEFAULT_COLOR;
         render(poseStack, bufferSource, bottomLeft, Component.literal(text), argb, DEFAULT_SCALE, shadow, true, floating, floating, glow);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, String text, Color color, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, String text, Color color, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
         int argb = color != null ? color.getRGB() : DEFAULT_COLOR;
         render(poseStack, bufferSource, bottomLeft, Component.literal(text), argb, DEFAULT_SCALE, shadow, true, floating, floatAnimated, glow);
     }
 
-    public static void renderStyled(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, String text, String styleConfig) {
+    public static void renderStyled(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, String text, String styleConfig) {
         Component richText = ColorUtil.applyStyle(text, styleConfig);
         render(poseStack, bufferSource, bottomLeft, richText, DEFAULT_COLOR, DEFAULT_SCALE, true, true, false, false, false);
     }
 
-    public static void renderStyled(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, String text, String styleConfig, boolean shadow) {
+    public static void renderStyled(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, String text, String styleConfig, boolean shadow) {
         Component richText = ColorUtil.applyStyle(text, styleConfig);
         render(poseStack, bufferSource, bottomLeft, richText, DEFAULT_COLOR, DEFAULT_SCALE, shadow, true, false, false, false);
     }
 
-    public static void renderStyled(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, String text, String styleConfig, boolean shadow, boolean floating, boolean glow) {
+    public static void renderStyled(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, String text, String styleConfig, boolean shadow, boolean floating, boolean glow) {
         Component richText = ColorUtil.applyStyle(text, styleConfig);
         render(poseStack, bufferSource, bottomLeft, richText, DEFAULT_COLOR, DEFAULT_SCALE, shadow, true, floating, floating, glow);
     }
 
-    public static void renderStyled(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, String text, String styleConfig, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
+    public static void renderStyled(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, String text, String styleConfig, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
         Component richText = ColorUtil.applyStyle(text, styleConfig);
         render(poseStack, bufferSource, bottomLeft, richText, DEFAULT_COLOR, DEFAULT_SCALE, shadow, true, floating, floatAnimated, glow);
     }
 
-    public static void renderStyled(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, String text, String styleConfig, float scale, boolean shadow, boolean seeThrough) {
+    public static void renderStyled(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, String text, String styleConfig, float scale, boolean shadow, boolean seeThrough) {
         Component richText = ColorUtil.applyStyle(text, styleConfig);
         render(poseStack, bufferSource, bottomLeft, richText, DEFAULT_COLOR, scale, shadow, seeThrough, false, false, false);
     }
 
-    public static void renderStyled(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, String text, String styleConfig, float scale, boolean shadow, boolean seeThrough, boolean floating, boolean glow) {
+    public static void renderStyled(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, String text, String styleConfig, float scale, boolean shadow, boolean seeThrough, boolean floating, boolean glow) {
         Component richText = ColorUtil.applyStyle(text, styleConfig);
         render(poseStack, bufferSource, bottomLeft, richText, DEFAULT_COLOR, scale, shadow, seeThrough, floating, floating, glow);
     }
 
-    public static void renderStyled(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, String text, String styleConfig, float scale, boolean shadow, boolean seeThrough, boolean floating, boolean floatAnimated, boolean glow) {
+    public static void renderStyled(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, String text, String styleConfig, float scale, boolean shadow, boolean seeThrough, boolean floating, boolean floatAnimated, boolean glow) {
         Component richText = ColorUtil.applyStyle(text, styleConfig);
         render(poseStack, bufferSource, bottomLeft, richText, DEFAULT_COLOR, scale, shadow, seeThrough, floating, floatAnimated, glow);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Component component) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Component component) {
         render(poseStack, bufferSource, bottomLeft, component, DEFAULT_COLOR, DEFAULT_SCALE, true, true, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Component component, boolean shadow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Component component, boolean shadow) {
         render(poseStack, bufferSource, bottomLeft, component, DEFAULT_COLOR, DEFAULT_SCALE, shadow, true, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Component component, boolean shadow, boolean floating, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Component component, boolean shadow, boolean floating, boolean glow) {
         render(poseStack, bufferSource, bottomLeft, component, DEFAULT_COLOR, DEFAULT_SCALE, shadow, true, floating, floating, glow);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Component component, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Component component, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
         render(poseStack, bufferSource, bottomLeft, component, DEFAULT_COLOR, DEFAULT_SCALE, shadow, true, floating, floatAnimated, glow);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Component component, int color) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Component component, int color) {
         render(poseStack, bufferSource, bottomLeft, component, color, DEFAULT_SCALE, true, true, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Component component, int color, boolean shadow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Component component, int color, boolean shadow) {
         render(poseStack, bufferSource, bottomLeft, component, color, DEFAULT_SCALE, shadow, true, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Component component, int color, boolean shadow, boolean floating, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Component component, int color, boolean shadow, boolean floating, boolean glow) {
         render(poseStack, bufferSource, bottomLeft, component, color, DEFAULT_SCALE, shadow, true, floating, floating, glow);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Component component, int color, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Component component, int color, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
         render(poseStack, bufferSource, bottomLeft, component, color, DEFAULT_SCALE, shadow, true, floating, floatAnimated, glow);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Component component, int color, float scale, boolean shadow, boolean seeThrough) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Component component, int color, float scale, boolean shadow, boolean seeThrough) {
         render(poseStack, bufferSource, bottomLeft, component, color, scale, shadow, seeThrough, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Component component, int color, float scale, boolean shadow, boolean seeThrough, boolean floating, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Component component, int color, float scale, boolean shadow, boolean seeThrough, boolean floating, boolean glow) {
         render(poseStack, bufferSource, bottomLeft, component, color, scale, shadow, seeThrough, floating, floating, glow);
     }
 
     // 左下角渲染
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Component component, int color, float scale, boolean shadow, boolean seeThrough, boolean floating, boolean floatAnimated, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Component component, int color, float scale, boolean shadow, boolean seeThrough, boolean floating, boolean floatAnimated, boolean glow) {
         if (component == null || component.getString().isEmpty()) return;
 
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
-        Camera camera = mc.gameRenderer.getMainCamera();
+        Camera camera = mc.gameRenderer.mainCamera();
         FormattedCharSequence wrappedSeq = NickManager.wrap(component.getVisualOrderText());
 
         pushBillboard(poseStack, camera, bottomLeft);
         poseStack.scale(-scale, -scale, scale);
 
-        Matrix4f matrix = poseStack.last().pose();
         Font.DisplayMode displayMode = seeThrough ? Font.DisplayMode.SEE_THROUGH : Font.DisplayMode.NORMAL;
 
         float startX = 0.0F;
         float startY = -font.lineHeight;
         int finalColor = ColorUtil.ensureAlpha(color);
 
-        drawComponentInternal(font, wrappedSeq, startX, startY, finalColor, shadow, matrix, bufferSource, displayMode, floating, floatAnimated, glow);
+        drawComponentInternal(font, wrappedSeq, startX, startY, finalColor, shadow, poseStack, bufferSource, displayMode, floating, floatAnimated, glow);
 
         poseStack.popPose();
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, String text) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, String text) {
         render(poseStack, bufferSource, bottomLeft, topRight, Component.literal(text), DEFAULT_COLOR, true, true, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, boolean shadow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, boolean shadow) {
         render(poseStack, bufferSource, bottomLeft, topRight, Component.literal(text), DEFAULT_COLOR, shadow, true, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, boolean shadow, boolean floating, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, boolean shadow, boolean floating, boolean glow) {
         render(poseStack, bufferSource, bottomLeft, topRight, Component.literal(text), DEFAULT_COLOR, shadow, true, floating, floating, glow);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
         render(poseStack, bufferSource, bottomLeft, topRight, Component.literal(text), DEFAULT_COLOR, shadow, true, floating, floatAnimated, glow);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, int color) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, int color) {
         render(poseStack, bufferSource, bottomLeft, topRight, Component.literal(text), color, true, true, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, int color, boolean shadow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, int color, boolean shadow) {
         render(poseStack, bufferSource, bottomLeft, topRight, Component.literal(text), color, shadow, true, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, int color, boolean shadow, boolean floating, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, int color, boolean shadow, boolean floating, boolean glow) {
         render(poseStack, bufferSource, bottomLeft, topRight, Component.literal(text), color, shadow, true, floating, floating, glow);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, int color, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, int color, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
         render(poseStack, bufferSource, bottomLeft, topRight, Component.literal(text), color, shadow, true, floating, floatAnimated, glow);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, Color color) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, Color color) {
         int argb = color != null ? color.getRGB() : DEFAULT_COLOR;
         render(poseStack, bufferSource, bottomLeft, topRight, Component.literal(text), argb, true, true, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, Color color, boolean shadow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, Color color, boolean shadow) {
         int argb = color != null ? color.getRGB() : DEFAULT_COLOR;
         render(poseStack, bufferSource, bottomLeft, topRight, Component.literal(text), argb, shadow, true, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, Color color, boolean shadow, boolean floating, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, Color color, boolean shadow, boolean floating, boolean glow) {
         int argb = color != null ? color.getRGB() : DEFAULT_COLOR;
         render(poseStack, bufferSource, bottomLeft, topRight, Component.literal(text), argb, shadow, true, floating, floating, glow);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, Color color, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, Color color, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
         int argb = color != null ? color.getRGB() : DEFAULT_COLOR;
         render(poseStack, bufferSource, bottomLeft, topRight, Component.literal(text), argb, shadow, true, floating, floatAnimated, glow);
     }
 
-    public static void renderStyled(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, String styleConfig) {
+    public static void renderStyled(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, String styleConfig) {
         Component richText = ColorUtil.applyStyle(text, styleConfig);
         render(poseStack, bufferSource, bottomLeft, topRight, richText, DEFAULT_COLOR, true, true, false, false, false);
     }
 
-    public static void renderStyled(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, String styleConfig, boolean shadow) {
+    public static void renderStyled(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, String styleConfig, boolean shadow) {
         Component richText = ColorUtil.applyStyle(text, styleConfig);
         render(poseStack, bufferSource, bottomLeft, topRight, richText, DEFAULT_COLOR, shadow, true, false, false, false);
     }
 
-    public static void renderStyled(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, String styleConfig, boolean shadow, boolean seeThrough) {
+    public static void renderStyled(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, String styleConfig, boolean shadow, boolean seeThrough) {
         Component richText = ColorUtil.applyStyle(text, styleConfig);
         render(poseStack, bufferSource, bottomLeft, topRight, richText, DEFAULT_COLOR, shadow, seeThrough, false, false, false);
     }
 
-    public static void renderStyled(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, String styleConfig, boolean shadow, boolean floating, boolean glow) {
+    public static void renderStyled(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, String styleConfig, boolean shadow, boolean floating, boolean glow) {
         Component richText = ColorUtil.applyStyle(text, styleConfig);
         render(poseStack, bufferSource, bottomLeft, topRight, richText, DEFAULT_COLOR, shadow, true, floating, floating, glow);
     }
 
-    public static void renderStyled(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, String styleConfig, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
+    public static void renderStyled(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, String styleConfig, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
         Component richText = ColorUtil.applyStyle(text, styleConfig);
         render(poseStack, bufferSource, bottomLeft, topRight, richText, DEFAULT_COLOR, shadow, true, floating, floatAnimated, glow);
     }
 
-    public static void renderStyled(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, String styleConfig, boolean shadow, boolean seeThrough, boolean floating, boolean floatAnimated, boolean glow) {
+    public static void renderStyled(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, String text, String styleConfig, boolean shadow, boolean seeThrough, boolean floating, boolean floatAnimated, boolean glow) {
         Component richText = ColorUtil.applyStyle(text, styleConfig);
         render(poseStack, bufferSource, bottomLeft, topRight, richText, DEFAULT_COLOR, shadow, seeThrough, floating, floatAnimated, glow);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, Component component) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, Component component) {
         render(poseStack, bufferSource, bottomLeft, topRight, component, DEFAULT_COLOR, true, true, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, Component component, boolean shadow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, Component component, boolean shadow) {
         render(poseStack, bufferSource, bottomLeft, topRight, component, DEFAULT_COLOR, shadow, true, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, Component component, boolean shadow, boolean floating, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, Component component, boolean shadow, boolean floating, boolean glow) {
         render(poseStack, bufferSource, bottomLeft, topRight, component, DEFAULT_COLOR, shadow, true, floating, floating, glow);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, Component component, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, Component component, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
         render(poseStack, bufferSource, bottomLeft, topRight, component, DEFAULT_COLOR, shadow, true, floating, floatAnimated, glow);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, Component component, int color) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, Component component, int color) {
         render(poseStack, bufferSource, bottomLeft, topRight, component, color, true, true, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, Component component, int color, boolean shadow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, Component component, int color, boolean shadow) {
         render(poseStack, bufferSource, bottomLeft, topRight, component, color, shadow, true, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, Component component, int color, boolean shadow, boolean seeThrough) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, Component component, int color, boolean shadow, boolean seeThrough) {
         render(poseStack, bufferSource, bottomLeft, topRight, component, color, shadow, seeThrough, false, false, false);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, Component component, int color, boolean shadow, boolean floating, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, Component component, int color, boolean shadow, boolean floating, boolean glow) {
         render(poseStack, bufferSource, bottomLeft, topRight, component, color, shadow, true, floating, floating, glow);
     }
 
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, Component component, int color, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, Component component, int color, boolean shadow, boolean floating, boolean floatAnimated, boolean glow) {
         render(poseStack, bufferSource, bottomLeft, topRight, component, color, shadow, true, floating, floatAnimated, glow);
     }
 
     // 左下角 + 右上角
-    public static void render(PoseStack poseStack, MultiBufferSource bufferSource, Vec3 bottomLeft, Vec3 topRight, Component component, int color, boolean shadow, boolean seeThrough, boolean floating, boolean floatAnimated, boolean glow) {
+    public static void render(PoseStack poseStack, SubmitNodeCollector bufferSource, Vec3 bottomLeft, Vec3 topRight, Component component, int color, boolean shadow, boolean seeThrough, boolean floating, boolean floatAnimated, boolean glow) {
         if (component == null || component.getString().isEmpty()) return;
 
         Minecraft mc = Minecraft.getInstance();
         Font font = mc.font;
-        Camera camera = mc.gameRenderer.getMainCamera();
+        Camera camera = mc.gameRenderer.mainCamera();
         Vec3 camPos = camera.position();
 
         FormattedCharSequence wrappedSeq = NickManager.wrap(component.getVisualOrderText());
@@ -506,7 +503,7 @@ public class WorldTextRenderer {
         poseStack.mulPose(Axis.YP.rotation(yaw + Mth.PI));
         poseStack.scale(-scaleX, -scaleY, scaleZ);
 
-        drawComponentInternal(font, wrappedSeq, 0.0F, -textHeight, finalColor, shadow, poseStack.last().pose(), bufferSource, displayMode, floating, floatAnimated, glow);
+        drawComponentInternal(font, wrappedSeq, 0.0F, -textHeight, finalColor, shadow, poseStack, bufferSource, displayMode, floating, floatAnimated, glow);
         poseStack.popPose();
 
         // 背面
@@ -515,7 +512,7 @@ public class WorldTextRenderer {
         poseStack.mulPose(Axis.YP.rotation(yaw));
         poseStack.scale(-scaleX, -scaleY, scaleZ);
 
-        drawComponentInternal(font, wrappedSeq, 0.0F, -textHeight, finalColor, shadow, poseStack.last().pose(), bufferSource, displayMode, floating, floatAnimated, glow);
+        drawComponentInternal(font, wrappedSeq, 0.0F, -textHeight, finalColor, shadow, poseStack, bufferSource, displayMode, floating, floatAnimated, glow);
         poseStack.popPose();
     }
 
@@ -528,8 +525,8 @@ public class WorldTextRenderer {
             float startY,
             int defaultColor,
             boolean shadow,
-            Matrix4f matrix,
-            MultiBufferSource bufferSource,
+            PoseStack poses,
+            SubmitNodeCollector bufferSource,
             Font.DisplayMode displayMode,
             boolean floating,
             boolean floatAnimated,
@@ -540,7 +537,7 @@ public class WorldTextRenderer {
             NickManager.setBypassed(true);
 
             if (!floating && !glow) {
-                font.drawInBatch(sequence, startX, startY, defaultColor, shadow, matrix, bufferSource, displayMode, 0, FULL_BRIGHT);
+                bufferSource.submitText(poses, startX, startY, NickManager.keepAsIs(sequence), shadow, displayMode, FULL_BRIGHT, defaultColor, 0, 0);
                 return;
             }
 
@@ -575,21 +572,10 @@ public class WorldTextRenderer {
                 float charY = startY + yOffset;
 
                 if (glow) {
-                    renderFeatherGlowForChar(font, glyph, cursorX, charY, defaultColor, matrix, bufferSource, displayMode);
+                    renderFeatherGlowForChar(glyph, cursorX, charY, defaultColor, poses, bufferSource, displayMode);
                 }
 
-                font.drawInBatch(
-                        singleCharSeq,
-                        cursorX,
-                        charY,
-                        defaultColor,
-                        shadow,
-                        matrix,
-                        bufferSource,
-                        displayMode,
-                        0,
-                        FULL_BRIGHT
-                );
+                bufferSource.submitText(poses, cursorX, charY, NickManager.keepAsIs(singleCharSeq), shadow, displayMode, FULL_BRIGHT, defaultColor, 0, 0);
 
                 cursorX += charAdvance;
             }
@@ -599,13 +585,12 @@ public class WorldTextRenderer {
     }
 
     private static void renderFeatherGlowForChar(
-            Font font,
             StyledGlyph glyph,
             float x,
             float y,
             int defaultColor,
-            Matrix4f matrix,
-            MultiBufferSource bufferSource,
+            PoseStack poses,
+            SubmitNodeCollector bufferSource,
             Font.DisplayMode displayMode
     ) {
         TextColor styleColor = glyph.style().getColor();
@@ -621,35 +606,13 @@ public class WorldTextRenderer {
         int outerAlpha = Math.max(10, (int) (baseAlpha * 0.12F));
         int outerColor = (outerAlpha << 24) | glowRgb;
         for (float[] offset : GLOW_OUTER_OFFSETS) {
-            font.drawInBatch(
-                    glowSeq,
-                    x + offset[0],
-                    y + offset[1],
-                    outerColor,
-                    false,
-                    matrix,
-                    bufferSource,
-                    displayMode,
-                    0,
-                    FULL_BRIGHT
-            );
+            bufferSource.submitText(poses, x + offset[0], y + offset[1], NickManager.keepAsIs(glowSeq), false, displayMode, FULL_BRIGHT, outerColor, 0, 0);
         }
 
         int innerAlpha = Math.max(20, (int) (baseAlpha * 0.26F));
         int innerColor = (innerAlpha << 24) | glowRgb;
         for (float[] offset : GLOW_INNER_OFFSETS) {
-            font.drawInBatch(
-                    glowSeq,
-                    x + offset[0],
-                    y + offset[1],
-                    innerColor,
-                    false,
-                    matrix,
-                    bufferSource,
-                    displayMode,
-                    0,
-                    FULL_BRIGHT
-            );
+            bufferSource.submitText(poses, x + offset[0], y + offset[1], NickManager.keepAsIs(glowSeq), false, displayMode, FULL_BRIGHT, innerColor, 0, 0);
         }
     }
 

@@ -77,7 +77,7 @@ public final class PlayerDollHudRenderer {
     public static void render(GuiGraphicsExtractor graphics, float delta) {
         Minecraft mc = Minecraft.getInstance();
 
-        if (mc.screen instanceof me.cookie.kwrg.gui.IrcScreen || mc.screen instanceof InventoryScreen) {
+        if (mc.gui.screen() instanceof me.cookie.kwrg.gui.IrcScreen || mc.gui.screen() instanceof InventoryScreen) {
             return;
         }
 
@@ -151,7 +151,7 @@ public final class PlayerDollHudRenderer {
         float dt = lastFrameMs < 0L ? 0.016f : Math.min(0.1f, (now - lastFrameMs) / 1000.0f);
         lastFrameMs = now;
 
-        if (mc.screen != null) {
+        if (mc.gui.screen() != null) {
             // 打开 HUD 编辑器或聊天框等界面时跟随鼠标光标转动
             var window = mc.getWindow();
             lookX = (float) (mc.mouseHandler.xpos() * ((double) window.getGuiScaledWidth() / (double) window.getScreenWidth()));

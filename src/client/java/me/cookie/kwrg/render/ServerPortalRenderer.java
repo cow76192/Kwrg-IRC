@@ -5,6 +5,7 @@ import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
+import com.mojang.blaze3d.pipeline.BindGroupLayout;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.CompareOp;
@@ -13,9 +14,8 @@ import com.mojang.blaze3d.systems.GpuDevice;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.textures.GpuTexture;
 import com.mojang.blaze3d.textures.GpuTextureView;
-import com.mojang.blaze3d.textures.TextureFormat;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.GpuFormat;
+import com.mojang.blaze3d.PrimitiveTopology;
 import me.cookie.kwrg.CookieMain;
 import me.cookie.kwrg.gui.title.TitleBrowser;
 import me.cookie.kwrg.gui.title.ServerRetry;
@@ -39,7 +39,6 @@ import org.joml.Matrix4f;
 
 import java.util.Optional;
 import java.util.OptionalDouble;
-import java.util.OptionalInt;
 import java.util.concurrent.ThreadLocalRandom;
 
 public final class ServerPortalRenderer {
@@ -68,7 +67,7 @@ public final class ServerPortalRenderer {
     private static final String OBSIDIAN_SAMPLER = "ObsidianSampler";
     private static final String CRYING_SAMPLER = "CryingObsidianSampler";
     private static final ColorTargetState TRANSLUCENT = new ColorTargetState(
-            Optional.of(BlendFunction.TRANSLUCENT), ColorTargetState.WRITE_COLOR);
+            Optional.of(BlendFunction.TRANSLUCENT), GpuFormat.RGBA8_UNORM, ColorTargetState.WRITE_COLOR);
     private static final DepthStencilState WRITE_DEPTH = new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, true);
     private static final RenderPipeline SKY = pipeline("server_portal_sky", "loading_background")
             .withCull(false).build();
@@ -77,10 +76,10 @@ public final class ServerPortalRenderer {
             .withShaderDefine("PORTAL_DEBRIS_START", SCENE_VOXELS + AMBIENT_VOXELS)
             .withShaderDefine("PORTAL_TEARS_START", SCENE_VOXELS + AMBIENT_VOXELS + DEBRIS_VOXELS)
             .withShaderDefine("PORTAL_ARRIVAL_SHARDS", ARRIVAL_VOXELS)
-            .withSampler(OBSIDIAN_SAMPLER).withSampler(CRYING_SAMPLER)
+            .withBindGroupLayout(BindGroupLayout.builder().withSampler(OBSIDIAN_SAMPLER).withSampler(CRYING_SAMPLER).build())
             .withCull(true).withDepthStencilState(WRITE_DEPTH).build();
     private static final RenderPipeline CLOUD_DEPTH = cloudPipeline("server_portal_cloud_depth")
-            .withColorTargetState(new ColorTargetState(Optional.empty(), ColorTargetState.WRITE_NONE))
+            .withColorTargetState(new ColorTargetState(Optional.empty(), GpuFormat.RGBA8_UNORM, ColorTargetState.WRITE_NONE))
             .withDepthStencilState(WRITE_DEPTH).build();
     private static final RenderPipeline CLOUD_COLOR = cloudPipeline("server_portal_cloud_color")
             .withDepthStencilState(new DepthStencilState(CompareOp.LESS_THAN_OR_EQUAL, false)).build();
@@ -103,8 +102,8 @@ public final class ServerPortalRenderer {
                 .withLocation(id("pipeline/" + name))
                 .withVertexShader(id("core/" + vertex))
                 .withFragmentShader(id("core/" + fragment))
-                .withVertexFormat(DefaultVertexFormat.EMPTY, VertexFormat.Mode.TRIANGLES)
-                .withUniform(PORTAL_UNIFORM, UniformType.UNIFORM_BUFFER)
+                .withPrimitiveTopology(PrimitiveTopology.TRIANGLES)
+                .withBindGroupLayout(BindGroupLayout.builder().withUniform(PORTAL_UNIFORM, UniformType.UNIFORM_BUFFER).build())
                 .withColorTargetState(TRANSLUCENT);
     }
 
@@ -216,7 +215,7 @@ public final class ServerPortalRenderer {
         if (game.level != null) game.level.disconnect(ConnectScreen.ABORT_CONNECTION);
 
         game.disconnectWithProgressScreen();
-        game.setScreen(parent);
+        game.gui.setScreen(parent);
     }
 
     public static boolean fail(Screen screen, Screen parent) {
@@ -354,7 +353,7 @@ public final class ServerPortalRenderer {
             return;
         }
 
-        Screen screen = game.screen;
+        Screen screen = game.gui.screen();
         long now = Util.getMillis();
         current.now = now;
         if (current.returnAt != 0L) {
@@ -453,7 +452,7 @@ public final class ServerPortalRenderer {
         float failure = current.failure == null ? -1.0f : Math.max(0.0f, (failurePose - current.failureTime) * 0.001f);
         float returning = current.returnAt == 0L ? -1.0f : current.returnElapsed();
 
-        try (var mapped = encoder.mapBuffer(uniform, false, true)) {
+        try (var mapped = uniform.map(false, true)) {
             Std140Builder.intoBuffer(mapped.data())
                     .putVec4(target.width, target.height, build, (current.now - current.created) * 0.001f)
                     .putVec4(opacity, ignition, current.joining ? 1.0f : 0.0f, failure)
@@ -464,19 +463,19 @@ public final class ServerPortalRenderer {
                     .putMat4f(view);
         }
 
-        var indices = RenderSystem.getSequentialBuffer(VertexFormat.Mode.TRIANGLES);
+        var indices = RenderSystem.getSequentialBuffer(PrimitiveTopology.TRIANGLES);
         GpuBuffer cubeIndices = indices.getBuffer(CUBE_VERTICES);
 
         var textures = Minecraft.getInstance().getTextureManager();
         var obsidian = textures.getTexture(OBSIDIAN);
         var crying = textures.getTexture(CRYING_OBSIDIAN);
 
-        try (var pass = encoder.createRenderPass(() -> "KWRG server portal", target.getColorTextureView(), OptionalInt.empty(),
+        try (var pass = encoder.createRenderPass(() -> "KWRG server portal", target.getColorTextureView(), Optional.empty(),
                 depthView, OptionalDouble.of(1.0))) {
             if (current.landing < 0.55f) {
                 pass.setPipeline(SKY);
                 pass.setUniform(PORTAL_UNIFORM, uniform);
-                pass.draw(0, 3);
+                pass.draw(3, 1, 0, 0);
             }
 
             pass.setPipeline(VOXELS);
@@ -487,15 +486,15 @@ public final class ServerPortalRenderer {
             pass.setIndexBuffer(cubeIndices, indices.type());
 
             int sceneVoxels = SCENE_VOXELS + AMBIENT_VOXELS + (current.failure == null ? 0 : DEBRIS_VOXELS + TEAR_VOXELS);
-            pass.drawIndexed(0, 0, CUBE_VERTICES, camera != null ? ARRIVAL_VOXELS + AMBIENT_VOXELS : sceneVoxels);
+            pass.drawIndexed(CUBE_VERTICES, camera != null ? ARRIVAL_VOXELS + AMBIENT_VOXELS : sceneVoxels, 0, 0, 0);
             if (camera == null) {
                 pass.setPipeline(CLOUD_DEPTH);
                 pass.setUniform(PORTAL_UNIFORM, uniform);
-                pass.drawIndexed(0, 0, CUBE_VERTICES, CLOUD_VOXELS);
+                pass.drawIndexed(CUBE_VERTICES, CLOUD_VOXELS, 0, 0, 0);
 
                 pass.setPipeline(CLOUD_COLOR);
                 pass.setUniform(PORTAL_UNIFORM, uniform);
-                pass.drawIndexed(0, 0, CUBE_VERTICES, CLOUD_VOXELS);
+                pass.drawIndexed(CUBE_VERTICES, CLOUD_VOXELS, 0, 0, 0);
             }
         }
         uniforms.rotate();
@@ -508,7 +507,7 @@ public final class ServerPortalRenderer {
 
         if (depth == null || depth.getWidth(0) != target.width || depth.getHeight(0) != target.height) {
             closeDepth();
-            depth = device.createTexture("KWRG portal depth", GpuTexture.USAGE_RENDER_ATTACHMENT, TextureFormat.DEPTH32,
+            depth = device.createTexture("KWRG portal depth", GpuTexture.USAGE_RENDER_ATTACHMENT, GpuFormat.D32_FLOAT,
                     target.width, target.height, 1, 1);
             depthView = device.createTextureView(depth);
         }

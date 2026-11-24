@@ -352,7 +352,7 @@ public class ChatNotifier {
         if (mc.player != null && mc.level != null) {
             Component msg;
             while ((msg = PENDING_MESSAGES.poll()) != null) {
-                mc.gui.getChat().addClientSystemMessage(msg);
+                mc.gui.hud.getChat().addClientSystemMessage(msg);
             }
         }
     }
