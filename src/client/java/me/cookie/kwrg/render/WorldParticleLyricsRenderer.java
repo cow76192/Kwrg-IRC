@@ -40,7 +40,8 @@ public final class WorldParticleLyricsRenderer {
     private static final float MAX_WORLD_PIXEL_RADIUS = 0.035f;
     private static final Vec3 UP = new Vec3(0, 1, 0);
     private static final double[] SURFACE_CLEARANCE = {0.12, 0.36, 0.65};
-    private static final float[] SIZE_FITS = {1f, 0.8f, 0.64f, 0.5f, 0.4f, 0.32f};
+    private static final float FONT_COMPENSATION = 4f;
+    private static final float[] SIZE_FITS = {1f, 0.8f, 0.64f, 0.5f, 0.4f, 0.32f, 0.25f, 0.2f, 0.16f};
     private static final double[] HORIZONTAL = {0.48, 0.32, 0.64, 0.19, 0.07, 0, -0.24};
     private static final double[] VERTICAL = {0, -0.18, -0.32, -0.44, -0.57, -0.72, 0.16, 0.34, 0.54};
 
@@ -385,7 +386,8 @@ public final class WorldParticleLyricsRenderer {
 
     private static float worldScale(float width) {
         float fontScale = ParticleLyricsRenderer.fontScale();
-        return Math.min(WorldTextRenderer.DEFAULT_SCALE * 0.5f * fontScale, worldLineWidth(fontScale) / width);
+        return FONT_COMPENSATION * Math.min(WorldTextRenderer.DEFAULT_SCALE * 0.5f * fontScale,
+                worldLineWidth(fontScale) / width);
     }
 
     static float worldLineWidth(float fontScale) {
