@@ -381,14 +381,20 @@ public final class RenderUtil {
     }
 
     public static void drawTexture(OwoUIGraphics graphics, Identifier texture, float x, float y, float width, float height, int textureWidth, int textureHeight) {
+        drawTexture(graphics, texture, x, y, width, height, textureWidth, textureHeight, 0xFFFFFFFF);
+    }
+
+    public static void drawTexture(OwoUIGraphics graphics, Identifier texture, float x, float y, float width, float height, int textureWidth, int textureHeight, int color) {
         if (textureWidth <= 0 || textureHeight <= 0 || width <= 0.0f || height <= 0.0f) return;
+        if ((color >>> 24) == 0) return;
         graphics.pose().pushMatrix();
         graphics.pose().translate(x, y);
         graphics.pose().scale(width / textureWidth, height / textureHeight);
         graphics.blit(RenderPipelines.GUI_TEXTURED, texture,
                 0, 0, 0f, 0f,
                 textureWidth, textureHeight,
-                textureWidth, textureHeight);
+                textureWidth, textureHeight,
+                color);
         graphics.pose().popMatrix();
     }
 }
