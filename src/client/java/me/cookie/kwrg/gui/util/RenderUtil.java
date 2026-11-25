@@ -1,9 +1,10 @@
 package me.cookie.kwrg.gui.util;
 
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import io.wispforest.owo.mixin.ui.access.GuiGraphicsExtractorAccessor;
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
-import io.wispforest.owo.mixin.ui.access.GuiGraphicsExtractorAccessor;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
+import me.cookie.kwrg.render.RoundedBlurRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -396,5 +397,12 @@ public final class RenderUtil {
                 textureWidth, textureHeight,
                 color);
         graphics.pose().popMatrix();
+    }
+
+    public static void drawRoundedBlur(OwoUIGraphics graphics, float x, float y, float width, float height,
+                                       float radius, float directions, float quality, float blurSize, float alpha) {
+        if (alpha <= 0.005f || width <= 0.0f || height <= 0.0f) return;
+        // 提交 RoundedBlurElementRenderState 到 graphics.guiRenderState
+        RoundedBlurRenderer.submit(graphics, x, y, width, height, radius, directions, blurSize, alpha);
     }
 }
