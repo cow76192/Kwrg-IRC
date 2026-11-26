@@ -4,12 +4,19 @@ import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.ColorTargetState;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.CompareOp;
+import com.mojang.blaze3d.systems.CommandEncoder;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.GpuTexture;
+import com.mojang.blaze3d.textures.GpuTextureView;
+import com.mojang.blaze3d.textures.TextureFormat;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import io.wispforest.owo.mixin.ui.access.GuiGraphicsExtractorAccessor;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.render.TextureSetup;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -35,11 +42,22 @@ public final class RoundedBlurRenderer {
                     .build()
     );
 
+    private static @Nullable GpuTexture backdropTexture;
+    private static @Nullable GpuTextureView backdropTextureView;
+    private static int backdropWidth = -1;
+    private static int backdropHeight = -1;
+
     private RoundedBlurRenderer() {}
 
     public static void submit(OwoUIGraphics graphics, float x, float y, float width, float height,
                               float radius, float directions, float blurSize, float alpha) {
         if (graphics == null || width <= 0.0f || height <= 0.0f || alpha <= 0.005f) return;
+
+        // 提前确认主帧缓冲有效，避免提交无法绑定背景纹理的绘制状态
+        RenderTarget mainTarget = Minecraft.getInstance().getMainRenderTarget();
+        if (mainTarget == null || mainTarget.getColorTexture() == null || mainTarget.width <= 0 || mainTarget.height <= 0) {
+            return;
+        }
 
         Matrix3x2f pose = new Matrix3x2f(graphics.pose());
         ScreenRectangle scissor = ((GuiGraphicsExtractorAccessor) (Object) graphics).owo$getScissorStack().peek();
@@ -57,6 +75,53 @@ public final class RoundedBlurRenderer {
         );
 
         graphics.guiRenderState.addGuiElement(state);
+    }
+
+    /** 供 RoundedBlurGuiRendererMixin 在 executeDraw 阶段拷贝当前屏幕画面到独立离屏纹理 */
+    public static @Nullable GpuTextureView captureBackdrop(CommandEncoder encoder) {
+        RenderTarget mainTarget = Minecraft.getInstance().getMainRenderTarget();
+        if (mainTarget == null) return null;
+
+        GpuTexture mainColor = mainTarget.getColorTexture();
+        int width = mainTarget.width;
+        int height = mainTarget.height;
+        if (mainColor == null || width <= 0 || height <= 0) return null;
+
+        ensureBackdrop(width, height);
+        if (backdropTexture == null || backdropTextureView == null) return null;
+
+        encoder.copyTextureToTexture(mainColor, backdropTexture, 0, 0, 0, 0, 0, width, height);
+        return backdropTextureView;
+    }
+
+    private static void ensureBackdrop(int width, int height) {
+        if (backdropTexture != null && backdropTextureView != null
+                && backdropWidth == width && backdropHeight == height) {
+            return;
+        }
+        close();
+        backdropTexture = RenderSystem.getDevice().createTexture(
+                () -> "kwrg:rounded_blur_backdrop",
+                GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING,
+                TextureFormat.RGBA8,
+                width, height, 1, 1
+        );
+        backdropTextureView = RenderSystem.getDevice().createTextureView(backdropTexture);
+        backdropWidth = width;
+        backdropHeight = height;
+    }
+
+    public static void close() {
+        if (backdropTextureView != null) {
+            backdropTextureView.close();
+            backdropTextureView = null;
+        }
+        if (backdropTexture != null) {
+            backdropTexture.close();
+            backdropTexture = null;
+        }
+        backdropWidth = -1;
+        backdropHeight = -1;
     }
 
     private static @Nullable ScreenRectangle computeBounds(Matrix3x2fc pose, float x1, float y1, float x2, float y2,
