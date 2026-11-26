@@ -98,7 +98,15 @@ public final class RenderUtil {
         public void blit(RenderPipeline pipeline, Identifier texture, int x, int y, float u, float v, int w, int h, int tw, int th) {
             delegate.blit(pipeline, texture, x, y, u, v, w, h, tw, th, fade(0xFFFFFFFF));
         }
+        
+        @Override
+        public void blit(RenderPipeline pipeline, Identifier texture, int x, int y, float u, float v, int w, int h, int tw, int th, int color) {
+            if (opacity > 0.005f) {
+                delegate.blit(pipeline, texture, x, y, u, v, w, h, tw, th, fade(color));
+            }
+        }
     }
+
 
     public static void fillSubpixel(OwoUIGraphics graphics, float minX, float minY, float maxX, float maxY, int color) {
         if (maxX <= minX || maxY <= minY) return;
