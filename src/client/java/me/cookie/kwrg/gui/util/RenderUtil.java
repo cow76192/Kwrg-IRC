@@ -163,6 +163,11 @@ public final class RenderUtil {
 
     public static void drawSoftDropShadow(OwoUIGraphics graphics, float x, float y, float width, float height,
                                           float radius, float blur, float offsetY, int baseAlpha, float alpha) {
+        drawSoftDropShadow(graphics, x, y, width, height, radius, blur, offsetY, baseAlpha, alpha, true);
+    }
+
+    public static void drawSoftDropShadow(OwoUIGraphics graphics, float x, float y, float width, float height,
+                                          float radius, float blur, float offsetY, int baseAlpha, float alpha, boolean fillCore) {
         if (alpha <= 0.005f || blur <= 0.1f) return;
 
         int maxA = (int) (baseAlpha * alpha);
@@ -176,7 +181,9 @@ public final class RenderUtil {
         float r = Math.min(radius, Math.min(width / 2.0f, height / 2.0f));
         float sy = y + offsetY;
 
-        drawSubpixelRoundedCore(graphics, x, sy, width, height, r, innerCol);
+        if (fillCore) {
+            drawSubpixelRoundedCore(graphics, x, sy, width, height, r, innerCol);
+        }
 
         if (width > 2.0f * r) {
             drawQuadGradient(graphics, x + r, sy - blur, x + width - r, sy, outerRgb, outerRgb, innerRgb, innerRgb);
@@ -196,7 +203,7 @@ public final class RenderUtil {
 
     public static void drawSoftDropShadow(OwoUIGraphics graphics, float x, float y, float width, float height,
                                           float radius, float blur, float offsetY, float alpha) {
-        drawSoftDropShadow(graphics, x, y, width, height, radius, blur, offsetY, 50, alpha);
+        drawSoftDropShadow(graphics, x, y, width, height, radius, blur, offsetY, 50, alpha, true);
     }
 
     public static void drawSubpixelRoundedPanel(OwoUIGraphics graphics, float x, float y, float width, float height,

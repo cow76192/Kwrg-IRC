@@ -92,7 +92,7 @@ void main() {
     // 背景饱和度
     float bgLuma = dot(blurred, vec3(0.299, 0.587, 0.114));
     vec3 vibrantBg = mix(vec3(bgLuma), blurred, 1.18);
-    float tintStrength = mix(0.24, 0.42, smoothstep(0.35, 0.85, bgLuma));
+    float tintStrength = mix(0.12, 0.28, smoothstep(0.35, 0.85, bgLuma));
     vec3 glassColor = mix(vibrantBg, vec3(0.06, 0.09, 0.14), tintStrength);
 
     // 顶部微光
