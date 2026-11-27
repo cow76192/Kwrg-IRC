@@ -817,7 +817,7 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
 
         // Tab 补全 ( Tab / Shift+Tab 切换候选)
         if (input.key() == GLFW.GLFW_KEY_TAB && !ctrl) {
-            if (handleTabAutocomplete(shift)) {
+            if (handleTabAutocomplete(shift) || !this.suggestions.isEmpty()) {
                 return true;
             }
         }

@@ -8,8 +8,9 @@ import io.wispforest.owo.ui.core.Positioning;
 import io.wispforest.owo.ui.core.Surface;
 import me.cookie.kwrg.gui.component.ParticleBackgroundComponent;
 import me.cookie.kwrg.gui.component.RadialMenuComponent;
-import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
 import me.cookie.kwrg.gui.component.SmoothScrollbar;
+import me.cookie.kwrg.gui.component.TertiaryPanelComponent;
+import me.cookie.kwrg.gui.component.pane.TextInputPaneComponent;
 import me.cookie.kwrg.gui.notification.NotificationManager;
 import me.cookie.kwrg.gui.util.AnimationUtil;
 import me.cookie.kwrg.module.modules.debug.DisableBlurModule;
@@ -17,10 +18,10 @@ import me.cookie.kwrg.module.modules.style.GuiScaleModule;
 import me.cookie.kwrg.render.DynamicIslandRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.CharacterEvent;
-import net.minecraft.client.input.PreeditEvent;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.input.PreeditEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import org.jetbrains.annotations.NotNull;
@@ -461,6 +462,16 @@ public class IrcScreen extends BaseOwoScreen<StackLayout> {
             this.closeGui();
             return true;
         }
+
+        if (input.key() == GLFW.GLFW_KEY_TAB && this.uiAdapter != null) {
+            var focusHandler = this.uiAdapter.rootComponent.focusHandler();
+            if (focusHandler != null && focusHandler.focused() instanceof TextInputPaneComponent inputPane) {
+                if (inputPane.onKeyPress(input)) {
+                    return true;
+                }
+            }
+        }
+
         return super.keyPressed(input);
     }
 
