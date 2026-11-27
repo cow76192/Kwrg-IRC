@@ -287,7 +287,8 @@ public class IrcClient {
     }
 
     public static void sendMessage(String content) {
-        if (content == null || content.isBlank()) return;
+        if (content == null) content = "";
+        if (content.isBlank() && !me.cookie.kwrg.svg.SvgImage.Draft.has()) return;
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
@@ -326,13 +327,32 @@ public class IrcClient {
             json.addProperty("channel", channel);
         }
 
+        me.cookie.kwrg.svg.SvgImage draft = me.cookie.kwrg.module.modules.functions.SvgInChatModule.enabled()
+                ? me.cookie.kwrg.svg.SvgImage.Draft.peek() : null;
+        if (draft != null) {
+            if (!isRunning) {
+                dispatch(json);
+                return;
+            }
+            me.cookie.kwrg.svg.SvgImage.Draft.take();
+            String body = decoration.content().replace("[svg]", "").stripTrailing();
+            json.addProperty("content", body);
+            json.addProperty("svg", me.cookie.kwrg.svg.SvgImage.encode(draft.source()));
+            IrcMessageHandler.displayFormattedMessage(channel, rank, nameStyle, username, chatStyle, body, decoration.prefix(), decoration.suffix(), draft);
+            sendRaw(GSON.toJson(json));
+            return;
+        }
+
         IrcMessageHandler.displayFormattedMessage(channel, rank, nameStyle, username, chatStyle,
                 decoration.content(), decoration.prefix(), decoration.suffix());
+        dispatch(json);
+    }
 
+    private static void dispatch(JsonObject json) {
         if (isRunning) {
             sendRaw(GSON.toJson(json));
         } else {
-            ChatNotifier.sendInChatScreen("§c[IRC] 发送失败：未连接至 IRC 服务器！正在尝试连接...");
+            ChatNotifier.send("§c[IRC] 发送失败：未连接至 IRC 服务器！正在尝试连接...", me.cookie.kwrg.gui.notification.NotificationType.ERR);
             connect();
         }
     }
@@ -357,7 +377,8 @@ public class IrcClient {
     }
 
     public static void sendMessageToPublic(String content) {
-        if (content == null || content.isBlank()) return;
+        if (content == null) content = "";
+        if (content.isBlank() && !me.cookie.kwrg.svg.SvgImage.Draft.has()) return;
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return;
@@ -387,6 +408,23 @@ public class IrcClient {
             json.addProperty("suffix", decoration.suffix());
         }
         json.addProperty("channel", "");
+
+        me.cookie.kwrg.svg.SvgImage draft = me.cookie.kwrg.module.modules.functions.SvgInChatModule.enabled()
+                ? me.cookie.kwrg.svg.SvgImage.Draft.peek() : null;
+        if (draft != null) {
+            if (!isRunning) {
+                dispatch(json);
+                return;
+            }
+            me.cookie.kwrg.svg.SvgImage.Draft.take();
+            String body = decoration.content().replace("[svg]", "").stripTrailing();
+            json.addProperty("content", body);
+            json.addProperty("svg", me.cookie.kwrg.svg.SvgImage.encode(draft.source()));
+            IrcMessageHandler.displayFormattedMessage("", rank, nameStyle, username, chatStyle, body,
+                    decoration.prefix(), decoration.suffix(), draft);
+            sendRaw(GSON.toJson(json));
+            return;
+        }
 
         IrcMessageHandler.displayFormattedMessage("", rank, nameStyle, username, chatStyle,
                 decoration.content(), decoration.prefix(), decoration.suffix());

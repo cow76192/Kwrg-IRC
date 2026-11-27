@@ -321,6 +321,22 @@ public class IrcMessageHandler {
             String prefix = obj.has("prefix") ? obj.get("prefix").getAsString() : "";
             String suffix = obj.has("suffix") ? obj.get("suffix").getAsString() : "";
 
+            if (obj.has("svg") && me.cookie.kwrg.module.modules.functions.SvgInChatModule.enabled()) {
+                String payload = obj.get("svg").getAsString();
+                String text = content.replace("[svg]", "").stripTrailing();
+                String finalChannel = channel;
+                String finalRank = rank;
+                String finalNameStyle = nameStyle;
+                String finalUsername = username;
+                String finalChatStyle = chatStyle;
+                String finalPrefix = prefix;
+                String finalSuffix = suffix;
+                me.cookie.kwrg.svg.render.SvgChatRenderer.decodeAsync(payload, image -> displayFormattedMessage(
+                        finalChannel, finalRank, finalNameStyle, finalUsername, finalChatStyle, text,
+                        finalPrefix, finalSuffix, image));
+                return;
+            }
+
             displayFormattedMessage(channel, rank, nameStyle, username, chatStyle, content, prefix, suffix);
         } catch (Exception e) {
             e.printStackTrace();
@@ -350,6 +366,10 @@ public class IrcMessageHandler {
     }
 
     public static void displayFormattedMessage(String channel, String rank, String nameStyle, String username, String chatStyle, String content, String prefix, String suffix) {
+        displayFormattedMessage(channel, rank, nameStyle, username, chatStyle, content, prefix, suffix, null);
+    }
+
+    public static void displayFormattedMessage(String channel, String rank, String nameStyle, String username, String chatStyle, String content, String prefix, String suffix, me.cookie.kwrg.svg.SvgImage image) {
         java.util.List<ChatNotifier.AnimatedSegment> segments = new java.util.ArrayList<>();
 
         boolean hasChannel = channel != null && !channel.isBlank();
@@ -383,7 +403,11 @@ public class IrcMessageHandler {
 
         ChatWaypointManager.appendButton(segments, body, rank, username);
 
-        ChatNotifier.sendAnimatedInChatScreen(segments);
+        if (image == null) {
+            ChatNotifier.sendAnimatedInChatScreen(segments);
+        } else {
+            me.cookie.kwrg.svg.render.SvgChatRenderer.sendMessage(image, ChatNotifier.composeSegments(segments));
+        }
         ChatModule.playConfiguredSound();
 
         for (String target : ImportantPlayerModule.CONFIG.get().importantPlayers) {

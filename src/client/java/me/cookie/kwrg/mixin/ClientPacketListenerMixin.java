@@ -4,6 +4,7 @@ import me.cookie.kwrg.irc.IrcClient;
 import me.cookie.kwrg.irc.manager.PlayerFinderManager;
 import me.cookie.kwrg.module.modules.functions.AutoPurchasePassModule;
 import me.cookie.kwrg.module.modules.functions.ChatSuffixModule;
+import me.cookie.kwrg.gui.notification.NotificationType;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.EmojiUtil; // 导入新工具类
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -22,13 +23,19 @@ public abstract class ClientPacketListenerMixin {
         if (IrcClient.isIrcChatActive) {
             IrcClient.sendMessage(message);
             ci.cancel();
+            return;
+        }
+        if (me.cookie.kwrg.svg.SvgImage.Draft.has()) {
+            me.cookie.kwrg.svg.SvgImage.Draft.clear();
+            ChatNotifier.send("§e[SVG] 仅在 IRC 聊天或 IRC 频道内生效，本条按文本 [svg] 发出", NotificationType.ERR);
         }
     }
 
     @ModifyVariable(method = "sendChat", at = @At("HEAD"), ordinal = 0, argsOnly = true)
     private String kwrg$appendPublicChatSuffix(String message) {
         if (IrcClient.isIrcChatActive) return message;
-        String processed = EmojiUtil.replaceShortcodes(message);
+        String text = me.cookie.kwrg.svg.SvgImage.Draft.has() ? message.replace("[svg]", "").trim() : message;
+        String processed = EmojiUtil.replaceShortcodes(text);
         processed = ChatNotifier.expandCoordsShortcut(processed);
         return ChatSuffixModule.applyPublicSuffixSafely(processed);
     }
@@ -44,6 +51,22 @@ public abstract class ClientPacketListenerMixin {
         PlayerFinderManager.onCommandSent(command);
 
         String lower = command.trim().toLowerCase();
+        if (lower.startsWith("svg ")) {
+            if (!IrcClient.isIrcChatActive) {
+                ChatNotifier.send("§e[SVG] 仅在 IRC 聊天或 IRC 频道内生效", NotificationType.ERR);
+                return;
+            }
+            String path = command.trim().substring(4).trim();
+            me.cookie.kwrg.svg.SvgImage image = me.cookie.kwrg.svg.SvgImage.Draft.fromPath(path);
+            if (image == null) {
+                ChatNotifier.send("§c[SVG] 读取失败: " + path, NotificationType.ERR);
+            } else {
+                me.cookie.kwrg.svg.SvgImage.Draft.put(image);
+                IrcClient.sendMessage("");
+            }
+            ci.cancel();
+            return;
+        }
         if (lower.equals("ac") || lower.startsWith("ac ") ||
                 lower.equals("cc") || lower.startsWith("cc ") ||
                 lower.equals("pc") || lower.startsWith("pc ")) {

@@ -34,6 +34,7 @@ public class ModuleManager {
 
         // --- FUNCTIONS 模块 ---
         register(new HideArmorModule());
+        register(new me.cookie.kwrg.module.modules.functions.SvgInChatModule());
         register(new GlowColorModule());
         register(new OnlineModule());
         register(new ImportantPlayerModule());

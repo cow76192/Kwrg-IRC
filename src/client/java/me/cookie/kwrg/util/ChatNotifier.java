@@ -52,6 +52,12 @@ public class ChatNotifier {
         Minecraft.getInstance().execute(ChatNotifier::flush);
     }
 
+    public static void sendRawInChatScreen(Component component) {
+        if (component == null) return;
+        PENDING_MESSAGES.offer(component);
+        Minecraft.getInstance().execute(ChatNotifier::flush);
+    }
+
     public static Component parseUrls(Component component) {
         String fullText = component.getString();
         Matcher matcher = URL_PATTERN.matcher(fullText);
@@ -232,6 +238,15 @@ public class ChatNotifier {
     private static final Queue<List<AnimatedSegment>> PENDING_ANIMATIONS = new ConcurrentLinkedQueue<>();
     private static final java.util.Map<net.minecraft.client.multiplayer.chat.GuiMessage, List<AnimatedSegment>> ACTIVE_ANIMATIONS = new java.util.concurrent.ConcurrentHashMap<>();
 
+    public static Component composeSegments(List<AnimatedSegment> segments) {
+        if (segments == null || segments.isEmpty()) return Component.empty();
+        MutableComponent root = Component.empty();
+        for (AnimatedSegment seg : segments) {
+            root.append(buildSegment(seg));
+        }
+        return parseUrls(root);
+    }
+
     public static void sendAnimatedInChatScreen(List<AnimatedSegment> segments) {
         if (segments == null || segments.isEmpty()) return;
 
@@ -239,13 +254,13 @@ public class ChatNotifier {
         boolean hasAnimation = false;
 
         for (AnimatedSegment seg : segments) {
-            root.append(buildSegment(seg));
             if (!seg.isRaw() && ColorUtil.isAnimatedStyle(seg.styleConfig())) {
                 hasAnimation = true;
+                break;
             }
         }
 
-        Component parsed = parseUrls(root);
+        Component parsed = composeSegments(segments);
 
         if (hasAnimation) {
             PENDING_ANIMATIONS.offer(segments);

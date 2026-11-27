@@ -288,7 +288,11 @@ public class IrcCommand {
                         })
                 )
                 .executes(context -> {
-                    ChatNotifier.sendInChatScreen("§c[IRC] 用法: /ic <消息内容>");
+                    if (me.cookie.kwrg.svg.SvgImage.Draft.has()) {
+                        IrcClient.sendMessage("");
+                        return 1;
+                    }
+                    ChatNotifier.send("§c[IRC] 用法: /ic <消息内容>", me.cookie.kwrg.gui.notification.NotificationType.ERR);
                     return 0;
                 })
         );
@@ -303,7 +307,11 @@ public class IrcCommand {
                         })
                 )
                 .executes(context -> {
-                    ChatNotifier.sendInChatScreen("§c[IRC] 用法: /icall <消息内容> (强制发送至公共大厅)");
+                    if (me.cookie.kwrg.svg.SvgImage.Draft.has()) {
+                        IrcClient.sendMessageToPublic("");
+                        return 1;
+                    }
+                    ChatNotifier.send("§c[IRC] 用法: /icall <消息内容> (强制发送至公共大厅)", me.cookie.kwrg.gui.notification.NotificationType.ERR);
                     return 0;
                 })
         );
