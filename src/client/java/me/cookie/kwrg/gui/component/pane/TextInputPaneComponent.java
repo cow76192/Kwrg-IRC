@@ -20,13 +20,17 @@ import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Consumer;
 
 public class TextInputPaneComponent extends BasePaneComponent implements GuiEventListener {
 
     private static final int BASE_HEIGHT = 26;
+    private static final int MAX_UNDO_HISTORY = 64;
 
     private final String placeholder;
     private final Component styledPlaceholder;
@@ -44,6 +48,13 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
     private boolean isDraggingSelection = false;
     private long lastActionTime = 0;
 
+    // 候选补全与撤销栈
+    private List<String> suggestions = List.of();
+    private List<String> tabCandidates = List.of();
+    private int tabIndex = -1;
+    private final Deque<UndoState> undoStack = new ArrayDeque<>();
+    private final Deque<UndoState> redoStack = new ArrayDeque<>();
+
     private boolean readOnly = false;
     private Runnable onReadOnlyClick = null;
     private float rightHintAlpha = 0.0f;
@@ -53,6 +64,8 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
     private final List<LineInfo> cachedLines = new ArrayList<>();
 
     private IMEPreeditOverlay preeditOverlay = null;
+
+    private record UndoState(String text, int cursorPos, int selectionAnchor) {}
 
     public TextInputPaneComponent(String placeholder, Consumer<String> onEnterSubmit) {
         this(placeholder, onEnterSubmit, "");
@@ -77,6 +90,8 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
         this.selectionAnchor = this.cursorPos;
         this.onReadOnlyClick = onReadOnlyClick;
         this.cursorStyle(CursorStyle.HAND);
+        clearHistory();
+        clearTabCycle();
         markDirty();
         return this;
     }
@@ -85,8 +100,26 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
         this.text = text != null ? text : "";
         this.cursorPos = this.text.length();
         this.selectionAnchor = this.cursorPos;
+        clearHistory();
+        clearTabCycle();
         markDirty();
         notifyTextChanged();
+        return this;
+    }
+
+    public TextInputPaneComponent setSuggestions(List<String> suggestions) {
+        if (suggestions == null || suggestions.isEmpty()) {
+            this.suggestions = List.of();
+        } else {
+            List<String> cleaned = new ArrayList<>(suggestions.size());
+            for (String s : suggestions) {
+                if (s != null && !s.isBlank() && !cleaned.contains(s)) {
+                    cleaned.add(s);
+                }
+            }
+            this.suggestions = List.copyOf(cleaned);
+        }
+        clearTabCycle();
         return this;
     }
 
@@ -102,6 +135,7 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
         this.cursorPos = cursorPos;
         clampCursor();
         this.selectionAnchor = this.cursorPos;
+        clearTabCycle();
         resetCursorBlink();
         return this;
     }
@@ -133,6 +167,7 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
     public void selectAll() {
         this.selectionAnchor = 0;
         this.cursorPos = this.text.length();
+        clearTabCycle();
         resetCursorBlink();
     }
 
@@ -150,6 +185,166 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
         clampCursor();
         notifyTextChanged();
         resetCursorBlink();
+    }
+
+    // 补全与撤销逻辑
+    private void pushUndoState() {
+        UndoState current = new UndoState(this.text, this.cursorPos, this.selectionAnchor);
+        if (!current.equals(this.undoStack.peekFirst())) {
+            this.undoStack.push(current);
+            while (this.undoStack.size() > MAX_UNDO_HISTORY) {
+                this.undoStack.removeLast();
+            }
+        }
+        this.redoStack.clear();
+    }
+
+    private void clearHistory() {
+        this.undoStack.clear();
+        this.redoStack.clear();
+    }
+
+    private boolean undo() {
+        if (this.undoStack.isEmpty()) return false;
+        this.redoStack.push(new UndoState(this.text, this.cursorPos, this.selectionAnchor));
+        UndoState prev = this.undoStack.pop();
+        restoreState(prev);
+        return true;
+    }
+
+    private boolean redo() {
+        if (this.redoStack.isEmpty()) return false;
+        this.undoStack.push(new UndoState(this.text, this.cursorPos, this.selectionAnchor));
+        UndoState next = this.redoStack.pop();
+        restoreState(next);
+        return true;
+    }
+
+    private void restoreState(UndoState state) {
+        this.text = state.text();
+        this.cursorPos = state.cursorPos();
+        this.selectionAnchor = state.selectionAnchor();
+        clearTabCycle();
+        clampCursor();
+        notifyTextChanged();
+        resetCursorBlink();
+    }
+
+    private void clearTabCycle() {
+        this.tabCandidates = List.of();
+        this.tabIndex = -1;
+    }
+
+    private boolean isTabCycling() {
+        return !this.tabCandidates.isEmpty()
+                && this.tabIndex >= 0
+                && this.tabIndex < this.tabCandidates.size()
+                && this.text.equals(this.tabCandidates.get(this.tabIndex));
+    }
+
+    private boolean canShowAutocomplete() {
+        return !this.readOnly
+                && this.focused
+                && !this.text.isEmpty()
+                && !hasSelection()
+                && this.cursorPos == this.text.length()
+                && this.preeditOverlay == null;
+    }
+
+    private List<String> findMatches(String query) {
+        if (this.suggestions.isEmpty() || query == null || query.isEmpty()) {
+            return List.of();
+        }
+        String lowerQuery = query.toLowerCase(Locale.ROOT);
+        List<String> prefixMatches = new ArrayList<>();
+        List<String> containsMatches = new ArrayList<>();
+
+        for (String candidate : this.suggestions) {
+            String lowerCandidate = candidate.toLowerCase(Locale.ROOT);
+            if (lowerCandidate.startsWith(lowerQuery)) {
+                if (!lowerCandidate.equals(lowerQuery) || !candidate.equals(query)) {
+                    prefixMatches.add(candidate);
+                }
+            } else if (lowerCandidate.contains(lowerQuery)) {
+                containsMatches.add(candidate);
+            }
+        }
+
+        List<String> matches = new ArrayList<>(prefixMatches.size() + containsMatches.size());
+        matches.addAll(prefixMatches);
+        matches.addAll(containsMatches);
+        return matches;
+    }
+
+    private String getActiveGhostText() {
+        if (!canShowAutocomplete() || isTabCycling()) {
+            return "";
+        }
+        List<String> matches = findMatches(this.text);
+        if (matches.isEmpty()) {
+            return "";
+        }
+        String best = matches.get(0);
+        if (best.toLowerCase(Locale.ROOT).startsWith(this.text.toLowerCase(Locale.ROOT))) {
+            return best.substring(this.text.length());
+        }
+        return "  → " + best;
+    }
+
+    private boolean handleTabAutocomplete(boolean reverse) {
+        if (this.suggestions.isEmpty() || this.preeditOverlay != null) {
+            return false;
+        }
+
+        if (isTabCycling()) {
+            if (this.tabCandidates.size() <= 1) {
+                return true;
+            }
+            int step = reverse ? -1 : 1;
+            this.tabIndex = Math.floorMod(this.tabIndex + step, this.tabCandidates.size());
+            applyCompletion(this.tabCandidates.get(this.tabIndex));
+            return true;
+        }
+
+        if (!canShowAutocomplete()) {
+            return false;
+        }
+
+        List<String> matches = findMatches(this.text);
+        if (matches.isEmpty()) {
+            return false;
+        }
+
+        pushUndoState();
+        this.tabCandidates = matches;
+        this.tabIndex = reverse ? matches.size() - 1 : 0;
+        applyCompletion(this.tabCandidates.get(this.tabIndex));
+        return true;
+    }
+
+    private void applyCompletion(String candidate) {
+        this.text = candidate;
+        this.cursorPos = candidate.length();
+        this.selectionAnchor = this.cursorPos;
+        clampCursor();
+        notifyTextChanged();
+        resetCursorBlink();
+    }
+
+    private static String trimToWidth(Font font, String value, int maxWidth) {
+        if (value.isEmpty() || maxWidth <= 0) return "";
+        if (font.width(FontManagerHelper.apply(value)) <= maxWidth) return value;
+
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            String next = sb.toString() + c;
+            if (font.width(FontManagerHelper.apply(next)) > maxWidth) {
+                break;
+            }
+            sb.append(c);
+        }
+        return sb.toString();
     }
 
     private void markDirty() {
@@ -214,6 +409,7 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
         this.focused = focused;
         if (!focused) {
             this.isDraggingSelection = false;
+            clearTabCycle();
             clearSelection();
             updateImeFocus(false);
         } else {
@@ -248,6 +444,7 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
         this.focused = false;
         this.isDraggingSelection = false;
         this.preeditOverlay = null;
+        clearTabCycle();
         clearSelection();
         updateImeFocus(false);
     }
@@ -392,6 +589,7 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
         int selStart = getSelectionStart();
         int selEnd = getSelectionEnd();
         boolean hasSel = hasSelection();
+        String ghostText = getActiveGhostText();
 
         if (this.text.isEmpty() && !this.focused && !this.placeholder.isEmpty()) {
             graphics.pose().pushMatrix();
@@ -400,6 +598,7 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
             graphics.drawText(this.styledPlaceholder, 0, 0, 1.0f, AnimationUtil.opaqueArgb(GuiThemeService.textFaint()), OwoUIGraphics.TextAnchor.TOP_LEFT);
             graphics.pose().popMatrix();
         } else {
+            int maxLineWidth = (int) (Math.max(154.0f, this.width() - 16.0f) / textScale);
             for (int i = 0; i < this.cachedLines.size(); i++) {
                 LineInfo line = this.cachedLines.get(i);
                 float curLineY = (int) (textStartY + i * font.lineHeight);
@@ -427,6 +626,17 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
                 }
 
                 graphics.drawText(line.styledText, 0, 0, 1.0f, textColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
+
+                if (i == this.cachedLines.size() - 1 && !ghostText.isEmpty()) {
+                    int lineWidth = line.text.isEmpty() ? 0 : font.width(line.styledText);
+                    int availableWidth = maxLineWidth - lineWidth;
+                    String fittedGhost = trimToWidth(font, ghostText, availableWidth);
+                    if (!fittedGhost.isEmpty()) {
+                        Component styledGhost = FontManagerHelper.apply(fittedGhost);
+                        int ghostColor = AnimationUtil.argb(GuiThemeService.textFaint(), 180);
+                        graphics.drawText(styledGhost, lineWidth, 0, 1.0f, ghostColor, OwoUIGraphics.TextAnchor.TOP_LEFT);
+                    }
+                }
 
                 if (showCursor && i == cursorLineIdx) {
                     int offsetInLine = Mth.clamp(this.cursorPos - line.start, 0, line.text.length());
@@ -471,17 +681,19 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
             }
         }
 
-        drawRightHint(graphics, font, halfW, textStartY, textScale, this.width(), delta);
+        drawRightHint(graphics, font, halfW, textStartY, textScale, this.width(), !ghostText.isEmpty(), delta);
     }
 
     private void drawRightHint(OwoUIGraphics graphics, Font font, float halfW, float textStartY,
-                               float textScale, int width, float delta) {
+                               float textScale, int width, boolean hasGhostText, float delta) {
         if (this.rightHint.isEmpty()) return;
 
         float scaledHintW = this.cachedRightHintWidth * textScale;
         float firstLineW = this.cachedLines.isEmpty() ? 0.0f : (font.width(this.cachedLines.get(0).styledText) * textScale);
 
-        boolean hasSpace = (this.cachedLines.size() <= 1) && (!this.text.isEmpty() || this.placeholder.isEmpty())
+        boolean hasSpace = !hasGhostText
+                && (this.cachedLines.size() <= 1)
+                && (!this.text.isEmpty() || this.placeholder.isEmpty())
                 && ((width - 16.0f - firstLineW - 24.0f) >= scaledHintW);
 
         float targetAlpha = hasSpace ? 1.0f : 0.0f;
@@ -513,6 +725,7 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
 
         if (click.button() == 0) {
             this.focused = true;
+            clearTabCycle();
             resetCursorBlink();
             updateImeFocus(true);
 
@@ -565,6 +778,8 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
         int codepoint = input.codepoint();
 
         if (codepoint >= 32 && codepoint != 127) {
+            pushUndoState();
+            clearTabCycle();
             if (hasSelection()) {
                 deleteSelection();
             }
@@ -589,6 +804,7 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
         // 回车提交
         if (input.key() == GLFW.GLFW_KEY_ENTER || input.key() == GLFW.GLFW_KEY_KP_ENTER) {
             String val = this.text.trim();
+            clearTabCycle();
             if (this.onEnterSubmit != null) {
                 this.onEnterSubmit.accept(val);
             }
@@ -596,17 +812,37 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
             return true;
         }
 
+        boolean shift = input.hasShiftDown();
+        boolean ctrl = input.hasControlDown();
+
+        // Tab 补全 ( Tab / Shift+Tab 切换候选)
+        if (input.key() == GLFW.GLFW_KEY_TAB && !ctrl) {
+            if (handleTabAutocomplete(shift)) {
+                return true;
+            }
+        }
+
+        // 撤销填充 / 编辑 (Ctrl + Z)
+        if (ctrl && !shift && input.key() == GLFW.GLFW_KEY_Z) {
+            undo();
+            return true;
+        }
+
+        // 重做 (Ctrl + Y 或 Ctrl + Shift + Z)
+        if ((ctrl && input.key() == GLFW.GLFW_KEY_Y) || (ctrl && shift && input.key() == GLFW.GLFW_KEY_Z)) {
+            redo();
+            return true;
+        }
+
         // 全选 Ctrl+A
-        if (input.hasControlDown() && input.key() == GLFW.GLFW_KEY_A) {
+        if (ctrl && input.key() == GLFW.GLFW_KEY_A) {
             selectAll();
             return true;
         }
 
-        boolean shift = input.hasShiftDown();
-        boolean ctrl = input.hasControlDown();
-
         // 光标左移
         if (input.key() == GLFW.GLFW_KEY_LEFT) {
+            clearTabCycle();
             if (shift) {
                 this.cursorPos = ctrl ? findPreviousWord(this.text, this.cursorPos) : Math.max(0, this.cursorPos - 1);
             } else {
@@ -624,6 +860,7 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
 
         // 光标右移
         if (input.key() == GLFW.GLFW_KEY_RIGHT) {
+            clearTabCycle();
             if (shift) {
                 this.cursorPos = ctrl ? findNextWord(this.text, this.cursorPos) : Math.min(this.text.length(), this.cursorPos + 1);
             } else {
@@ -644,6 +881,7 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
         updateLayoutCache(font, Math.max(154, this.width() - 16));
 
         if (input.key() == GLFW.GLFW_KEY_UP) {
+            clearTabCycle();
             int curLineIdx = getCursorLineIndex(this.cachedLines);
             if (curLineIdx > 0) {
                 LineInfo curLine = this.cachedLines.get(curLineIdx);
@@ -665,6 +903,7 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
 
         // 光标下移
         if (input.key() == GLFW.GLFW_KEY_DOWN) {
+            clearTabCycle();
             int curLineIdx = getCursorLineIndex(this.cachedLines);
             if (curLineIdx < this.cachedLines.size() - 1) {
                 LineInfo curLine = this.cachedLines.get(curLineIdx);
@@ -686,6 +925,7 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
 
         // Home
         if (input.key() == GLFW.GLFW_KEY_HOME) {
+            clearTabCycle();
             if (ctrl) {
                 this.cursorPos = 0;
             } else {
@@ -702,6 +942,7 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
 
         // End
         if (input.key() == GLFW.GLFW_KEY_END) {
+            clearTabCycle();
             if (ctrl) {
                 this.cursorPos = this.text.length();
             } else {
@@ -718,12 +959,15 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
 
         // Backspace
         if (input.key() == GLFW.GLFW_KEY_BACKSPACE) {
+            clearTabCycle();
             if (hasSelection()) {
+                pushUndoState();
                 deleteSelection();
                 return true;
             }
             clampCursor();
             if (this.cursorPos > 0) {
+                pushUndoState();
                 this.text = this.text.substring(0, this.cursorPos - 1) + this.text.substring(this.cursorPos);
                 this.cursorPos--;
                 this.selectionAnchor = this.cursorPos;
@@ -735,12 +979,15 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
 
         // Delete
         if (input.key() == GLFW.GLFW_KEY_DELETE) {
+            clearTabCycle();
             if (hasSelection()) {
+                pushUndoState();
                 deleteSelection();
                 return true;
             }
             clampCursor();
             if (this.cursorPos < this.text.length()) {
+                pushUndoState();
                 this.text = this.text.substring(0, this.cursorPos) + this.text.substring(this.cursorPos + 1);
                 notifyTextChanged();
                 resetCursorBlink();
@@ -753,15 +1000,19 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
             String clip = Minecraft.getInstance().keyboardHandler.getClipboard();
             if (clip != null && !clip.isEmpty()) {
                 String cleanClip = clip.replaceAll("[\r\n]", "");
-                if (hasSelection()) {
-                    deleteSelection();
+                if (!cleanClip.isEmpty() || hasSelection()) {
+                    pushUndoState();
+                    clearTabCycle();
+                    if (hasSelection()) {
+                        deleteSelection();
+                    }
+                    clampCursor();
+                    this.text = this.text.substring(0, this.cursorPos) + cleanClip + this.text.substring(this.cursorPos);
+                    this.cursorPos += cleanClip.length();
+                    this.selectionAnchor = this.cursorPos;
+                    notifyTextChanged();
+                    resetCursorBlink();
                 }
-                clampCursor();
-                this.text = this.text.substring(0, this.cursorPos) + cleanClip + this.text.substring(this.cursorPos);
-                this.cursorPos += cleanClip.length();
-                this.selectionAnchor = this.cursorPos;
-                notifyTextChanged();
-                resetCursorBlink();
             }
             return true;
         }
@@ -777,6 +1028,8 @@ public class TextInputPaneComponent extends BasePaneComponent implements GuiEven
         // 剪切 (Ctrl + X)
         if (ctrl && input.key() == GLFW.GLFW_KEY_X) {
             if (!this.readOnly && hasSelection()) {
+                pushUndoState();
+                clearTabCycle();
                 Minecraft.getInstance().keyboardHandler.setClipboard(getSelectedText());
                 deleteSelection();
             }
