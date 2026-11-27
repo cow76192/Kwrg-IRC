@@ -45,7 +45,6 @@ public class NotificationToast {
     private final NotificationType type;
     private final Component titleComp;
     private final Component subtitleComp;
-    private final Component iconComponent;
     private final Runnable onClickAction;
     private final long totalDurationMs;
 
@@ -72,7 +71,6 @@ public class NotificationToast {
         this.type = type;
         this.titleComp = title != null ? title : Component.empty();
         this.subtitleComp = subtitle != null ? subtitle : Component.empty();
-        this.iconComponent = Component.literal(type.getIcon());
         this.onClickAction = onClickAction;
         this.totalDurationMs = durationMs;
         this.createTime = System.currentTimeMillis();
@@ -188,15 +186,6 @@ public class NotificationToast {
         this.pressAnimation = Mth.clamp(this.pressAnimation + (targetPress - this.pressAnimation) * animEase, 0.0f, 1.0f);
 
         int accentRgb = this.type.getAccentRgb();
-        int bgRgb = this.type.getBgRgb();
-
-        int pressShade = (int) (this.pressAnimation * 28.0f);
-        int bgR = Math.max(0, ((bgRgb >> 16) & 0xFF) - pressShade);
-        int bgG = Math.max(0, ((bgRgb >> 8) & 0xFF) - pressShade);
-        int bgB = Math.max(0, (bgRgb & 0xFF) - pressShade);
-
-        int bgAlpha = (int) (255 * Mth.clamp(0.88f + this.hoverAnimation * 0.12f, 0.0f, 1.0f) * alpha);
-        Color bgColor = Color.ofArgb(ARGB.color(bgAlpha, bgR, bgG, bgB));
 
         int borderAlpha = (int) (255 * Mth.clamp(0.50f + this.hoverAnimation * 0.50f, 0.0f, 1.0f) * alpha);
         Color borderColor = Color.ofArgb(ARGB.color(borderAlpha, (accentRgb >> 16) & 0xFF, (accentRgb >> 8) & 0xFF, accentRgb & 0xFF));
@@ -214,16 +203,29 @@ public class NotificationToast {
         int halfW = cardWidth / 2;
         int halfH = cardHeight / 2;
 
-        RenderUtil.drawRoundedPanel(graphics, -halfW, -halfH, cardWidth, cardHeight, 8.0f, bgColor, borderColor);
+        // 圆角阴影
+//        RenderUtil.drawSoftDropShadow(graphics, -halfW, -halfH, cardWidth, cardHeight, 8.0f, 6.0f, 2.0f, 80, alpha);
+
+        // 圆角模糊背景
+        RenderUtil.drawRoundedBlur(graphics, -halfW, -halfH, cardWidth, cardHeight, 8.0f, 16.0f, 4.0f, 6.0f, alpha);
+
+        // 圆角边框
+        RenderUtil.drawRoundedPanel(graphics, -halfW, -halfH, cardWidth, cardHeight, 8.0f, Color.ofArgb(0), borderColor);
 
         int iconBadgeCX = -halfW + 14;
-        Color badgeBg = AnimationUtil.withAlpha(0x1D2633, (int) (255 * alpha));
-        graphics.drawCircle(iconBadgeCX, 0, 16, 7.5, badgeBg);
-        graphics.drawRing(iconBadgeCX, 0, 16, 6.5, 7.5, borderColor, borderColor);
-
-        float iconW = font.width(this.type.getIcon());
-        int iconColor = AnimationUtil.withAlpha(accentRgb, (int) (255 * alpha)).argb();
-        RenderUtil.drawSmoothText(graphics, this.iconComponent, iconBadgeCX - iconW / 2.0f, -4.5f, 1.0f, iconColor);
+        float iconSize = 16.0f;
+        int iconColor = AnimationUtil.withAlpha(0xFFFFFF, (int) (255 * alpha)).argb();
+        RenderUtil.drawTexture(
+                graphics,
+                this.type.getIcon(),
+                iconBadgeCX - iconSize / 2.0f,
+                -iconSize / 2.0f,
+                iconSize,
+                iconSize,
+                16,
+                16,
+                iconColor
+        );
 
         int textColor = AnimationUtil.withAlpha(0xFFFFFF, (int) (255 * alpha)).argb();
         RenderUtil.drawSmoothText(graphics, styledTitle, -halfW + 28, -4.5f, 1.0f, textColor);

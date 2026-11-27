@@ -1,9 +1,10 @@
 package me.cookie.kwrg.gui.util;
 
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import io.wispforest.owo.mixin.ui.access.GuiGraphicsExtractorAccessor;
 import io.wispforest.owo.ui.core.Color;
 import io.wispforest.owo.ui.core.OwoUIGraphics;
-import io.wispforest.owo.mixin.ui.access.GuiGraphicsExtractorAccessor;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
+import me.cookie.kwrg.render.RoundedBlurRenderer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.RenderPipelines;
@@ -97,7 +98,15 @@ public final class RenderUtil {
         public void blit(RenderPipeline pipeline, Identifier texture, int x, int y, float u, float v, int w, int h, int tw, int th) {
             delegate.blit(pipeline, texture, x, y, u, v, w, h, tw, th, fade(0xFFFFFFFF));
         }
+        
+        @Override
+        public void blit(RenderPipeline pipeline, Identifier texture, int x, int y, float u, float v, int w, int h, int tw, int th, int color) {
+            if (opacity > 0.005f) {
+                delegate.blit(pipeline, texture, x, y, u, v, w, h, tw, th, fade(color));
+            }
+        }
     }
+
 
     public static void fillSubpixel(OwoUIGraphics graphics, float minX, float minY, float maxX, float maxY, int color) {
         if (maxX <= minX || maxY <= minY) return;
@@ -154,6 +163,11 @@ public final class RenderUtil {
 
     public static void drawSoftDropShadow(OwoUIGraphics graphics, float x, float y, float width, float height,
                                           float radius, float blur, float offsetY, int baseAlpha, float alpha) {
+        drawSoftDropShadow(graphics, x, y, width, height, radius, blur, offsetY, baseAlpha, alpha, true);
+    }
+
+    public static void drawSoftDropShadow(OwoUIGraphics graphics, float x, float y, float width, float height,
+                                          float radius, float blur, float offsetY, int baseAlpha, float alpha, boolean fillCore) {
         if (alpha <= 0.005f || blur <= 0.1f) return;
 
         int maxA = (int) (baseAlpha * alpha);
@@ -167,7 +181,9 @@ public final class RenderUtil {
         float r = Math.min(radius, Math.min(width / 2.0f, height / 2.0f));
         float sy = y + offsetY;
 
-        drawSubpixelRoundedCore(graphics, x, sy, width, height, r, innerCol);
+        if (fillCore) {
+            drawSubpixelRoundedCore(graphics, x, sy, width, height, r, innerCol);
+        }
 
         if (width > 2.0f * r) {
             drawQuadGradient(graphics, x + r, sy - blur, x + width - r, sy, outerRgb, outerRgb, innerRgb, innerRgb);
@@ -187,7 +203,7 @@ public final class RenderUtil {
 
     public static void drawSoftDropShadow(OwoUIGraphics graphics, float x, float y, float width, float height,
                                           float radius, float blur, float offsetY, float alpha) {
-        drawSoftDropShadow(graphics, x, y, width, height, radius, blur, offsetY, 50, alpha);
+        drawSoftDropShadow(graphics, x, y, width, height, radius, blur, offsetY, 50, alpha, true);
     }
 
     public static void drawSubpixelRoundedPanel(OwoUIGraphics graphics, float x, float y, float width, float height,
@@ -381,14 +397,27 @@ public final class RenderUtil {
     }
 
     public static void drawTexture(OwoUIGraphics graphics, Identifier texture, float x, float y, float width, float height, int textureWidth, int textureHeight) {
+        drawTexture(graphics, texture, x, y, width, height, textureWidth, textureHeight, 0xFFFFFFFF);
+    }
+
+    public static void drawTexture(OwoUIGraphics graphics, Identifier texture, float x, float y, float width, float height, int textureWidth, int textureHeight, int color) {
         if (textureWidth <= 0 || textureHeight <= 0 || width <= 0.0f || height <= 0.0f) return;
+        if ((color >>> 24) == 0) return;
         graphics.pose().pushMatrix();
         graphics.pose().translate(x, y);
         graphics.pose().scale(width / textureWidth, height / textureHeight);
         graphics.blit(RenderPipelines.GUI_TEXTURED, texture,
                 0, 0, 0f, 0f,
                 textureWidth, textureHeight,
-                textureWidth, textureHeight);
+                textureWidth, textureHeight,
+                color);
         graphics.pose().popMatrix();
+    }
+
+    public static void drawRoundedBlur(OwoUIGraphics graphics, float x, float y, float width, float height,
+                                       float radius, float directions, float quality, float blurSize, float alpha) {
+        if (alpha <= 0.005f || width <= 0.0f || height <= 0.0f) return;
+        // 提交 RoundedBlurElementRenderState 到 graphics.guiRenderState
+        RoundedBlurRenderer.submit(graphics, x, y, width, height, radius, directions, blurSize, alpha);
     }
 }
