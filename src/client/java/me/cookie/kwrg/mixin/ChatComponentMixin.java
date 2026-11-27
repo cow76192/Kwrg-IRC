@@ -30,6 +30,21 @@ public abstract class ChatComponentMixin {
     @Shadow abstract void scrollChat(int pos);
     @Shadow abstract void addMessageToQueue(GuiMessage message);
     @Shadow abstract void addMessageToDisplayQueue(GuiMessage message);
+    @Shadow abstract int getLinesPerPage();
+
+    @Inject(
+            method = "extractRenderState(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/client/gui/Font;IIILnet/minecraft/client/gui/components/ChatComponent$DisplayMode;Z)V",
+            at = @At("TAIL")
+    )
+    private void kwrg$drawSvgMessages(net.minecraft.client.gui.GuiGraphicsExtractor graphics, net.minecraft.client.gui.Font font,
+                                      int guiTicks, int mouseX, int mouseY, ChatComponent.DisplayMode mode,
+                                      boolean changeCursorOnInsertions, CallbackInfo ci) {
+        if (mode == null) {
+            return;
+        }
+        me.cookie.kwrg.svg.render.SvgChatRenderer.draw(graphics, font, this.minecraft, this.trimmedMessages,
+                this.chatScrollbarPos, this.getLinesPerPage(), mouseX, mouseY, mode.foreground);
+    }
 
     @Inject(method = "addMessageToQueue", at = @At("HEAD"), cancellable = true)
     private void kwrg$onAddMessageToQueue(GuiMessage message, CallbackInfo ci) {

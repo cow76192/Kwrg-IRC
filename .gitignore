@@ -51,6 +51,9 @@ replay_*.log
 # HyperFrames 视频脚手架（本地生成，不属于本仓库内容）
 /video/
 
+# 本地测试素材：聊天框 SVG 解析用的样例文件，不入远端
+/test*.svg
+
 # 本地经验记录：含内部实现细节，不外传
 lessons-learned.txt
 lessons-learned*.txt
