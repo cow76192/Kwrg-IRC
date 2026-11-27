@@ -12,11 +12,15 @@ import me.cookie.kwrg.module.Category;
 import me.cookie.kwrg.module.Module;
 import me.cookie.kwrg.util.ChatNotifier;
 import me.cookie.kwrg.util.ColorUtil;
+import me.cookie.kwrg.util.ServerPlayerList;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 public class PlayerFinderModule extends Module {
 
@@ -32,6 +36,7 @@ public class PlayerFinderModule extends Module {
     }
 
     private String currentInputText = "";
+    private List<String> lobbyPlayers = List.of();
     private TertiaryPanelComponent activePanel = null;
 
     public PlayerFinderModule() {
@@ -53,7 +58,40 @@ public class PlayerFinderModule extends Module {
 
     @Override
     public void buildTertiaryUI(TertiaryPanelComponent panel) {
+        refreshLobbyPlayers();
         renderFinderUI(panel, null);
+    }
+
+    private void refreshLobbyPlayers() {
+        Minecraft mc = Minecraft.getInstance();
+        String selfName = mc.getUser() != null ? mc.getUser().getName() : "";
+
+        this.lobbyPlayers = ServerPlayerList.getRealListedPlayers(mc).stream()
+                .map(ServerPlayerList.Entry::name)
+                .filter(name -> !name.equalsIgnoreCase(selfName))
+                .distinct()
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
+    }
+
+    private List<String> getAvailableLobbyPlayers() {
+        if (this.lobbyPlayers.isEmpty()) return List.of();
+        Set<String> existing = new HashSet<>();
+        for (String target : PlayerFinderManager.getPlayers()) {
+            existing.add(target.toLowerCase(Locale.ROOT));
+        }
+        return this.lobbyPlayers.stream()
+                .filter(name -> !existing.contains(name.toLowerCase(Locale.ROOT)))
+                .toList();
+    }
+
+    private String resolvePlayerCase(String input) {
+        for (String name : this.lobbyPlayers) {
+            if (name.equalsIgnoreCase(input)) {
+                return name;
+            }
+        }
+        return input;
     }
 
     private void renderFinderUI(TertiaryPanelComponent panel, String newlyAddedPlayer) {
@@ -61,7 +99,7 @@ public class PlayerFinderModule extends Module {
         panel.clearChildren();
 
         TextInputPaneComponent inputPane = new TextInputPaneComponent("输入寻找玩家 (回车添加，永久保存)...", player -> {
-            String clean = player.trim();
+            String clean = resolvePlayerCase(player.trim());
             if (!clean.isEmpty()) {
                 PlayerFinderManager.addPlayer(clean);
                 ChatNotifier.send("§a[Finder] 已将 §f" + clean + " §a加入寻找名单！", NotificationType.SUCCESS);
@@ -70,6 +108,7 @@ public class PlayerFinderModule extends Module {
             }
         });
 
+        inputPane.setSuggestions(getAvailableLobbyPlayers());
         inputPane.setText(this.currentInputText);
         inputPane.onTextChanged(text -> this.currentInputText = text);
 

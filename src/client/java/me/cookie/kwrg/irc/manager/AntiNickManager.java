@@ -4,6 +4,7 @@ import me.cookie.kwrg.CookieMain;
 import me.cookie.kwrg.module.modules.functions.AntiNickModule;
 import me.cookie.kwrg.util.AntiNickDetector;
 import me.cookie.kwrg.util.ChatNotifier;
+import me.cookie.kwrg.util.ServerPlayerList;
 import me.cookie.kwrg.util.skyblock.SkyblockLocation;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -75,29 +76,27 @@ public final class AntiNickManager {
     private static int scan(Minecraft mc, boolean announceAll) {
         Set<UUID> present = new HashSet<>();
         int count = 0;
-        for (var info : mc.getConnection().getListedOnlinePlayers()) {
-            var profile = info.getProfile();
-            UUID id = profile.id();
-            if (id.version() == 2 || !profile.name().matches("[A-Za-z0-9_]{1,16}")) continue;
+        for (var player : ServerPlayerList.getRealListedPlayers(mc)) {
+            UUID id = player.id();
+            String name = player.name();
+            String value = player.textureValue();
             present.add(id);
 
-            var textures = profile.properties().get("textures");
-            String value = textures.isEmpty() ? "" : textures.iterator().next().value();
             ProfileState previous = SEEN.get(id);
-            if (previous != null && previous.name().equals(profile.name()) && previous.texture().equals(value)) {
+            if (previous != null && previous.name().equals(name) && previous.texture().equals(value)) {
                 if (previous.result().suspected()) {
                     count++;
-                    if (announceAll) announce(profile.name(), id, previous.result());
+                    if (announceAll) announce(name, id, previous.result());
                 }
                 continue;
             }
 
             var result = AntiNickDetector.inspect(id, value, NICK_SKINS);
-            SEEN.put(id, new ProfileState(profile.name(), value, result));
+            SEEN.put(id, new ProfileState(name, value, result));
             if (result.suspected()) {
                 count++;
-                if (announceAll || previous == null || !previous.name().equals(profile.name()) || !previous.result().equals(result)) {
-                    announce(profile.name(), id, result);
+                if (announceAll || previous == null || !previous.name().equals(name) || !previous.result().equals(result)) {
+                    announce(name, id, result);
                 }
             }
         }
